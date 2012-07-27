@@ -1,7 +1,7 @@
 /*
- * libretroshare/src/services: p3photoservice.h
+ * libretroshare/src/services: p3wire.h
  *
- * 3P/PQI network interface for RetroShare.
+ * Wire interface for RetroShare.
  *
  * Copyright 2012-2012 by Robert Fernie.
  *
@@ -23,63 +23,47 @@
  *
  */
 
-#ifndef P3_PHOTO_SERVICE_HEADER
-#define P3_PHOTO_SERVICE_HEADER
+#ifndef P3_WIRE_SERVICE_HEADER
+#define P3_WIRE_SERVICE_HEADER
 
 #include "services/p3gxsservice.h"
-#include "retroshare/rsphoto.h"
+
+#include "retroshare/rswire.h"
 
 #include <map>
 #include <string>
 
 /* 
- * Photo Service
- *
- * This is an example service for the new cache system.
- * For the moment, it will only hold data passed to it from the GUI.
- * and spew that back when asked....
- *
- * We are doing it like this - so we can check the required interface functionality.
- *
- * Expect it won't take long before it'll be properly linked into the backend!
- *
- * This will be transformed into a Plugin Service, once the basics have been worked out.
+ * Wire Service
  *
  */
-
-
-class PhotoDataProxy: public GxsDataProxy
+class WireDataProxy: public GxsDataProxy
 {
-	public:
+        public:
 
-	bool addAlbum(const RsPhotoAlbum &album);
-	bool addPhoto(const RsPhotoPhoto &photo);
+        bool getGroup(const std::string &id, RsWireGroup &group);
+        bool getPulse(const std::string &id, RsWirePulse &pulse);
 
-	bool getAlbum(const std::string &id, RsPhotoAlbum &album);
-	bool getPhoto(const std::string &id, RsPhotoPhoto &photo);
+        bool addGroup(const RsWireGroup &group);
+        bool addPulse(const RsWirePulse &pulse);
 
         /* These Functions must be overloaded to complete the service */
 virtual bool convertGroupToMetaData(void *groupData, RsGroupMetaData &meta);
-virtual bool convertMsgToMetaData(void *groupData, RsMsgMetaData &meta);
-
+virtual bool convertMsgToMetaData(void *msgData, RsMsgMetaData &meta);
 };
 
 
-
-class p3PhotoService: public p3GxsDataService, public RsPhoto
+class p3Wire: public p3GxsDataService, public RsWire
 {
 	public:
 
-	p3PhotoService(uint16_t type);
+	p3Wire(uint16_t type);
 
 virtual int	tick();
 
 	public:
 
-// NEW INTERFACE.
-/************* Extern Interface *******/
 
-        /* changed? */
 virtual bool updated();
 
        /* Data Requests */
@@ -97,8 +81,8 @@ virtual bool getMsgSummary(        const uint32_t &token, std::list<RsMsgMetaDat
 
         /* Actual Data -> specific to Interface */
         /* Specific Service Data */
-virtual bool getAlbum(const uint32_t &token, RsPhotoAlbum &album);
-virtual bool getPhoto(const uint32_t &token, RsPhotoPhoto &photo);
+virtual bool getGroupData(const uint32_t &token, RsWireGroup &group);
+virtual bool getMsgData(const uint32_t &token, RsWirePulse &page);
 
         /* Poll */
 virtual uint32_t requestStatus(const uint32_t token);
@@ -116,22 +100,20 @@ virtual bool setGroupServiceString(const std::string &grpId, const std::string &
 virtual bool groupRestoreKeys(const std::string &groupId);
 virtual bool groupShareKeys(const std::string &groupId, std::list<std::string>& peers);
 
-
-/* details are updated in album - to choose Album ID, and storage path */
-virtual bool submitAlbumDetails(uint32_t &token, RsPhotoAlbum &album, bool isNew);
-virtual bool submitPhoto(uint32_t &token, RsPhotoPhoto &photo, bool isNew);
-
-
+virtual bool createGroup(uint32_t &token, RsWireGroup &group, bool isNew);
+virtual bool createPulse(uint32_t &token, RsWirePulse &pulse, bool isNew);
 
 	private:
 
 std::string genRandomId();
 
-	PhotoDataProxy *mPhotoProxy;
+	WireDataProxy *mWireProxy;
 
-	RsMutex mPhotoMtx;
+	RsMutex mWireMtx;
+
+	/***** below here is locked *****/
+
 	bool mUpdated;
-
 
 };
 

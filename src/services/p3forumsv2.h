@@ -1,7 +1,7 @@
 /*
- * libretroshare/src/services: p3photoservice.h
+ * libretroshare/src/services: p3forumsv2.h
  *
- * 3P/PQI network interface for RetroShare.
+ * Wiki interface for RetroShare.
  *
  * Copyright 2012-2012 by Robert Fernie.
  *
@@ -23,64 +23,53 @@
  *
  */
 
-#ifndef P3_PHOTO_SERVICE_HEADER
-#define P3_PHOTO_SERVICE_HEADER
+#ifndef P3_FORUMSV2_SERVICE_HEADER
+#define P3_FORUMSV2_SERVICE_HEADER
 
 #include "services/p3gxsservice.h"
-#include "retroshare/rsphoto.h"
+
+#include "retroshare/rsforumsv2.h"
 
 #include <map>
 #include <string>
 
 /* 
- * Photo Service
- *
- * This is an example service for the new cache system.
- * For the moment, it will only hold data passed to it from the GUI.
- * and spew that back when asked....
- *
- * We are doing it like this - so we can check the required interface functionality.
- *
- * Expect it won't take long before it'll be properly linked into the backend!
- *
- * This will be transformed into a Plugin Service, once the basics have been worked out.
  *
  */
 
-
-class PhotoDataProxy: public GxsDataProxy
+class ForumDataProxy: public GxsDataProxy
 {
-	public:
+        public:
 
-	bool addAlbum(const RsPhotoAlbum &album);
-	bool addPhoto(const RsPhotoPhoto &photo);
+        bool getForumGroup(const std::string &id, RsForumV2Group &group);
+        bool getForumMsg(const std::string &id, RsForumV2Msg &msg);
 
-	bool getAlbum(const std::string &id, RsPhotoAlbum &album);
-	bool getPhoto(const std::string &id, RsPhotoPhoto &photo);
+        bool addForumGroup(const RsForumV2Group &group);
+        bool addForumMsg(const RsForumV2Msg &msg);
 
         /* These Functions must be overloaded to complete the service */
 virtual bool convertGroupToMetaData(void *groupData, RsGroupMetaData &meta);
-virtual bool convertMsgToMetaData(void *groupData, RsMsgMetaData &meta);
+virtual bool convertMsgToMetaData(void *msgData, RsMsgMetaData &meta);
 
 };
 
 
 
-class p3PhotoService: public p3GxsDataService, public RsPhoto
+
+
+class p3ForumsV2: public p3GxsDataService, public RsForumsV2
 {
 	public:
 
-	p3PhotoService(uint16_t type);
+	p3ForumsV2(uint16_t type);
 
 virtual int	tick();
 
 	public:
 
-// NEW INTERFACE.
-/************* Extern Interface *******/
 
-        /* changed? */
 virtual bool updated();
+
 
        /* Data Requests */
 virtual bool requestGroupInfo(     uint32_t &token, uint32_t ansType, const RsTokReqOptions &opts, const std::list<std::string> &groupIds);
@@ -97,8 +86,8 @@ virtual bool getMsgSummary(        const uint32_t &token, std::list<RsMsgMetaDat
 
         /* Actual Data -> specific to Interface */
         /* Specific Service Data */
-virtual bool getAlbum(const uint32_t &token, RsPhotoAlbum &album);
-virtual bool getPhoto(const uint32_t &token, RsPhotoPhoto &photo);
+virtual bool getGroupData(const uint32_t &token, RsForumV2Group &group);
+virtual bool getMsgData(const uint32_t &token, RsForumV2Msg &msg);
 
         /* Poll */
 virtual uint32_t requestStatus(const uint32_t token);
@@ -116,22 +105,21 @@ virtual bool setGroupServiceString(const std::string &grpId, const std::string &
 virtual bool groupRestoreKeys(const std::string &groupId);
 virtual bool groupShareKeys(const std::string &groupId, std::list<std::string>& peers);
 
-
-/* details are updated in album - to choose Album ID, and storage path */
-virtual bool submitAlbumDetails(uint32_t &token, RsPhotoAlbum &album, bool isNew);
-virtual bool submitPhoto(uint32_t &token, RsPhotoPhoto &photo, bool isNew);
-
-
+virtual bool createGroup(uint32_t &token, RsForumV2Group &group, bool isNew);
+virtual bool createMsg(uint32_t &token, RsForumV2Msg &msg, bool isNew);
 
 	private:
 
 std::string genRandomId();
+bool 	generateDummyData();
 
-	PhotoDataProxy *mPhotoProxy;
+	ForumDataProxy *mForumProxy;
 
-	RsMutex mPhotoMtx;
+	RsMutex mForumMtx;
+
+	/***** below here is locked *****/
+
 	bool mUpdated;
-
 
 };
 

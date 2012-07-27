@@ -1,5 +1,5 @@
 /*
- * libretroshare/src/services: p3photoservice.h
+ * libretroshare/src/services: p3posted.h
  *
  * 3P/PQI network interface for RetroShare.
  *
@@ -23,40 +23,34 @@
  *
  */
 
-#ifndef P3_PHOTO_SERVICE_HEADER
-#define P3_PHOTO_SERVICE_HEADER
+#ifndef P3_POSTED_SERVICE_HEADER
+#define P3_POSTED_SERVICE_HEADER
 
 #include "services/p3gxsservice.h"
-#include "retroshare/rsphoto.h"
+#include "retroshare/rsposted.h"
 
 #include <map>
 #include <string>
 
 /* 
- * Photo Service
- *
- * This is an example service for the new cache system.
- * For the moment, it will only hold data passed to it from the GUI.
- * and spew that back when asked....
- *
- * We are doing it like this - so we can check the required interface functionality.
- *
- * Expect it won't take long before it'll be properly linked into the backend!
- *
- * This will be transformed into a Plugin Service, once the basics have been worked out.
+ * Posted Service
  *
  */
 
 
-class PhotoDataProxy: public GxsDataProxy
+class PostedDataProxy: public GxsDataProxy
 {
 	public:
 
-	bool addAlbum(const RsPhotoAlbum &album);
-	bool addPhoto(const RsPhotoPhoto &photo);
+	bool addGroup(const RsPostedGroup &group);
+	bool addPost(const RsPostedPost &post);
+	bool addVote(const RsPostedVote &vote);
+	bool addComment(const RsPostedComment &comment);
 
-	bool getAlbum(const std::string &id, RsPhotoAlbum &album);
-	bool getPhoto(const std::string &id, RsPhotoPhoto &photo);
+	bool getGroup(const std::string &id, RsPostedGroup &group);
+	bool getPost(const std::string &id, RsPostedPost &post);
+	bool getVote(const std::string &id, RsPostedVote &vote);
+	bool getComment(const std::string &id, RsPostedComment &comment);
 
         /* These Functions must be overloaded to complete the service */
 virtual bool convertGroupToMetaData(void *groupData, RsGroupMetaData &meta);
@@ -66,11 +60,11 @@ virtual bool convertMsgToMetaData(void *groupData, RsMsgMetaData &meta);
 
 
 
-class p3PhotoService: public p3GxsDataService, public RsPhoto
+class p3PostedService: public p3GxsDataService, public RsPosted
 {
 	public:
 
-	p3PhotoService(uint16_t type);
+	p3PostedService(uint16_t type);
 
 virtual int	tick();
 
@@ -79,7 +73,6 @@ virtual int	tick();
 // NEW INTERFACE.
 /************* Extern Interface *******/
 
-        /* changed? */
 virtual bool updated();
 
        /* Data Requests */
@@ -97,8 +90,10 @@ virtual bool getMsgSummary(        const uint32_t &token, std::list<RsMsgMetaDat
 
         /* Actual Data -> specific to Interface */
         /* Specific Service Data */
-virtual bool getAlbum(const uint32_t &token, RsPhotoAlbum &album);
-virtual bool getPhoto(const uint32_t &token, RsPhotoPhoto &photo);
+virtual bool getGroup(const uint32_t &token, RsPostedGroup &group);
+virtual bool getPost(const uint32_t &token, RsPostedPost &post);
+virtual bool getComment(const uint32_t &token, RsPostedComment &comment);
+
 
         /* Poll */
 virtual uint32_t requestStatus(const uint32_t token);
@@ -116,21 +111,78 @@ virtual bool setGroupServiceString(const std::string &grpId, const std::string &
 virtual bool groupRestoreKeys(const std::string &groupId);
 virtual bool groupShareKeys(const std::string &groupId, std::list<std::string>& peers);
 
+virtual bool submitGroup(uint32_t &token, RsPostedGroup &group, bool isNew);
+virtual bool submitPost(uint32_t &token, RsPostedPost &post, bool isNew);
+virtual bool submitVote(uint32_t &token, RsPostedVote &vote, bool isNew);
+virtual bool submitComment(uint32_t &token, RsPostedComment &comment, bool isNew);
 
-/* details are updated in album - to choose Album ID, and storage path */
-virtual bool submitAlbumDetails(uint32_t &token, RsPhotoAlbum &album, bool isNew);
-virtual bool submitPhoto(uint32_t &token, RsPhotoPhoto &photo, bool isNew);
+	// Extended Interface for Collated Data View.
+virtual bool setViewMode(uint32_t mode);
+virtual bool setViewPeriod(uint32_t period);
+virtual bool setViewRange(uint32_t first, uint32_t count);
+
+virtual bool requestRanking(uint32_t &token, std::string groupId);
+virtual bool getRankedPost(const uint32_t &token, RsPostedPost &post);
 
 
+	// These are exposed for GUI usage.
+virtual bool encodePostedCache(std::string &str, uint32_t votes, uint32_t comments);
+virtual bool extractPostedCache(const std::string &str, uint32_t &votes, uint32_t &comments);
+virtual float calcPostScore(const RsMsgMetaData &meta);
 
 	private:
 
+	// 
+bool 	checkRankingRequest();
+bool 	processPosts();
+
+	// background processing of Votes.
+	// NB: These should probably be handled by a background thread.
+	// At the moment they are run from the tick() thread.
+
+bool 	background_checkTokenRequest();
+bool 	background_requestGroups();
+bool 	background_requestNewMessages();
+bool 	background_processNewMessages();
+
+bool 	background_updateVoteCounts();
+bool 	background_cleanup();
+
+
+
 std::string genRandomId();
+bool 	generateDummyData();
+bool 	addExtraDummyData();
 
-	PhotoDataProxy *mPhotoProxy;
+	PostedDataProxy *mPostedProxy;
 
-	RsMutex mPhotoMtx;
+	RsMutex mPostedMtx;
 	bool mUpdated;
+
+	// Ranking view mode, stored here.
+	uint32_t mViewMode;
+	uint32_t mViewPeriod;
+	uint32_t mViewStart;
+	uint32_t mViewCount;
+
+	// Processing Ranking stuff.
+	bool mProcessingRanking;
+	uint32_t mRankingState;
+	uint32_t mRankingExternalToken;
+	uint32_t mRankingInternalToken;
+
+	// background processing - Mutex protected.
+	time_t   mLastBgCheck;
+	bool 	 mBgProcessing;
+	uint32_t mBgPhase;
+	uint32_t mBgToken;
+
+	std::map<std::string, uint32_t> mBgVoteMap;	// ParentId -> Vote Count.
+	std::map<std::string, uint32_t> mBgCommentMap;  // ThreadId -> Comment Count.
+
+	// extra dummy data.
+        std::list<RsPostedVote>    mDummyLaterVotes;
+        std::list<RsPostedComment> mDummyLaterComments;
 
 
 };
