@@ -1,9 +1,8 @@
 /*******************************************************************************
- * libretroshare/src/file_sharing: file_tree.h                                 *
+ * RetroShare debugging level                                                  *
  *                                                                             *
- * libretroshare: retroshare core library                                      *
- *                                                                             *
- * Copyright 2018 by Cyril Soler <csoler@users.sourceforge.net>                *
+ * Copyright (C) 2020  Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2020  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -18,37 +17,26 @@
  * You should have received a copy of the GNU Lesser General Public License    *
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
- ******************************************************************************/
-#include "retroshare/rsfiles.h"
+ *******************************************************************************/
 
-class FileTreeImpl: public FileTree
-{
-public:
-	FileTreeImpl()
-	{
-		mTotalFiles = 0 ;
-		mTotalSize = 0 ;
-	}
+// #pragma once // This is commented out on purpose!
 
-	virtual std::string toRadix64() const ;
-	virtual bool getDirectoryContent(uint32_t index,std::string& name,std::vector<uint32_t>& subdirs,std::vector<FileData>& subfiles) const ;
-	virtual void print() const ;
+#include <util/rsdebug.h>
 
-	bool serialise(unsigned char *& data,uint32_t& data_size) const ;
-	bool deserialise(unsigned char* data, uint32_t data_size) ;
+#undef  RS_DEBUG_LEVEL
+#define RS_DEBUG_LEVEL 2
 
-protected:
-	void recurs_print(uint32_t index,const std::string& indent) const;
+#undef  RS_DBG0
+#define RS_DBG0(...) RsDbg(__PRETTY_FUNCTION__, " ", __VA_ARGS__)
 
-	static void recurs_buildFileTree(FileTreeImpl& ft, uint32_t index, const DirDetails& dd, bool remote, bool remove_top_dirs);
+#undef  RS_DBG1
+#define RS_DBG1(...) RsDbg(__PRETTY_FUNCTION__, " ", __VA_ARGS__)
 
-	struct DirData {
-		std::string name;
-		std::vector<uint32_t> subdirs ;
-		std::vector<uint32_t> subfiles ;
-	};
-	std::vector<FileData> mFiles ;
-	std::vector<DirData> mDirs ;
+#undef  RS_DBG2
+#define RS_DBG2(...) RsDbg(__PRETTY_FUNCTION__, " ", __VA_ARGS__)
 
-	friend class FileTree ;
-};
+#undef  RS_DBG3
+#define RS_DBG3(...) RsNoDbg()
+
+#undef  RS_DBG4
+#define RS_DBG4(...) RsNoDbg()
