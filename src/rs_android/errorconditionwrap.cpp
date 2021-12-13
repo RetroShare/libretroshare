@@ -1,9 +1,9 @@
 /*******************************************************************************
- * libretroshare/src/util: rserrno.h                                           *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright (C) 2019  Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2021  Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -19,6 +19,24 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
-#pragma once
 
-const char* rsErrnoName(int err);
+#include "rs_android/rsjni.hpp"
+
+namespace jni
+{
+Local<Object<RsJni::ErrorConditionWrap>> MakeAnything(
+        ThingToMake<RsJni::ErrorConditionWrap>, JNIEnv& env,
+        const std::error_condition& ec )
+{
+	auto& clazz = jni::Class<RsJni::ErrorConditionWrap>::Singleton(env);
+
+	static auto method =
+	        clazz.GetConstructor<jni::jint, jni::String, jni::String>(env);
+
+	jni::jint value = ec.value();
+	auto message = jni::Make<jni::String>(env, ec.message());
+	auto category = jni::Make<jni::String>(env, ec.category().name());
+
+	return clazz.New(env, method, value, message, category);
+}
+}
