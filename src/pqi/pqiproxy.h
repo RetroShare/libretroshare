@@ -4,7 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright 2004-2013 by Robert Fernie.                                       *
- * Copyright 2004-2021 by retroshare team <retroshare.project@gmail.com>       *
+ * Copyright 2004-2021 by retroshare team <contact@retroshare.cc>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

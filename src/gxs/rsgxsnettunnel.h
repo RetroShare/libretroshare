@@ -3,7 +3,7 @@
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright (C) 2018  Cyril Soler <retroshare.project@gmail.com>              *
+ * Copyright (C) 2018  Cyril Soler <contact@retroshare.cc>              *
  * Copyright (C) 2021  Gioacchino Mazzurco <gio@eigenlab.org>                  *
  * Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
