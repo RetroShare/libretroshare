@@ -1698,6 +1698,7 @@ int RsServer::StartupRetroShare()
 	/**************************************************************************/
 	p3ServerConfig *serverConfig = new p3ServerConfig(mPeerMgr, mLinkMgr, mNetMgr, pqih, mGeneralConfig);
 	serverConfig->load_config();
+	rsConfig = serverConfig;
 
 	/**************************************************************************/
 	/* Force Any Configuration before Startup (After Load) */
@@ -1918,7 +1919,6 @@ int RsServer::StartupRetroShare()
 
 	// rsDisc & RsMsgs done already.
 	rsBandwidthControl = mBwCtrl;
-	rsConfig = serverConfig;
 
 	
 	rsStatus = new p3Status(mStatusSrv);
