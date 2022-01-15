@@ -26,7 +26,9 @@ public:
     virtual void startServer() override ;
     virtual void stopServer() override ;
 
-    virtual void checkServerAddress_async(const std::string& addr,uint16_t,  const std::function<void (const std::string& address,bool result_status)>& callback) override ;
+    virtual void checkServerAddress_async(const std::string& addr, uint16_t, uint32_t timeout_ms,
+                                          const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback) override ;
+
     virtual void setServerAddress(const std::string&,uint16_t) override ;
     virtual void setProxyAddress(const std::string&,uint16_t) override ;
     virtual void setFriendsToRequest(uint32_t) override ;

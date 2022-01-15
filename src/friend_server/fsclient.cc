@@ -184,6 +184,48 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
     return true;
 }
 
+bool FsClient::checkProxyConnection(const std::string& onion_address,uint16_t port,const std::string& proxy_address,uint16_t proxy_port,uint32_t timeout_ms)
+{
+    int CreateSocket = 0;
+    struct sockaddr_in ipOfServer;
+
+    if((CreateSocket = socket(AF_INET, SOCK_STREAM, 0))< 0)
+    {
+        RsErr() << "Socket not created";
+        return false;
+    }
+
+    ipOfServer.sin_family = AF_INET;
+    ipOfServer.sin_port = htons(proxy_port);
+    ipOfServer.sin_addr.s_addr = inet_addr(proxy_address.c_str());
+
+    if(connect(CreateSocket, (struct sockaddr *)&ipOfServer, sizeof(ipOfServer))<0)
+    {
+        RsErr() << "Connection to proxy failed due to port and ip problems, or proxy is not available\n";
+        return false;
+    }
+
+    int ret=0;
+    pqiproxyconnection proxy;
+    proxy.setRemoteAddress(onion_address);
+    proxy.setRemotePort(port);
+
+    // now try for 5 secs
+
+    for(uint32_t i=0;i<timeout_ms/100;++i)
+        if(1 == (ret = proxy.proxy_negociate_connection(CreateSocket)))
+            return true;
+        else if(ret < 0)
+        {
+            RsErr() << "FriendServer client: Connection problem to the proxy!" ;
+            return false;
+        }
+        else
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    return false;
+}
+
 bool FsClient::RecvItem(RsItem *item)
 {
     mIncomingItems.push_back(item);

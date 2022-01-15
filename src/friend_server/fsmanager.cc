@@ -37,12 +37,10 @@ void FriendServerManager::stopServer()
         RsTickingThread::askForStop() ;
     }
 }
-void FriendServerManager::checkServerAddress_async(const std::string& addr,uint16_t,  const std::function<void (const std::string& address,bool result_status)>& callback)
+void FriendServerManager::checkServerAddress_async(const std::string& addr,uint16_t port, uint32_t timeout_ms,
+                                                   const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback)
 {
-#warning TODO
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    callback(addr,true);
+    callback(addr,port,FsClient::checkProxyConnection(addr,port,mProxyAddress,mProxyPort,timeout_ms));
 }
 
 void FriendServerManager::setServerAddress(const std::string& addr,uint16_t port)
