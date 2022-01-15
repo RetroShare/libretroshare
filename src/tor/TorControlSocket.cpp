@@ -72,7 +72,7 @@ void TorControlSocket::sendCommand(TorControlCommand *command, const ByteArray& 
     commandQueue.push_back(command);
     senddata((void*)data.data(),data.size());
 
-    std::cerr << "[TOR CTRL] Sent: \"" << data.trimmed().toString() << "\"" << std::endl;
+    RsInfo() << "[TOR CTRL] Sent: \"" << data.trimmed().toString() << "\"" ;
 }
 
 void TorControlSocket::registerEvent(const ByteArray &event, TorControlCommand *command)
