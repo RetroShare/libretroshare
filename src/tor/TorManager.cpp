@@ -216,7 +216,7 @@ bool TorManager::setupHiddenService()
 	}
 
     RsDbg() << "Using legacy dir: " << legacyDir ;
-    auto key_path = RsDirUtil::makePath(legacyDir,"/private_key");
+    auto key_path = RsDirUtil::makePath(legacyDir,"private_key");
 
     if (!legacyDir.empty() && RsDirUtil::fileExists(key_path))
     {
@@ -285,22 +285,22 @@ void TorManager::hiddenServicePrivateKeyChanged()
         return ;
 
     std::string key = d->hiddenService->privateKey().bytes().toString();
+    std::string legacyDir = d->hiddenServiceDir;
 
-    std::ofstream s(d->hiddenServiceDir + "/private_key");
-
-#ifdef TO_REMOVE
-	s << "-----BEGIN RSA PRIVATE KEY-----" << endl;
-
-    for(int i=0;i<key.length();i+=64)
-	    s << key.mid(i,64) << endl ;
-
-	s << "-----END RSA PRIVATE KEY-----" << endl;
-#endif
-    s << key ;
-
-    s.close();
+    RsDirUtil::checkCreateDirectory(legacyDir);
 
     RsDbg() << "Hidden service private key changed!" ;
+    auto key_path = RsDirUtil::makePath(legacyDir,"/private_key");
+
+//    if (!RsDirUtil::fileExists(key_path))
+//    {
+//        RsDbg() << "Private key file not present. Saving it to " << key_path;
+
+        std::ofstream s(d->hiddenServiceDir + "/private_key");
+        s << key ;
+        s.close();
+//    }
+
     RsDbg() << key ;
 }
 
