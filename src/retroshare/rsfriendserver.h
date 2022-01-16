@@ -33,6 +33,14 @@ public:
     virtual void setProxyAddress(const std::string&,uint16_t) =0;
     virtual void setFriendsToRequest(uint32_t) =0;
 
+    /*!
+     * \brief setProfilePassphrase
+     * 		Needs to be called as least once, and before the friend server is enabled, so as to be able to decrypt incoming information
+     * 		sent by the server. If not available, the passphrase will be asked by the GUI, which may cause some annoying
+     *      side effects.
+     */
+    virtual void setProfilePassphrase(const std::string& passphrase) =0;
+
     virtual uint32_t friendsToRequest() =0;
     virtual uint16_t friendsServerPort() =0;
     virtual std::string friendsServerAddress() =0;

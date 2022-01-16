@@ -2068,8 +2068,7 @@ std::error_condition RsLoginHelper::createLocationV2(
 		return RsInitErrorNum::PGP_KEY_CREATION_FAILED;
 	}
 
-	std::string sslPassword =
-	        RsRandom::random_alphaNumericString(RsInit::getSslPwdLen());
+    std::string sslPassword = RsRandom::random_alphaNumericString(RsInit::getSslPwdLen());
 
 	rsNotify->cachePgpPassphrase(password);
 	rsNotify->setDisableAskPassword(true);

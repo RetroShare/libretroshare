@@ -22,6 +22,7 @@
 
 #include "pqi/pqithreadstreamer.h"
 #include "retroshare/rspeers.h"
+#include "retroshare/rsnotify.h"
 
 #include "fsclient.h"
 #include "pqi/authgpg.h"
@@ -30,7 +31,9 @@
 
 bool FsClient::requestFriends(const std::string& address,uint16_t port,
                               const std::string& proxy_address,uint16_t proxy_port,
-                              uint32_t reqs,std::map<std::string,bool>& friend_certificates)
+                              uint32_t reqs,
+                              const std::string& pgp_passphrase,
+                              std::map<std::string,bool>& friend_certificates)
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
@@ -71,7 +74,15 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
         uint32_t decrypted_data_size = encrypted_response_item->bin_len;
         RsTemporaryMemory decrypted_data(decrypted_data_size);
 
-        if(!AuthPGP::decryptDataBin(encrypted_response_item->bin_data,encrypted_response_item->bin_len,  decrypted_data,&decrypted_data_size))
+        rsNotify->cachePgpPassphrase(pgp_passphrase) ;
+        rsNotify->setDisableAskPassword(true);
+
+        bool decrypted = AuthPGP::decryptDataBin(encrypted_response_item->bin_data,encrypted_response_item->bin_len,  decrypted_data,&decrypted_data_size);
+
+        rsNotify->setDisableAskPassword(false);
+        rsNotify->clearPgpPassphrase();
+
+        if(decrypted)
         {
             RsErr() << "Cannot decrypt incoming server response item. This is rather unexpected. Droping the data.";
             delete item;
@@ -91,20 +102,19 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
             continue;
         }
 
-        handleServerResponse(response_item);
+        handleServerResponse(response_item,friend_certificates);
 
         delete item;
     }
     return friend_certificates.size();
 }
 
-void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item)
+void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item,std::map<std::string,bool>& friend_certificates)
 {
-    std::cerr << "Received a response item from server: " << std::endl;
-    std::cerr << *item << std::endl;
+    RsDbg() << "Received a response item from server: " << (void*)item ;
 
-    //     for(const auto& it:response_item->friend_invites)
-    //        friend_certificates.insert(it);
+    for(const auto& it:item->friend_invites)
+        friend_certificates.insert(it);
 }
 
 bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,

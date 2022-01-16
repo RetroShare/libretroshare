@@ -29,12 +29,13 @@ public:
     virtual void checkServerAddress_async(const std::string& addr, uint16_t, uint32_t timeout_ms,
                                           const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback) override ;
 
+    virtual void setProfilePassphrase(const std::string& passphrase) override { mCachedPGPPassphrase = passphrase; }
     virtual void setServerAddress(const std::string&,uint16_t) override ;
     virtual void setProxyAddress(const std::string&,uint16_t) override ;
     virtual void setFriendsToRequest(uint32_t) override ;
 
-    virtual uint32_t friendsToRequest() override { return mFriendsToRequest ; }
-    virtual uint16_t friendsServerPort() override { return mServerPort ; }
+    virtual uint32_t    friendsToRequest()     override { return mFriendsToRequest ; }
+    virtual uint16_t    friendsServerPort()    override { return mServerPort ; }
     virtual std::string friendsServerAddress() override { return mServerAddress ; }
 protected:
     virtual void threadTick() override;
@@ -50,4 +51,5 @@ private:
     uint16_t mServerPort;
     std::string mProxyAddress ;
     uint16_t mProxyPort;
+    std::string mCachedPGPPassphrase;
 };
