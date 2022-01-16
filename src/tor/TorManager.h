@@ -92,6 +92,8 @@ private:
     explicit TorManager();
     TorManagerPrivate *d;
     friend class RsTor;
+
+    bool mHiddenServiceNeedsSaving;
 };
 
 }

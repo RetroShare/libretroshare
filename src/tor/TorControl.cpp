@@ -48,18 +48,6 @@
 
 class nullstream: public std::ostream {};
 
-static std::ostream& torctrldebug()
-{
-    static nullstream null ;
-
-    if(true)
-        return std::cerr << time(NULL) << ":TOR CONTROL: " ;
-    else
-        return null ;
-}
-
-#define torCtrlDebug torctrldebug
-
 using namespace Tor;
 
 TorControl::TorControl()
@@ -109,8 +97,6 @@ void TorControl::setStatus(TorControl::Status n)
 
     if (old == TorControl::Error)
         mErrorMessage.clear();
-
-    std::cerr << "Setting status to s=" << mStatus << " val=" << (int)torConnectivityStatus(mStatus) << std::endl;
 
     if(rsEvents)
     {
@@ -207,7 +193,7 @@ void TorControl::connect(const std::string &address, uint16_t port)
 {
     if (status() > Connecting)
     {
-        torCtrlDebug() << "Ignoring TorControl::connect due to existing connection" << std::endl;
+        RsDbg() << "Ignoring TorControl::connect due to existing connection" ;
         return;
     }
 
@@ -251,7 +237,7 @@ void TorControl::authenticateReply(TorControlCommand *sender)
         return;
     }
 
-    torCtrlDebug() << "torctrl: Authentication successful" << std::endl;
+    RsDbg() << "torctrl: Authentication successful" ;
     setStatus(TorControl::Authenticated);
 
     TorControlCommand *clientEvents = new TorControlCommand;
@@ -274,7 +260,7 @@ void TorControl::authenticate()
     assert(mStatus == TorControl::SocketConnected);
 
     setStatus(TorControl::Authenticating);
-    torCtrlDebug() << "torctrl: Connected socket; querying information for authentication" << std::endl;
+    RsDbg() << "torctrl: Connected socket; querying information for authentication" ;
 
     ProtocolInfoCommand *command = new ProtocolInfoCommand(this);
 
@@ -320,14 +306,14 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
 
         if(methods & ProtocolInfoCommand::AuthNull)
         {
-            torCtrlDebug() << "torctrl: Using null authentication" << std::endl;
+            RsDbg() << "torctrl: Using null authentication" ;
             data = auth->build();
         }
         else if ((methods & ProtocolInfoCommand::AuthCookie) && !info->cookieFile().empty())
         {
             std::string cookieFile = info->cookieFile();
             std::string cookieError;
-            torCtrlDebug() << "torctrl: Using cookie authentication with file" << cookieFile << std::endl;
+            RsDbg() << "torctrl: Using cookie authentication with file" << cookieFile ;
 
             FILE *f = fopen(cookieFile.c_str(),"r");
 
@@ -356,7 +342,7 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
                  * but it has happened. */
                 if ((methods & ProtocolInfoCommand::AuthHashedPassword) && !mAuthPassword.empty())
                 {
-                    torCtrlDebug() << "torctrl: Unable to read authentication cookie file:" << cookieError << std::endl;
+                    RsDbg() << "torctrl: Unable to read authentication cookie file:" << cookieError ;
                     goto usePasswordAuth;
                 }
 
@@ -368,7 +354,7 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
         else if ((methods & ProtocolInfoCommand::AuthHashedPassword) && !mAuthPassword.empty())
         {
             usePasswordAuth:
-            torCtrlDebug() << "torctrl: Using hashed password authentication with AuthPasswd=\"" << mAuthPassword.toString() << "\"" << std::endl;
+            RsDbg() << "torctrl: Using hashed password authentication with AuthPasswd=\"" << mAuthPassword.toString() << "\"" ;
             data = auth->build(mAuthPassword);
         }
         else
@@ -430,7 +416,7 @@ void TorControl::getTorInfoReply(TorControlCommand *sender)
      * listener yet. To handle that situation, we'll try to read the socks address again when TorReady state
      * is reached. */
     if (!mSocksAddress.empty()) {
-        torCtrlDebug() << "torctrl: SOCKS address is " << mSocksAddress << ":" << mSocksPort << std::endl;
+        RsDbg() << "torctrl: SOCKS address is " << mSocksAddress << ":" << mSocksPort ;
 
         if(rsEvents)
         {
@@ -445,7 +431,7 @@ void TorControl::getTorInfoReply(TorControlCommand *sender)
 
     if (ByteArray(command->get("status/circuit-established").front()).toInt() == 1)
     {
-        torCtrlDebug() << "torctrl: Tor indicates that circuits have been established; state is TorReady" << std::endl;
+        RsDbg() << "torctrl: Tor indicates that circuits have been established; state is TorReady" ;
         setTorStatus(TorControl::TorReady);
     }
 //    else
@@ -466,30 +452,29 @@ void TorControl::addHiddenService(HiddenService *service)
 
 void TorControl::publishServices()
 {
-	torCtrlDebug() << "Publish Services... " ;
+    RsDbg() << "Publish Services... " ;
 
     assert(isConnected());
     if (mServices.empty())
 	{
-		std::cerr << "No service regstered!" << std::endl;
+        RsErr() << "No service registered!" ;
         return;
 	}
-	std::cerr << std::endl;
 
     if (torVersionAsNewAs("0.2.7")) {
         for(HiddenService *service: mServices)
         {
             if (service->hostname().empty())
-                torCtrlDebug() << "torctrl: Creating a new hidden service" << std::endl;
+                RsDbg() << "torctrl: Creating a new hidden service" ;
             else
-                torCtrlDebug() << "torctrl: Publishing hidden service: " << service->hostname() << std::endl;
+                RsDbg() << "torctrl: Publishing hidden service: " << service->hostname() ;
             AddOnionCommand *onionCommand = new AddOnionCommand(service);
             //protocolInfoReplyQObject::connect(onionCommand, &AddOnionCommand::succeeded, service, &HiddenService::servicePublished);
             onionCommand->set_succeeded_callback( [this,service]() { checkHiddenService(service) ; });
             mSocket->sendCommand(onionCommand, onionCommand->build());
         }
     } else {
-        torCtrlDebug() << "torctrl: Using legacy SETCONF hidden service configuration for tor" << mTorVersion << std::endl;
+        RsDbg() << "torctrl: Using legacy SETCONF hidden service configuration for tor" << mTorVersion ;
         SetConfCommand *command = new SetConfCommand;
         std::list<std::pair<std::string,std::string> > torConfig;
 
@@ -504,7 +489,7 @@ void TorControl::publishServices()
                 continue;
             }
 
-            torCtrlDebug() << "torctrl: Configuring hidden service at" << service->dataPath() << std::endl;
+            RsDbg() << "torctrl: Configuring hidden service at" << service->dataPath() ;
 
             torConfig.push_back(std::make_pair("HiddenServiceDir", service->dataPath()));
 
@@ -569,7 +554,7 @@ void TorControl::statusEvent(int /* code */, const ByteArray &data)
         return;
 
     const ByteArray& tok2 = *(++(++tokens.begin()));
-    torCtrlDebug() << "torctrl: status event:" << data.trimmed().toString() << " tok2=\"" << tok2.toString() << "\"" << std::endl;
+    RsDbg() << "torctrl: status event:" << data.trimmed().toString() << " tok2=\"" << tok2.toString() << "\"" ;
 
     if (tok2 == "CIRCUIT_ESTABLISHED")
         setTorStatus(TorControl::TorReady);
@@ -584,7 +569,6 @@ void TorControl::statusEvent(int /* code */, const ByteArray &data)
 
 void TorControl::updateBootstrap(const std::list<ByteArray> &data)
 {
-    std::cerr << "********** Updating bootstrap status ************" << std::endl;
     mBootstrapStatus.clear();
     // WARN or NOTICE
     mBootstrapStatus["severity"] = (*data.begin()).toString();
@@ -714,7 +698,7 @@ public:
 
         file.close();
 
-        torCtrlDebug() << "torctrl: Wrote torrc file" << std::endl;
+        RsDbg() << "torctrl: Wrote torrc file" ;
         finishWithSuccess();
     }
 

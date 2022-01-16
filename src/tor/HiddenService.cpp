@@ -154,11 +154,11 @@ void HiddenService::servicePublished()
     loadPrivateKey();
 
     if (m_hostname.empty()) {
-        std::cerr << "Failed to read hidden service hostname" << std::endl;
+        RsErr() << "Failed to read hidden service hostname" ;
         return;
     }
 
-    std::cerr << "Hidden service published successfully" << std::endl;
+    RsDbg() << "Hidden service published successfully" ;
     setStatus(Online);
 }
 
