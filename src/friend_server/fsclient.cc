@@ -24,6 +24,7 @@
 #include "retroshare/rspeers.h"
 
 #include "fsclient.h"
+#include "pqi/authgpg.h"
 #include "pqi/pqifdbin.h"
 #include "pqi/pqiproxy.h"
 
@@ -31,7 +32,7 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
                               const std::string& proxy_address,uint16_t proxy_port,
                               uint32_t reqs,std::map<std::string,bool>& friend_certificates)
 {
-    // send our own certificate to publish and expects response frmo the server , decrypts it and reutnrs friend list
+    // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
     RsFriendServerClientPublishItem *pitem = new RsFriendServerClientPublishItem();
 
@@ -58,20 +59,39 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
 
     for(auto item:response)
     {
-        // auto *encrypted_response_item = dynamic_cast<RsFriendServerEncryptedServerResponseItem*>(item);
+        auto *encrypted_response_item = dynamic_cast<RsFriendServerEncryptedServerResponseItem*>(item);
 
-        // if(!encrypted_response_item)
-        // {
-        //     delete item;
-        //     continue;
-        // }
+        if(!encrypted_response_item)
+        {
+            RsErr() << "Received a response from the server that is not encrypted. Dropping that data." ;
+            delete item;
+            continue;
+        }
 
-        // For now, also handle unencrypted response items. Will be disabled in production
+        uint32_t decrypted_data_size = encrypted_response_item->bin_len;
+        RsTemporaryMemory decrypted_data(decrypted_data_size);
 
-        auto *response_item = dynamic_cast<RsFriendServerServerResponseItem*>(item);
+        if(!AuthPGP::decryptDataBin(encrypted_response_item->bin_data,encrypted_response_item->bin_len,  decrypted_data,&decrypted_data_size))
+        {
+            RsErr() << "Cannot decrypt incoming server response item. This is rather unexpected. Droping the data.";
+            delete item;
+            continue;
+        }
 
-        if(response_item)
-            handleServerResponse(response_item);
+        auto decrypted_item = FsSerializer().deserialise(decrypted_data,&decrypted_data_size);
+
+        // Check that the item has the correct type.
+
+        auto *response_item = dynamic_cast<RsFriendServerServerResponseItem*>(decrypted_item);
+
+        if(!response_item)
+        {
+            RsErr() << "Decrypted server response item is not a RsFriendServerResponse item. Somethings's wrong is going on.";
+            delete item;
+            continue;
+        }
+
+        handleServerResponse(response_item);
 
         delete item;
     }
