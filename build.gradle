@@ -64,7 +64,7 @@ ext.buildLibretroshareNativeLib =
 	def currToolchainPath = "$toolchainsWorkdir/$pApiLevel-$toolchainArch/"
 
 	// Todo: use proper way to resolve the script path
-	def toolChainScriptPath = "${projectDir}/../build_scripts/Android/prepare-toolchain-clang.sh"
+	def toolChainScriptPath = "${projectDir}/misc/Android/prepare-toolchain-clang.sh"
 
 	if(!pReuseToolchain || !file(currToolchainPath).exists())
 	{
