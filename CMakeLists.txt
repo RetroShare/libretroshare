@@ -187,7 +187,7 @@ if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/.git" )
 else()
 	FetchContent_Declare(
 		openpgpsdk
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/openpgpsdk.git"
+		GIT_REPOSITORY "https://gitlab.com/RetroShare/OpenPGP-SDK.git"
 		GIT_TAG "origin/master"
 		GIT_SHALLOW TRUE
 		GIT_PROGRESS TRUE
@@ -211,7 +211,7 @@ if(RS_BITDHT)
 	else()
 		FetchContent_Declare(
 			bitdht
-			GIT_REPOSITORY "https://gitlab.com/RetroShare/bitdht.git"
+		GIT_REPOSITORY "https://gitlab.com/RetroShare/BitDHT.git"
 			GIT_TAG "origin/master"
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE

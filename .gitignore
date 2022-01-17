@@ -6,3 +6,6 @@ build
 
 # Ignore Gradle local options
 local.properties
+
+# Ignore Qt Creator local CMake configuration
+CMakeLists.txt.user
