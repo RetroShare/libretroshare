@@ -829,7 +829,7 @@ public:
 	/**
 	 * @brief Parse the give short invite to extract contained information
 	 * @jsonapi{development}
-	 * @param[in]  invite   string containing the short invite to parse
+     * @param[in]  invite   string containing the short invite to parse. Radix64 format only.
 	 * @param[out] details  storage for the extracted information, consider it
 	 * @param[out] err_code storage for the error code 
 	 * @return false if error occurred, true otherwise

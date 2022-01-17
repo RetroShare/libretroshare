@@ -114,8 +114,32 @@ void FriendServerManager::threadTick()
 
         std::cerr << "Got the following list of friend certificates:" << std::endl;
 
-        for(const auto& it:friend_certificates)
-            std::cerr << it.first << " : " << it.second << std::endl;
+        // Let's put them in a vector to easy searching.
+        std::list<RsPeerId> lst;
+        rsPeers->getFriendList(lst);
+        std::set<RsPeerId> friend_locations_set(lst.begin(),lst.end());
+
+        for(const auto& invite:friend_certificates)
+        {
+            RsPeerDetails det;
+            uint32_t err_code;
+
+            if(!rsPeers->parseShortInvite(invite.first,det,err_code))
+            {
+                RsErr() << "Parsing error " << err_code << " in invite \"" << invite.first << "\"";
+                continue;
+            }
+
+            if(friend_locations_set.find(det.id) != friend_locations_set.end())
+            {
+                RsDbg() << "    Knw: " << (invite.second?"OK":"--") << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
+                continue;
+            }
+
+            RsDbg() << "    New: " << (invite.second?"OK":"--") << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
+
+            rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
+        }
     }
 }
 

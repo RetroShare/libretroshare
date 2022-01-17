@@ -82,7 +82,7 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
         rsNotify->setDisableAskPassword(false);
         rsNotify->clearPgpPassphrase();
 
-        if(decrypted)
+        if(!decrypted)
         {
             RsErr() << "Cannot decrypt incoming server response item. This is rather unexpected. Droping the data.";
             delete item;
