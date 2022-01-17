@@ -33,7 +33,9 @@ public:
 
     bool requestFriends(const std::string& address, uint16_t port,
                         const std::string &proxy_address, uint16_t proxy_port,
-                        uint32_t reqs, std::map<std::string,bool>& friend_certificates);
+                        uint32_t reqs,
+                        const std::string &pgp_passphrase,
+                        std::map<std::string,bool>& friend_certificates);
 
     static bool checkProxyConnection(const std::string& onion_address, uint16_t port, const std::string &proxy_address, uint16_t proxy_port, uint32_t timeout_ms);
 protected:
@@ -48,7 +50,7 @@ private:
                   const std::string &proxy_address, uint16_t proxy_port,
                   RsItem *item, std::list<RsItem *> &response);
 
-    void handleServerResponse(RsFriendServerServerResponseItem *item);
+    void handleServerResponse(RsFriendServerServerResponseItem *item, std::map<std::string, bool> &friend_certificates);
 
     std::list<RsItem*> mIncomingItems;
 };
