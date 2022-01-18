@@ -858,7 +858,7 @@ build_mvptree()
 task_register build_libretroshare
 build_libretroshare()
 {
-	S_dir="/home/gio/Development/rs-develop/libretroshare"
+	S_dir="$RS_SRC_DIR"
 	B_dir="libretroshare-build"
 	
 #		-DCMAKE_SYSTEM_NAME="Android" \
@@ -871,9 +871,9 @@ build_libretroshare()
 	andro_cmake -B. -H${S_dir} -DCMAKE_BUILD_TYPE=Release \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
 		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
-		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON
-	make -j${HOST_NUM_CPU}
-	make install
+		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	popd
 }
 
