@@ -860,18 +860,18 @@ build_libretroshare()
 {
 	S_dir="$RS_SRC_DIR"
 	B_dir="libretroshare-build"
-	
+
 #		-DCMAKE_SYSTEM_NAME="Android" \
 #		-DCMAKE_ANDROID_NDK="$ANDROID_NDK_PATH" \
 #		-DCMAKE_SYSTEM_VERSION=$ANDROID_PLATFORM_VER \
-
-#		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
 
 	rm -rf $B_dir; mkdir $B_dir ; pushd $B_dir
 	andro_cmake -B. -H${S_dir} -DCMAKE_BUILD_TYPE=Release \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
 		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
-		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON || return $?
+		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
+		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
+		-D RS_SQLCIPHER=OFF || return $?
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?
 	popd

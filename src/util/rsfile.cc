@@ -28,7 +28,17 @@
 #include <namedpipeapi.h>
 #include <errno.h>
 #else
-#include <fcntl.h>
+#	include <fcntl.h>
+#endif
+
+#ifdef __ANDROID__
+#	include <android/api-level.h>
+#	if __ANDROID_API__ < 18
+#		include "util/rsdebug.h"
+#		include "util/stacktrace.h"
+#		include <cstdlib>
+#		include <cerrno>
+#	endif
 #endif
 
 int RsFileUtil::set_fd_nonblock(int fd)
@@ -101,7 +111,13 @@ ssize_t RsFileUtil::rs_getline(char **lineptr, size_t *n, FILE *stream)
             ptr = new_lineptr + diff;
         }
     }
+
+#elif defined(__ANDROID__) && __ANDROID_API__ < 18
+#warning "RsFileUtil::rs_getline not supported for Android API < 18"
+	RS_FATAL("not supported for Android API ", __ANDROID_API__, " < 18");
+	print_stacktrace();
+	exit(ENOSYS);
 #else // ie UNIX
-    return getline(lineptr, n, stream);
+	return getline(lineptr, n, stream);
 #endif
 }
