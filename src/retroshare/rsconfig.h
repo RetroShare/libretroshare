@@ -382,16 +382,16 @@ public:
 	 * @param[in] opMode new opearting mode
 	 * @return
 	 */
-	virtual bool     setOperatingMode(RsOpMode opMode) = 0;
+	virtual bool setOperatingMode(RsOpMode opMode) = 0;
 
 	/**
 	 * @brief setOperatingMode set the current operating mode from string
 	 * @param[in] opModeStr new operating mode as string
 	 * @return
 	 */
-    virtual bool     setOperatingMode(const std::string &opModeStr) = 0;
+	virtual bool setOperatingMode(const std::string &opModeStr) = 0;
 
-    /* Data Rate Control - to be moved here */
+	/* Data Rate Control */
 	/**
 	 * @brief SetMaxDataRates set maximum upload and download rates
 	 * @jsonapi{development}
@@ -399,7 +399,20 @@ public:
 	 * @param[in] upKb upload rate in kB
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-    virtual int SetMaxDataRates( int downKb, int upKb ) = 0;
+	RS_DEPRECATED_FOR("setMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle)") \
+	virtual int SetMaxDataRates( int downKb, int upKb) = 0;
+
+	/* Data Rate Control */
+	/**
+	 * @brief setMaxDataRates set maximum upload and download rates
+	 * @jsonapi{development}
+	 * @param[in] inKb download rate in kB
+	 * @param[in] outKb upload rate in kB
+	 * @param[in] inKbWhenIdle download rate in kB When Idle
+	 * @param[in] outKbWhenIdle upload rate in kB When Idle
+	 * @return returns 1 on succes and 0 otherwise
+	 */
+	virtual int setMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle) = 0;
 
 	/**
 	 * @brief GetMaxDataRates get maximum upload and download rates
@@ -408,8 +421,20 @@ public:
 	 * @param[out] outKb upload rate in kB
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-    virtual int GetMaxDataRates( int &inKb, int &outKb ) = 0;
-    
+	RS_DEPRECATED_FOR("getMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle)") \
+	virtual int GetMaxDataRates( int &inKb, int &outKb) = 0;
+
+	/**
+	 * @brief getMaxDataRates get maximum upload and download rates
+	 * @jsonapi{development}
+	 * @param[out] inKb download rate in kB
+	 * @param[out] outKb upload rate in kB
+	 * @param[out] inKbWhenIdle download rate in kB When Idle
+	 * @param[out] outKbWhenIdle upload rate in kB When Idle
+	 * @return returns 1 on succes and 0 otherwise
+	 */
+	virtual int getMaxDataRates( int &inKb, int &outKb, int &inKbWhenIdle, int &outKbWhenIdle) = 0;
+
 	/**
 	 * @brief GetCurrentDataRates get current upload and download rates
 	 * @jsonapi{development}
@@ -417,8 +442,15 @@ public:
 	 * @param[out] outKb upload rate in kB
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-    virtual int GetCurrentDataRates( float &inKb, float &outKb ) = 0;
-    virtual int GetTrafficSum( uint64_t &inb, uint64_t &outb ) = 0;
+	virtual int GetCurrentDataRates( float &inKb, float &outKb ) = 0;
+	virtual int GetTrafficSum( uint64_t &inb, uint64_t &outb ) = 0;
+
+	/**
+	 * @brief setIsIdle set Idle state to use Max data rate when idle
+	 * @jsonapi{development}
+	 * @param[in] isIdle
+	 */
+	virtual void setIsIdle(bool isIdle) = 0;
 };
 
 #endif

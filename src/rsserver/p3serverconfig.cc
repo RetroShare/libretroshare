@@ -28,70 +28,63 @@
 
 RsServerConfig *rsConfig = NULL;
 
-static const std::string pqih_ftr("PQIH_FTR");
+static constexpr char PQIH_FTR[] = "PQIH_FTR";
+static constexpr char RS_CONFIG_ADVANCED_STRING[] = "AdvMode";
 
-#define DEFAULT_DOWNLOAD_KB_RATE       (10000.0)
-#define DEFAULT_UPLOAD_KB_RATE         (10000.0)
+static constexpr float DEFAULT_DOWNLOAD_KB_RATE = 10000.0;
+static constexpr float DEFAULT_UPLOAD_KB_RATE   = 10000.0;
 
-#define MIN_MINIMAL_RATE	(5.0)
+static constexpr float MIN_MINIMAL_RATE = 5.0;
 
 
 p3ServerConfig::p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg)
-:configMtx("p3ServerConfig")
+    :  mPeerMgr(peerMgr), mLinkMgr(linkMgr), mNetMgr(netMgr), mPqiHandler(pqih)
+    , mGeneralConfig(genCfg)
+    , configMtx("p3ServerConfig")
+    , mUserLevel(RsConfigUserLvl::NEW) // START LEVEL
+    , mRateDownload(DEFAULT_DOWNLOAD_KB_RATE), mRateUpload(DEFAULT_UPLOAD_KB_RATE)
+    , mRateDownloadWhenIdle(DEFAULT_DOWNLOAD_KB_RATE), mRateUploadWhenIdle(DEFAULT_UPLOAD_KB_RATE)
+    , mIsIdle(false), mOpMode(RsOpMode::FULL)
 {
-	mPeerMgr = peerMgr;
-	mLinkMgr = linkMgr;
-	mNetMgr = netMgr;
-	mPqiHandler = pqih;
-
-	mGeneralConfig = genCfg;
-
-	RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
-
-	mUserLevel = RsConfigUserLvl::NEW; /* START LEVEL */
-	mRateDownload =  DEFAULT_DOWNLOAD_KB_RATE;
-	mRateUpload = DEFAULT_UPLOAD_KB_RATE;
-
-	mOpMode = RsOpMode::FULL;
-
-	rsConfig = this;
 }
-
-
-p3ServerConfig::~p3ServerConfig() 
-{ 
-	return; 
-}
-
 
 void p3ServerConfig::load_config()
 {
 	/* get the real bandwidth setting from GeneralConfig */
-        std::string rates = mGeneralConfig -> getSetting(pqih_ftr);
+	std::string rates = mGeneralConfig -> getSetting(PQIH_FTR);
 
-        float mri, mro;
-        if (2 == sscanf(rates.c_str(), "%f %f", &mri, &mro))
-        {
+	float mri, mro, mrii, mroi;
+	if (4 == sscanf(rates.c_str(), "%f %f %f %f", &mri, &mro, &mrii, &mroi))
+	{
 		RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
 
 		mRateDownload = mri;
 		mRateUpload = mro;
-        }
-        else
-        {
+		mRateDownloadWhenIdle = mrii;
+		mRateUploadWhenIdle = mroi;
+	}
+	else if (2 == sscanf(rates.c_str(), "%f %f", &mri, &mro))
+	{
+		RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
+
+		mRateDownload = mri;
+		mRateUpload = mro;
+		mRateDownloadWhenIdle = mri;
+		mRateUploadWhenIdle = mro;
+	}
+	else
+	{
 		RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
 
 		mRateDownload =  DEFAULT_DOWNLOAD_KB_RATE;
 		mRateUpload = DEFAULT_UPLOAD_KB_RATE;
-        }
+	}
 
 	/* enable operating mode */
 	RsOpMode opMode = getOperatingMode();
 	switchToOperatingMode(opMode);
 }
 
-
-#define RS_CONFIG_ADVANCED_STRING 	"AdvMode"
 
 bool p3ServerConfig::findConfigurationOption(uint32_t key, std::string &keystr)
 {
@@ -112,8 +105,7 @@ bool p3ServerConfig::getConfigurationOption(uint32_t key, std::string &opt)
 	std::string strkey;
 	if (!findConfigurationOption(key, strkey))
 	{
-		std::cerr << "p3ServerConfig::getConfigurationOption() OPTION NOT VALID: " << key;
-		std::cerr << std::endl;
+		RS_ERR("OPTION NOT VALID: ", key);
 		return false;
 	}
 
@@ -127,8 +119,7 @@ bool p3ServerConfig::setConfigurationOption(uint32_t key, const std::string &opt
 	std::string strkey;
 	if (!findConfigurationOption(key, strkey))
 	{
-		std::cerr << "p3ServerConfig::setConfigurationOption() OPTION NOT VALID: " << key;
-		std::cerr << std::endl;
+		RS_ERR("OPTION NOT VALID: ", key);
 		return false;
 	}
 
@@ -137,12 +128,12 @@ bool p3ServerConfig::setConfigurationOption(uint32_t key, const std::string &opt
 }
 
 	/* From RsIface::RsConfig */
-int 	p3ServerConfig::getConfigNetStatus(RsConfigNetStatus &status)
+int p3ServerConfig::getConfigNetStatus(RsConfigNetStatus &status)
 {
-	status.ownId = AuthSSL::getAuthSSL()->OwnId();
-    status.ownName = AuthPGP::getPgpOwnName();
+	status.ownId = AuthSSL::instance().OwnId();
+	status.ownName = AuthPGP::getPgpOwnName();
 
-	// Details from PeerMgr.
+	// Details from PeerMgr
 	peerState pstate;
 	mPeerMgr->getOwnNetStatus(pstate);
 
@@ -451,33 +442,35 @@ bool p3ServerConfig::switchToOperatingMode(RsOpMode opMode)
 	bool turtle_enabled = true;
 
 	{
-		RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
-		dl_rate = mRateDownload;
-		ul_rate = mRateUpload;
+		RS_STACK_MUTEX(configMtx); /******* LOCKED MUTEX *****/
+		if (mIsIdle) {
+			dl_rate = mRateDownloadWhenIdle;
+			ul_rate = mRateUploadWhenIdle;
+		} else {
+			dl_rate = mRateDownload;
+			ul_rate = mRateUpload;
+		}
 	}
 
-	std::cerr << "p3ServerConfig::switchToOperatingMode(" << static_cast<typename std::underlying_type<RsOpMode>::type>(opMode) << ")";
-	std::cerr << std::endl;
+	RS_INFO("Switch to:", static_cast<int>(opMode));
 
 	switch (opMode)
 	{
 		default:
-	    case RsOpMode::FULL:
+		case RsOpMode::FULL:
 			/* switch on all transfers */
 			/* 100% bandwidth */
 			/* switch on popups, enable hashing */
-                	//setMaxRate(true, mri); // In / Download
-                	//setMaxRate(false, mro); // Out / Upload.
 			turtle_enabled = true;
 		break;
-	    case RsOpMode::NOTURTLE:
+		case RsOpMode::NOTURTLE:
 			/* switch on all transfers - except turtle, enable hashing */
 			/* 100% bandwidth */
 			/* switch on popups, enable hashing */
 			turtle_enabled = false;
 
 		break;
-	    case RsOpMode::GAMING:
+		case RsOpMode::GAMING:
 			/* switch on all transfers */
 			/* reduce bandwidth to 25% */
 			/* switch off popups, enable hashing */
@@ -486,7 +479,7 @@ bool p3ServerConfig::switchToOperatingMode(RsOpMode opMode)
 			dl_rate *= 0.25;
 			ul_rate *= 0.25;
 		break;
-	    case RsOpMode::MINIMAL:
+		case RsOpMode::MINIMAL:
 			/* switch off all transfers */
 			/* reduce bandwidth to 10%, but make sure there is enough for VoIP */
 			/* switch on popups, enable hashing */
@@ -495,62 +488,59 @@ bool p3ServerConfig::switchToOperatingMode(RsOpMode opMode)
 
 			dl_rate *= 0.10;
 			ul_rate *= 0.10;
-			if (dl_rate < MIN_MINIMAL_RATE)
-			{
-				dl_rate = MIN_MINIMAL_RATE;
-			}
-			if (ul_rate < MIN_MINIMAL_RATE)
-			{
-				ul_rate = MIN_MINIMAL_RATE;
-			}
-
 		break;
 	}
 
+	if (dl_rate < MIN_MINIMAL_RATE)
+		dl_rate = MIN_MINIMAL_RATE;
+	if (ul_rate < MIN_MINIMAL_RATE)
+		ul_rate = MIN_MINIMAL_RATE;
+
 	if (mPqiHandler)
 	{
-        	mPqiHandler -> setMaxRate(true, dl_rate);
-        	mPqiHandler -> setMaxRate(false, ul_rate);
-
-		std::cerr << "p3ServerConfig::switchToOperatingMode() D/L: " << dl_rate << " U/L: " << ul_rate;
-		std::cerr << std::endl;
-
+		mPqiHandler -> setMaxRate(true, dl_rate);
+		mPqiHandler -> setMaxRate(false, ul_rate);
+		RS_INFO("D/L: ", dl_rate, " U/L: ", ul_rate);
 	}
 
-	std::cerr << "p3ServerConfig::switchToOperatingMode() Turtle Mode: " << turtle_enabled;
-	std::cerr << std::endl;
-
 	rsTurtle->setSessionEnabled(turtle_enabled);
+	RS_INFO("Turtle Mode: ", turtle_enabled);
+
 	return true;
 }
 
 /* handle data rates.
  * Mutex must be handled at the lower levels: TODO */
 
-int p3ServerConfig::SetMaxDataRates( int downKb, int upKb ) /* in kbrates */
+int p3ServerConfig::setMaxDataRates( int inKb, int outKb , int inKBWhenIdle , int outKBWhenIdle) /* in kbrates */
 {
-        char line[512];
+	char line[512];
 
 	{
-		RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
-		mRateDownload = downKb;
-		mRateUpload = upKb;
-        	sprintf(line, "%f %f", mRateDownload, mRateUpload);
+		RS_STACK_MUTEX(configMtx); /******* LOCKED MUTEX *****/
+		mRateDownload = inKb;
+		mRateUpload = outKb;
+		mRateDownloadWhenIdle = inKBWhenIdle;
+		mRateUploadWhenIdle = outKBWhenIdle;
+		sprintf(line, "%f %f %f %f", mRateDownload, mRateUpload, mRateDownloadWhenIdle, mRateUploadWhenIdle);
 	}
-	mGeneralConfig->setSetting(pqih_ftr, std::string(line));
+	mGeneralConfig->setSetting(PQIH_FTR, std::string(line));
 
 	load_config(); // load and setup everything.
-        return 1;
+	return 1;
 }
 
 
-int p3ServerConfig::GetMaxDataRates( int &inKb, int &outKb ) /* in kbrates */
+int p3ServerConfig::getMaxDataRates(int &inKb, int &outKb , int &inKBWhenIdle, int &outKBWhenIdle) /* in kbrates */
 {
-	RsStackMutex stack(configMtx); /******* LOCKED MUTEX *****/
+	RS_STACK_MUTEX(configMtx); /******* LOCKED MUTEX *****/
 
 	inKb = mRateDownload;
 	outKb = mRateUpload;
-        return 1;
+	inKBWhenIdle = mRateDownloadWhenIdle;
+	outKBWhenIdle = mRateUploadWhenIdle;
+
+	return 1;
 }
 
 int p3ServerConfig::GetCurrentDataRates( float &inKb, float &outKb )
@@ -564,3 +554,11 @@ int p3ServerConfig::GetTrafficSum(uint64_t &inb, uint64_t &outb )
 	mPqiHandler->GetTraffic(inb, outb);
 	return 1;
 }
+
+void p3ServerConfig::setIsIdle(bool isIdle)
+{
+	RS_STACK_MUTEX(configMtx); /******* LOCKED MUTEX *****/
+
+	mIsIdle = isIdle;
+}
+
