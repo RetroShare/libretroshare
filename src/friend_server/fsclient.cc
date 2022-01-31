@@ -88,6 +88,12 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
             delete item;
             continue;
         }
+        if(decrypted_data_size == 0)
+        {
+            RsErr() << "Decrypted incoming data is of length 0. This is rather unexpected. Droping the data.";
+            delete item;
+            continue;
+        }
 
         auto decrypted_item = FsSerializer().deserialise(decrypted_data,&decrypted_data_size);
 

@@ -50,7 +50,7 @@ public:
 class RsFriendServerClientPublishItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerClientPublishItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_CLIENT_PUBLISH) {}
+    RsFriendServerClientPublishItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_CLIENT_PUBLISH),n_requested_friends(0) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
     {
@@ -75,7 +75,7 @@ public:
 class RsFriendServerStatusItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerStatusItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_STATUS) {}
+    RsFriendServerStatusItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_STATUS),status(UNKNOWN) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
     {
@@ -96,7 +96,7 @@ public:
 class RsFriendServerClientRemoveItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerClientRemoveItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_CLIENT_REMOVE) {}
+    RsFriendServerClientRemoveItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_CLIENT_REMOVE),nonce(0) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
     {
@@ -118,7 +118,8 @@ public:
 class RsFriendServerEncryptedServerResponseItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerEncryptedServerResponseItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_ENCRYPTED_RESPONSE) {}
+    RsFriendServerEncryptedServerResponseItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_ENCRYPTED_RESPONSE),
+                bin_data(nullptr),bin_len(0) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
     {
@@ -141,7 +142,7 @@ public:
 class RsFriendServerServerResponseItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerServerResponseItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_RESPONSE) {}
+    RsFriendServerServerResponseItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_RESPONSE), nonce(0) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
     {
@@ -156,7 +157,8 @@ public:
     }
     // specific members for that item
 
-    uint64_t nonce;
+    uint64_t nonce; // Note: calling this a "nonce" is a bit misleading because this value will be used once for every client but
+                    // will be re-used by the client. It acts as some kind of identifier for the server to quickly know who's talking.
     std::map<std::string,bool> friend_invites;
 };
 
