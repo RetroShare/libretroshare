@@ -105,6 +105,8 @@ int unix_fcntl_nonblock(int sockfd);
 int unix_connect(int sockfd, const sockaddr_storage& serv_addr);
 int unix_getsockopt_error(int sockfd, int *err);
 
+int rs_socket_error();
+
 #ifdef WINDOWS_SYS // WINDOWS
 /******************* WINDOWS SPECIFIC PART ******************/
 RS_DEPRECATED_FOR("use std::error_condition instead")
