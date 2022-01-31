@@ -399,7 +399,7 @@ public:
 	 * @param[in] upKb upload rate in kB
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-	RS_DEPRECATED_FOR("setMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle)") \
+	RS_DEPRECATED_FOR("setMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle)") 
 	virtual int SetMaxDataRates( int downKb, int upKb) = 0;
 
 	/* Data Rate Control */
@@ -421,7 +421,7 @@ public:
 	 * @param[out] outKb upload rate in kB
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-	RS_DEPRECATED_FOR("getMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle)") \
+	RS_DEPRECATED_FOR("getMaxDataRates( int inKb, int outKb, int inKbWhenIdle, int outKbWhenIdle)") 
 	virtual int GetMaxDataRates( int &inKb, int &outKb) = 0;
 
 	/**
