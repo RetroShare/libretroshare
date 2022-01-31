@@ -476,6 +476,14 @@ int unix_getsockopt_error(int sockfd, int *err)
 	return ret;
 }
 
+int rs_socket_error()
+{
+#ifdef WINDOWS_SYS // ie WINDOWS.
+    return WinToUnixError(WSAGetLastError());
+#else
+    return errno;
+#endif
+}
 /******************* WINDOWS SPECIFIC PART ******************/
 #ifdef WINDOWS_SYS // ie WINDOWS.
 
@@ -490,7 +498,7 @@ int	WinToUnixError(int error)
 			return EINPROGRESS;
 			break;
 		case WSAEWOULDBLOCK:
-			return EINPROGRESS;
+            return EWOULDBLOCK;
 			break;
 		case WSAENETUNREACH:
 			return ENETUNREACH;
