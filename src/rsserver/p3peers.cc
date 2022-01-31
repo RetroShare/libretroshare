@@ -1169,11 +1169,11 @@ static void addPacketHeader(RsShortInviteFieldType ptag, size_t size, unsigned c
 
 	while(offset + size + 6 >= buf_size)
 	{
-		unsigned char *newbuf = new unsigned char[2*buf_size] ;
+        unsigned char *newbuf = (unsigned char*)malloc(2*buf_size) ;
 
 		memcpy(newbuf, buf, buf_size) ;
 		buf_size *= 2 ;
-		delete[] buf ;
+        free(buf) ;
 		buf = newbuf ;
 	}
 
@@ -1352,6 +1352,7 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
 		inviteUrl.setQueryKV("rsInvite", invite);
 		invite = inviteUrl.toString();
 	}
+    free(buf);
 
 	return true;
 }
