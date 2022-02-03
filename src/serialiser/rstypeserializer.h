@@ -966,6 +966,23 @@ protected:
 //                          Integral types VLQ                                //
 //============================================================================//
 
+/* Avoid bool-compare warning being emitted for specific sections of code, for
+ * compilers that supports it, clang would warn about unkown warning if not
+ * explicitely excluded (it defiles GCC macros too)
+ * @see https://nelkinda.com/blog/suppress-warnings-in-gcc-and-clang/#d11e201
+ * @see https://stackoverflow.com/a/28166605
+ */
+#if defined(__GNUG__) && ! defined(__clang__)
+#	define RsTypeSerializer_SUPPRESS_WBC_WARNING_PUSH \
+	    _Pragma("GCC diagnostic push") \
+	    _Pragma("GCC diagnostic ignored \"-Wbool-compare\"")
+#	define RsTypeSerializer_SUPPRESS_WBC_WARNING_POP \
+	    _Pragma("GCC diagnostic pop")
+#else
+#	define RsTypeSerializer_SUPPRESS_WBC_WARNING_PUSH
+#	define RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
+#endif
+
 	/**
 	 * Size calculation of unsigned integers as Variable Lenght Quantity
 	 * @see RsSerializationFlags::INTEGER_VLQ
@@ -979,10 +996,9 @@ protected:
 	{
 		std::decay_t<T> memberBackup = member;
 		uint32_t ret = 1;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wbool-compare"
+RsTypeSerializer_SUPPRESS_WBC_WARNING_PUSH
 		while(member > 127) { ++ret; member >>= 7; }
-#pragma GCC diagnostic pop
+RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
 		Dbg2() << __PRETTY_FUNCTION__ << " memberBackup: " << memberBackup
 		       << " return: " << ret << std::endl;
 		return ret;
@@ -1006,8 +1022,7 @@ protected:
 #endif
 
 		bool ok = true;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wbool-compare"
+RsTypeSerializer_SUPPRESS_WBC_WARNING_PUSH
 		/* Check with < and not with <= here as we write last byte after
 		 * the loop. Order of && operands very important here! */
 		while(member > 127 && (ok = (offset < size)))
@@ -1017,7 +1032,7 @@ protected:
 			// Remove the seven bits we just wrote
 			member >>= 7;
 		}
-#pragma GCC diagnostic pop
+RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
 
 		if(!(ok = ok && offset <= size))
 		{
