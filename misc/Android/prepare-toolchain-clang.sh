@@ -73,6 +73,7 @@ define_default_value QT_INSTALL_PATH "${NATIVE_LIBS_TOOLCHAIN_PATH}/Qt/"
 
 define_default_value QT_ANDROID_INSTALLER_SHA256 a214084e2295c9a9f8727e8a0131c37255bf724bfc69e80f7012ba3abeb1f763
 
+## TODO: Report that 4.8 doesn't compile for Android and test newer versions
 define_default_value RESTBED_SOURCE_REPO "https://github.com/Corvusoft/restbed.git"
 define_default_value RESTBED_SOURCE_VERSION f74f9329dac82e662c1d570b7cd72c192b729eb4
 
@@ -861,17 +862,13 @@ build_libretroshare()
 	S_dir="$RS_SRC_DIR"
 	B_dir="libretroshare-build"
 
-#		-DCMAKE_SYSTEM_NAME="Android" \
-#		-DCMAKE_ANDROID_NDK="$ANDROID_NDK_PATH" \
-#		-DCMAKE_SYSTEM_VERSION=$ANDROID_PLATFORM_VER \
-
 	rm -rf $B_dir; mkdir $B_dir ; pushd $B_dir
 	andro_cmake -B. -H${S_dir} -DCMAKE_BUILD_TYPE=Release \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
 		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
-		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
-		-D RS_SQLCIPHER=OFF || return $?
+		-D RS_SQLCIPHER=OFF -D RS_DH_PRIME_INIT_CHECK=OFF \
+		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON || return $?
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?
 	popd
@@ -891,7 +888,7 @@ build_default_toolchain()
 	task_run build_openssl || return $?
 	task_run build_sqlcipher || return $?
 	task_run build_rapidjson || return $?
-#	task_run build_restbed || return $?
+	task_run build_restbed || return $?
 #	task_run build_udp-discovery-cpp || return $?
 	task_run build_xapian || return $?
 	task_run build_miniupnpc || return $?

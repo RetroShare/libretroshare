@@ -131,6 +131,11 @@ option(
 	"Export libretroshare JNI_OnLoad. See src/rs_android/rsjni.cpp for details"
 	ON )
 
+option(
+	RS_ANDROID
+	"Enable when compiling libretroshare for Android"
+	OFF )
+
 ################################################################################
 
 find_package(Git REQUIRED)
@@ -292,6 +297,12 @@ if(RS_JSON_API)
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
 
+	if(NOT RS_ANDROID)
+	## At moment depending on restbed this way doesn't seems to work at least on
+	## Android due to upstream CMake file limitation, patches should be sent
+	## upstream. Restbed is therefore compiled by Android toolchain preparation
+	## script
+
 	FetchContent_Declare(
 		restbed
 		GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
@@ -303,10 +314,17 @@ if(RS_JSON_API)
 	)
 	FetchContent_MakeAvailable(restbed)
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
-
 	## TODO: work around target_include_directories should be added upstream
 	include_directories(${restbed_SOURCE_DIR}/source/)
+
+	## TODO: work around target_link_libraries should be added upstream
+	## The workaround doesn't work as per documentation
+	## https://cmake.org/cmake/help/latest/command/link_directories.html
+	## "The command will apply only to targets created after it is called."
+	#link_directories(${restbed_BINARY_DIR})
+	endif(NOT RS_ANDROID)
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 
 	add_compile_definitions(RS_JSONAPI)
 endif(RS_JSON_API)
