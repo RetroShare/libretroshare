@@ -634,7 +634,7 @@ build_xapian()
 		https://oligarchy.co.uk/xapian/${XAPIAN_SOURCE_VERSION}/$D_file
 	rm -rf $B_dir
 	tar -xf $D_file
-	cd $B_dir
+	pushd $B_dir
 	B_endiannes_detection_failure_workaround="ac_cv_c_bigendian=no"
 	B_large_file=""
 	[ "${ANDROID_PLATFORM_VER}" -lt "24" ] && B_large_file="--disable-largefile"
@@ -646,7 +646,10 @@ build_xapian()
 		--prefix="${PREFIX}" --with-sysroot="${SYSROOT}"
 	make -j${HOST_NUM_CPU}
 	make install
-	cd ..
+
+	# TODO: Fix upstream Xapian CMake package to find static library
+	sed -i 's/libxapian.so/libxapian.a/g' "${SYSROOT}/usr/lib/cmake/xapian/xapian-config.cmake"
+	popd
 }
 
 task_register build_miniupnpc
