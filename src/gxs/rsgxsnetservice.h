@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2012  Christopher Evi-Parker                                  *
- * Copyright (C) 2018-2021  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2019-2021  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2022  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2019-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -36,7 +36,6 @@
 #include "rsgxsnetutils.h"
 #include "pqi/p3cfgmgr.h"
 #include "rsgixs.h"
-#include "util/rssharedptr.h"
 
 /// keep track of transaction number
 typedef std::map<uint32_t, NxsTransaction*> TransactionIdMap;
