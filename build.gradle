@@ -117,6 +117,8 @@ android
 	// see https://stackoverflow.com/questions/27301867/what-is-compilesdkversion
 	compileSdkVersion 21
 
+	ndkVersion "21.0.6113669"
+
 	sourceSets
 	{
 		main
