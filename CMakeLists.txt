@@ -132,6 +132,12 @@ option(
 	ON )
 
 option(
+	RS_DEVELOPMENT_BUILD
+	"Disable optimization to speed up build, enable verbose build log. \
+	 just for development purposes, not suitable for library usage"
+	OFF )
+
+option(
 	RS_ANDROID
 	"Enable when compiling libretroshare for Android"
 	OFF )
@@ -150,6 +156,13 @@ find_package(Git REQUIRED)
 #			COMMAND_ERROR_IS_FATAL ANY)
 #	endif()
 #endfunction()
+
+################################################################################
+
+if(RS_DEVELOPMENT_BUILD)
+	set(CMAKE_VERBOSE_MAKEFILE ON)
+	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif(RS_DEVELOPMENT_BUILD)
 
 ################################################################################
 
@@ -174,6 +187,10 @@ target_include_directories(
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src )
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+if(RS_DEVELOPMENT_BUILD)
+	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
+endif(RS_DEVELOPMENT_BUILD)
 
 # TODO: install public headers
 
@@ -471,6 +488,3 @@ endif(RS_ANDROID)
 #endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 
 ################################################################################
-
-## Useful to debug CMake
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
