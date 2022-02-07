@@ -36,7 +36,6 @@ extern "C" {
     #include "openpgpsdk/keyring.h"
 }
 
-/// This class offer an abstract pgp handler to be used in RetroShare.
 class OpenPGPSDKHandler: public PGPHandler
 {
 public:
