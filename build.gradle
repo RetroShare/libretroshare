@@ -119,6 +119,13 @@ android
 
 	ndkVersion "21.0.6113669"
 
+	defaultConfig
+	{
+		/* Prevent proguard run at applications build time, to alter
+		 * libretroshare Java classes that are used by libretroshare C++ code */
+		consumerProguardFiles 'misc/Android/proguard-keep-libretroshare-java-classes.pro'
+	}
+
 	sourceSets
 	{
 		main
