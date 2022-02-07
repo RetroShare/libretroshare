@@ -138,9 +138,10 @@ endif(RS_JSON_API)
 
 list(
 	APPEND RS_SOURCES
-	pgp/pgpkeyutil.cc
+	pgp/openpgpsdkhandler.cc
 	pgp/pgpauxutils.cc
 	pgp/pgphandler.cc
+	pgp/pgpkeyutil.cc
 	pgp/rscertificate.cc )
 
 #./plugins/dlfcn_win32.cc
@@ -148,7 +149,10 @@ list(
 #./plugins/pluginmanager.h
 #./plugins/rscacheservice.h
 #./plugins/rspqiservice.h
-#./plugins/pluginmanager.cc
+
+list(
+	APPEND RS_SOURCES
+	plugins/pluginmanager.cc )
 
 list(
 	APPEND RS_SOURCES
@@ -165,6 +169,7 @@ list(
 	pqi/p3cfgmgr.cc
 	pqi/p3notify.cc
 	pqi/p3servicecontrol.cc
+	pqi/pqifdbin.cc
 	pqi/pqinetstatebox.cc
 	pqi/pqiperson.cc
 	pqi/pqiservice.cc
@@ -216,7 +221,6 @@ list(
 
 #./rsitems/rsphotoitems.cc
 #./rsitems/rsphotoitems.h
-#./rsitems/rsposteditems.cc
 #./rsitems/rsposteditems.h
 #./rsitems/rswireitems.cc
 #retroshare/rswire.h
@@ -290,10 +294,12 @@ list(
 
 #./services/p3photoservice.cc
 #./services/p3photoservice.h
-#./services/p3postbase.cc
-#./services/p3postbase.h
-#./services/p3posted.cc
-#./services/p3posted.h
+
+list(
+	APPEND RS_SOURCES
+	services/p3postbase.cc
+	services/p3posted.cc
+	rsitems/rsposteditems.cc )
 
 if(RS_BRODCAST_DISCOVERY)
 	list(
@@ -327,21 +333,19 @@ list(
 
 list(
 	APPEND RS_SOURCES
-#	util/contentvalue.cc
-#	util/exampletst.c
-#	util/rsdbbind.cc
-#	util/rsdiscspace.cc
+	util/contentvalue.cc
+	util/rsdbbind.cc
+	util/rsdiscspace.cc
 	util/rsexpr.cc
 	util/rsprint.cc
-#	util/rsrecogn.cc
-#	util/rssharedptr.h
-#	util/rstickevent.cc
+	util/rsrecogn.cc
+	util/rstickevent.cc
 	util/rstime.cc
 	util/smallobject.cc
-#	util/retrodb.cc
+	util/retrodb.cc
 	util/rsbase64.cc
 	util/rsjson.cc
-#	util/rskbdinput.cc
+	util/rskbdinput.cc
 	util/rsrandom.cc
 	util/rsstring.cc
 	util/rsurl.cc
@@ -383,13 +387,13 @@ list(
 if(RS_MINIUPNPC)
 list(
 	APPEND RS_SOURCES
-	rs_upnp/upnphandler_miniupnp.cc )
+	rs_upnp/upnphandler_miniupnp.cc
+	rs_upnp/upnputil.cc )
 endif(RS_MINIUPNPC)
 
 #./rs_upnp/UPnPBase.cpp
 #./rs_upnp/upnphandler_libupnp.cc
 #./rs_upnp/upnptest.cc
-#./rs_upnp/upnputil.cc
 
 #if(CMAKE_SYSTEM_NAME STREQUAL "Android")
 if(RS_ANDROID)
@@ -399,3 +403,22 @@ if(RS_ANDROID)
 		rs_android/retroshareserviceandroid.cpp
 		rs_android/rsjni.cpp )
 endif()
+
+list(
+	APPEND RS_SOURCES
+	tor/AddOnionCommand.cpp
+	tor/AuthenticateCommand.cpp
+	tor/CryptoKey.cpp
+	tor/GetConfCommand.cpp
+	tor/HiddenService.cpp
+	tor/PendingOperation.cpp
+	tor/ProtocolInfoCommand.cpp
+	tor/SetConfCommand.cpp
+	tor/StrUtil.cpp
+	tor/TorControl.cpp
+	tor/TorControlCommand.cpp
+	tor/TorControlSocket.cpp
+	tor/TorProcess.cpp
+	tor/TorManager.cpp
+	pqi/rstcpsocket.cc
+	pqi/pqiproxy.cc )
