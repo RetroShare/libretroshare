@@ -127,4 +127,5 @@ std::string rs_getpass(const std::string& prompt, bool no_echo)
 }
 }
 #endif
-#endif
+
+#endif // ndef __ANDROID__
