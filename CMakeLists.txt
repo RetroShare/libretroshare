@@ -380,6 +380,7 @@ endif(RS_DH_PRIME_INIT_CHECK)
 
 if(RS_MINIUPNPC)
 	add_compile_definitions(RS_USE_LIBMINIUPNPC)
+	target_link_libraries(${PROJECT_NAME} PRIVATE miniupnpc)
 endif(RS_MINIUPNPC)
 
 if(RS_LIBUPNP)
