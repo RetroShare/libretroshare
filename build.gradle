@@ -107,6 +107,12 @@ ext.buildLibretroshareNativeLib =
 		from "${currToolchainPath}/sysroot/usr/lib/${libcxxsharedTriple}/libc++_shared.so"
 		into currAbiLibDir
 	}
+	
+	copy
+	{
+		from "${currToolchainPath}/sysroot/usr/lib/${libcxxsharedTriple}/${pApiLevel}/liblog.so"
+		into currAbiLibDir
+	}
 }
 
 apply plugin: 'com.android.library'

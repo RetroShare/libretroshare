@@ -192,6 +192,10 @@ if(RS_DEVELOPMENT_BUILD)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
 endif(RS_DEVELOPMENT_BUILD)
 
+if(RS_ANDROID)
+	target_link_libraries(${PROJECT_NAME} PRIVATE log)
+endif(RS_ANDROID)
+
 # TODO: install public headers
 
 find_package(OpenSSL REQUIRED)
