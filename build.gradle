@@ -79,7 +79,7 @@ ext.buildLibretroshareNativeLib =
 		}
 	}
 	else
-	{/*
+	{
 		exec
 		{
 			workingDir toolchainsWorkdir
@@ -88,7 +88,7 @@ ext.buildLibretroshareNativeLib =
 			environment "ANDROID_PLATFORM_VER", pApiLevel
 			environment "ANDROID_NDK_ARCH", toolchainArch
 			commandLine toolChainScriptPath, 'build_libretroshare'
-		}*/
+		}
 	}
 
 	def nativeLibsDir = "${buildDir}/native_libs-$pApiLevel/"
