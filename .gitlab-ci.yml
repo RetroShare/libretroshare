@@ -1,0 +1,6 @@
+deploy:
+  image: gradle:6.5-jdk11
+  script:
+    - './gradlew publish'
+  only:
+    - gitlab_maven_repo
