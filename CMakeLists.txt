@@ -1,7 +1,7 @@
 # RetroShare decentralized communication platform
 #
-# Copyright (C) 2021  Gioacchino Mazzurco <gio@eigenlab.org>
-# Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2021-2022  Gioacchino Mazzurco <gio@retroshare.cc>
+# Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>
 #
 # SPDX-License-Identifier: CC0-1.0
 
@@ -295,7 +295,7 @@ if(RS_JSON_API)
 		APPEND
 		"${JSON_API_GENERATOR_DOXYFILE}"
 		"OUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}" )
+		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/" )
 
 	add_custom_command(
 		OUTPUT
