@@ -39,14 +39,10 @@ define_default_value ANDROID_PLATFORM_VER "16"
 define_default_value NATIVE_LIBS_TOOLCHAIN_PATH "${HOME}/Builds/android-toolchains/retroshare-android-${ANDROID_PLATFORM_VER}-${ANDROID_NDK_ARCH}/"
 define_default_value HOST_NUM_CPU $(nproc)
 
-define_default_value ANDROID_SDK_INSTALL "false"
-define_default_value ANDROID_SDK_TOOLS_VERSION "3859397"
-define_default_value ANDROID_SDK_TOOLS_SHA256 444e22ce8ca0f67353bda4b85175ed3731cae3ffa695ca18119cbacef1c1bea0
+define_default_value ANDROID_CMD_TOOLS_VERSION "8092744"
+define_default_value ANDROID_CMD_TOOLS_SHA256 d71f75333d79c9c6ef5c39d3456c6c58c613de30e6a751ea0dbd433e8f8b9cbf
 define_default_value ANDROID_SDK_VERSION "29.0.3"
-
-define_default_value ANDROID_NDK_INSTALL "false"
-define_default_value ANDROID_NDK_VERSION "r21"
-define_default_value ANDROID_NDK_SHA256 b65ea2d5c5b68fb603626adcbcea6e4d12c68eb8a73e373bbb9d23c252fc647b
+define_default_value ANDROID_NDK_VERSION "21.0.6113669"
 
 define_default_value BZIP2_SOURCE_VERSION "1.0.6"
 define_default_value BZIP2_SOURCE_SHA256 a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd
@@ -314,35 +310,30 @@ DUPLICATED_INCLUDES_DIR="${REPORT_DIR}/duplicated_includes/"
 task_register install_android_sdk
 install_android_sdk()
 {
-	tFile="sdk-tools-linux-${ANDROID_SDK_TOOLS_VERSION}.zip"
+# old SDK manager has been deprecated use new cmdline-tools as per
+# https://stackoverflow.com/a/65782803
+# https://developer.android.com/studio#command-tools
 
-	verified_download "${tFile}" "${ANDROID_SDK_TOOLS_SHA256}" \
+	tFile="commandlinetools-linux-${ANDROID_CMD_TOOLS_VERSION}_latest.zip"
+
+	verified_download "${tFile}" "${ANDROID_CMD_TOOLS_SHA256}" \
 		"https://dl.google.com/android/repository/${tFile}"
 
 	unzip "${tFile}"
-	mkdir -p "$ANDROID_SDK_PATH"
-	rm -rf "$ANDROID_SDK_PATH/tools/"
-	mv --verbose tools/ "$ANDROID_SDK_PATH/tools/"
+	rm -rf "$ANDROID_SDK_PATH"
+	CMD_TOOLS_DIR="$ANDROID_SDK_PATH/cmdline-tools/latest/"
+	mkdir -p "$CMD_TOOLS_DIR"
+	rm -rf "$CMD_TOOLS_DIR"
+	mv --verbose cmdline-tools/ "$CMD_TOOLS_DIR"
+
+	ANDROID_SDK_MANAGER="$CMD_TOOLS_DIR/bin/sdkmanager --sdk_root=$ANDROID_SDK_PATH"
 
 	# Install Android SDK
-	yes | $ANDROID_SDK_PATH/tools/bin/sdkmanager --licenses && \
-		$ANDROID_SDK_PATH/tools/bin/sdkmanager --update
-	$ANDROID_SDK_PATH/tools/bin/sdkmanager "platforms;android-$ANDROID_PLATFORM_VER"
-	$ANDROID_SDK_PATH/tools/bin/sdkmanager "build-tools;$ANDROID_SDK_VERSION"
-}
-
-task_register install_android_ndk
-install_android_ndk()
-{
-	tFile="android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip"
-
-	verified_download "${tFile}" "${ANDROID_NDK_SHA256}" \
-		"https://dl.google.com/android/repository/${tFile}"
-
-	unzip "${tFile}"
-	mkdir -p "$ANDROID_NDK_PATH"
-	rm -rf "$ANDROID_NDK_PATH"
-	mv --verbose  "android-ndk-${ANDROID_NDK_VERSION}/" "$ANDROID_NDK_PATH/"
+	yes | $ANDROID_SDK_MANAGER --licenses && \
+		$ANDROID_SDK_MANAGER --update
+	$ANDROID_SDK_MANAGER "platforms;android-$ANDROID_PLATFORM_VER"
+	$ANDROID_SDK_MANAGER "build-tools;$ANDROID_SDK_VERSION"
+	$ANDROID_SDK_MANAGER "ndk;$ANDROID_NDK_VERSION"
 }
 
 ## More information available at https://android.googlesource.com/platform/ndk/+/ics-mr0/docs/STANDALONE-TOOLCHAIN.html
