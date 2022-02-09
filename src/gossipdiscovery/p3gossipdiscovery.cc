@@ -1148,6 +1148,15 @@ void p3discovery2::recvPGPCertificate(const RsPeerId& fromId, RsDiscPgpKeyItem* 
 
     if(det.skip_pgp_signature_validation)
         AuthPGP::AllowConnection(det.gpg_id,true);
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsGossipDiscoveryEvent>();
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mFromId = fromId;
+        ev->mAboutId = fromId;
+        rsEvents->postEvent(ev);
+    }
 }
 
         /************* from pqiServiceMonitor *******************/
@@ -1190,6 +1199,15 @@ void p3discovery2::statusChange(const std::list<pqiServicePeer> &plist)
 #ifdef P3DISC_DEBUG
 	std::cerr << "p3discovery2::statusChange() finished." << std::endl;
 #endif
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsGossipDiscoveryEvent>();
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mFromId.clear();
+        ev->mAboutId = pit->id;
+        rsEvents->postEvent(ev);
+    }
+
 	return;
 }
 
