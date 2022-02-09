@@ -71,7 +71,7 @@ ssize_t RsFileUtil::rs_getline(char **lineptr, size_t *n, FILE *stream)
 
     char *ptr = *lineptr;
     while (true) {
-        int c = fgetc(stream);
+        signed int c = fgetc(stream);
         if (c == -1) {
             if (feof(stream)) {
                 *ptr = '\0';
