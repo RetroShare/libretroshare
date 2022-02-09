@@ -320,7 +320,7 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
             if(f)
             {
                 std::string cookie;
-                char c;
+                signed char c;	// in some systems (android), char is not signed, and here EOF=-1.
                 while((c=getc(f))!=EOF)
                     cookie += c;
                 fclose(f);

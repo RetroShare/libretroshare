@@ -303,6 +303,7 @@ enum class RsNetworkEventCode: uint8_t {
     UNKNOWN                 = 0x00,
     LOCAL_IP_UPDATED        = 0x01,
     EXTERNAL_IP_UPDATED     = 0x02,
+    DNS_UPDATED             = 0x03,
 };
 
 struct RsNetworkEvent : RsEvent
@@ -313,6 +314,7 @@ struct RsNetworkEvent : RsEvent
 
     RsNetworkEventCode mNetworkEventCode;
     std::string mIPAddress;   // local or external IP depending on the event type
+    std::string mDNS;   // local or external IP depending on the event type
 
     ///* @see RsEvent @see RsSerializable
     void serial_process(
@@ -322,6 +324,7 @@ struct RsNetworkEvent : RsEvent
         RsEvent::serial_process(j, ctx);
         RS_SERIAL_PROCESS(mNetworkEventCode);
         RS_SERIAL_PROCESS(mIPAddress);
+        RS_SERIAL_PROCESS(mDNS);
     }
 };
 

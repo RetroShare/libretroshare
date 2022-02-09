@@ -1303,7 +1303,7 @@ bool OpenPGPSDKHandler::decryptTextFromFile(const RsPgpId&,std::string& text,con
 		return false;
 	}
 
-	int c ;
+    signed int c ;
 	while( (c = fgetc(f))!= EOF)
 		buf += (unsigned char)c;
 

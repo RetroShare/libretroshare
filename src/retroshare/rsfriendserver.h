@@ -26,8 +26,17 @@ public:
     virtual void startServer() =0;
     virtual void stopServer() =0;
 
-    virtual void checkServerAddress_async(const std::string& addr,uint16_t,uint32_t timeout_ms,
-                                          const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback) =0;
+    // Testing system. Since the test can take some time (contacting the proxy, setting the connection,
+    // getting some ack from the server), the whole test is asynchronous. The callback will be used to
+    // return the result of the test, recalling the tested address and port.
+    //
+    virtual void checkServerAddress_async(const std::string& addr,
+                                          uint16_t port,
+                                          uint32_t timeout_ms,
+                                          const std::function<void (const std::string& address,
+                                                                    uint16_t port,
+                                                                    bool result_status)>& callback
+                                          ) =0;
 
     virtual void setServerAddress(const std::string&,uint16_t) =0;
     virtual void setProxyAddress(const std::string&,uint16_t) =0;
