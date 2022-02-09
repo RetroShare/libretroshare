@@ -2,6 +2,8 @@
 #include "fsmanager.h"
 #include "fsclient.h"
 
+// #define DEBUG_FS_MANAGER 1
+
 RsFriendServer *rsFriendServer = nullptr;
 
 static const rstime_t MIN_DELAY_BETWEEN_FS_REQUESTS =   30;
@@ -60,7 +62,9 @@ void FriendServerManager::setFriendsToRequest(uint32_t n)
 
 void FriendServerManager::threadTick()
 {
+#ifdef DEBUG_FS_MANAGER
     std::cerr << "Ticking FriendServerManager..." << std::endl;
+#endif
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     if(mServerAddress.empty())
@@ -94,7 +98,7 @@ void FriendServerManager::threadTick()
     //   Delay for 8 friends: 603 secs.
     //   Delay for 9 friends: 1466 secs.
 
-    RsDbg() << friends.size() << " friends already, " << mFriendsToRequest << " friends to request";
+    RsDbg() << friends.size() << " friends already, " << std::max((int)mFriendsToRequest - (int)friends.size(),0) << " friends to request";
 
     double s = (friends.size() < mFriendsToRequest)? ( (mFriendsToRequest - friends.size())/(double)mFriendsToRequest) : 1.0;
     rstime_t delay_for_request = MIN_DELAY_BETWEEN_FS_REQUESTS + (int)floor(exp(-1*s + log(MAX_DELAY_BETWEEN_FS_REQUESTS)*(1.0-s)));

@@ -1695,6 +1695,15 @@ bool p3PeerMgrIMPL::setDynDNS(const RsPeerId &id, const std::string &dyndns)
             mOwnState.dyndns = dyndns;
             IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
             changed = true;
+
+            if(rsEvents)
+            {
+                auto ev = std::make_shared<RsNetworkEvent>();
+                ev->mNetworkEventCode = RsNetworkEventCode::EXTERNAL_IP_UPDATED;
+                ev->mDNS = dyndns;
+                rsEvents->postEvent(ev);
+            }
+
         }
         return changed;
     }
