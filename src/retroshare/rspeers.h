@@ -513,12 +513,13 @@ struct RsPeerStateChangedEvent : RsEvent
 };
 
 enum class RetroshareInviteFlags:uint32_t {
-    NOTHING           = 0x00,
-    CURRENT_IP        = 0x01,
-    FULL_IP_HISTORY   = 0x02,
-    DNS               = 0x04,
-    RADIX_FORMAT      = 0x08,
-    PGP_SIGNATURES    = 0x10,
+    NOTHING             = 0x00,
+    CURRENT_LOCAL_IP    = 0x01,
+    FULL_IP_HISTORY     = 0x02,
+    DNS                 = 0x04,
+    RADIX_FORMAT        = 0x08,
+    PGP_SIGNATURES      = 0x10,
+    CURRENT_EXTERNAL_IP = 0x20,
 };
 RS_REGISTER_ENUM_FLAGS_TYPE(RetroshareInviteFlags)
 
@@ -532,6 +533,7 @@ class RsPeers
 {
 public:
 
+    static const RetroshareInviteFlags defaultCertificateFlags ; // LOCAL_IP | EXTERNAL_IP | DNS
 	/**
 	 * @brief Get own SSL peer id
 	 * @return own peer id
@@ -806,8 +808,8 @@ public:
 	 */
 	virtual std::string GetRetroshareInvite(
 	            const RsPeerId& sslId = RsPeerId(),
-	            RetroshareInviteFlags inviteFlags =
-	        RetroshareInviteFlags::DNS | RetroshareInviteFlags::CURRENT_IP ) = 0;
+                RetroshareInviteFlags inviteFlags = RsPeers::defaultCertificateFlags
+            ) = 0;
 
 	/**
 	 * @brief Get RetroShare short invite of the given peer
@@ -825,9 +827,8 @@ public:
 	 */
 	virtual bool getShortInvite(
 	            std::string& invite, const RsPeerId& sslId = RsPeerId(),
-	            RetroshareInviteFlags inviteFlags =
-	        RetroshareInviteFlags::CURRENT_IP | RetroshareInviteFlags::DNS,
-	            const std::string& baseUrl = "https://retroshare.me/" ) = 0;
+                RetroshareInviteFlags inviteFlags = RsPeers::defaultCertificateFlags,
+                const std::string& baseUrl = "https://retroshare.me/" ) = 0;
 
 	/**
 	 * @brief Parse the give short invite to extract contained information

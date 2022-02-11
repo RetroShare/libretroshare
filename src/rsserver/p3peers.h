@@ -139,7 +139,7 @@ public:
 
 	/* Auth Stuff */
 	// Get the invitation (GPG cert + local/ext address + SSL id for the given peer)
-    virtual	std::string GetRetroshareInvite(const RsPeerId& ssl_id = RsPeerId(), RetroshareInviteFlags invite_flags = RetroshareInviteFlags::DNS | RetroshareInviteFlags::CURRENT_IP ) override;
+    virtual	std::string GetRetroshareInvite(const RsPeerId& ssl_id = RsPeerId(), RetroshareInviteFlags invite_flags = defaultCertificateFlags ) override;
 
 	RS_DEPRECATED /// @see RsPeers
 	std::string getPGPKey(const RsPgpId& pgp_id,bool include_signatures) override;
@@ -148,7 +148,7 @@ public:
 
 	/// @see RsPeers
     bool getShortInvite(std::string& invite, const RsPeerId& sslId = RsPeerId(),
-            RetroshareInviteFlags invite_flags = RetroshareInviteFlags::CURRENT_IP | RetroshareInviteFlags::DNS,
+            RetroshareInviteFlags invite_flags = defaultCertificateFlags,
             const std::string& baseUrl = "https://retroshare.me/" ) override;
 
 	/// @see RsPeers
