@@ -520,6 +520,7 @@ enum class RetroshareInviteFlags:uint32_t {
     RADIX_FORMAT        = 0x08,
     PGP_SIGNATURES      = 0x10,
     CURRENT_EXTERNAL_IP = 0x20,
+    ALL                 = 0xff,
 };
 RS_REGISTER_ENUM_FLAGS_TYPE(RetroshareInviteFlags)
 
@@ -534,7 +535,7 @@ class RsPeers
 public:
 
     static const RetroshareInviteFlags defaultCertificateFlags ; // LOCAL_IP | EXTERNAL_IP | DNS
-	/**
+    /**
 	 * @brief Get own SSL peer id
 	 * @return own peer id
 	 */
