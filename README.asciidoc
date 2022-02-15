@@ -20,7 +20,7 @@ elRepo.io[https://elrepo.io/] mobile application
 (let us know if there are more).
 
 
-.Build Status
+.Continuous Integration Status
 |===============================================================================
-|Android via JitPack    | image:https://jitpack.io/v/com.gitlab.RetroShare/libretroshare.svg[https://jitpack.io/#com.gitlab.RetroShare/libretroshare]
+|Android | image:https://gitlab.com/RetroShare/libretroshare/badges/master/pipeline.svg[link="https://gitlab.com/RetroShare/libretroshare/-/commits/master",title="pipeline status"]
 |===============================================================================
