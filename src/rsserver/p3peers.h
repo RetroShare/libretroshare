@@ -149,7 +149,7 @@ public:
 	/// @see RsPeers
     bool getShortInvite(std::string& invite, const RsPeerId& sslId = RsPeerId(),
             RetroshareInviteFlags invite_flags = defaultCertificateFlags,
-            const std::string& baseUrl = "https://retroshare.me/" ) override;
+            const std::string& baseUrl = "https://retroshare.cc/" ) override;
 
 	/// @see RsPeers
 	bool parseShortInvite(const std::string& invite, RsPeerDetails& details, uint32_t &err_code ) override;
