@@ -827,7 +827,7 @@ public:
 	            std::string& invite, const RsPeerId& sslId = RsPeerId(),
 	            RetroshareInviteFlags inviteFlags =
 	        RetroshareInviteFlags::CURRENT_IP | RetroshareInviteFlags::DNS,
-	            const std::string& baseUrl = "https://retroshare.me/" ) = 0;
+	            const std::string& baseUrl = "https://me.retroshare.cc/" ) = 0;
 
 	/**
 	 * @brief Parse the give short invite to extract contained information
