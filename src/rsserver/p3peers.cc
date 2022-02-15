@@ -48,6 +48,10 @@
 
 #include "pqi/authssl.h"
 
+const RetroshareInviteFlags  RsPeers::defaultCertificateFlags = RetroshareInviteFlags::DNS
+                                                  | RetroshareInviteFlags::CURRENT_LOCAL_IP
+                                                  | RetroshareInviteFlags::CURRENT_EXTERNAL_IP;
+
 typedef RsCertificate::RsShortInviteFieldType RsShortInviteFieldType;	// locally in this file to avoid renaming everything.
 
 RsPeers *rsPeers = NULL;
@@ -1249,7 +1253,7 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
 
             offset += tLocator.size();
         }
-    else if( !!(invite_flags & RetroshareInviteFlags::CURRENT_IP) )	// only add at least the local and external IPs
+    else if( !!(invite_flags & (RetroshareInviteFlags::CURRENT_LOCAL_IP | RetroshareInviteFlags::CURRENT_EXTERNAL_IP) ))	// only add at least the local and external IPs
     {
 #ifdef USE_NEW_LOCATOR_SYSTEM
         // This new locator system as some advantages, but here it also has major drawbacks: (1) it cannot differentiate local and external addresses,
@@ -1274,10 +1278,13 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
             offset += tDetails.extAddr.size();
         }
 #else
+
+        if(!!(invite_flags & RetroshareInviteFlags::CURRENT_LOCAL_IP ))
+        {
         sockaddr_storage tLocal;
         bool validLoc =   sockaddr_storage_inet_pton(tLocal, tDetails.localAddr)
-                       && sockaddr_storage_isValidNet(tLocal)
-                       && tDetails.localPort;
+                        && sockaddr_storage_isValidNet(tLocal)
+                        && tDetails.localPort;
         bool isLocIpv4 = sockaddr_storage_ipv6_to_ipv4(tLocal);
         if(validLoc && isLocIpv4)
         {
@@ -1295,7 +1302,10 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
 
             offset += 4+2;
         }
+    }
 
+        if(!!(invite_flags & RetroshareInviteFlags::CURRENT_EXTERNAL_IP ))
+        {
         sockaddr_storage tExt;
         bool validExt =   sockaddr_storage_inet_pton(tExt, tDetails.extAddr)
                        && sockaddr_storage_isValidNet(tExt)
@@ -1327,6 +1337,7 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
             memcpy(&buf[offset],tLocator.c_str(),tLocator.size());
 
             offset += tLocator.size();
+        }
         }
 #endif
 
@@ -1514,7 +1525,7 @@ std::string p3Peers::GetRetroshareInvite( const RsPeerId& sslId, RetroshareInvit
 		RsCertificate cert(detail, mem_block, mem_block_size);
 		free(mem_block);
 
-		return cert.toStdString();
+        return cert.toStdString(invite_flags);
 	}
 
 #ifdef P3PEERS_DEBUG
