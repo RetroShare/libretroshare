@@ -1,6 +1,6 @@
 deploy:
-  image: gradle:6.5-jdk11
+  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16
   script:
-    - './gradlew publish'
+    - './gradlew build publish -Dorg.gradle.project.buildDir=/libretroshare-build/ -PANDROID_MIN_API_LEVEL=16 -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA" -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"'
   only:
     - gitlab_maven_repo
