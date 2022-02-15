@@ -14,13 +14,12 @@ JSON API.
 
 While RetroShare is an application on it's own, libretroshare is meant to be
 used as part of other programs, some of them are
-RetroShare-gui[https://retroshare.cc],
-RetroShare-service[https://retroshare.cc],
-elRepo.io[https://elrepo.io/] mobile application
+https://retroshare.cc[RetroShare-gui],
+https://retroshare.cc[RetroShare-service],
+https://elrepo.io/[elRepo.io]
 (let us know if there are more).
 
 
-.Continuous Integration Status
-|===============================================================================
-|Android | image:https://gitlab.com/RetroShare/libretroshare/badges/master/pipeline.svg[link="https://gitlab.com/RetroShare/libretroshare/-/commits/master",title="pipeline status"]
-|===============================================================================
+=== Continuous integration
+
+image:https://gitlab.com/RetroShare/libretroshare/badges/master/pipeline.svg[link="https://gitlab.com/RetroShare/libretroshare/-/commits/master",title="pipeline status"]
