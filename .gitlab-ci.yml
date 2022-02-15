@@ -1,6 +1,29 @@
-deploy:
+android-AAR-minapi16:
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16
   script:
-    - './gradlew build publish -Dorg.gradle.project.buildDir=/libretroshare-build/ -PANDROID_MIN_API_LEVEL=16 -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA" -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"'
-  only:
-    - gitlab_maven_repo
+    - > 
+      ./gradlew build publish
+      -Dorg.gradle.project.buildDir=/libretroshare-build/
+      -PANDROID_MIN_API_LEVEL=16
+      -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
+      -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+
+android-AAR-minapi21:
+  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21
+  script:
+    - > 
+      ./gradlew build publish
+      -Dorg.gradle.project.buildDir=/libretroshare-build/
+      -PANDROID_MIN_API_LEVEL=21
+      -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
+      -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+
+android-AAR-minapi24:
+  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_24
+  script:
+    - > 
+      ./gradlew build publish
+      -Dorg.gradle.project.buildDir=/libretroshare-build/
+      -PANDROID_MIN_API_LEVEL=24
+      -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
+      -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
