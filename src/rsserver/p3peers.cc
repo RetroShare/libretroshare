@@ -1525,7 +1525,7 @@ std::string p3Peers::GetRetroshareInvite( const RsPeerId& sslId, RetroshareInvit
 		RsCertificate cert(detail, mem_block, mem_block_size);
 		free(mem_block);
 
-		return cert.toStdString();
+        return cert.toStdString(invite_flags);
 	}
 
 #ifdef P3PEERS_DEBUG

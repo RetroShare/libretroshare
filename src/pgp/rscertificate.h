@@ -23,6 +23,7 @@
 #pragma once
 
 #include "retroshare/rstypes.h"
+#include "retroshare/rspeers.h"
 #include "util/rsurl.h"
 #include "util/rsmemory.h"
 #include "util/rsdebug.h"
@@ -82,7 +83,7 @@ public:
     static bool decodeRadix64ShortInvite(const std::string& short_invite_b64,RsPeerDetails& det,uint32_t& error_code);
 
 	/// Convert to certificate radix string
-	std::string toStdString() const;
+    std::string toStdString(RetroshareInviteFlags flags = RetroshareInviteFlags::ALL) const;
 
 	std::string ext_ip_string() const;
 	std::string loc_ip_string() const;

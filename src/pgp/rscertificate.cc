@@ -103,7 +103,7 @@ const RsCertificate&RsCertificate::operator=(const RsCertificate&)
 	return *this;
 }
 
-std::string RsCertificate::toStdString() const
+std::string RsCertificate::toStdString(RetroshareInviteFlags flags) const
 {
 	//std::string res ;
 	size_t BS = 1000 ;
@@ -121,9 +121,14 @@ std::string RsCertificate::toStdString() const
 		}
 		else
 		{
-			addPacket( CERTIFICATE_PTAG_EXTIPANDPORT_SECTION, ipv4_external_ip_and_port              ,                     6   , buf, p, BS ) ;
-			addPacket( CERTIFICATE_PTAG_LOCIPANDPORT_SECTION, ipv4_internal_ip_and_port              ,                     6   , buf, p, BS ) ;
-			addPacket( CERTIFICATE_PTAG_DNS_SECTION         , (unsigned char *)dns_name.c_str()      ,     dns_name.length()   , buf, p, BS ) ;
+            if(!!(flags & RetroshareInviteFlags::CURRENT_EXTERNAL_IP))
+                addPacket( CERTIFICATE_PTAG_EXTIPANDPORT_SECTION, ipv4_external_ip_and_port              ,                     6   , buf, p, BS ) ;
+
+            if(!!(flags & RetroshareInviteFlags::CURRENT_LOCAL_IP))
+                addPacket( CERTIFICATE_PTAG_LOCIPANDPORT_SECTION, ipv4_internal_ip_and_port              ,                     6   , buf, p, BS ) ;
+
+            if(!!(flags & RetroshareInviteFlags::DNS) && !dns_name.empty())
+                addPacket( CERTIFICATE_PTAG_DNS_SECTION         , (unsigned char *)dns_name.c_str()      ,     dns_name.length()   , buf, p, BS ) ;
 		}
 
 		addPacket( CERTIFICATE_PTAG_NAME_SECTION        , (unsigned char *)location_name.c_str() ,location_name.length()   , buf, p, BS ) ;
