@@ -17,6 +17,8 @@ android-AAR-minapi21:
       -PANDROID_MIN_API_LEVEL=21
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+  tags:
+    - storage50
 
 android-AAR-minapi24:
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_24
@@ -27,3 +29,5 @@ android-AAR-minapi24:
       -PANDROID_MIN_API_LEVEL=24
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+  tags:
+    - storage50
