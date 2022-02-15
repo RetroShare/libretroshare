@@ -53,6 +53,71 @@ allprojects
 apply plugin: 'com.android.library'
 apply plugin: 'maven-publish'
 
+ext.getAndroidMinApiLevel =
+{ ->
+	if(project.hasProperty('ANDROID_MIN_API_LEVEL'))
+	{
+		return ANDROID_MIN_API_LEVEL.toInteger();
+	}
+	else
+	{
+		return 16
+	}
+}
+
+ext.getJniNativeLibsArchs =
+{ ->
+	if(project.hasProperty('JNI_NATIVE_LIBS_ARCHS'))
+	{
+		return JNI_NATIVE_LIBS_ARCHS.split(' ') as List
+	}
+	else
+	{
+		if(getAndroidMinApiLevel() <= 16)
+		{
+			return ['armeabi-v7a']
+		}
+		else
+		{
+			return ['arm64-v8a', 'armeabi-v7a']
+		}
+	}
+}
+
+ext.getLibretroshareSourceVersion =
+{ ->
+	if(project.hasProperty('LIBRETROSHARE_SOURCE_VERSION'))
+	{
+		return LIBRETROSHARE_SOURCE_VERSION
+	}
+	else
+	{
+		return 'unspecified'
+	}
+}
+
+ext.getNativeToolchainsDir =
+{ ->
+	if(project.hasProperty('NATIVE_TOOLCHAINS_DIR'))
+	{
+		return NATIVE_TOOLCHAINS_DIR
+	}
+	else
+	{
+		return "${buildDir}/native_toolchains/"
+	}
+}
+
+ext.getjniLibsDir =
+{ ->
+	return "${buildDir}/native_libs/"
+}
+
+ext.getArtifactBaseName =
+{  ->
+	return project.name + "-MinApiLevel" + getAndroidMinApiLevel()
+}
+
 ext.buildLibretroshareNativeLib =
 {
 	pApiLevel, /* Android API level */
@@ -79,16 +144,7 @@ ext.buildLibretroshareNativeLib =
 		break;
 	}
 
-	def toolchainsWorkdir = null
-	if(project.hasProperty('NATIVE_TOOLCHAINS_DIR'))
-	{
-		toolchainsWorkdir = NATIVE_TOOLCHAINS_DIR
-	}
-	else
-	{
-		toolchainsWorkdir = "${buildDir}/native_toolchains/"
-	}
-
+	def toolchainsWorkdir = getNativeToolchainsDir()
 	mkdir toolchainsWorkdir
 
 	def currToolchainPath = "$toolchainsWorkdir/$pApiLevel-$toolchainArch/"
@@ -105,7 +161,7 @@ ext.buildLibretroshareNativeLib =
 			environment "NATIVE_LIBS_TOOLCHAIN_PATH", currToolchainPath
 			environment "ANDROID_PLATFORM_VER", pApiLevel
 			environment "ANDROID_NDK_ARCH", toolchainArch
-			commandLine toolChainScriptPath /*, 'build_libretroshare'*/
+			commandLine toolChainScriptPath
 		}
 	}
 	else
@@ -121,23 +177,22 @@ ext.buildLibretroshareNativeLib =
 		}
 	}
 
-	def nativeLibsDir = "${buildDir}/native_libs/"
-	mkdir nativeLibsDir
+	mkdir getjniLibsDir()
 
-	def currAbiLibDir = "${nativeLibsDir}/$pAbi/"
+	def currAbiLibDir = "${getjniLibsDir()}/$pAbi/"
 	mkdir currAbiLibDir
 	copy
 	{
 		from "${currToolchainPath}/sysroot/usr/lib/libretroshare.so"
 		into currAbiLibDir
 	}
-	
+
 	copy
 	{
 		from "${currToolchainPath}/sysroot/usr/lib/${libcxxsharedTriple}/libc++_shared.so"
 		into currAbiLibDir
 	}
-	
+
 	copy
 	{
 		from "${currToolchainPath}/sysroot/usr/lib/${libcxxsharedTriple}/${pApiLevel}/liblog.so"
@@ -149,39 +204,15 @@ task prepareRetroshareNativeLibs
 {
 	doLast
 	{
-		def pAbis = null
-		if(project.hasProperty('JNI_NATIVE_LIBS_ARCHS'))
-		{
-			pAbis = JNI_NATIVE_LIBS_ARCHS.split(' ') as List
-		}
-		else
-		{
-			if(ANDROID_MIN_API_LEVEL.toInteger() <= 16)
-			{
-				pAbis = ['armeabi-v7a']
-			}
-			else
-			{
-				pAbis = ['arm64-v8a', 'armeabi-v7a']
-			}
-		}
-
 		def pNdkPath = android.getNdkDirectory().getAbsolutePath()
-
-		pAbis.each
+		getJniNativeLibsArchs().each
 		{
 			abi ->
-			buildLibretroshareNativeLib(ANDROID_MIN_API_LEVEL, abi, pNdkPath)
+			buildLibretroshareNativeLib(getAndroidMinApiLevel(), abi, pNdkPath)
 		}
 	}
 }
-build.dependsOn prepareRetroshareNativeLibs
-
-ext.getArtifactBaseName =
-{
-	config ->
-	return project.name + "-MinApiLevel" + ANDROID_MIN_API_LEVEL
-}
+preBuild.dependsOn prepareRetroshareNativeLibs
 
 android
 {
@@ -192,7 +223,7 @@ android
 
 	defaultConfig
 	{
-		minSdkVersion ANDROID_MIN_API_LEVEL
+		minSdkVersion getAndroidMinApiLevel()
 		targetSdkVersion 28
 	
 		/* Prevent proguard run at applications build time, to alter
@@ -200,7 +231,7 @@ android
 		consumerProguardFiles 'misc/Android/proguard-keep-libretroshare-java-classes.pro'
 	}
 
-	setProperty("archivesBaseName", getArtifactBaseName(defaultConfig))
+	setProperty("archivesBaseName", getArtifactBaseName())
 
 	sourceSets
 	{
@@ -209,7 +240,7 @@ android
 			java.srcDirs = [ 'src/rs_android/' ]
 			manifest.srcFile 'src/rs_android/AndroidManifest.xml'
 			assets.srcDirs = [ "${buildDir}/libretroshare-build/android-assets/" ]
-			jniLibs.srcDirs = [ "${buildDir}/native_libs/" ]
+			jniLibs.srcDirs = [ getjniLibsDir() ]
 		}
 	}
 
@@ -238,14 +269,14 @@ afterEvaluate
 			{
 				groupId = 'org.retroshare.service'
 				artifactId "${getArtifactBaseName()}-debug"
-				version LIBRETROSHARE_SOURCE_VERSION
+				version getLibretroshareSourceVersion()
 				artifact bundleReleaseAar
 			}
 			release(MavenPublication)
 			{
 				groupId = 'org.retroshare.service'
 				artifactId "${getArtifactBaseName()}-release"
-				version LIBRETROSHARE_SOURCE_VERSION
+				version getLibretroshareSourceVersion()
 				artifact bundleReleaseAar
 			}
 		}
