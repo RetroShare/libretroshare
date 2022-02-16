@@ -1,0 +1,25 @@
+// SPDX-FileCopyrightText: 2022 Retroshare Team <contact@retroshare.cc>
+// SPDX-FileCopyrightText: 2022 Gioacchino Mazzurco <gio@retroshare.cc>
+// SPDX-FileCopyrightText: 2022 Asociación Civil Altermundi <info@altermundi.net>
+// SPDX-License-Identifier: CC-BY-SA-4.0
+
+= RetroShare library
+
+RetroShare is a decentralized, private, secure, cross-platform, communication
+software.
+
+RetroShare functionalities (file sharing, chat, messages, forums, channels...)
+are implemented under the hood by libretroshare which offer a documented C++ and
+JSON API.
+
+While RetroShare is an application on it's own, libretroshare is meant to be
+used as part of other programs, some of them are
+https://retroshare.cc[RetroShare-gui],
+https://retroshare.cc[RetroShare-service],
+https://elrepo.io/[elRepo.io]
+(let us know if there are more).
+
+
+=== Continuous integration
+
+image:https://gitlab.com/RetroShare/libretroshare/badges/master/pipeline.svg[link="https://gitlab.com/RetroShare/libretroshare/-/commits/master",title="pipeline status"]

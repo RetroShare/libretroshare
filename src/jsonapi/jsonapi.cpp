@@ -23,8 +23,10 @@
 #include <string>
 #include <sstream>
 #include <memory>
-#include <restbed>
+#include <typeinfo>
 #include <vector>
+
+#include <restbed>
 #include <openssl/crypto.h>
 
 

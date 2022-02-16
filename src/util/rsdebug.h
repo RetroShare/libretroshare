@@ -310,7 +310,7 @@ struct hexDump {
 	using Dbg4 RS_DEPRECATED_FOR(RS_DBG4) = RsDbg;
 
 namespace RsLog {
-    enum RS_DEPRECATED_FOR("RsErr, RsDbg, RsNoDbg") logLvl {
+    enum RS_DEPRECATED_FOR("RS_ERR, RS_DBG, RS_DBG3...") logLvl {
 		None	= -1,
 		Default	=  0,
 		Alert	=  1,
@@ -322,7 +322,7 @@ namespace RsLog {
 	};
 
 	// this struct must be provided by the caller (to rslog())
-	struct RS_DEPRECATED_FOR("RsErr, RsDbg, RsNoDbg") logInfo {
+	struct RS_DEPRECATED_FOR("RS_ERR, RS_DBG, RS_DBG3...") logInfo {
 		// module specific log lvl
 		logLvl lvl;
 		// module name (displayed in log)
@@ -330,16 +330,16 @@ namespace RsLog {
 	};
 }
 
-RS_DEPRECATED_FOR("RsErr, RsDbg, RsNoDbg")
+RS_DEPRECATED_FOR("RS_ERR, RS_DBG, RS_DBG3...")
 int setDebugCrashMode(const char *cfile);
 
-RS_DEPRECATED_FOR("RsErr, RsDbg, RsNoDbg")
+RS_DEPRECATED_FOR("RS_ERR, RS_DBG, RS_DBG3...")
 int setDebugFile(const char *fname);
 
-RS_DEPRECATED_FOR("RsErr, RsDbg, RsNoDbg")
+RS_DEPRECATED_FOR("RS_ERR, RS_DBG, RS_DBG3...")
 int setOutputLevel(RsLog::logLvl lvl);
 
-RS_DEPRECATED_FOR("RsErr, RsDbg, RsNoDbg")
+RS_DEPRECATED_FOR("RS_ERR, RS_DBG, RS_DBG3...")
 void rslog(const RsLog::logLvl lvl, RsLog::logInfo *info, const std::string &msg);
 
 

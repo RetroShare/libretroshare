@@ -1,7 +1,7 @@
 # RetroShare decentralized communication platform
 #
-# Copyright (C) 2021  Gioacchino Mazzurco <gio@eigenlab.org>
-# Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2021-2022  Gioacchino Mazzurco <gio@retroshare.cc>
+# Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>
 #
 # SPDX-License-Identifier: CC0-1.0
 
@@ -131,6 +131,17 @@ option(
 	"Export libretroshare JNI_OnLoad. See src/rs_android/rsjni.cpp for details"
 	ON )
 
+option(
+	RS_DEVELOPMENT_BUILD
+	"Disable optimization to speed up build, enable verbose build log. \
+	 just for development purposes, not suitable for library usage"
+	OFF )
+
+option(
+	RS_ANDROID
+	"Enable when compiling libretroshare for Android"
+	OFF )
+
 ################################################################################
 
 find_package(Git REQUIRED)
@@ -145,6 +156,13 @@ find_package(Git REQUIRED)
 #			COMMAND_ERROR_IS_FATAL ANY)
 #	endif()
 #endfunction()
+
+################################################################################
+
+if(RS_DEVELOPMENT_BUILD)
+	set(CMAKE_VERBOSE_MAKEFILE ON)
+	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif(RS_DEVELOPMENT_BUILD)
 
 ################################################################################
 
@@ -170,6 +188,14 @@ target_include_directories(
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+if(RS_DEVELOPMENT_BUILD)
+	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
+endif(RS_DEVELOPMENT_BUILD)
+
+if(RS_ANDROID)
+	target_link_libraries(${PROJECT_NAME} PRIVATE log)
+endif(RS_ANDROID)
+
 # TODO: install public headers
 
 find_package(OpenSSL REQUIRED)
@@ -187,7 +213,7 @@ if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/.git" )
 else()
 	FetchContent_Declare(
 		openpgpsdk
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/openpgpsdk.git"
+		GIT_REPOSITORY "https://gitlab.com/RetroShare/OpenPGP-SDK.git"
 		GIT_TAG "origin/master"
 		GIT_SHALLOW TRUE
 		GIT_PROGRESS TRUE
@@ -211,7 +237,7 @@ if(RS_BITDHT)
 	else()
 		FetchContent_Declare(
 			bitdht
-			GIT_REPOSITORY "https://gitlab.com/RetroShare/bitdht.git"
+		GIT_REPOSITORY "https://gitlab.com/RetroShare/BitDHT.git"
 			GIT_TAG "origin/master"
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
@@ -269,7 +295,7 @@ if(RS_JSON_API)
 		APPEND
 		"${JSON_API_GENERATOR_DOXYFILE}"
 		"OUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}" )
+		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/" )
 
 	add_custom_command(
 		OUTPUT
@@ -292,6 +318,12 @@ if(RS_JSON_API)
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
 
+	if(NOT RS_ANDROID)
+	## At moment depending on restbed this way doesn't seems to work at least on
+	## Android due to upstream CMake file limitation, patches should be sent
+	## upstream. Restbed is therefore compiled by Android toolchain preparation
+	## script
+
 	FetchContent_Declare(
 		restbed
 		GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
@@ -303,10 +335,17 @@ if(RS_JSON_API)
 	)
 	FetchContent_MakeAvailable(restbed)
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
-
 	## TODO: work around target_include_directories should be added upstream
 	include_directories(${restbed_SOURCE_DIR}/source/)
+
+	## TODO: work around target_link_libraries should be added upstream
+	## The workaround doesn't work as per documentation
+	## https://cmake.org/cmake/help/latest/command/link_directories.html
+	## "The command will apply only to targets created after it is called."
+	#link_directories(${restbed_BINARY_DIR})
+	endif(NOT RS_ANDROID)
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 
 	add_compile_definitions(RS_JSONAPI)
 endif(RS_JSON_API)
@@ -362,6 +401,7 @@ endif(RS_DH_PRIME_INIT_CHECK)
 
 if(RS_MINIUPNPC)
 	add_compile_definitions(RS_USE_LIBMINIUPNPC)
+	target_link_libraries(${PROJECT_NAME} PRIVATE miniupnpc)
 endif(RS_MINIUPNPC)
 
 if(RS_LIBUPNP)
@@ -452,6 +492,3 @@ endif(RS_ANDROID)
 #endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 
 ################################################################################
-
-## Useful to debug CMake
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

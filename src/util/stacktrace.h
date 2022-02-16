@@ -1,7 +1,7 @@
 /*******************************************************************************
  * libretroshare                                                               *
  *                                                                             *
- * Copyright (C) 2016-2018 Gioacchino Mazzurco <gio@eigenlab.org>              *
+ * Copyright (C) 2016-2022 Gioacchino Mazzurco <gio@retroshare.cc>             *
  * Copyright (C) 2008 Timo Bingmann http://idlebox.net/                        *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
@@ -37,7 +37,7 @@
  * @param[in] out output file
  * @param[in] maxFrames maximum number of stack frames you want to bu printed
  */
-static inline void print_stacktrace(
+static void print_stacktrace(
         bool demangle = true, FILE *out = stderr, unsigned int maxFrames = 63 );
 
 
@@ -46,7 +46,7 @@ static inline void print_stacktrace(
 #include <execinfo.h>
 #include <cxxabi.h>
 
-static inline void print_stacktrace(
+static void print_stacktrace(
         bool demangle, FILE* out, unsigned int maxFrames )
 {
 	if(!out)
@@ -163,7 +163,7 @@ struct RsAndroidBacktraceState
 	void** end;
 };
 
-static inline _Unwind_Reason_Code android_unwind_callback(
+static _Unwind_Reason_Code android_unwind_callback(
         struct _Unwind_Context* context, void* arg )
 {
 	RsAndroidBacktraceState* state = static_cast<RsAndroidBacktraceState*>(arg);
@@ -177,7 +177,7 @@ static inline _Unwind_Reason_Code android_unwind_callback(
 	return _URC_NO_REASON;
 }
 
-static inline void print_stacktrace(
+static void print_stacktrace(
         bool demangle, FILE* /*out*/, unsigned int /*maxFrames*/)
 {
 	constexpr int max = 5000;
@@ -243,7 +243,7 @@ static inline void print_stacktrace(
 
 #else // defined(__linux__) && defined(__GLIBC__)
 
-static inline void print_stacktrace(
+static void print_stacktrace(
         bool /*demangle*/, FILE* out, unsigned int /*max_frames*/ )
 {
 	/** Notify the user which signal was caught. We use printf, because this

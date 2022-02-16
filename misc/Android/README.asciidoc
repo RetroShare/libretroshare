@@ -212,8 +212,8 @@ export ANDROID_NDK_LLVM_STRIP="${ANDROID_NDK_PATH}/toolchains/llvm/prebuilt/linu
 cat > "${ANDROID_NDK_LLVM_STRIP}" << LLVMSTRIPTRICK
 #!/bin/bash
 
-echo "\${2}" | grep -q Debug ||
-	"${ANDROID_NDK_LLVM_STRIP}.back" --strip-all "\${2}"
+echo "\${@}" | grep -q Debug ||
+	"${ANDROID_NDK_LLVM_STRIP}.back" "\${@}"
 
 LLVMSTRIPTRICK
 
