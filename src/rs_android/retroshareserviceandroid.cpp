@@ -1,7 +1,7 @@
 /*
  * RetroShare Service Android
- * Copyright (C) 2016-2021  Gioacchino Mazzurco <gio@eigenlab.org>
- * Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>
+ * Copyright (C) 2016-2022  Gioacchino Mazzurco <gio@retroshare.cc>
+ * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -65,7 +65,7 @@ RetroShareServiceAndroid::start(
 	conf.jsonApiPort = static_cast<uint16_t>(jsonApiPort);
 	conf.jsonApiBindAddress = jni::Make<std::string>(env, jsonApiBindAddress);
 
-	// Dirty workaround plugins not supported on Android ATM
+	// Dirty workaround, plugins not supported on Android ATM
 	conf.main_executable_path = " ";
 
 	int initResult = RsInit::InitRetroShare(conf);
@@ -81,15 +81,12 @@ RetroShareServiceAndroid::start(
 jni::Local<jni::Object<ErrorConditionWrap>> RetroShareServiceAndroid::stop(
         JNIEnv& env, jni::Class<RetroShareServiceAndroid>& )
 {
-	if(RsControl::instance()->isReady())
-	{
-		RsControl::instance()->rsGlobalShutDown();
-		return jni::Make<ErrorConditionWrap>(env, std::error_condition());
-	}
+	RsControl::instance()->rsGlobalShutDown();
 
+	// Stop also the cout/cerr catcher which uses threads internally
 	sAndroidCoutCerrCatcher.reset();
 
-	return jni::Make<ErrorConditionWrap>(env, std::errc::no_such_process);
+	return jni::Make<ErrorConditionWrap>(env, std::error_condition());
 }
 
 jni::Local<jni::Object<RetroShareServiceAndroid::Context> >

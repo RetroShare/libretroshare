@@ -81,42 +81,31 @@ void RsServer::startServiceThread(RsTickingThread *t, const std::string &threadN
 
 void RsServer::rsGlobalShutDown()
 {
+	bool wasReady = coreReady;
 	coreReady = false;
-	// TODO: cache should also clean up old files
 
-	ConfigFinalSave(); // save configuration before exit
+	if(wasReady)
+	{
+		// save configuration before exit
+		ConfigFinalSave();
 
-	mPluginsManager->stopPlugins(pqih);
+		mPluginsManager->stopPlugins(pqih);
 
-	mNetMgr->shutdown(); /* Handles UPnP */
+		/* Handles UPnP */
+		mNetMgr->shutdown();
+
+		rsAutoProxyMonitor::instance()->stopAllRSShutdown();
+
+		// kill all registered service threads
+		for(RsTickingThread* service: mRegisteredServiceThreads)
+			service->fullstop();
+	}
+
+	fullstop();
 
 #ifdef RS_JSONAPI
 	rsJsonApi->fullstop();
 #endif
-
-	rsAutoProxyMonitor::instance()->stopAllRSShutdown();
-
-    fullstop() ;
-
-    // kill all registered service threads
-
-    for(std::list<RsTickingThread*>::iterator it= mRegisteredServiceThreads.begin();it!=mRegisteredServiceThreads.end();++it)
-	{
-        (*it)->fullstop() ;
-	}
-// #ifdef RS_ENABLE_GXS
-// 		// We should automate this.
-// 		//
-//         if(mGxsCircles) mGxsCircles->join();
-//         if(mGxsForums) mGxsForums->join();
-//         if(mGxsChannels) mGxsChannels->join();
-//         if(mGxsIdService) mGxsIdService->join();
-//         if(mPosted) mPosted->join();
-//         if(mWiki) mWiki->join();
-//         if(mGxsNetService) mGxsNetService->join();
-//         if(mPhoto) mPhoto->join();
-//         if(mWire) mWire->join();
-// #endif
 
 	AuthPGP::exit();
 
