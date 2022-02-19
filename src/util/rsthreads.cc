@@ -218,8 +218,7 @@ bool RsThread::start(const std::string& threadName)
 		return true;
 	}
 
-	RsErr() << __PRETTY_FUNCTION__ << " attempt to start already running thread"
-	        << std::endl;
+	RS_ERR("attempt to start already running thread: ", threadName);
 	print_stacktrace();
 	return false;
 }
