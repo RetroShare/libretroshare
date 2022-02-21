@@ -193,7 +193,7 @@ set_target_properties(
 install(
 	TARGETS ${PROJECT_NAME}
 	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-	PUBLIC_HEADER DESTINATION retroshare )
+	PUBLIC_HEADER DESTINATION include/retroshare )
 
 if(RS_DEVELOPMENT_BUILD)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
