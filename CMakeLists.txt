@@ -476,18 +476,6 @@ if(RS_ANDROID)
 	FetchContent_MakeAvailable(jni-hpp)
 
 	include_directories(${jni-hpp_SOURCE_DIR}/include)
-
-	if(RS_BITDHT)
-		set(RS_ANDROID_ASSETS_DIR "${CMAKE_BINARY_DIR}/android-assets")
-		set(RS_ANDROID_VALUES_DIR "${RS_ANDROID_ASSETS_DIR}/values")
-		file(MAKE_DIRECTORY "${RS_ANDROID_VALUES_DIR}")
-		file(
-			COPY "${RS_BITDHT_DIR}/src/bitdht/bdboot.txt"
-			DESTINATION "${RS_ANDROID_VALUES_DIR}" )
-		set(
-			ANDROID_ASSETS_DIRECTORIES
-			"${RS_ANDROID_ASSETS_DIR};${ANDROID_ASSETS_DIRECTORIES}" )
-	endif(RS_BITDHT)
 endif(RS_ANDROID)
 #endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 

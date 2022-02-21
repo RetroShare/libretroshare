@@ -1,7 +1,7 @@
 /*
  * libretroshare Android AAR library gradle builder
  *
- * Copyright (C) 2022  Gioacchino Mazzurco <gio@eigenlab.org>
+ * Copyright (C) 2022  Gioacchino Mazzurco <gio@retroshare.cc>
  * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>
  *
  * SPDX-License-Identifier: CC0-1.0
@@ -116,6 +116,11 @@ ext.getjniLibsDir =
 	return "${buildDir}/native_libs/"
 }
 
+ext.getAssetsDir =
+{ ->
+	return "${buildDir}/android-assets/"
+}
+
 ext.getArtifactBaseName =
 {  ->
 	return project.name + "-MinApiLevel" + getAndroidMinApiLevel()
@@ -201,6 +206,14 @@ ext.buildLibretroshareNativeLib =
 		from "${currToolchainPath}/sysroot/usr/lib/${libcxxsharedTriple}/${pApiLevel}/liblog.so"
 		into currAbiLibDir
 	}
+
+	def bdbootAssetDir = "${getAssetsDir()}/values"
+	mkdir bdbootAssetDir
+	copy
+	{
+		from "${currToolchainPath}/sysroot/usr/share/retroshare/bdboot.txt"
+		into bdbootAssetDir
+	}
 }
 
 task prepareRetroshareNativeLibs
@@ -242,7 +255,7 @@ android
 		{
 			java.srcDirs = [ 'src/rs_android/' ]
 			manifest.srcFile 'src/rs_android/AndroidManifest.xml'
-			assets.srcDirs = [ "${buildDir}/libretroshare-build/android-assets/" ]
+			assets.srcDirs = [ getAssetsDir() ]
 			jniLibs.srcDirs = [ getjniLibsDir() ]
 		}
 	}
