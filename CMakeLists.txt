@@ -184,9 +184,16 @@ endif(RS_LIBRETROSHARE_SHARED)
 
 target_include_directories(
 	${PROJECT_NAME}
-	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src )
+	PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src" )
 
-install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+set_target_properties(
+	${PROJECT_NAME}
+	PROPERTIES PUBLIC_HEADER "${RS_PUBLIC_HEADERS}" )
+
+install(
+	TARGETS ${PROJECT_NAME}
+	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+	PUBLIC_HEADER DESTINATION retroshare )
 
 if(RS_DEVELOPMENT_BUILD)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
@@ -195,8 +202,6 @@ endif(RS_DEVELOPMENT_BUILD)
 if(RS_ANDROID)
 	target_link_libraries(${PROJECT_NAME} PRIVATE log)
 endif(RS_ANDROID)
-
-# TODO: install public headers
 
 find_package(OpenSSL REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
@@ -209,7 +214,7 @@ if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/.git" )
 	message(
 		CHECK_PASS
 		"openpgpsdk submodule found at ${OPENPGPSDK_DEVEL_DIR} using it" )
-	add_subdirectory(${OPENPGPSDK_DEVEL_DIR} ${CMAKE_BINARY_DIR}/openpgpsdk)
+	add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
 else()
 	FetchContent_Declare(
 		openpgpsdk
