@@ -177,7 +177,7 @@ void p3WebUI::setUserPassword(const std::string& passwd)
 	RsDbg() << __PRETTY_FUNCTION__ << " Updating webui token with new passwd \""
 	        << passwd << "\"" << std::endl;
 
-    if(!rsJsonApi->authorizeUser("webui",passwd))
+    if(rsJsonApi->authorizeUser("webui",passwd))	// (bool)std::error_condition is true when there is an error.
         std::cerr << "(EE) Cannot register webui token. Some error occurred when calling authorizeUser()" << std::endl;
 }
 
