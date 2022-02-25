@@ -134,8 +134,8 @@ set(
 
 set(
 	RS_LIB_INSTALL_DIR
-	"${CMAKE_INSTALL_LIBDIR}"
-	CACHE STRING
+	"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}"
+	CACHE PATH
 	"Path where to install libretroshare compiled library" )
 
 option(
