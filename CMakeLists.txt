@@ -122,9 +122,21 @@ option(
 
 set(
 	RS_DATA_DIR
-	"${CMAKE_INSTALL_PREFIX}/share/retroshare"
-	CACHE STRING
+	"${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}"
+	CACHE PATH
 	"Path where to install RetroShare system wide data" )
+
+set(
+	RS_INCLUDE_INSTALL_DIR
+	"${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}"
+	CACHE PATH
+	"Path where to install libretroshare headers" )
+
+set(
+	RS_LIB_INSTALL_DIR
+	"${CMAKE_INSTALL_LIBDIR}"
+	CACHE STRING
+	"Path where to install libretroshare compiled library" )
 
 option(
 	RS_EXPORT_JNI_ONLOAD
@@ -140,6 +152,13 @@ option(
 option(
 	RS_ANDROID
 	"Enable when compiling libretroshare for Android"
+	OFF )
+
+cmake_dependent_option(
+	RS_WEBUI
+	"Enable RetroShare Web UI support"
+	OFF
+	"RS_JSON_API"
 	OFF )
 
 ################################################################################
@@ -182,6 +201,8 @@ if(RS_LIBRETROSHARE_SHARED)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif(RS_LIBRETROSHARE_SHARED)
 
+## As of today libretroshare doesn't hide implementation details properly so it
+## is necessary to flag all implementation headers as public
 target_include_directories(
 	${PROJECT_NAME}
 	PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src" )
@@ -192,8 +213,17 @@ set_target_properties(
 
 install(
 	TARGETS ${PROJECT_NAME}
-	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-	PUBLIC_HEADER DESTINATION include/retroshare )
+	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
+	PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}" )
+
+## As of today libretroshare doesn't hide implementation details properly so it
+## is necessary to install private headers too
+foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
+	get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
+	install(
+		FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
+		DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
+endforeach()
 
 if(RS_DEVELOPMENT_BUILD)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
@@ -202,6 +232,12 @@ endif(RS_DEVELOPMENT_BUILD)
 if(RS_ANDROID)
 	target_link_libraries(${PROJECT_NAME} PRIVATE log)
 endif(RS_ANDROID)
+
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+
+find_package(Threads REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
 
 find_package(OpenSSL REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
@@ -212,7 +248,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
 if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/.git" )
 	message(
-		CHECK_PASS
+		STATUS
 		"openpgpsdk submodule found at ${OPENPGPSDK_DEVEL_DIR} using it" )
 	add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
 else()
@@ -235,7 +271,7 @@ if(RS_BITDHT)
 	set(BITDHT_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libbitdht/")
 	if(EXISTS "${BITDHT_DEVEL_DIR}/.git" )
 		message(
-			CHECK_PASS
+			STATUS
 			"BitDHT submodule found at ${BITDHT_DEVEL_DIR} using it" )
 		add_subdirectory(${BITDHT_DEVEL_DIR} ${CMAKE_BINARY_DIR}/bitdht)
 		set(RS_BITDHT_DIR "${BITDHT_DEVEL_DIR}")
@@ -253,15 +289,17 @@ if(RS_BITDHT)
 		set(RS_BITDHT_DIR "${bitdht_SOURCE_DIR}")
 	endif()
 
-	add_compile_definitions(RS_USE_BITDHT)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
 	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht)
 	
 	if(RS_BITDHT_STUNNER)
-		add_compile_definitions(RS_USE_DHT_STUNNER)
+		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
 
 		if(RS_BITDHT_STUNNER_EXT_IP)
-			# TODO: Refactor this define to use proper naming
-			add_compile_definitions(ALLOW_DHT_STUNNER)
+			# TODO: Refactor this define to use proper prefix and then flag as
+			# public
+			target_compile_definitions(
+				${PROJECT_NAME} PRIVATE ALLOW_DHT_STUNNER )
 		endif(RS_BITDHT_STUNNER_EXT_IP)
 	endif(RS_BITDHT_STUNNER)
 endif(RS_BITDHT)
@@ -318,7 +356,8 @@ if(RS_JSON_API)
 		"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-includes.inl"
 		"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-wrappers.inl" )
 
-	include_directories(${JSONAPI_GENERATOR_OUTPUT_DIR})
+	target_include_directories(
+		${PROJECT_NAME} PRIVATE "${JSONAPI_GENERATOR_OUTPUT_DIR}" )
 
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
@@ -340,8 +379,10 @@ if(RS_JSON_API)
 	)
 	FetchContent_MakeAvailable(restbed)
 
-	## TODO: work around target_include_directories should be added upstream
-	include_directories(${restbed_SOURCE_DIR}/source/)
+	## TODO: Temporary work around target_include_directories PUBLIC should be
+	## added upstream
+	target_include_directories(
+		${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
 
 	## TODO: work around target_link_libraries should be added upstream
 	## The workaround doesn't work as per documentation
@@ -350,9 +391,9 @@ if(RS_JSON_API)
 	#link_directories(${restbed_BINARY_DIR})
 	endif(NOT RS_ANDROID)
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
+	target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
 
-	add_compile_definitions(RS_JSONAPI)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
 
 ################################################################################
@@ -361,7 +402,7 @@ if(RS_FORUM_DEEP_INDEX)
 	find_package(Xapian REQUIRED)
 	target_link_libraries(${PROJECT_NAME} PRIVATE ${XAPIAN_LIBRARIES})
 
-	add_compile_definitions(RS_DEEP_FORUMS_INDEX)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_DEEP_FORUMS_INDEX)
 endif(RS_FORUM_DEEP_INDEX)
 
 ################################################################################
@@ -379,12 +420,15 @@ if(RS_SQLCIPHER)
 		PRIVATE "${RS_SQL_LIB_INCLUDE}/sqlcipher" )
 	target_link_libraries(${PROJECT_NAME} PRIVATE ${RS_SQL_LIB})
 else()
-	add_compile_definitions(NO_SQLCIPHER)
+	# TODO: Refactor this define to use proper prefix and then flag as
+	# public
+	target_compile_definitions(${PROJECT_NAME} PRIVATE NO_SQLCIPHER)
 	find_package(SQLite3 REQUIRED)
 	target_link_libraries(${PROJECT_NAME} PRIVATE SQLite::SQLite3)
 endif()
 
-add_compile_definitions(
+target_compile_definitions(
+	${PROJECT_NAME} PRIVATE
 	SQLITE_HAS_CODEC
 	RS_ENABLE_GXS
 	GXS_ENABLE_SYNC_MSGS
@@ -395,27 +439,31 @@ add_compile_definitions(
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_003 )
 
 if(RS_V07_BREAKING_CHANGES)
-	add_compile_definitions(
+	target_compile_definitions(
+		${PROJECT_NAME} PRIVATE
 		V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
 		V07_NON_BACKWARD_COMPATIBLE_CHANGE_UNNAMED )
 endif()
 
 if(RS_DH_PRIME_INIT_CHECK)
-	add_compile_definitions(RS_DISABLE_DIFFIE_HELLMAN_INIT_CHECK)
+	target_compile_definitions(
+		${PROJECT_NAME} PRIVATE RS_DISABLE_DIFFIE_HELLMAN_INIT_CHECK )
 endif(RS_DH_PRIME_INIT_CHECK)
 
 if(RS_MINIUPNPC)
-	add_compile_definitions(RS_USE_LIBMINIUPNPC)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_USE_LIBMINIUPNPC )
 	target_link_libraries(${PROJECT_NAME} PRIVATE miniupnpc)
 endif(RS_MINIUPNPC)
 
 if(RS_LIBUPNP)
 	message(FATAL_ERROR "UPnP support via libupnp is currently not supported")
-	#add_compile_definitions(RS_USE_LIBUPNP)
+	#target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_LIBUPNP)
 endif(RS_LIBUPNP)
 
 if(RS_GXS_SEND_ALL)
-	add_compile_definitions(RS_GXS_SEND_ALL)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_GXS_SEND_ALL )
 endif(RS_GXS_SEND_ALL)
 
 if(RS_BRODCAST_DISCOVERY)
@@ -434,36 +482,43 @@ if(RS_BRODCAST_DISCOVERY)
 
 	target_link_libraries(${PROJECT_NAME} PRIVATE udp-discovery)
 
-	## TODO: Temporary work around target_include_directories should be added
-	## upstream
-	include_directories(${udp-discovery-cpp_SOURCE_DIR})
+	## TODO: Temporary work around target_include_directories PUBLIC should be
+	## added upstream
+	target_include_directories(
+		${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
 endif(RS_BRODCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
-	add_compile_definitions(RS_NO_WARN_DEPRECATED)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
 	target_compile_options(
 		${PROJECT_NAME} PRIVATE
 		-Wno-deprecated -Wno-deprecated-declarations )
 endif(NOT RS_WARN_DEPRECATED)
 
 if(RS_WARN_LESS)
-	add_compile_definitions(RS_NO_WARN_CPP)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_CPP)
 	
 	target_compile_options(
 		${PROJECT_NAME} PRIVATE
 		-Wno-cpp -Wno-inconsistent-missing-override )
 endif(RS_WARN_LESS)
 
+if(RS_WEBUI)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_WEBUI)
+endif(RS_WEBUI)
+
 ################################################################################
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	add_compile_definitions(RS_DATA_DIR="${RS_DATA_DIR}")
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_DATA_DIR="${RS_DATA_DIR}" )
 endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
 ################################################################################
 
 if(RS_EXPORT_JNI_ONLOAD)
-	add_compile_definitions(RS_LIBRETROSHARE_EXPORT_JNI_ONLOAD)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_LIBRETROSHARE_EXPORT_JNI_ONLOAD )
 endif(RS_EXPORT_JNI_ONLOAD)
 
 ################################################################################
@@ -480,7 +535,8 @@ if(RS_ANDROID)
 	)
 	FetchContent_MakeAvailable(jni-hpp)
 
-	include_directories(${jni-hpp_SOURCE_DIR}/include)
+	target_include_directories(
+		${PROJECT_NAME} PRIVATE "${jni-hpp_SOURCE_DIR}/include" )
 endif(RS_ANDROID)
 #endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 

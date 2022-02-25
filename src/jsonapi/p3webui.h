@@ -2,6 +2,8 @@
  * RetroShare Web User Interface
  *
  * Copyright (C) 2019  Cyril Soler <csoler@users.sourceforge.net>
+ * Copyright (C) 2022  Gioacchino Mazzurco <gio@eigenlab.org>
+ * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Affero General Public License as published by the
@@ -33,15 +35,18 @@ class p3WebUI: public RsWebUi, public JsonApiResourceProvider
 public:
 	~p3WebUI() override = default;
 
-    // implements RsWebUI
+	/// implements RsWebUI
+	virtual std::error_condition setHtmlFilesDirectory(
+	        const std::string& html_dir ) override;
+	virtual std::error_condition setUserPassword(
+	        const std::string& passwd ) override;
 
-    virtual void setHtmlFilesDirectory(const std::string& html_dir) override;
-    virtual void setUserPassword(const std::string& passwd) override;
+	virtual std::error_condition restart() override;
+	virtual std::error_condition stop() override;
 
-    virtual bool restart() override ;
-    virtual bool stop() override ;
 	bool isRunning() const override;
-    // implements JsonApiResourceProvider
 
-    virtual std::vector<std::shared_ptr<restbed::Resource> > getResources() const override;
+	/// implements JsonApiResourceProvider
+	virtual std::vector<std::shared_ptr<restbed::Resource> > getResources()
+	const override;
 };

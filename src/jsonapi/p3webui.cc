@@ -2,6 +2,8 @@
  * RetroShare Web User Interface
  *
  * Copyright (C) 2019  Cyril Soler <csoler@users.sourceforge.net>
+ * Copyright (C) 2022  Gioacchino Mazzurco <gio@eigenlab.org>
+ * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Affero General Public License as published by the
@@ -33,8 +35,7 @@
 #include "retroshare/rswebui.h"
 #include "rsserver/rsaccounts.h"
 #include "retroshare/rsjsonapi.h"
-
-#define DEBUG_RS_WEBUI 1
+#include "util/rsdir.h"
 
 /*extern*/ RsWebUi* rsWebUi = new p3WebUI;
 
@@ -110,6 +111,9 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 
 	if(rtab.empty())
 	{
+		/* TODO: better not hardcode file names here so the C++ code can remain
+		 * the same and WebUI modified indipendently */
+
 		auto resource1 = std::make_shared< restbed::Resource >();
 		resource1->set_paths( {
 		                          "/{filename: index.html}",
@@ -160,37 +164,51 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		rtab.push_back(resource6);
 	}
 
-    return rtab;
+	return rtab;
 }
 
 
-void p3WebUI::setHtmlFilesDirectory(const std::string& html_dir)
+std::error_condition p3WebUI::setHtmlFilesDirectory(const std::string& html_dir)
 {
-    _base_directory = html_dir;
+	RS_DBG("html_dir: ", html_dir);
+
+	if(!RsDirUtil::checkDirectory(html_dir))
+	{
+		RS_ERR(html_dir, " is not a directory");
+		return std::errc::not_a_directory;
+	}
+
+	if(!RsDirUtil::fileExists(html_dir+"/index.html"))
+	{
+		RS_ERR(html_dir, " doesn't seems a valid webui dir lacks index.html");
+		return std::errc::no_such_file_or_directory;
+	}
+
+	_base_directory = html_dir;
+	return std::error_condition();
 }
 
 bool p3WebUI::isRunning() const
 { return rsJsonApi->isRunning() && rsJsonApi->hasResourceProvider(*this); }
 
-void p3WebUI::setUserPassword(const std::string& passwd)
+std::error_condition p3WebUI::setUserPassword(const std::string& passwd)
 {
-	RsDbg() << __PRETTY_FUNCTION__ << " Updating webui token with new passwd \""
-	        << passwd << "\"" << std::endl;
+	RS_DBG("Updating webui token with new password");
 
-    if(rsJsonApi->authorizeUser("webui",passwd))	// (bool)std::error_condition is true when there is an error.
-        std::cerr << "(EE) Cannot register webui token. Some error occurred when calling authorizeUser()" << std::endl;
+	auto err = rsJsonApi->authorizeUser("webui", passwd);
+	if(err)
+		RS_ERR("Cannot register webui token, authorizeUser(...) return ", err);
+	return err;
 }
 
-bool p3WebUI::restart()
+std::error_condition p3WebUI::restart()
 {
 	rsJsonApi->registerResourceProvider(*this);
-    rsJsonApi->restart();
-	return true;
+	return rsJsonApi->restart();
 }
 
-bool p3WebUI::stop()
+std::error_condition p3WebUI::stop()
 {
 	rsJsonApi->unregisterResourceProvider(*this);
-    rsJsonApi->restart();
-	return true;
+	return rsJsonApi->restart();
 }

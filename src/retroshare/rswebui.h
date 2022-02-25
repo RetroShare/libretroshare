@@ -2,6 +2,8 @@
  * RetroShare Web User Interface public header
  *
  * Copyright (C) 2019  Cyril Soler <csoler@users.sourceforge.net>
+ * Copyright (C) 2022  Gioacchino Mazzurco <gio@eigenlab.org>
+ * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -23,6 +25,7 @@
 #pragma once
 
 #include <string>
+#include <system_error>
 
 class RsWebUi;
 
@@ -42,27 +45,30 @@ public:
 	 * @brief Restart WebUI
 	 * @jsonapi{development}
 	 */
-	virtual bool restart() = 0;
+	virtual std::error_condition restart() = 0;
 
 	/**
 	 * @brief Stop WebUI
 	 * @jsonapi{development}
 	 */
-	virtual bool stop() = 0;
+	virtual std::error_condition stop() = 0;
 
 	/**
 	 * @brief Set WebUI static files directory, need restart to apply
 	 * @param[in] htmlDir directory path
 	 * @jsonapi{development}
 	 */
-	virtual void setHtmlFilesDirectory(const std::string& htmlDir) = 0;
+	virtual std::error_condition setHtmlFilesDirectory(
+	        const std::string& htmlDir ) = 0;
 
 	/**
 	 * @brief Set WebUI user password
 	 * @param[in] password new password for WebUI
+	 * @return if some error occurred return details about it
 	 * @jsonapi{development}
 	 */
-	virtual void setUserPassword(const std::string& password) =0;
+	virtual std::error_condition setUserPassword(
+	        const std::string& password ) = 0;
 
 	/**
 	 * @brief check if WebUI is running
