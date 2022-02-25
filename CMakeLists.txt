@@ -362,36 +362,31 @@ if(RS_JSON_API)
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
 
-	if(NOT RS_ANDROID)
-	## At moment depending on restbed this way doesn't seems to work at least on
-	## Android due to upstream CMake file limitation, patches should be sent
-	## upstream. Restbed is therefore compiled by Android toolchain preparation
-	## script
+	## At moment depending on restbed the CMake way doesn't seems to work at
+	## least on Android due to upstream CMake file limitation, patches should be
+	## sent upstream.
+	## Restbed is therefore compiled by Android toolchain preparation script
+	if(RS_ANDROID)
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
+	else()
+		FetchContent_Declare(
+			restbed
+			GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
+			GIT_TAG "4.8"
+			GIT_SUBMODULES dependency/asio dependency/catch
+			GIT_SHALLOW TRUE
+			GIT_PROGRESS TRUE
+			TIMEOUT 10
+		)
+		FetchContent_MakeAvailable(restbed)
 
-	FetchContent_Declare(
-		restbed
-		GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
-		GIT_TAG "4.8"
-		GIT_SUBMODULES dependency/asio dependency/catch
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
-	)
-	FetchContent_MakeAvailable(restbed)
+		## TODO: Temporary work around target_include_directories PUBLIC should
+		## be added upstream
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
 
-	## TODO: Temporary work around target_include_directories PUBLIC should be
-	## added upstream
-	target_include_directories(
-		${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
-
-	## TODO: work around target_link_libraries should be added upstream
-	## The workaround doesn't work as per documentation
-	## https://cmake.org/cmake/help/latest/command/link_directories.html
-	## "The command will apply only to targets created after it is called."
-	#link_directories(${restbed_BINARY_DIR})
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
 	endif(NOT RS_ANDROID)
-
-	target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
