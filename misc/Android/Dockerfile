@@ -1,13 +1,9 @@
 ## To prepare an image suitable as base for Gitlab CI use
 ## image name must match gitlab repository name, you can play just with the tag
 ## the part after :
-# export CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_arm_base"
-# docker build --squash --tag "${CI_IMAGE_NAME}" \
-# --build-arg QT_INSTALLER_JWT_TOKEN="your qt JWT token goes here"  .
-#
-# To build Android ARMv8 (64 bit) package pass also
-# export CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_arm64_base"
-# --build-arg ANDROID_NDK_ARCH=arm64 --build-arg ANDROID_PLATFORM_VER=21
+# export ANDROID_MIN_API_LEVEL=16
+# export CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_aar_base_$ANDROID_MIN_API_LEVEL"
+# docker build --squash --tag "${CI_IMAGE_NAME}" --build-arg ANDROID_MIN_API_LEVEL=$ANDROID_MIN_API_LEVEL --build-arg LIBRETROSHARE_SOURCE_VERSION="$(git describe --always)" --file misc/Android/Dockerfile-AAR .
 
 ## --squash is very important in case of GitlabCI shared runners as they are
 ## limited to 25GB disk size
@@ -16,13 +12,12 @@
 # docker login registry.gitlab.com
 # docker push ${CI_IMAGE_NAME}
 
-## To extract the generated APK easily you can run after the build complete
-# docker cp \
-#	$(docker create --rm ${CI_IMAGE_NAME}):/retroshare-service-android-build/android-build/build/outputs/apk/debug/android-build-debug.apk \
-#	/tmp/RetroShare_Android_Service.apk
+## To esly extract artifacts and other files you ar einterested into from the
+## image you can use a command similar to:
+# docker cp $(docker create --rm ${CI_IMAGE_NAME}):/libretroshare-aar/* $HOME/
+## see https://stackoverflow.com/a/59055906
 
-
-FROM ubuntu:20.04
+FROM ubuntu:21.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV APT_UNAT="--assume-yes --quiet"
@@ -31,87 +26,46 @@ RUN apt-get update $APT_UNAT && apt-get upgrade --show-upgraded $APT_UNAT && \
 	apt-get clean $APT_UNAT
 RUN apt-get install --no-install-recommends $APT_UNAT \
 	bash build-essential bzip2 cmake curl chrpath doxygen \
-	git p7zip python qt5-default qttools5-dev tclsh unzip wget zip
+	git python python3 tclsh unzip wget zip
 
 # Dependencies to create Android pkg
 RUN apt-get install --no-install-recommends $APT_UNAT \
-	openjdk-8-jre openjdk-8-jdk openjdk-8-jdk-headless gradle
-
-ARG FRESHCLONE=0
-ARG REPO_URL=https://gitlab.com/RetroShare/RetroShare.git
-ARG REPO_BRANCH=master
-ARG REPO_DEPTH="--depth 2000"
-
-RUN git clone $REPO_DEPTH $REPO_URL -b $REPO_BRANCH && cd RetroShare && \
-	git fetch --tags
-
-ENV PREPARE_TOOLCHAIN="/RetroShare/build_scripts/Android/prepare-toolchain-clang.sh"
-ENV NATIVE_LIBS_TOOLCHAIN_PATH="/android-toolchain/"
-
-ARG ANDROID_PLATFORM_VER=16
-ARG ANDROID_NDK_ARCH=arm
+	openjdk-11-jre openjdk-11-jdk openjdk-11-jdk-headless
 
 ENV ANDROID_SDK_PATH="/opt/android-sdk"
 ENV ANDROID_HOME="$ANDROID_SDK_PATH"
 ENV ANDROID_SDK_ROOT="$ANDROID_SDK_PATH"
+ENV JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64/"
 
-ENV ANDROID_NDK_PATH="/opt/android-ndk"
-ENV ANDROID_NDK_ROOT="$ANDROID_NDK_PATH"
+ARG SOURCE_PATH=./
+COPY $SOURCE_PATH /libretroshare
 
-ENV PATH="$PATH:$ANDROID_HOME/tools"
-ENV PATH="$PATH:$ANDROID_HOME/platform-tools"
-ENV JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64/"
+WORKDIR /libretroshare-build/
+RUN /libretroshare/misc/Android/prepare-toolchain-clang.sh install_android_sdk
 
-RUN mkdir /bCache
-WORKDIR /bCache
+WORKDIR /libretroshare/
+ARG ANDROID_MIN_API_LEVEL=16
+ARG LIBRETROSHARE_SOURCE_VERSION="Dockerfile_AAR_unset"
+ENV NATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+RUN ./gradlew build -Dorg.gradle.project.buildDir=/libretroshare-build/ \
+	-PANDROID_MIN_API_LEVEL=$ANDROID_MIN_API_LEVEL \
+	-PNATIVE_TOOLCHAINS_DIR=$NATIVE_TOOLCHAINS_DIR \
+	-PLIBRETROSHARE_SOURCE_VERSION="$LIBRETROSHARE_SOURCE_VERSION"
 
-## Quick HACK to ease development
-#COPY prepare-toolchain-clang.sh $PREPARE_TOOLCHAIN
+WORKDIR /
 
-RUN $PREPARE_TOOLCHAIN install_android_sdk
-RUN $PREPARE_TOOLCHAIN install_android_ndk
-RUN $PREPARE_TOOLCHAIN
+## Save generated AAR to make life easier to newcomers that might want to use
+## this just to build the libretroshare AAR
+RUN mv /libretroshare-build/outputs/aar/ /libretroshare-aar/
 
-ARG QT_INSTALLER_JWT_TOKEN
-RUN $PREPARE_TOOLCHAIN install_qt_android
-# Avoid Qt account details leak into the image
-RUN rm -f /root/.local/share/Qt/qtaccount.ini
-# Shrink image by removing unneeded Qt components
-RUN rm -r \
-	$NATIVE_LIBS_TOOLCHAIN_PATH/Qt/Docs/ \
-	$NATIVE_LIBS_TOOLCHAIN_PATH/Qt/Examples/ \
-	$NATIVE_LIBS_TOOLCHAIN_PATH/Qt/Tools/
+## Cleanup all the rest now unneded stuff so squashing is more effective
+RUN rm -rf /libretroshare-build/
 
-RUN mkdir /jsonapi-generator-build
-WORKDIR /jsonapi-generator-build/
-RUN qmake ../RetroShare/jsonapi-generator/src/ \
-		CONFIG+=no_retroshare_plugins \
-		CONFIG+=no_retroshare_service CONFIG+=no_retroshare_gui \
-		CONFIG+=rs_jsonapi CONFIG+=no_rs_sam3_libsam3 && \
-	make -j$(nproc)
+## Clean reamining cruft inside native_toolchains
+RUN rm -rf $NATIVE_TOOLCHAINS_DIR/*-build
 
-RUN mkdir /retroshare-service-android-build
-WORKDIR /retroshare-service-android-build
-ARG RS_SERVICE_QMAKE_EXTRA_OPTS
-RUN $($PREPARE_TOOLCHAIN get_qt_dir | head -n 1)/bin/qmake ../RetroShare \
-	-spec android-clang \
-	CONFIG+=retroshare_service CONFIG+=rs_jsonapi \
-	RS_UPNP_LIB=miniupnpc \
-	JSONAPI_GENERATOR_EXE=/jsonapi-generator-build/jsonapi-generator \
-	NATIVE_LIBS_TOOLCHAIN_PATH=$NATIVE_LIBS_TOOLCHAIN_PATH \
-	CONFIG+=no_retroshare_gui CONFIG+=no_rs_service_webui_terminal_password \
-	CONFIG+=no_rs_service_terminal_login \
-	CONFIG+=no_rs_sam3 CONFIG+=no_rs_sam3_libsam3 \
-	$RS_SERVICE_QMAKE_EXTRA_OPTS
-RUN	make -j$(nproc)
-RUN make install INSTALL_ROOT=/retroshare-service-android-build/android-build/
-RUN $($PREPARE_TOOLCHAIN get_qt_dir | head -n 1)/bin/androiddeployqt \
-	--input retroshare-service/src/android-libretroshare-service.so-deployment-settings.json \
-	--output android-build --android-platform android-$ANDROID_PLATFORM_VER \
-	--jdk $JAVA_HOME --gradle
-
-
-RUN rm -rf /bCache
-
-# Clean apt cache
+## Clean apt cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+## No need to keep sources inside the image
+RUN rm -rf /libretroshare/
