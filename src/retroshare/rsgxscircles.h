@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2012-2014  Robert Fernie <retroshare@lunamutt.com>            *
- * Copyright (C) 2018-2021  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2019-2021  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2022  Gioacchino Mazzurco <gio@retroshare.cc>            *
+ * Copyright (C) 2019-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -208,9 +208,11 @@ enum class RsGxsCircleEventCode: uint8_t
 	CIRCLE_MEMBERSHIP_REQUEST                      = 0x01,
 
 	/**
-	 * Sent when the ID has been added to the circle invitee list.
+	 * Emitted when an ID has been added to the circle invitee list.
 	 *
-	 * mCircleId is the circle that invites me, and mGxsId is my own Id that is invited */
+	 * mCircleId is the circle to which the ID is invited
+	 * mGxsId is the ID that has been invited
+	 */
 	CIRCLE_MEMBERSHIP_ID_ADDED_TO_INVITEE_LIST     = 0x02,
 
 	/**
