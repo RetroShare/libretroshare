@@ -26,6 +26,7 @@
  *
  * Optionally set environement variables defined in prepare-toolchain-clang.sh
  * to further customize the build
+ * export RS_EXTRA_CMAKE_OPTS="-DRS_DEVELOPMENT_BUILD=ON"
  */
 
 buildscript
