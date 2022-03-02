@@ -393,14 +393,16 @@ std::string AuthPGP::getPgpName(const RsPgpId& id,bool *success)
 
 AuthPGP *AuthPGP::instance()
 {
-    if(!_instance)
-    {
-        RsFatal() << "AuthGPG::instance() called before AuthGPG::init()! This should not happen." << std::endl;
-        return nullptr;
-    }
+	if(!_instance)
+	{
+		RS_ERR("called before AuthGPG::init()");
+		print_stacktrace();
+		return nullptr;
+	}
 
-    return _instance;
+	return _instance;
 }
+
 bool AuthPGP::isPGPId(const RsPgpId& id)
 {
     return instance()->mPgpHandler->isGPGId(id);

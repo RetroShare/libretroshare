@@ -4,7 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2004-2008  Robert Fernie <retroshare@lunamutt.com>            *
- * Copyright (C) 2019  Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2022       Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@retroshare.cc>            *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -20,6 +21,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
+#include <iomanip>
+#include <chrono>
+
 #ifdef WINDOWS_SYS
 #include "util/rswin.h"
 #endif // WINDOWS_SYS
@@ -44,7 +49,6 @@
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 
-#include <iomanip>
 
 /* SSL connection diagnostic */
 
@@ -342,10 +346,10 @@ int AuthSSLimpl::InitAuth(
 		SSL_library_init();
 	}
 
-
 	if (init == 1)
 	{
-                std::cerr << "AuthSSLimpl::InitAuth already initialized." << std::endl;
+		RS_ERR("already initialized");
+		print_stacktrace();
 		return 1;
 	}
 
@@ -353,7 +357,10 @@ int AuthSSLimpl::InitAuth(
 		(priv_key_file == NULL) ||
 		(passwd == NULL))
 	{
-                //fprintf(stderr, "sslroot::initssl() missing parameters!\n");
+		RS_ERR( "missing parameters "
+		        "cert_file: ", static_cast<const void*>(cert_file),
+		        " priv_key_file: ", static_cast<const void*>(priv_key_file),
+		        " passwd: ", static_cast<const void*>(passwd) );
 		return 0;
 	}
 
@@ -361,7 +368,7 @@ int AuthSSLimpl::InitAuth(
 	// actions_to_seed_PRNG();
 	RAND_seed(passwd, strlen(passwd));
 
-	std::cerr << "SSL Library Init!" << std::endl;
+	RS_DBG("SSL Library Init!");
 
 	// setup connection method
 	sslctx = SSL_CTX_new(SSLv23_method());
@@ -420,10 +427,17 @@ int AuthSSLimpl::InitAuth(
 		std::cout.flush() ;
 
 #ifndef RS_DISABLE_DIFFIE_HELLMAN_INIT_CHECK
-		if(DH_check(dh, &codes) && codes == 0)
-			SSL_CTX_set_tmp_dh(sslctx, dh);
-		else
-			pfs_enabled = false;
+		{
+			using namespace std::chrono;
+			const auto tStart = system_clock::now();
+			if(DH_check(dh, &codes) && codes == 0)
+				SSL_CTX_set_tmp_dh(sslctx, dh);
+			else
+				pfs_enabled = false;
+			RS_INFO( "Diffie-Hellman parameters full validation took ",
+			         duration_cast<milliseconds>(system_clock::now() - tStart).count(),
+			         "ms");
+		}
 #else // ndef RS_DISABLE_DIFFIE_HELLMAN_INIT_CHECK
 		/* DH_check(...) is not strictly necessary and on Android devices it
 		 * takes at least one minute which is untolerable there */
@@ -437,7 +451,7 @@ int AuthSSLimpl::InitAuth(
 	FILE *ownfp = RsDirUtil::rs_fopen(cert_file, "r");
 	if (ownfp == NULL)
 	{
-		std::cerr << "Couldn't open Own Certificate!" << std::endl;
+		RS_ERR("Couldn't open own certificate: ", cert_file);
 		return -1;
 	}
 
@@ -448,8 +462,7 @@ int AuthSSLimpl::InitAuth(
 
 	if (x509 == NULL)
 	{
-                std::cerr << "AuthSSLimpl::InitAuth() PEM_read_X509() Failed";
-		std::cerr << std::endl;
+		RS_ERR("PEM_read_X509() Failed");
 		return -1;
 	}
 
@@ -458,30 +471,31 @@ int AuthSSLimpl::InitAuth(
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L
 	if(result != 1)
 	{
-		// In debian Buster, openssl security level is set to 2 which preclude the use of SHA1, originally used to sign RS certificates.
-		// As a consequence, on these systems, locations created with RS previously to Jan.2020 will not start unless we revert the
-		// security level to a value of 1.
+		/* In debian Buster, openssl security level is set to 2 which preclude
+		 * the use of SHA1, originally used to sign RS certificates.
+		 * As a consequence, on these systems, locations created with RS
+		 * previously to Jan.2020 will not start unless we revert the security
+		 * level to a value of 1. */
 
 		int save_sec = SSL_CTX_get_security_level(sslctx);
 		SSL_CTX_set_security_level(sslctx,1);
 		result = SSL_CTX_use_certificate(sslctx, x509);
 
 		if(result == 1)
-		{
-			std::cerr << std::endl;
-			std::cerr << "     Your Retroshare certificate uses low security settings that are incompatible " << std::endl;
-			std::cerr << "(WW) with current security level " << save_sec << " of the OpenSSL library. Retroshare will still start " << std::endl;
-			std::cerr << "     (with security level set to 1), but you should probably create a new location." << std::endl;
-			std::cerr << std::endl;
-		}
+			RS_WARN( "Your Retroshare certificate uses low security settings "
+			         "that are incompatible with current security level ",
+			         save_sec, " of the OpenSSL library. RetroShare will still "
+			         "start with security level set to 1), but you should "
+			         "probably create a new location." );
 	}
 #endif
 
-    if(result != 1)
-    {
-        std::cerr << "(EE) Cannot use your Retroshare certificate. Some error occured in SSL_CTX_use_certificate()" << std::endl;
-        return -1;
-    }
+	if(result != 1)
+	{
+		RS_ERR( "Cannot use your Retroshare certificate."
+		        "SSL_CTX_use_certificate() report error: ", result);
+		return -1;
+	}
 
 	mOwnPublicKey = X509_get_pubkey(x509);
 
@@ -489,7 +503,7 @@ int AuthSSLimpl::InitAuth(
 	FILE *pkfp = RsDirUtil::rs_fopen(priv_key_file, "rb");
 	if (pkfp == NULL)
 	{
-		std::cerr << "Couldn't Open PrivKey File!" << std::endl;
+		RS_ERR("Failure opening private key file");
 		CloseAuth();
 		return -1;
 	}
@@ -497,20 +511,18 @@ int AuthSSLimpl::InitAuth(
         mOwnPrivateKey = PEM_read_PrivateKey(pkfp, NULL, NULL, (void *) passwd);
 	fclose(pkfp);
 
-        if (mOwnPrivateKey == NULL)
+	if(mOwnPrivateKey == NULL)
 	{
-                std::cerr << "AuthSSLimpl::InitAuth() PEM_read_PrivateKey() Failed";
-		std::cerr << std::endl;
+		RS_ERR("PEM_read_PrivateKey() failed");
 		return -1;
 	}
         SSL_CTX_use_PrivateKey(sslctx, mOwnPrivateKey);
 
 	if (1 != SSL_CTX_check_private_key(sslctx))
 	{
-		std::cerr << "Issues With Private Key! - Doesn't match your Cert" << std::endl;
-		std::cerr << "Check your input key/certificate:" << std::endl;
-		std::cerr << priv_key_file << " & " << cert_file;
-		std::cerr << std::endl;
+		RS_ERR( "Private key doesn't match your certificate "
+		        "Check your private key: ", priv_key_file,
+		        " and certificate : ", cert_file );
 		CloseAuth();
 		return -1;
 	}
@@ -519,10 +531,8 @@ int AuthSSLimpl::InitAuth(
 
 	if (!getX509id(x509, mownidstr))
 	{
-		std::cerr << "AuthSSLimpl::InitAuth() getX509id() Failed";
-		std::cerr << std::endl;
-
 		/* bad certificate */
+		RS_ERR("getX509id() failed");
 		CloseAuth();
 		return -1;
 	}
@@ -536,15 +546,12 @@ int AuthSSLimpl::InitAuth(
 
 	if (!validateOwnCertificate(x509, mOwnPrivateKey))
 	{
-		std::cerr << "AuthSSLimpl::InitAuth() validateOwnCertificate() Failed";
-		std::cerr << std::endl;
-
 		/* bad certificate */
+		RS_ERR("validateOwnCertificate() failed");
 		CloseAuth();
 		exit(1);
 		return -1;
 	}
-
 
 	// enable verification of certificates (PEER)
 	// and install verify callback.
@@ -552,25 +559,23 @@ int AuthSSLimpl::InitAuth(
 			SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 
 				verify_x509_callback);
 
-	std::cerr << "SSL Verification Set" << std::endl;
-
 	mOwnCert = x509;
 
-	std::cerr << "Inited SSL context: " << std::endl;
-	std::cerr << "    Certificate: " << mOwnId << std::endl;
-	std::cerr << "    cipher list: " << cipherString << std::endl;
-	std::cerr << "    PFS enabled: " << (pfs_enabled?"YES":"NO") ;
+	auto& mInfo = RS_INFO( "SSL verification setup complete ") << std::endl <<
+	         "\t Certificate id: " << mOwnId << std::endl <<
+	         "\t cipher list: " << cipherString << std::endl <<
+	         "\t PFS enabled: " << (pfs_enabled ? "yes" : "no");
 	if(codes > 0)
 	{
-		std::cerr << " (reason: " ;
-		if(codes & DH_CHECK_P_NOT_PRIME     ) std::cerr << "Not a prime number, " ;
-		if(codes & DH_CHECK_P_NOT_SAFE_PRIME) std::cerr << "Not a safe prime number, " ;
-		if(codes & DH_UNABLE_TO_CHECK_GENERATOR) std::cerr << "unable to check generator, " ;
-		if(codes & DH_NOT_SUITABLE_GENERATOR) std::cerr << "not a suitable generator" ;
-		std::cerr << ")" << std::endl;
+		mInfo << " (reason: " ;
+		if(codes & DH_CHECK_P_NOT_PRIME     ) mInfo << "Not a prime number, " ;
+		if(codes & DH_CHECK_P_NOT_SAFE_PRIME) mInfo << "Not a safe prime number, " ;
+		if(codes & DH_UNABLE_TO_CHECK_GENERATOR) mInfo << "unable to check generator, " ;
+		if(codes & DH_NOT_SUITABLE_GENERATOR) mInfo << "not a suitable generator" ;
+		mInfo << ")" << std::endl;
 	}
 	else
-		std::cerr << std::endl;
+		mInfo << std::endl;
 
 	mOwnLocationName = locationName;
 
