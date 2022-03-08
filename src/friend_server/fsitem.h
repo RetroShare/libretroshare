@@ -57,6 +57,7 @@ public:
         RS_SERIAL_PROCESS(n_requested_friends);
         RS_SERIAL_PROCESS(short_invite);
         RS_SERIAL_PROCESS(pgp_public_key_b64);
+        RS_SERIAL_PROCESS(already_received_peers);
     }
     virtual void clear()  override
     {
@@ -67,9 +68,10 @@ public:
 
     // specific members for that item
 
-    uint32_t    n_requested_friends;
-    std::string short_invite;
-    std::string pgp_public_key_b64;
+    uint32_t           n_requested_friends;
+    std::string        short_invite;
+    std::string        pgp_public_key_b64;
+    std::set<RsPeerId> already_received_peers;
 };
 
 class RsFriendServerStatusItem: public RsFriendServerItem

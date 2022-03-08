@@ -33,6 +33,7 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
                               const std::string& proxy_address,uint16_t proxy_port,
                               uint32_t reqs,
                               const std::string& pgp_passphrase,
+                              const std::set<RsPeerId>& already_received_peers,
                               std::map<std::string,bool>& friend_certificates)
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
@@ -40,6 +41,7 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
     RsFriendServerClientPublishItem *pitem = new RsFriendServerClientPublishItem();
 
     pitem->n_requested_friends = reqs;
+    pitem->already_received_peers = already_received_peers;
 
     std::string pgp_base64_string,pgp_base64_checksum,short_invite;
     rsPeers->GetPGPBase64StringAndCheckSum(rsPeers->getGPGOwnId(),pgp_base64_string,pgp_base64_checksum);
