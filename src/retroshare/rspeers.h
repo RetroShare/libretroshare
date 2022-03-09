@@ -520,6 +520,7 @@ enum class RetroshareInviteFlags:uint32_t {
     RADIX_FORMAT        = 0x08,
     PGP_SIGNATURES      = 0x10,
     CURRENT_EXTERNAL_IP = 0x20,
+    SLICE_TO_80_CHARS   = 0x40,
     ALL                 = 0xff,
 };
 RS_REGISTER_ENUM_FLAGS_TYPE(RetroshareInviteFlags)

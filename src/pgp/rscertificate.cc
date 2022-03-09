@@ -157,6 +157,12 @@ std::string RsCertificate::toStdString(RetroshareInviteFlags flags) const
 
 	Radix64::encode(buf, p, out_string) ;
 
+    if(!(flags & RetroshareInviteFlags::SLICE_TO_80_CHARS))
+    {
+        delete[] buf;
+        return out_string;
+    }
+
 	// Now slice up to 64 chars.
 	//
 	std::string out2 ;
