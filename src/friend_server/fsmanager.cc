@@ -114,7 +114,8 @@ void FriendServerManager::threadTick()
         std::cerr << "Requesting new friends to friend server..." << std::endl;
 
         std::map<std::string,bool> friend_certificates;
-        FsClient().requestFriends(mServerAddress,mServerPort,mProxyAddress,mProxyPort,mFriendsToRequest,mCachedPGPPassphrase,friend_certificates);	// blocking call
+        FsClient().requestFriends(mServerAddress,mServerPort,mProxyAddress,mProxyPort,mFriendsToRequest,mCachedPGPPassphrase,
+                                  mAlreadyReceivedPeers, friend_certificates);	// blocking call
 
         std::cerr << "Got the following list of friend certificates:" << std::endl;
 
@@ -133,6 +134,8 @@ void FriendServerManager::threadTick()
                 RsErr() << "Parsing error " << err_code << " in invite \"" << invite.first << "\"";
                 continue;
             }
+
+            mAlreadyReceivedPeers.insert(det.id);
 
             if(friend_locations_set.find(det.id) != friend_locations_set.end())
             {

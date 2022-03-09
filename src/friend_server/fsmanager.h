@@ -46,7 +46,7 @@ private:
 
     // encode the current list of friends obtained through the friendserver and their status
 
-    std::map<RsPeerId, FriendServerPeerInfo> mPeers;
+    std::set<RsPeerId> mAlreadyReceivedPeers; // we keep track of these so as to not re-receive the ones we already have.
     std::string mServerAddress ;
     uint16_t mServerPort;
     std::string mProxyAddress ;
