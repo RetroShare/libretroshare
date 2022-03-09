@@ -1224,10 +1224,9 @@ bool RsGxsNetTunnelService::receiveSearchRequest(
 	{
 	case RsGxsNetTunnelItemSubtypes::SEARCH_SUBSTRING:
 	{
-		if(!search_result_data)
+        if(search_result_data)
 		{
-			RS_ERR( "Got item with TURTLE_SEARCH_SUBSTRING without space for "
-			        "results!" );
+            RS_ERR( "Calling receiveSearchRequest() with search_request_data != null. This is unexpected." );
 			print_stacktrace();
 			break;
 		}
