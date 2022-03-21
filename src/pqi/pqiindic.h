@@ -23,35 +23,79 @@
 #define MRK_PQI_INDICATOR_HEADER
 
 #include <vector>
+#include <stdint.h>
 
-// This will indicate to num different sources
-// when the event has occured.
+// The Indicator class provides flags with different levels from 0 to n-1.
+//
+// Flags can be set at a specific level, and checked at all levels up to some
+// given level. As a consequence, it is possible to use these flags to conduct actions
+// at different priority levels: 0 has lowest priority, n-1 is highest.
 
 class Indicator
 {
-	public:
-	explicit Indicator(uint16_t n = 1)
-	:num(n), changeFlags(n) {IndicateChanged();}
-void	IndicateChanged()
-	{
-		for(uint16_t i = 0; i < num; i++)
-			changeFlags[i]=true;
-	}
+public:
+    explicit Indicator(uint16_t n = 1)
+            : changeFlags(n)
+    {
+        IndicateChanged();
+    }
 
-bool	Changed(uint16_t idx = 0)
-	{
-		/* catch overflow */
-		if (idx > num - 1)
-			return false;
+    /*!
+     * \brief IndicateChanged
+     * 			Sets all levels to 1.
+     */
+    void	IndicateChanged()
+    {
+        for(uint16_t i = 0; i < changeFlags.size(); i++)
+            changeFlags[i]=true;
+    }
 
-		bool ans = changeFlags[idx];
-		changeFlags[idx] = false;
-		return ans;
-	}
+    /*!
+     * \brief Reset
+     * 			Resets all flags.
+     */
+    void Reset()
+    {
+        for(uint32_t i=0;i<changeFlags.size();++i)
+            changeFlags[i]=false;
+    }
+    /*!
+     * \brief IndicateChanged
+     * 			Sets all levels up to level l. This reflects the fact that when checking,
+     *          any check that tests for lower urgency (meaning for less urgent business) needs to know that
+     *          a change has been made, so as to avoid other loops for more urgent business to also save.
+     * \param l
+     */
+    void	IndicateChanged(int l)
+    {
+        for(uint16_t i = 0; i <= l ; i++)
+            changeFlags[i]=true;
+    }
 
-	private:
-	uint16_t num;
-	std::vector<bool> changeFlags;
+    /*!
+     * \brief Changed
+     * 				Checks whether level idx or below has been changed, and reset *all*.
+     * 				This reflects the fact that once a level is positively checked, all levels
+     * 				need to be reset since the action does not need to be done again whatever its
+     * 				priority.
+     * \param idx
+     * \return
+     */
+    bool Changed(uint16_t idx = 0)
+    {
+        /* catch overflow */
+
+        bool ans = changeFlags[idx];
+
+        if(ans)
+            for(uint32_t i=0;i<changeFlags.size();++i)
+                changeFlags[i] = false;
+
+        return ans;
+    }
+
+private:
+    std::vector<bool> changeFlags;
 };
 
 

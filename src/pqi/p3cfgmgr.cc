@@ -44,65 +44,40 @@ p3ConfigMgr::p3ConfigMgr(std::string dir)
 {
 }
 
-void	p3ConfigMgr::tick()
+void	p3ConfigMgr::tick(CheckPriority T)
 {
-	bool toSave = false;
+    /* disable saving before exit */
 
-      {
-	RsStackMutex stack(cfgMtx); /***** LOCK STACK MUTEX ****/
+    if(!mConfigSaveActive)
+        return;
 
-	/* iterate through and check if any have changed */
-	std::list<pqiConfig *>::iterator it;
-	for(it = mConfigs.begin(); it != mConfigs.end(); ++it)
-	{
-		if ((*it)->HasConfigChanged(0))
-		{
+    if(!RsDiscSpace::checkForDiscSpace(RS_CONFIG_DIRECTORY))
+    {
+        RsErr() << "Cannot save configuration: disk full!";
+        return;
+    }
 
-#ifdef CONFIG_DEBUG
-			std::cerr << "p3ConfigMgr::tick() Config Changed - Element: ";
-			std::cerr << *it;
-			std::cerr << std::endl;
-#endif
-
-			toSave = true;
-		}
-	}
-
-	/* disable saving before exit */
-	if (!mConfigSaveActive)
-	{
-		toSave = false;
-	}
-      }
-
-	if (toSave)
-	{
-		saveConfiguration();
-	}
+    saveConfig(T);
 }
 
 
-void	p3ConfigMgr::saveConfiguration()
+void p3ConfigMgr::saveConfiguration()
 {
 	if(!RsDiscSpace::checkForDiscSpace(RS_CONFIG_DIRECTORY))
 		return ;
 
-	saveConfig();
-
-
+    saveConfig(SAVE_WHEN_CLOSING);
 }
 
-void p3ConfigMgr::saveConfig()
+void p3ConfigMgr::saveConfig(CheckPriority t)
 {
-
 	bool ok= true;
 
 	RsStackMutex stack(cfgMtx);  /***** LOCK STACK MUTEX ****/
 
 	std::list<pqiConfig *>::iterator it;
 	for(it = mConfigs.begin(); it != mConfigs.end(); ++it)
-	{
-		if ((*it)->HasConfigChanged(1))
+        if ((*it)->HasConfigChanged(t))
 		{
 #ifdef CONFIG_DEBUG
 			std::cerr << "p3ConfigMgr::globalSaveConfig() Saving Element: ";
@@ -111,9 +86,6 @@ void p3ConfigMgr::saveConfig()
 #endif
 			ok &= (*it)->saveConfiguration();
 		}
-		/* save metaconfig */
-	}
-	return;
 }
 
 
@@ -139,8 +111,7 @@ void p3ConfigMgr::loadConfig()
 		(*cit)->loadConfiguration(dummyHash);
 
 		/* force config to NOT CHANGED */
-		(*cit)->HasConfigChanged(0);
-		(*cit)->HasConfigChanged(1);
+        (*cit)->resetChanges();
 	}
 
 	return;
@@ -567,14 +538,12 @@ bool    p3GeneralConfig::loadList(std::list<RsItem *>& load)
  */
 
 pqiConfig::pqiConfig()
-	: cfgMtx("pqiConfig"), ConfInd(2)
+    : cfgMtx("pqiConfig"), ConfInd(uint16_t(RsConfigMgr::SAVE_NOW))
 {
-	return;
 }
 
 pqiConfig::~pqiConfig()
 {
-	return;
 }
 
 const std::string& pqiConfig::Filename()
@@ -589,16 +558,22 @@ const RsFileHash& pqiConfig::Hash()
 	return hash;
 }
 
-void	pqiConfig::IndicateConfigChanged()
+void	pqiConfig::IndicateConfigChanged(RsConfigMgr::CheckPriority t)
 {
 	RsStackMutex stack(cfgMtx); /***** LOCK STACK MUTEX ****/
-	ConfInd.IndicateChanged();
+    ConfInd.IndicateChanged(t);
 }
 
-bool	pqiConfig::HasConfigChanged(uint16_t idx)
+bool	pqiConfig::HasConfigChanged(RsConfigMgr::CheckPriority t)
 {
 	RsStackMutex stack(cfgMtx); /***** LOCK STACK MUTEX ****/
-	return  ConfInd.Changed(idx);
+    return  ConfInd.Changed(uint16_t(t));
+}
+bool	pqiConfig::resetChanges()
+{
+    RsStackMutex stack(cfgMtx); /***** LOCK STACK MUTEX ****/
+    ConfInd.Reset();
+    return true;
 }
 
 void    pqiConfig::setFilename(const std::string& name)

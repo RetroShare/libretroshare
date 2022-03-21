@@ -31,6 +31,7 @@
 #include "pqi/pqinetwork.h"
 #include "util/rsthreads.h"
 #include "pqi/pqibin.h"
+#include "retroshare/rsconfig.h"
 
 /***** Configuration Management *****
  *
@@ -69,63 +70,70 @@ class p3ConfigMgr;
  */
 class pqiConfig
 {
-	public:
-	pqiConfig();
-virtual ~pqiConfig();
+public:
+    pqiConfig();
+    virtual ~pqiConfig();
 
-/**
- * loads configuration of object
- * @param loadHash This is the hash that will be compared to confirm saved configuration has not
- * been tampered with
- */
-virtual bool	loadConfiguration(RsFileHash &loadHash) = 0;
+    /**
+     * loads configuration of object
+     * @param loadHash This is the hash that will be compared to confirm saved configuration has not
+     * been tampered with
+     */
+    virtual bool	loadConfiguration(RsFileHash &loadHash) = 0;
 
-/**
- * save configuration of object
- */
-virtual bool	saveConfiguration() = 0;
+    /**
+     * save configuration of object
+     */
+    virtual bool	saveConfiguration() = 0;
 
-/**
- *  The name of the configuration file
- */
-const std::string& Filename();
+    /**
+     *  The name of the configuration file
+     */
+    const std::string& Filename();
 
-/**
- * The hash computed for this configuration, can use this to compare to externally stored hash
- * for validation checking
- */
-const RsFileHash& Hash();
+    /**
+     * The hash computed for this configuration, can use this to compare to externally stored hash
+     * for validation checking
+     */
+    const RsFileHash& Hash();
 
-	protected:
+protected:
 
-/**
- * Checks if configuration has changed
- */
-virtual void	IndicateConfigChanged();
-void	setHash(const RsFileHash& h);
+    /**
+     * Sets all change flags to false.
+     */
+    bool resetChanges();
 
-	RsMutex cfgMtx;
+    /**
+     * Sets configuration flag to changed. Default is to only save on close. This choice is however pretty dangerous
+     * because it causes data to be loss in case of crash.
+     */
+    virtual void	IndicateConfigChanged(RsConfigMgr::CheckPriority t = RsConfigMgr::SAVE_WHEN_CLOSING);
 
-	/**
-	 * This sets the name of the pqi configuation file
-	 */
-	void    setFilename(const std::string& name);
+    void	setHash(const RsFileHash& h);
+
+    RsMutex cfgMtx;
+
+    /**
+     * This sets the name of the pqi configuation file
+     */
+    void    setFilename(const std::string& name);
 
 private:
-	/**
-	 * @param an index for the Confind which contains list of configuarations that can be tracked
-	 */
-	bool    HasConfigChanged(uint16_t idx);
+    /**
+     * @param an index for the Confind which contains list of configuarations that can be tracked
+     */
+    bool    HasConfigChanged(RsConfigMgr::CheckPriority t);
 
-	Indicator ConfInd;
+    Indicator ConfInd;
 
-	std::string filename;
-	RsFileHash hash;
+    std::string filename;
+    RsFileHash hash;
 
-	friend class p3ConfigMgr;
-	/* so it can access:
-	 * setFilename() and HasConfigChanged()
-	 */
+    friend class p3ConfigMgr;
+    /* so it can access:
+     * setFilename() and HasConfigChanged()
+     */
 };
 
 
@@ -137,20 +145,20 @@ private:
  * Class data is protected by mutex's so that anyone can call these
  * functions, at any time.
  */
-class p3ConfigMgr
+class p3ConfigMgr: public RsConfigMgr
 {
 	public:
 
 		/**
 		 * @param bdir base directory: where config files will be saved
 		 */
-	explicit p3ConfigMgr(std::string bdir);
+        explicit p3ConfigMgr(std::string bdir);
 
         /**
-         * checks and update all added configurations
+         * checks all added configurations, save the ones for which the given urgency flag has been raised.
          * @see rsserver
          */
-        void	tick();
+        void	tick(CheckPriority T);
 
         /**
          * save all added configuation including configuration files
@@ -181,7 +189,7 @@ class p3ConfigMgr
 		/**
 		 * saves configuration of pqiconfigs in object configs
 		 */
-		void saveConfig();
+        void saveConfig(CheckPriority t);
 
 		/**
 		 *

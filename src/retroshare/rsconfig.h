@@ -433,7 +433,7 @@ public:
 	 * @param[out] outKbWhenIdle upload rate in kB When Idle
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-	virtual int getMaxDataRates( int &inKb, int &outKb, int &inKbWhenIdle, int &outKbWhenIdle) = 0;
+    virtual int getMaxDataRates( int& inKb, int& outKb, int& inKbWhenIdle, int& outKbWhenIdle) = 0;
 
 	/**
 	 * @brief GetCurrentDataRates get current upload and download rates
@@ -451,6 +451,18 @@ public:
 	 * @param[in] isIdle
 	 */
 	virtual void setIsIdle(bool isIdle) = 0;
+};
+
+class RsConfigMgr
+{
+public:
+    enum CheckPriority {
+                        UNKNOWN           = 0x00,
+                        SAVE_WHEN_CLOSING = 0x01,
+                        SAVE_LESS         = 0x02,
+                        SAVE_OFTEN        = 0x03,
+                        SAVE_NOW          = 0x04
+    };
 };
 
 #endif
