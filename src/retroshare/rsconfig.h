@@ -457,11 +457,11 @@ class RsConfigMgr
 {
 public:
     enum CheckPriority {
-                        UNKNOWN           = 0x00,
-                        SAVE_WHEN_CLOSING = 0x01,
-                        SAVE_LESS         = 0x02,
-                        SAVE_OFTEN        = 0x03,
-                        SAVE_NOW          = 0x04
+                        UNKNOWN           = 0x00,	// placeholder
+                        SAVE_WHEN_CLOSING = 0x01,	// Means we do not care if configuration is lost on crash.
+                        SAVE_LESS         = 0x02,	// Save every hour. Not very important changes (GXS data, etc)
+                        SAVE_OFTEN        = 0x03,	// For GUI configuration, so that it's saved within 1 min.
+                        SAVE_NOW          = 0x04	// Stuff we do not want to re-do on crash: adding friends, file transfers, etc.
     };
 };
 
