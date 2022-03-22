@@ -24,18 +24,19 @@
 
 #include <vector>
 #include <stdint.h>
+#include <assert.h>
 
-// The Indicator class provides flags with different levels from 0 to n-1.
+// The Indicator class provides flags with different levels from 0 to 31.
 //
 // Flags can be set at a specific level, and checked at all levels up to some
 // given level. As a consequence, it is possible to use these flags to conduct actions
-// at different priority levels: 0 has lowest priority, n-1 is highest.
+// at different priority levels: 0 has lowest priority, 31 has highest.
 
 class Indicator
 {
 public:
-    explicit Indicator(uint16_t n = 1)
-            : changeFlags(n)
+    explicit Indicator()
+            : changeFlags(0)
     {
         IndicateChanged();
     }
@@ -46,8 +47,7 @@ public:
      */
     void	IndicateChanged()
     {
-        for(uint16_t i = 0; i < changeFlags.size(); i++)
-            changeFlags[i]=true;
+        changeFlags=~0;
     }
 
     /*!
@@ -56,8 +56,7 @@ public:
      */
     void Reset()
     {
-        for(uint32_t i=0;i<changeFlags.size();++i)
-            changeFlags[i]=false;
+        changeFlags=0;
     }
     /*!
      * \brief IndicateChanged
@@ -66,36 +65,35 @@ public:
      *          a change has been made, so as to avoid other loops for more urgent business to also save.
      * \param l
      */
-    void	IndicateChanged(int l)
+    void	IndicateChanged(uint8_t l)
     {
-        for(uint16_t i = 0; i <= l ; i++)
-            changeFlags[i]=true;
+        assert(l < 31);
+        changeFlags |= (1u << (l+1))-1;
     }
 
     /*!
      * \brief Changed
-     * 				Checks whether level idx or below has been changed, and reset *all*.
+     * 				Checks whether level idx or below has been changed, and reset *all* levels.
      * 				This reflects the fact that once a level is positively checked, all levels
-     * 				need to be reset since the action does not need to be done again whatever its
-     * 				priority.
+     * 				need to be reset since the action is considered done.
      * \param idx
      * \return
      */
-    bool Changed(uint16_t idx = 0)
+    bool Changed(uint8_t idx = 0)
     {
         /* catch overflow */
+        assert(idx < 32);
 
-        bool ans = changeFlags[idx];
+        bool ans(changeFlags & (1u << idx));
 
         if(ans)
-            for(uint32_t i=0;i<changeFlags.size();++i)
-                changeFlags[i] = false;
+            changeFlags = 0;
 
         return ans;
     }
 
 private:
-    std::vector<bool> changeFlags;
+    uint32_t changeFlags;
 };
 
 

@@ -453,10 +453,13 @@ public:
 	virtual void setIsIdle(bool isIdle) = 0;
 };
 
+// I use a class here because it's likely that we will need methods to provide global behavior switches
+// on Config Managing system.
+
 class RsConfigMgr
 {
 public:
-    enum CheckPriority {
+    enum class CheckPriority:uint8_t {
                         UNKNOWN           = 0x00,	// placeholder
                         SAVE_WHEN_CLOSING = 0x01,	// Means we do not care if configuration is lost on crash.
                         SAVE_LESS         = 0x02,	// Save every hour. Not very important changes (GXS data, etc)

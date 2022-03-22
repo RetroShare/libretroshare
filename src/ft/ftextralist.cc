@@ -109,7 +109,7 @@ void ftExtraList::hashAFile()
 		/* add to the path->hash map */
 		mHashedList[details.info.path] = details.info.hash;
 	
-        IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
 		auto ev = std::make_shared<RsSharedDirectoriesEvent>();
 		ev->mEventCode = RsSharedDirectoriesEventCode::EXTRA_LIST_FILE_ADDED;
@@ -149,7 +149,7 @@ bool	ftExtraList::addExtraFile(std::string path, const RsFileHash& hash,
 	mFiles[details.info.hash] = details;
 	mHashOfHash[makeEncryptedHash(details.info.hash)] = details.info.hash ;
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
 	return true;
 }
@@ -178,7 +178,7 @@ bool ftExtraList::removeExtraFile(const RsFileHash& hash)
 
 	mFiles.erase(it);
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
     if(rsEvents)
     {
@@ -207,7 +207,7 @@ bool ftExtraList::moveExtraFile(std::string fname, const RsFileHash &hash, uint6
 		/* rename */
 		it->second.info.path = path;
 		it->second.info.fname = fname;
-        IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	}
 
 	return true;
@@ -243,7 +243,7 @@ bool	ftExtraList::cleanupOldFiles()
 			mHashOfHash.erase(makeEncryptedHash(*rit));
         }
 
-        IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	}
 	return true;
 }

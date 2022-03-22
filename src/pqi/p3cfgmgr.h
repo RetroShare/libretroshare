@@ -108,7 +108,7 @@ protected:
      * Sets configuration flag to changed. Default is to only save on close. This choice is however pretty dangerous
      * because it causes data to be loss in case of crash.
      */
-    virtual void	IndicateConfigChanged(RsConfigMgr::CheckPriority t = RsConfigMgr::SAVE_WHEN_CLOSING);
+    virtual void	IndicateConfigChanged(RsConfigMgr::CheckPriority t = RsConfigMgr::CheckPriority::SAVE_WHEN_CLOSING);
 
     void	setHash(const RsFileHash& h);
 

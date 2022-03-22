@@ -220,7 +220,7 @@ bool p3PeerMgrIMPL::forceHiddenNode()
 
 	mNetMgr->setIPServersEnabled(false);
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 	return true;
 }
 
@@ -241,7 +241,7 @@ bool p3PeerMgrIMPL::setOwnNetworkMode(uint32_t netMode)
 		if (mOwnState.netMode != (netMode & RS_NET_MODE_ACTUAL))
 		{
 			mOwnState.netMode = (netMode & RS_NET_MODE_ACTUAL);
-            IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 			changed = true;
 		}
 	}
@@ -271,7 +271,7 @@ bool p3PeerMgrIMPL::setOwnVisState(uint16_t vs_disc, uint16_t vs_dht)
 			mOwnState.vs_disc = vs_disc;
 			mOwnState.vs_dht = vs_dht;
 			changed = true;
-            IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 		}
 	}
 
@@ -578,7 +578,7 @@ bool p3PeerMgrIMPL::setHiddenDomainPort(const RsPeerId &ssl_id, const std::strin
 		domain = domain.substr(pos);
 	}
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	if (ssl_id == AuthSSL::getAuthSSL()->OwnId())
 	{
@@ -631,14 +631,14 @@ bool p3PeerMgrIMPL::setProxyServerAddress(const uint32_t type, const struct sock
 	case RS_HIDDEN_TYPE_I2P:
 		if (!sockaddr_storage_same(mProxyServerAddressI2P, proxy_addr))
 		{
-            IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 			mProxyServerAddressI2P = proxy_addr;
 		}
 		break;
 	case RS_HIDDEN_TYPE_TOR:
 		if (!sockaddr_storage_same(mProxyServerAddressTor, proxy_addr))
 		{
-            IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 			mProxyServerAddressTor = proxy_addr;
 		}
 		break;
@@ -661,7 +661,7 @@ bool p3PeerMgrIMPL::resetOwnExternalAddressList()
     mOwnState.ipAddrs.mLocal.mAddrs.clear() ;
     mOwnState.ipAddrs.mExt.mAddrs.clear() ;
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 
     return true ;
 }
@@ -909,7 +909,7 @@ bool p3PeerMgrIMPL::notifyPgpKeyReceived(const RsPgpId& pgp_id)
     }
 
     if(changed)
-        IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
     return true;
 }
@@ -1042,7 +1042,7 @@ bool p3PeerMgrIMPL::addFriend(const RsPeerId& input_id, const RsPgpId& input_gpg
 
 		notifyLinkMgr = true;
 
-        IndicateConfigChanged(RsConfigMgr::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 	}
 
 	if (notifyLinkMgr)
@@ -1161,7 +1161,7 @@ bool p3PeerMgrIMPL::addSslOnlyFriend( const RsPeerId& sslId, const RsPgpId& pgp_
 		mStatusChanged = true;
 	} // RS_STACK_MUTEX(mPeerMtx);
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW);
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	mLinkMgr->addFriend(sslId, dt.vs_dht != RS_VS_DHT_OFF);
 
 	/* To update IP addresses is much more confortable to use locators, beside
@@ -1255,7 +1255,7 @@ bool p3PeerMgrIMPL::removeFriend(const RsPgpId &id)
 	ids.push_back(id) ;
     assignPeersToGroup(RsNodeGroupId(), ids, false);
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 #ifdef PEER_DEBUG
 	printPeerLists(std::cerr);
@@ -1329,7 +1329,7 @@ bool p3PeerMgrIMPL::removeFriend(const RsPeerId &id, bool removePgpId)
 
     assignPeersToGroup(RsNodeGroupId(), pgpid_toRemove, false);
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 #ifdef PEER_DEBUG
 	printPeerLists(std::cerr);
@@ -1517,7 +1517,7 @@ bool p3PeerMgrIMPL::UpdateOwnAddress( const sockaddr_storage& pLocalAddr,
         }
     }
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
     mLinkMgr->setLocalAddress(localAddr);
 
     return true;
@@ -1561,7 +1561,7 @@ bool p3PeerMgrIMPL::addPeerLocator(const RsPeerId &sslId, const RsUrl& locator)
 		std::cerr << __PRETTY_FUNCTION__ << " Added locator: "
 		          << locator.toString() << std::endl;
 #endif
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 	return changed;
 }
@@ -1584,7 +1584,7 @@ bool p3PeerMgrIMPL::setLocalAddress( const RsPeerId &id,
 
 		if (changed)
 		{
-            IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 			mNetMgr->setLocalAddress(addr);
 			mLinkMgr->setLocalAddress(addr);
@@ -1616,7 +1616,7 @@ bool p3PeerMgrIMPL::setLocalAddress( const RsPeerId &id,
 	it->second.updateIpAddressList(ipAddressTimed);
 #endif
 
-    if (changed) IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+    if (changed) IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	return changed;
 }
 
@@ -1676,7 +1676,7 @@ bool p3PeerMgrIMPL::setExtAddress( const RsPeerId &id,
 #endif
 
 	if (changed) {
-        IndicateConfigChanged(RsConfigMgr::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
 	}
 
 	return changed;
@@ -1693,7 +1693,7 @@ bool p3PeerMgrIMPL::setDynDNS(const RsPeerId &id, const std::string &dyndns)
 
         if (mOwnState.dyndns.compare(dyndns) != 0) {
             mOwnState.dyndns = dyndns;
-            IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
             changed = true;
 
             if(rsEvents)
@@ -1722,7 +1722,7 @@ bool p3PeerMgrIMPL::setDynDNS(const RsPeerId &id, const std::string &dyndns)
     /* "it" points to peer */
     if (it->second.dyndns.compare(dyndns) != 0) {
         it->second.dyndns = dyndns;
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
         changed = true;
     }
 
@@ -1961,7 +1961,7 @@ bool    p3PeerMgrIMPL::updateAddressList(const RsPeerId& id, const pqiIpAddrSet 
 	std::cerr << std::endl;
 #endif
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	return true;
 }
@@ -2005,7 +2005,7 @@ bool    p3PeerMgrIMPL::updateCurrentAddress(const RsPeerId& id, const pqiIpAddre
 	std::cerr << std::endl;
 #endif
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	return true;
 }
@@ -2057,7 +2057,7 @@ bool    p3PeerMgrIMPL::setNetworkMode(const RsPeerId &id, uint32_t netMode)
 	if (it->second.netMode != netMode)
 	{
 		it->second.netMode = netMode;
-        IndicateConfigChanged(RsConfigMgr::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
 		changed = true;
 	}
 
@@ -2169,7 +2169,7 @@ bool    p3PeerMgrIMPL::setVisState(const RsPeerId &id, uint16_t vs_disc, uint16_
 	}
 
     if (changed)
-        IndicateConfigChanged(RsConfigMgr::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	return changed;
 }
@@ -2416,7 +2416,7 @@ bool p3PeerMgrIMPL::setMaxRates(const RsPgpId& pid,uint32_t maxUp,uint32_t maxDn
         p.max_up_rate_kbs = maxUp ;
         p.max_dl_rate_kbs = maxDn ;
 
-        IndicateConfigChanged(RsConfigMgr::SAVE_LESS);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS);
 
         return true ;
 }
@@ -2703,7 +2703,7 @@ bool  p3PeerMgrIMPL::loadList(std::list<RsItem *>& load)
                     group_pair.second.peerIds.erase(profileIdIt);
                     profileIdIt=tmp;
 
-                    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+                    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
                 }
         }
     }
@@ -2797,7 +2797,7 @@ bool p3PeerMgrIMPL::addGroup(RsGroupInfo &groupInfo)
 
 	RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_ADD);
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
 	return true;
 }
@@ -2837,7 +2837,7 @@ bool p3PeerMgrIMPL::editGroup(const RsNodeGroupId& groupId, RsGroupInfo &groupIn
     {
 		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
 
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
 	return changed;
@@ -2879,7 +2879,7 @@ bool p3PeerMgrIMPL::removeGroup(const RsNodeGroupId& groupId)
 	if (changed) {
 		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_DEL);
 
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
 	return changed;
@@ -2967,7 +2967,7 @@ bool p3PeerMgrIMPL::assignPeersToGroup(const RsNodeGroupId &groupId, const std::
 	if (changed) {
 		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
 
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
 	return changed;
@@ -3021,7 +3021,7 @@ void p3PeerMgrIMPL::setServicePermissionFlags(const RsPgpId& pgp_id, const Servi
 		//
 
 		mFriendsPermissionFlags[pgp_id] = flags ;
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN); /**** INDICATE MSG CONFIG CHANGED! *****/
 }
 
 /**********************************************************************
@@ -3103,7 +3103,7 @@ bool p3PeerMgrIMPL::removeBannedIps()
     if(cleanIpList(mOwnState.ipAddrs.mLocal.mAddrs,mOwnState.id,mLinkMgr) )  changed = true ;
 
     if(changed)
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
     return true ;
 }

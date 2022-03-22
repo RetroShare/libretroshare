@@ -229,7 +229,7 @@ void ftController::threadTick()
 		rstime_t now = time(NULL) ;
 		if(now > last_save_time + SAVE_TRANSFERS_DELAY)
 		{
-            IndicateConfigChanged(RsConfigMgr::SAVE_NOW) ;	// normally SAVE_OFTEN, but we're already using a delay system.
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW) ;	// normally SAVE_OFTEN, but we're already using a delay system.
 			last_save_time = now ;
 		}
 
@@ -823,7 +823,7 @@ bool ftController::completeFile(const RsFileHash& hash)
 
     rsFiles->ForceDirectoryCheck(true) ;
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW); /* completed transfer -> save */
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /* completed transfer -> save */
 	return true;
 }
 
@@ -1224,7 +1224,7 @@ bool ftController::FileRequest(
 		mDownloads[hash] = ftfc;
 	}
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW); /* completed transfer -> save */
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /* completed transfer -> save */
 	return true;
 }
 
@@ -1354,7 +1354,7 @@ bool 	ftController::FileCancel(const RsFileHash& hash)
 		mDownloads.erase(mit);
 	}
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_NOW); /* completed transfer -> save */
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /* completed transfer -> save */
 	return true;
 }
 
@@ -1397,7 +1397,7 @@ bool 	ftController::FileControl(const RsFileHash& hash, uint32_t flags)
 		default:
 			return false;
 	}
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN) ;
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN) ;
 
 	return true;
 }
@@ -1518,7 +1518,7 @@ bool 	ftController::setPartialsDirectory(std::string path)
 			(it->second).mCreator->changePartialDirectory(mPartialPath);
 		}
 #endif
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 		return true;
 	}
 
@@ -2212,7 +2212,7 @@ void ftController::setMaxUploadsPerFriend(uint32_t m)
 {
 	RsStackMutex stack(ctrlMutex); /******* LOCKED ********/
 	_max_uploads_per_friend = m ;
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 uint32_t ftController::getMaxUploadsPerFriend()
 {
@@ -2223,7 +2223,7 @@ void ftController::setDefaultEncryptionPolicy(uint32_t p)
 {
     RsStackMutex stack(ctrlMutex); /******* LOCKED ********/
     mDefaultEncryptionPolicy = p ;
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 uint32_t ftController::defaultEncryptionPolicy()
 {
@@ -2237,7 +2237,7 @@ void ftController::setFilePermDirectDL(uint32_t perm)
 	if (mFilePermDirectDLPolicy != perm)
 	{
 		mFilePermDirectDLPolicy = perm;
-        IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN);
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 }
 uint32_t ftController::filePermDirectDL()
@@ -2250,7 +2250,7 @@ void ftController::setFreeDiskSpaceLimit(uint32_t size_in_mb)
 {
 	RsDiscSpace::setFreeSpaceLimit(size_in_mb) ;
 
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN) ;
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN) ;
 }
 
 
@@ -2271,5 +2271,5 @@ void ftController::setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy S)
 	std::cerr << "Note: in frController: setting chunk strategy to " << S << std::endl ;
 #endif
 	mDefaultChunkStrategy = S ;
-    IndicateConfigChanged(RsConfigMgr::SAVE_OFTEN) ;
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN) ;
 }
