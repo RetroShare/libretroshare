@@ -85,8 +85,6 @@ void p3ConfigMgr::saveConfig(CheckPriority t)
 			std::cerr << std::endl;
 #endif
 			ok &= (*it)->saveConfiguration();
-
-            RsDbg() << "Saving configuration file: " << (*it)->Filename() ;
 		}
 }
 
