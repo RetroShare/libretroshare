@@ -106,7 +106,8 @@ protected:
 
     /**
      * Sets configuration flag to changed. Default is to only save on close. This choice is however pretty dangerous
-     * because it causes data to be loss in case of crash.
+     * because it causes data to be lost on crash. Some services (FT, Friends,etc) may use higher priority levels when
+     * config is updated.
      */
     virtual void	IndicateConfigChanged(RsConfigMgr::CheckPriority t = RsConfigMgr::CheckPriority::SAVE_WHEN_CLOSING);
 
