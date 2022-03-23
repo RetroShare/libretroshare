@@ -33,6 +33,7 @@ function define_default_value()
 }
 
 ## You are supposed to provide the following variables according to your system setup
+define_default_value ANDROID_SDK_PATH "/opt/android-sdk/"
 define_default_value ANDROID_NDK_PATH "/opt/android-ndk/"
 define_default_value ANDROID_NDK_ARCH "arm"
 define_default_value ANDROID_PLATFORM_VER "16"
