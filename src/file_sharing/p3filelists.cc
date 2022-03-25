@@ -91,7 +91,7 @@ void p3FileDatabase::setIgnoreLists(const std::list<std::string>& ignored_prefix
     RS_STACK_MUTEX(mFLSMtx) ;
     mLocalDirWatcher->setIgnoreLists(ignored_prefixes,ignored_suffixes,ignore_flags) ;
 
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 bool p3FileDatabase::getIgnoreLists(std::list<std::string>& ignored_prefixes,std::list<std::string>& ignored_suffixes, uint32_t& ignore_flags)
 {
@@ -120,7 +120,7 @@ void p3FileDatabase::setSharedDirectories(const std::list<SharedDirInfo>& shared
 
     }
 
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 void p3FileDatabase::getSharedDirectories(std::list<SharedDirInfo>& shared_dirs)
 {
@@ -135,7 +135,7 @@ void p3FileDatabase::updateShareFlags(const SharedDirInfo& info)
     }
 
     RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 
 p3FileDatabase::~p3FileDatabase()
@@ -207,7 +207,7 @@ int p3FileDatabase::tick()
 
     if(mUpdateFlags)
     {
-        IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
         if(mUpdateFlags & P3FILELISTS_UPDATE_FLAG_LOCAL_DIRS_CHANGED)
             RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
@@ -704,7 +704,7 @@ void p3FileDatabase::cleanup()
 			std::cerr << "(WW) Initialising directory watcher salt to some random value " << std::endl;
 			mLocalDirWatcher->setHashSalt(RsFileHash::random()) ;
 
-            IndicateConfigChanged();
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 		}
     }
 }
@@ -755,7 +755,7 @@ uint32_t p3FileDatabase::locked_getFriendIndex(const RsPeerId& pid)
 
         mFriendIndexMap[pid] = found;
 
-        IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
         return found ;
     }
@@ -1268,7 +1268,7 @@ void p3FileDatabase::setFollowSymLinks(bool b)
 {
     RS_STACK_MUTEX(mFLSMtx) ;
     mLocalDirWatcher->setFollowSymLinks(b) ;
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 bool p3FileDatabase::followSymLinks() const
 {
@@ -1279,7 +1279,7 @@ void p3FileDatabase::setIgnoreDuplicates(bool i)
 {
     RS_STACK_MUTEX(mFLSMtx) ;
     mLocalDirWatcher->setIgnoreDuplicates(i) ;
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 bool p3FileDatabase::ignoreDuplicates() const
 {
@@ -1290,7 +1290,7 @@ void p3FileDatabase::setMaxShareDepth(int i)
 {
     RS_STACK_MUTEX(mFLSMtx) ;
     mLocalDirWatcher->setMaxShareDepth(i) ;
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 int  p3FileDatabase::maxShareDepth() const
 {
@@ -1301,7 +1301,7 @@ void p3FileDatabase::setWatchEnabled(bool b)
 {
     RS_STACK_MUTEX(mFLSMtx) ;
     mLocalDirWatcher->setEnabled(b) ;
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 bool p3FileDatabase::watchEnabled()
 {
@@ -1313,7 +1313,7 @@ void p3FileDatabase::setWatchPeriod(uint32_t seconds)
     RS_STACK_MUTEX(mFLSMtx) ;
 
     mLocalDirWatcher->setFileWatchPeriod(seconds);
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 uint32_t p3FileDatabase::watchPeriod()
 {
@@ -2100,7 +2100,7 @@ bool p3FileDatabase::banFile(const RsFileHash& real_file_hash, const std::string
 		}
 	}
 
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	return true;
 }
 bool p3FileDatabase::unbanFile(const RsFileHash& real_file_hash)
@@ -2115,7 +2115,7 @@ bool p3FileDatabase::unbanFile(const RsFileHash& real_file_hash)
         mBannedFileListNeedsUpdate = true ;
     }
 
-    IndicateConfigChanged();
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
     return true;
 }
 
@@ -2156,7 +2156,7 @@ void p3FileDatabase::setTrustFriendNodesForBannedFiles(bool b)
 {
 	if(b != mTrustFriendNodesForBannedFiles)
     {
-		IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
         mBannedFileListNeedsUpdate = true;
     }
 

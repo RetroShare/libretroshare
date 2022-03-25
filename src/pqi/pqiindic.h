@@ -23,35 +23,77 @@
 #define MRK_PQI_INDICATOR_HEADER
 
 #include <vector>
+#include <stdint.h>
+#include <assert.h>
 
-// This will indicate to num different sources
-// when the event has occured.
+// The Indicator class provides flags with different levels from 0 to 31.
+//
+// Flags can be set at a specific level, and checked at all levels up to some
+// given level. As a consequence, it is possible to use these flags to conduct actions
+// at different priority levels: 0 has lowest priority, 31 has highest.
 
 class Indicator
 {
-	public:
-	explicit Indicator(uint16_t n = 1)
-	:num(n), changeFlags(n) {IndicateChanged();}
-void	IndicateChanged()
-	{
-		for(uint16_t i = 0; i < num; i++)
-			changeFlags[i]=true;
-	}
+public:
+    explicit Indicator()
+            : changeFlags(0)
+    {
+        IndicateChanged();
+    }
 
-bool	Changed(uint16_t idx = 0)
-	{
-		/* catch overflow */
-		if (idx > num - 1)
-			return false;
+    /*!
+     * \brief IndicateChanged
+     * 			Sets all levels to 1.
+     */
+    void	IndicateChanged()
+    {
+        changeFlags=~0;
+    }
 
-		bool ans = changeFlags[idx];
-		changeFlags[idx] = false;
-		return ans;
-	}
+    /*!
+     * \brief Reset
+     * 			Resets all flags.
+     */
+    void Reset()
+    {
+        changeFlags=0;
+    }
+    /*!
+     * \brief IndicateChanged
+     * 			Sets all levels up to level l. This reflects the fact that when checking,
+     *          any check that tests for lower urgency (meaning for less urgent business) needs to know that
+     *          a change has been made, so as to avoid other loops for more urgent business to also save.
+     * \param l
+     */
+    void	IndicateChanged(uint8_t l)
+    {
+        assert(l < 31);
+        changeFlags |= (1u << (l+1))-1;
+    }
 
-	private:
-	uint16_t num;
-	std::vector<bool> changeFlags;
+    /*!
+     * \brief Changed
+     * 				Checks whether level idx or below has been changed, and reset *all* levels.
+     * 				This reflects the fact that once a level is positively checked, all levels
+     * 				need to be reset since the action is considered done.
+     * \param idx
+     * \return
+     */
+    bool Changed(uint8_t idx = 0)
+    {
+        /* catch overflow */
+        assert(idx < 32);
+
+        bool ans(changeFlags & (1u << idx));
+
+        if(ans)
+            changeFlags = 0;
+
+        return ans;
+    }
+
+private:
+    uint32_t changeFlags;
 };
 
 

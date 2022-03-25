@@ -433,7 +433,7 @@ public:
 	 * @param[out] outKbWhenIdle upload rate in kB When Idle
 	 * @return returns 1 on succes and 0 otherwise
 	 */
-	virtual int getMaxDataRates( int &inKb, int &outKb, int &inKbWhenIdle, int &outKbWhenIdle) = 0;
+    virtual int getMaxDataRates( int& inKb, int& outKb, int& inKbWhenIdle, int& outKbWhenIdle) = 0;
 
 	/**
 	 * @brief GetCurrentDataRates get current upload and download rates
@@ -451,6 +451,21 @@ public:
 	 * @param[in] isIdle
 	 */
 	virtual void setIsIdle(bool isIdle) = 0;
+};
+
+// I use a class here because it's likely that we will need methods to provide global behavior switches
+// on Config Managing system.
+
+class RsConfigMgr
+{
+public:
+    enum class CheckPriority:uint8_t {
+                        UNKNOWN           = 0x00,	// placeholder
+                        SAVE_WHEN_CLOSING = 0x01,	// Means we do not care if configuration is lost on crash.
+                        SAVE_LESS         = 0x02,	// Save every hour. Not very important changes (GXS data, etc)
+                        SAVE_OFTEN        = 0x03,	// For GUI configuration, so that it's saved within 1 min.
+                        SAVE_NOW          = 0x04	// Stuff we do not want to re-do on crash: adding friends, file transfers, etc.
+    };
 };
 
 #endif

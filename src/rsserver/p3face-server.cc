@@ -184,7 +184,9 @@ void RsServer::threadTick()
 #ifdef TICK_DEBUG
 		RsDbg() << "TICK_DEBUG every second";
 #endif
-		// slow services
+        mConfigMgr->tick(RsConfigMgr::CheckPriority::SAVE_NOW); // This most of the time does nothing, since it only saved the urgent ones, which is not the default.
+
+        // slow services
 		if (rsPlugins)
 		{
 #ifdef TICK_DEBUG
@@ -206,7 +208,7 @@ void RsServer::threadTick()
 		RsDbg() << "TICK_DEBUG every 5 seconds";
 #endif
 		mCycle2 = ts;
-	}
+    }
 
 // stuff we do every minute
 	if (ts - mCycle3 > 60)
@@ -219,7 +221,8 @@ void RsServer::threadTick()
 		// see if we need to resave certs
 		// AuthSSL::getAuthSSL()->CheckSaveCertificates();
 		mCycle3 = ts;
-	}
+        mConfigMgr->tick(RsConfigMgr::CheckPriority::SAVE_OFTEN); // This most of the time does nothing, since it only saved the urgent ones, which is not the default.
+    }
 
 // stuff we do every hour
 	if (ts - mCycle4 > 3600)
@@ -231,9 +234,9 @@ void RsServer::threadTick()
 #ifdef TICK_DEBUG
 		RsDbg() << "TICK_DEBUG ticking mConfigMgr";
 #endif
-		mConfigMgr->tick();
 		mCycle4 = ts;
-	}
+        mConfigMgr->tick(RsConfigMgr::CheckPriority::SAVE_LESS); // This most of the time does nothing, since it only saved the urgent ones, which is not the default.
+    }
 
 // ticking is done, now compute new values of mLastRunDuration, mAvgRunDuration and mTickInterval
 	ts = getCurrentTS();
