@@ -21,7 +21,9 @@
  *                                                                             *
  *******************************************************************************/
 #include <vector>    // for std::vector
-#include <algorithm> // for std::random_shuffle
+#include <algorithm> // for std::shuffle
+#include <random>    // std::default_random_engine
+#include <chrono>    // std::chrono::system_clock
 
 #include "rsserver/p3face.h"
 #include "util/rsnet.h"
@@ -1439,7 +1441,10 @@ bool p3PeerMgrIMPL::UpdateOwnAddress( const sockaddr_storage& pLocalAddr,
 				 *  trusted nodes so they may try to connect to all of them
 				 *  including the most convenient if a local connection exists.
 				 */
-				std::random_shuffle(addrs.begin(), addrs.end());
+				auto seed = std::chrono::system_clock::now().
+				        time_since_epoch().count();
+				std::shuffle( addrs.begin(), addrs.end(),
+				              std::default_random_engine(seed) );
 
 				for (auto it = addrs.begin(); it!=addrs.end(); ++it)
 				{
