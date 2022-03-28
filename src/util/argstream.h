@@ -827,7 +827,7 @@ namespace
 			if (helpRequested_)
 			{
 				std::cout<<usage(skipCommandLine);
-				exit(1);
+				exit(0);
 			}
 			if (!isOk_)
 			{
