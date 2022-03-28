@@ -323,6 +323,11 @@ template<> bool RsTypeSerializer::to_JSON(
 SIXTYFOUR_INTEGERS_FROM_JSON_DEF(
         rs_wtf_apple_unsigned_long,  IsInt64,  GetInt64,  std::stoll );
 
+/* Be wary, this is a workaround, and we should never get to the point of
+ * doing such a thing for binary serialization, as it would break compatibility
+ * between nodes where `unsigned long` is 32bits long and nodes where it is long
+ * 64bits. We must always pay attention to use guaranted size integer types like
+ * uint64_t for serializables structures. */
 #endif // def __APPLE__
 
 //============================================================================//
