@@ -3,8 +3,8 @@
 # RetroShare JSON API generator
 #
 # Copyright (C) 2019  selankon <selankon@selankon.xyz>
-# Copyright (C) 2021  Gioacchino Mazzurco <gio@eigenlab.org>
-# Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2021-2022  Gioacchino Mazzurco <gio@retroshare.cc>
+# Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the
@@ -90,15 +90,31 @@ def processFile(file):
 
 			requiresAuth = True
 
-			defFilePath = refid.split('_')[0] + '.xml'
-			defFile = defFilePath
+			# As of 2022/03/24 doxygen behaves differently on MacOS and on Linux
+			# on Linux we get
+			# refid classRsBroadcastDiscovery_1a62f461807c36d60db35794cdb70bf032
+			# file name classRsBroadcastDiscovery.xml
+			# on MacOS we get
+			# refid class_rs_broadcast_discovery_1a62f461807c36d60db35794cdb70bf032
+			# file name class_rs_broadcast_discovery.xml
+			# which have more the one _ therfore we need to use reverse single
+			# split to build the file name from refid in a way that works on
+			# both systems
+			# On Windows haven't got reports about this so it probably behave
+			# like on Linux, but now should work anyway.
+			defFileName = refid.rsplit('_',1)[0] + '.xml'
 
-			print('Looking for', typeName, methodName, 'into', typeFilePath)
+			print( 'Looking for', typeName, methodName, 'into', defFileName,
+			       "calculated from refid:", refid )
 
 			try:
-				defDoc = ET.parse(doxPrefix + defFilePath).getroot()
+				defDoc = ET.parse(doxPrefix + defFileName).getroot()
 			except FileNotFoundError:
-				print('Can\'t open:', doxPrefix + defFilePath)
+				print( 'Can\'t open:', doxPrefix + defFileName,
+				       "not found between:" )
+				for mFileName in os.listdir(doxPrefix):
+					print(mFileName)
+				raise
 
 			memberdef = None
 			for tmpMBD in defDoc.findall('.//memberdef'):
@@ -188,11 +204,11 @@ def processFile(file):
 			for pmKey in paramsMap:
 				pm = paramsMap[pmKey]
 				if not (pm._isMultiCallback or pm._isSingleCallback or pm._in or pm._out):
-					print('ERROR', 'Parameter:', pm._name, 'of:', apiPath,
+					print( 'ERROR', 'Parameter:', pm._name, 'of:', apiPath,
 							  'declared in:', headerRelPath,
 							  'miss doxygen parameter direction attribute!',
-							  defFile)
-					sys.exit()
+							  defFileName )
+					sys.exit(-1)
 
 			functionCall = '\t\t'
 			if retvalType != 'void':
@@ -354,7 +370,7 @@ try:
 	filesIterator = os.listdir(doxPrefix)
 except FileNotFoundError:
 	print("Doxygen xml output dir not found: ", doxPrefix)
-	os.exit(-1)
+	sys.exit(-1)
 
 for file in filesIterator:
 	if file.endswith("8h.xml"):

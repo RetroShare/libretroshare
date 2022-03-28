@@ -1,9 +1,10 @@
 /*******************************************************************************
- * libretroshare/src/util: rsdiscspace.cc                                      *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright 2010-2010 by Cyril Soler <csoler@users.sourceforge.net>           *
+ * Copyright (C) 2010  Cyril Soler <csoler@users.sourceforge.net>              *
+ * Copyright (C) 2016-2022  Gioacchino Mazzurco <gio@retroshare.cc>            *
+ * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -29,16 +30,10 @@
 #include "rsdiscspace.h"
 #include <util/rsthreads.h>
 
-#ifdef __ANDROID__
-#	include <android/api-level.h>
-#endif
-
 #ifdef WIN32
 #	include <wtypes.h>
-#elif defined(__ANDROID__) && (__ANDROID_API__ < 21)
-#	include <sys/vfs.h>
-#	define statvfs64 statfs
-#	warning statvfs64 is not supported with android platform < 21 falling back to statfs that is untested (may misbehave)
+#elif defined(__ANDROID__)
+#	include "util/largefile_retrocompat.hpp"
 #else
 #	include <sys/statvfs.h>
 #endif

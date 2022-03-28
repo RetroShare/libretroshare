@@ -2,8 +2,8 @@
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright (C) 2016-2021  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>       *
+ * Copyright (C) 2016-2022  Gioacchino Mazzurco <gio@retroshare.cc>            *
+ * Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -23,9 +23,21 @@
 
 #ifdef __ANDROID__
 #	include <android/api-level.h>
+#	if __ANDROID_API__ < 21
+#		include <sys/vfs.h>
+#		define statvfs64 statfs
+#		warning statvfs64 is not supported with android platform < 21 falling back to statfs that is untested (may misbehave)
+#	endif // __ANDROID_API__ < 21
 #	if __ANDROID_API__ < 24
 #		define fopen64 fopen
 #		define fseeko64 fseeko
 #		define ftello64 ftello
-#	endif
-#endif
+#	endif // __ANDROID_API__ < 24
+#endif // def __ANDROID__
+
+#ifdef __APPLE__
+#	define fopen64 fopen
+#	define fseeko64 fseeko
+#	define ftello64 ftello
+#	define stat64 stat
+#endif // def __APPLE__

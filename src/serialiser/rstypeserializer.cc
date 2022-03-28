@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2017       Cyril Soler <csoler@users.sourceforge.net>         *
- * Copyright (C) 2018-2020  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020       Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2022  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2020-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -279,6 +279,51 @@ template<> bool RsTypeSerializer::from_JSON( \
 
 SIXTYFOUR_INTEGERS_FROM_JSON_DEF(uint64_t, IsUint64, GetUint64, std::stoull)
 SIXTYFOUR_INTEGERS_FROM_JSON_DEF( int64_t,  IsInt64,  GetInt64,  std::stoll)
+
+#if defined(__APPLE__)
+/* Apparently on Apple `unsigned long` is 8 bytes long as determined with
+ * `char (*__kaboom)[sizeof( unsigned long )] = 1;`
+ * But doesn't match uint64_t in template instantation still it trigger
+ * ambiguous call on `rapidjson::Value` constructor
+ *
+```
+/tmp/retroshare-service-20220325-82113-12hr9fj/RetroShare/libretroshare/src/serialiser/rstypeserializer.cc:289:1: error: call to constructor of 'rapidjson::Value' (aka 'GenericValue<UTF8<>>') is ambiguous
+SIXTYFOUR_INTEGERS_TO_JSON_DEF(rs_wtf_apple_unsigned_long);
+^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/tmp/retroshare-service-20220325-82113-12hr9fj/RetroShare/libretroshare/src/serialiser/rstypeserializer.cc:151:8: note: expanded from macro 'SIXTYFOUR_INTEGERS_TO_JSON_DEF'
+	Value intValue(member); \
+		  ^        ~~~~~~
+/opt/homebrew/include/rapidjson/document.h:634:14: note: candidate constructor
+explicit GenericValue(int i) RAPIDJSON_NOEXCEPT : data_() {
+		 ^
+/opt/homebrew/include/rapidjson/document.h:640:14: note: candidate constructor
+explicit GenericValue(unsigned u) RAPIDJSON_NOEXCEPT : data_() {
+		 ^
+/opt/homebrew/include/rapidjson/document.h:646:14: note: candidate constructor
+explicit GenericValue(int64_t i64) RAPIDJSON_NOEXCEPT : data_() {
+		 ^
+/opt/homebrew/include/rapidjson/document.h:661:14: note: candidate constructor
+explicit GenericValue(uint64_t u64) RAPIDJSON_NOEXCEPT : data_() {
+		 ^
+/opt/homebrew/include/rapidjson/document.h:673:14: note: candidate constructor
+explicit GenericValue(double d) RAPIDJSON_NOEXCEPT : data_() { data_.n.d = d; data_.f.flags = kNumberDoubleFlag; }
+		 ^
+```
+ */
+using rs_wtf_apple_unsigned_long = unsigned long;
+
+template<> bool RsTypeSerializer::to_JSON(
+        const std::string& memberName,
+        const rs_wtf_apple_unsigned_long& memberAmbiguous, RsJson& jDoc )
+{
+	uint64_t memberVal = memberAmbiguous;
+	return RsTypeSerializer::to_JSON(memberName, memberVal, jDoc);
+}
+
+SIXTYFOUR_INTEGERS_FROM_JSON_DEF(
+        rs_wtf_apple_unsigned_long,  IsInt64,  GetInt64,  std::stoll );
+
+#endif // def __APPLE__
 
 //============================================================================//
 //                                 Floats                                     //

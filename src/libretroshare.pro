@@ -1163,7 +1163,7 @@ android-* {
     PRE_TARGETDEPS += $$pretargetStaticLibs(sLibs)
 
     HEADERS += \
-        rs_android/largefile_retrocompat.hpp \
+        util/largefile_retrocompat.hpp \
         rs_android/androidcoutcerrcatcher.hpp \
         rs_android/retroshareserviceandroid.hpp \
         rs_android/rsjni.hpp

@@ -27,11 +27,14 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "util/largefile_retrocompat.hpp"
+
 #ifdef WINDOWS_SYS
 #include <io.h>
 #include "util/rsstring.h"
 #include "util/rswin.h"
 #endif
+
 
 extern "C" {
 #include <openpgpsdk/types.h>
@@ -142,7 +145,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
             throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read pubring. File corrupted.") ;
 	}
 	else
-        RsErr() << "pubring file \"" << pubring << "\" not found. Creating a void keyring." ;
+		RS_INFO("pubring file: ", pubring, " not found. Creating an empty one");
 
 	const ops_keydata_t *keydata ;
 	int i=0 ;
@@ -163,15 +166,21 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 	_pubring_last_update_time = time(NULL) ;
     _pubring_changed = false;
 
-    RsErr() << "Pubring read successfully." ;
+	RS_INFO("Pubring read successfully");
 
 	if(secring_exist)
 	{
 		if(ops_false == ops_keyring_read_from_file(_secring, false, secring.c_str()))
-            throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read secring. File corrupted.") ;
+		{
+			RS_ERR("Cannot read secring. File seems corrupted");
+			print_stacktrace();
+
+			// We should not use exceptions they are terrible for embedded platforms
+			throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read secring. File corrupted.") ;
+		}
 	}
 	else
-        RsErr() << "secring file \"" << secring << "\" not found. Creating a void keyring." ;
+		RS_INFO("secring file: ", pubring, " not found. Creating an empty one");
 
 	i=0 ;
 	while( (keydata = ops_keyring_get_key_by_index(_secring,i)) != NULL )
@@ -181,7 +190,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 	}
 	_secring_last_update_time = time(NULL) ;
 
-    RsErr() << "Secring read successfully." ;
+	RS_INFO("Secring read successfully");
 
 	locked_readPrivateTrustDatabase() ;
 	_trustdb_last_update_time = time(NULL) ;

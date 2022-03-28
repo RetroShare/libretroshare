@@ -165,17 +165,6 @@ cmake_dependent_option(
 
 find_package(Git REQUIRED)
 
-#function(check_submodule sPath)
-#	if(NOT EXISTS "${sPath}/.git" )
-#		message("Initializing submodule ${sPath}")
-#		execute_process(
-#			COMMAND "${GIT_EXECUTABLE}" submodule update --init
-#			WORKING_DIRECTORY "${sPath}"
-#			COMMAND_ECHO STDERR
-#			COMMAND_ERROR_IS_FATAL ANY)
-#	endif()
-#endfunction()
-
 ################################################################################
 
 if(RS_DEVELOPMENT_BUILD)
@@ -200,6 +189,8 @@ if(RS_LIBRETROSHARE_SHARED)
 	## PIC Which is needed for shared library
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif(RS_LIBRETROSHARE_SHARED)
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
@@ -246,10 +237,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 ################################################################################
 
 set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
-if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/.git" )
+if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
 	message(
 		STATUS
-		"openpgpsdk submodule found at ${OPENPGPSDK_DEVEL_DIR} using it" )
+		"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
 	add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
 else()
 	FetchContent_Declare(
@@ -269,7 +260,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
 
 if(RS_BITDHT)
 	set(BITDHT_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libbitdht/")
-	if(EXISTS "${BITDHT_DEVEL_DIR}/.git" )
+	if(EXISTS "${BITDHT_DEVEL_DIR}/CMakeLists.txt" )
 		message(
 			STATUS
 			"BitDHT submodule found at ${BITDHT_DEVEL_DIR} using it" )
@@ -508,6 +499,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	target_compile_definitions(
 		${PROJECT_NAME} PUBLIC RS_DATA_DIR="${RS_DATA_DIR}" )
 endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+################################################################################
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+	target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa")
+endif()
 
 ################################################################################
 
