@@ -22,17 +22,23 @@
 #pragma once
 
 #ifdef __ANDROID__
+
 #	include <android/api-level.h>
+
 #	if __ANDROID_API__ < 21
 #		include <sys/vfs.h>
 #		define statvfs64 statfs
 #		warning statvfs64 is not supported with android platform < 21 falling back to statfs that is untested (may misbehave)
+#	else // __ANDROID_API__ < 21
+#		include <sys/statvfs.h>
 #	endif // __ANDROID_API__ < 21
+
 #	if __ANDROID_API__ < 24
 #		define fopen64 fopen
 #		define fseeko64 fseeko
 #		define ftello64 ftello
 #	endif // __ANDROID_API__ < 24
+
 #endif // def __ANDROID__
 
 #ifdef __APPLE__
