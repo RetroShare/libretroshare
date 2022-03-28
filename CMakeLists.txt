@@ -161,6 +161,30 @@ cmake_dependent_option(
 	"RS_JSON_API"
 	OFF )
 
+set(
+	RS_MAJOR_VERSION
+	""
+	CACHE STRING
+	"Specify RetroShare major version" )
+
+set(
+	RS_MINOR_VERSION
+	""
+	CACHE STRING
+	"Specify RetroShare minor version" )
+
+set(
+	RS_MINI_VERSION
+	""
+	CACHE STRING
+	"Specify RetroShare mini version" )
+
+set(
+	RS_EXTRA_VERSION
+	""
+	CACHE STRING
+	"Specify an extra string to append to RetroShare version to make it more descriptive" )
+
 ################################################################################
 
 find_package(Git REQUIRED)
@@ -377,7 +401,7 @@ if(RS_JSON_API)
 			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
 
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
-	endif(NOT RS_ANDROID)
+	endif(RS_ANDROID)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
@@ -531,5 +555,49 @@ if(RS_ANDROID)
 		${PROJECT_NAME} PRIVATE "${jni-hpp_SOURCE_DIR}/include" )
 endif(RS_ANDROID)
 #endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+
+################################################################################
+
+set(V_VERSION_SET OFF)
+
+if( NOT RS_MAJOR_VERSION STREQUAL "" AND
+    NOT RS_MINOR_VERSION STREQUAL "" AND
+    NOT RS_MINI_VERSION  STREQUAL "" )
+	message(STATUS "RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
+	set(V_VERSION_SET ON)
+else()
+	set(V_GIT_DESCRIBE_OUTPUT "")
+	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
+
+	execute_process(
+		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT )
+
+	if(V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
+		string(
+			REGEX REPLACE
+			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
+			V_GIT_DESCRIBE_LIST ${V_GIT_DESCRIBE_OUTPUT} )
+		list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
+
+		message("RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
+		set(V_VERSION_SET ON)
+	else()
+		message(WARNING "Determining RetroShare version via git failed plese specify it through CMake command line arguments!")
+	endif()
+endif()
+
+if(V_VERSION_SET)
+	target_compile_definitions(
+		${PROJECT_NAME}
+		PUBLIC RS_MAJOR_VERSION=${RS_MAJOR_VERSION}
+		PUBLIC RS_MINOR_VERSION=${RS_MINOR_VERSION}
+		PUBLIC RS_MINI_VERSION=${RS_MINI_VERSION}
+		PUBLIC RS_EXTRA_VERSION="${RS_EXTRA_VERSION}" )
+endif(V_VERSION_SET)
 
 ################################################################################
