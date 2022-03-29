@@ -386,7 +386,7 @@ if(RS_JSON_API)
 			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
 
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
-	endif(NOT RS_ANDROID)
+	endif(RS_ANDROID)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
@@ -536,3 +536,7 @@ endif(RS_ANDROID)
 #endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 
 ################################################################################
+
+set( CMAKE_CXX_FLAGS "-Wno-deprecated-declarations" )
+target_compile_definitions(${PROJECT_NAME} PUBLIC RS_NO_WARN_DEPRECATED )
+
