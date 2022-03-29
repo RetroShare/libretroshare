@@ -629,6 +629,7 @@ list(
 	util/dnsresolver.h
 	util/extaddrfinder.h
 	util/folderiterator.h
+	util/largefile_retrocompat.hpp
 	util/radix32.h
 	util/radix64.h
 	util/retrodb.h
@@ -725,7 +726,6 @@ if(RS_ANDROID)
 		APPEND RS_IMPLEMENTATION_HEADERS
 		rs_android/androidcoutcerrcatcher.hpp
 		rs_android/ifaddrs-android.h
-		rs_android/largefile_retrocompat.hpp
 		rs_android/LocalArray.h
 		rs_android/retroshareserviceandroid.hpp
 		rs_android/rsjni.hpp

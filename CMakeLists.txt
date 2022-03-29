@@ -161,20 +161,33 @@ cmake_dependent_option(
 	"RS_JSON_API"
 	OFF )
 
+set(
+	RS_MAJOR_VERSION
+	""
+	CACHE STRING
+	"Specify RetroShare major version" )
+
+set(
+	RS_MINOR_VERSION
+	""
+	CACHE STRING
+	"Specify RetroShare minor version" )
+
+set(
+	RS_MINI_VERSION
+	""
+	CACHE STRING
+	"Specify RetroShare mini version" )
+
+set(
+	RS_EXTRA_VERSION
+	""
+	CACHE STRING
+	"Specify an extra string to append to RetroShare version to make it more descriptive" )
+
 ################################################################################
 
 find_package(Git REQUIRED)
-
-#function(check_submodule sPath)
-#	if(NOT EXISTS "${sPath}/.git" )
-#		message("Initializing submodule ${sPath}")
-#		execute_process(
-#			COMMAND "${GIT_EXECUTABLE}" submodule update --init
-#			WORKING_DIRECTORY "${sPath}"
-#			COMMAND_ECHO STDERR
-#			COMMAND_ERROR_IS_FATAL ANY)
-#	endif()
-#endfunction()
 
 ################################################################################
 
@@ -200,6 +213,8 @@ if(RS_LIBRETROSHARE_SHARED)
 	## PIC Which is needed for shared library
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif(RS_LIBRETROSHARE_SHARED)
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
@@ -246,10 +261,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 ################################################################################
 
 set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
-if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/.git" )
+if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
 	message(
 		STATUS
-		"openpgpsdk submodule found at ${OPENPGPSDK_DEVEL_DIR} using it" )
+		"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
 	add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
 else()
 	FetchContent_Declare(
@@ -269,7 +284,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
 
 if(RS_BITDHT)
 	set(BITDHT_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libbitdht/")
-	if(EXISTS "${BITDHT_DEVEL_DIR}/.git" )
+	if(EXISTS "${BITDHT_DEVEL_DIR}/CMakeLists.txt" )
 		message(
 			STATUS
 			"BitDHT submodule found at ${BITDHT_DEVEL_DIR} using it" )
@@ -511,6 +526,12 @@ endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
 ################################################################################
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+	target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa")
+endif()
+
+################################################################################
+
 if(RS_EXPORT_JNI_ONLOAD)
 	target_compile_definitions(
 		${PROJECT_NAME} PUBLIC RS_LIBRETROSHARE_EXPORT_JNI_ONLOAD )
@@ -540,3 +561,47 @@ endif(RS_ANDROID)
 set( CMAKE_CXX_FLAGS "-Wno-deprecated-declarations" )
 target_compile_definitions(${PROJECT_NAME} PUBLIC RS_NO_WARN_DEPRECATED )
 
+set(V_VERSION_SET OFF)
+
+if( NOT RS_MAJOR_VERSION STREQUAL "" AND
+    NOT RS_MINOR_VERSION STREQUAL "" AND
+    NOT RS_MINI_VERSION  STREQUAL "" )
+	message(STATUS "RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
+	set(V_VERSION_SET ON)
+else()
+	set(V_GIT_DESCRIBE_OUTPUT "")
+	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
+
+	execute_process(
+		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT )
+
+	if(V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
+		string(
+			REGEX REPLACE
+			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
+			V_GIT_DESCRIBE_LIST ${V_GIT_DESCRIBE_OUTPUT} )
+		list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
+
+		message("RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
+		set(V_VERSION_SET ON)
+	else()
+		message(WARNING "Determining RetroShare version via git failed plese specify it through CMake command line arguments!")
+	endif()
+endif()
+
+if(V_VERSION_SET)
+	target_compile_definitions(
+		${PROJECT_NAME}
+		PUBLIC RS_MAJOR_VERSION=${RS_MAJOR_VERSION}
+		PUBLIC RS_MINOR_VERSION=${RS_MINOR_VERSION}
+		PUBLIC RS_MINI_VERSION=${RS_MINI_VERSION}
+		PUBLIC RS_EXTRA_VERSION="${RS_EXTRA_VERSION}" )
+endif(V_VERSION_SET)
+
+################################################################################
+>>>>>>> upstream/master

@@ -35,7 +35,7 @@
 #include "util/rsmemory.h"
 #include "retroshare/rsturtle.h"
 #include "util/rstime.h"
-#include "rs_android/largefile_retrocompat.hpp"
+#include "util/largefile_retrocompat.hpp"
 
 
 /* For Thread Behaviour */

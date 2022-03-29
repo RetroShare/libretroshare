@@ -27,7 +27,7 @@
 #include "ftchunkmap.h"
 #include "util/rstime.h"
 #include "util/rsdir.h"
-#include "rs_android/largefile_retrocompat.hpp"
+#include "util/largefile_retrocompat.hpp"
 
 #ifdef WINDOWS_SYS
 #	include "util/rswin.h"

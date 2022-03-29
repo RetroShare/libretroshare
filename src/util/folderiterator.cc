@@ -3,7 +3,7 @@
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright (C) 2017 Retroshare Team <contact@retroshare.cc>           *
+ * Copyright (C) 2017 Retroshare Team <contact@retroshare.cc>                  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -24,14 +24,16 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+
 #include "util/rstime.h"
+#include "util/folderiterator.h"
+#include "util/rsstring.h"
+#include "util/largefile_retrocompat.hpp"
 
 #ifdef WINDOWS_SYS
 #include "util/rswin.h"
 #endif
 
-#include "folderiterator.h"
-#include "rsstring.h"
 
 //#define DEBUG_FOLDER_ITERATOR 1
 

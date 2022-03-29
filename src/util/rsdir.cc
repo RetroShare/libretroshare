@@ -45,9 +45,8 @@
 #include "util/folderiterator.h"
 #include "retroshare/rstypes.h"
 #include "retroshare/rsnotify.h"
-#include "rsthreads.h"
-
-#include "rs_android/largefile_retrocompat.hpp"
+#include "util/rsthreads.h"
+#include "util/largefile_retrocompat.hpp"
 
 #if defined(WIN32) || defined(__CYGWIN__)
 #include "util/rsstring.h"

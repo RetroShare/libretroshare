@@ -27,19 +27,20 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "pgphandler.h"
+#include "retroshare/rsiface.h"		// For rsicontrol.
+#include "retroshare/rspeers.h"		// For rsicontrol.
+#include "util/rsdir.h"
+#include "util/rsdiscspace.h"
+#include "util/rsmemory.h"
+#include "pgp/pgpkeyutil.h"
+#include "util/largefile_retrocompat.hpp"
+
 #ifdef WINDOWS_SYS
 #include <io.h>
 #include "util/rsstring.h"
 #include "util/rswin.h"
 #endif
-
-#include "pgphandler.h"
-#include "retroshare/rsiface.h"		// For rsicontrol.
-#include "retroshare/rspeers.h"		// For rsicontrol.
-#include "util/rsdir.h"		
-#include "util/rsdiscspace.h"		
-#include "util/rsmemory.h"		
-#include "pgp/pgpkeyutil.h"
 
 static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_NAME_SIZE   = 64 ;
 static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_EMAIL_SIZE  = 64 ;
