@@ -3,7 +3,7 @@
 ## the part after :
 # export ANDROID_MIN_API_LEVEL=16
 # export CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_aar_base_$ANDROID_MIN_API_LEVEL"
-# docker build --squash --tag "${CI_IMAGE_NAME}" --build-arg ANDROID_MIN_API_LEVEL=$ANDROID_MIN_API_LEVEL --build-arg LIBRETROSHARE_SOURCE_VERSION="$(git describe --always)" --file misc/Android/Dockerfile-AAR .
+# docker build --squash --tag "${CI_IMAGE_NAME}" --build-arg ANDROID_MIN_API_LEVEL=$ANDROID_MIN_API_LEVEL --build-arg LIBRETROSHARE_SOURCE_VERSION="$(git describe --always)" --file misc/Android/Dockerfile .
 
 ## --squash is very important in case of GitlabCI shared runners as they are
 ## limited to 25GB disk size
@@ -45,7 +45,7 @@ RUN /libretroshare/misc/Android/prepare-toolchain-clang.sh install_android_sdk
 
 WORKDIR /libretroshare/
 ARG ANDROID_MIN_API_LEVEL=16
-ARG LIBRETROSHARE_SOURCE_VERSION="Dockerfile_AAR_unset"
+ARG LIBRETROSHARE_SOURCE_VERSION="Dockerfile_unset"
 ENV NATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
 RUN ./gradlew build -Dorg.gradle.project.buildDir=/libretroshare-build/ \
 	-PANDROID_MIN_API_LEVEL=$ANDROID_MIN_API_LEVEL \
