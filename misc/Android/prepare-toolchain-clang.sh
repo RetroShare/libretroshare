@@ -2,8 +2,8 @@
 
 # Script to prepare RetroShare Android package building toolchain
 #
-# Copyright (C) 2016-2021  Gioacchino Mazzurco <gio@eigenlab.org>
-# Copyright (C) 2020-2021  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2016-2022  Gioacchino Mazzurco <gio@eigenlab.org>
+# Copyright (C) 2020-2022  Asociación Civil Altermundi <info@altermundi.net>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the
@@ -20,6 +20,8 @@
 # SPDX-FileCopyrightText: Retroshare Team <contact@retroshare.cc>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# If something goes unexpected fail early to detect and debug easy
+set -e
 
 ## Define default value for variable, take two arguments, $1 variable name,
 ## $2 default variable value, if the variable is not already define define it
@@ -61,15 +63,6 @@ define_default_value SQLCIPHER_SOURCE_SHA256 b8df69b998c042ce7f8a99f07cf11f45dfe
 define_default_value LIBUPNP_SOURCE_VERSION "1.8.4"
 define_default_value LIBUPNP_SOURCE_SHA256 976c3e4555604cdd8391ed2f359c08c9dead3b6bf131c24ce78e64d6669af2ed
 
-define_default_value QT_ANDROID_VIA_INSTALLER "false"
-define_default_value QT_VERSION "5.12.11"
-define_default_value QT_INSTALLER_VERSION "4.1.1"
-define_default_value QT_INSTALLER_SHA256 1266ffd0d1b0e466244e3bc8422975c1aa9d96745b6bb28d422f7f92df11f34c
-define_default_value QT_INSTALLER_JWT_TOKEN ""
-define_default_value QT_INSTALL_PATH "${NATIVE_LIBS_TOOLCHAIN_PATH}/Qt/"
-
-define_default_value QT_ANDROID_INSTALLER_SHA256 a214084e2295c9a9f8727e8a0131c37255bf724bfc69e80f7012ba3abeb1f763
-
 ## TODO: Report that 4.8 doesn't compile for Android and test newer versions
 define_default_value RESTBED_SOURCE_REPO "https://github.com/Corvusoft/restbed.git"
 define_default_value RESTBED_SOURCE_VERSION f74f9329dac82e662c1d570b7cd72c192b729eb4
@@ -88,13 +81,13 @@ define_default_value MINIUPNPC_SOURCE_SHA256 8723f5d7fd7970de23635547700878cd29a
 
 # zlib and libpng versions walks toghether
 define_default_value ZLIB_SOURCE_VERSION "1.2.11"
-define_default_value ZLIB_SOURCE_SHA256 4ff941449631ace0d4d203e3483be9dbc9da454084111f97ea0a2114e19bf066
+define_default_value ZLIB_SOURCE_SHA256 c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
 
 define_default_value LIBPNG_SOURCE_VERSION "1.6.37"
 define_default_value LIBPNG_SOURCE_SHA256 505e70834d35383537b6491e7ae8641f1a4bed1876dbfe361201fc80868d88ca
 
-define_default_value LIBJPEG_SOURCE_VERSION "9d"
-define_default_value LIBJPEG_SOURCE_SHA256 6c434a3be59f8f62425b2e3c077e785c9ce30ee5874ea1c270e843f273ba71ee
+define_default_value LIBJPEG_SOURCE_VERSION "9e"
+define_default_value LIBJPEG_SOURCE_SHA256 4077d6a6a75aeb01884f708919d25934c93305e49f7e3f36db9129320e6f4f3d
 
 define_default_value TIFF_SOURCE_VERSION "4.2.0"
 define_default_value TIFF_SOURCE_SHA256 eb0484e568ead8fa23b513e9b0041df7e327f4ee2d22db5a533929dfc19633cb
@@ -133,7 +126,7 @@ case "${ANDROID_NDK_ARCH}" in
 	;;
 "x86_64")
 	echo "ANDROID_NDK_ARCH=${ANDROID_NDK_ARCH} not supported yet"
-	exit -1
+	exit 1
 	cArch="??"
 	eABI=""
 esac
@@ -168,16 +161,20 @@ function verified_download()
 
 		wget -O "${FILENAME}" "$URL" ||
 		{
+			mRet=$?
 			echo "Failed downloading ${FILENAME} from $URL"
-			exit 1
+			return $mRet
 		}
 
 		check_sha256 "${FILENAME}" "${SHA256}" ||
 		{
+			mRet=$?
 			echo "SHA256 mismatch for ${FILENAME} from ${URL} expected sha256 ${SHA256} got $(sha256sum ${FILENAME} | awk '{print $1}')"
-			exit 1
+			return $mRet
 		}
 	}
+
+	return 0
 }
 
 # This function is the result of reading and testing many many stuff be very
@@ -204,7 +201,7 @@ function andro_cmake()
 	;;
 	*)
 		echo "Unhandled NDK architecture ${ANDROID_NDK_ARCH}"
-		exit -1
+		return 1
 	;;
 	esac
 
@@ -285,7 +282,7 @@ function task_run()
 	[ "${TASK_REGISTER[$mTask]}" != "true" ] &&
 	{
 		echo "Attempt to run not registered task $mTask $@"
-		return -1
+		return 1
 	}
 
 	logFile="$(task_logfile $mTask)"
@@ -341,7 +338,8 @@ install_android_sdk()
 ## More information available at https://android.googlesource.com/platform/ndk/+/ics-mr0/docs/STANDALONE-TOOLCHAIN.html
 task_register bootstrap_toolchain
 bootstrap_toolchain()
-{
+{( set -e
+
 	rm -rf "${NATIVE_LIBS_TOOLCHAIN_PATH}"
 	${ANDROID_NDK_PATH}/build/tools/make_standalone_toolchain.py --verbose \
 		--arch ${ANDROID_NDK_ARCH} --install-dir ${NATIVE_LIBS_TOOLCHAIN_PATH} \
@@ -353,7 +351,7 @@ bootstrap_toolchain()
 	pushd "${PREFIX}/include/"
 	find . -not -type d > "${DUPLICATED_INCLUDES_LIST_FILE}"
 	popd
-}
+)}
 
 ## This avoid <cmath> include errors due to -isystem and -I ordering issue
 task_register deduplicate_includes
@@ -376,68 +374,11 @@ reduplicate_includes()
 	popd
 }
 
-# $1 optional prefix prepended only if return value is not empty
-# $2 optional suffix appended only if return value is not empty
-task_register get_qt_arch
-get_qt_arch()
-{
-	local QT_VERSION_COMP="$(echo $QT_VERSION | awk -F. '{print $1*1000000+$2*1000+$3}')" 
-	local QT_ARCH=""
-
-	# Qt >= 5.15.0 ships all Android architectures toghether
-	[ "$QT_VERSION_COMP" -lt "5015000" ] &&
-	{
-		case "${ANDROID_NDK_ARCH}" in
-		"arm")
-			QT_ARCH="armv7"
-			;;
-		"arm64")
-			QT_ARCH="arm64_v8a"
-			;;
-		"x86")
-			QT_ARCH="x86"
-			;;
-		esac
-
-		echo "$1$QT_ARCH$2"
-	}
-}
-
-task_register get_qt_dir
-get_qt_dir()
-{
-	echo "${QT_INSTALL_PATH}/${QT_VERSION}/android$(get_qt_arch _)/"
-}
-
-## More information available at https://wiki.qt.io/Online_Installer_4.x
-task_register install_qt_android
-install_qt_android()
-{
-	[ "$QT_INSTALLER_JWT_TOKEN" == "" ] &&
-	{
-		echo "To run Qt installer QT_INSTALLER_JWT_TOKEN environement variable \
-need to be set to a valid JWT token see https://wiki.qt.io/Online_Installer_4.x"
-		return -1
-	}
-
-	QT_VERSION_CODE="$(echo $QT_VERSION | tr -d .)"
-	QT_INSTALLER="qt-unified-linux-x86_64-${QT_INSTALLER_VERSION}-online.run"
-	tMajDotMinVer="$(echo $QT_INSTALLER_VERSION | awk -F. '{print $1"."$2}')"
-	verified_download $QT_INSTALLER $QT_INSTALLER_SHA256 \
-		"https://master.qt.io/archive/online_installers/${tMajDotMinVer}/${QT_INSTALLER}"
-
-	chmod a+x ${QT_INSTALLER}
-	QT_QPA_PLATFORM=minimal ./${QT_INSTALLER} \
-		install qt.qt5.${QT_VERSION_CODE}.android$(get_qt_arch _) \
-		--accept-licenses --accept-obligations --confirm-command \
-		--default-answer --no-default-installations \
-		--root "${QT_INSTALL_PATH}"
-}
-
 ## More information available at retroshare://file?name=Android%20Native%20Development%20Kit%20Cookbook.pdf&size=29214468&hash=0123361c1b14366ce36118e82b90faf7c7b1b136
 task_register build_bzlib
 build_bzlib()
-{
+{( set -e
+
 	B_dir="bzip2-${BZIP2_SOURCE_VERSION}"
 	rm -rf $B_dir
 
@@ -457,12 +398,13 @@ build_bzlib()
 #	make -f Makefile-libbz2_so -j${HOST_NUM_CPU}
 #	cp libbz2.so.1.0.6 ${SYSROOT}/usr/lib/libbz2.so
 	cd ..
-}
+)}
 
 ## More information available at http://doc.qt.io/qt-5/opensslsupport.html
 task_register build_openssl
 build_openssl()
-{
+{( set -e
+
 	B_dir="openssl-${OPENSSL_SOURCE_VERSION}"
 	rm -rf $B_dir
 
@@ -493,11 +435,12 @@ build_openssl()
 	rm -f ${PREFIX}/lib/libssl.so*
 	rm -f ${PREFIX}/lib/libcrypto.so*
 	cd ..
-}
+)}
 
 task_register build_sqlite
 build_sqlite()
-{
+{( set -e
+
 	B_dir="sqlite-autoconf-${SQLITE_SOURCE_VERSION}"
 	rm -rf $B_dir
 
@@ -511,11 +454,12 @@ build_sqlite()
 	make install
 	rm -f ${PREFIX}/lib/libsqlite3.so*
 	cd ..
-}
+)}
 
 task_register build_sqlcipher
 build_sqlcipher()
-{
+{( set -e
+
 	task_run build_sqlite
 
 	B_dir="sqlcipher-${SQLCIPHER_SOURCE_VERSION}"
@@ -545,11 +489,12 @@ build_sqlcipher()
 	make -j${HOST_NUM_CPU}
 	make install
 	cd ..
-}
+)}
 
 task_register build_libupnp
 build_libupnp()
-{
+{( set -e
+
 	B_dir="pupnp-release-${LIBUPNP_SOURCE_VERSION}"
 	B_ext=".tar.gz"
 	B_file="${B_dir}${B_ext}"
@@ -571,22 +516,24 @@ build_libupnp()
 	make -j${HOST_NUM_CPU}
 	make install
 	cd ..
-}
+)}
 
 task_register build_rapidjson
 build_rapidjson()
-{
+{( set -e
+
 	B_dir="rapidjson-${RAPIDJSON_SOURCE_VERSION}"
 	D_file="${B_dir}.tar.gz"
 	verified_download $D_file $RAPIDJSON_SOURCE_SHA256 \
 		https://github.com/Tencent/rapidjson/archive/v${RAPIDJSON_SOURCE_VERSION}.tar.gz
 	tar -xf $D_file
 	cp -r "${B_dir}/include/rapidjson/" "${PREFIX}/include/rapidjson"
-}
+)}
 
 task_register build_restbed
 build_restbed()
-{
+{( set -e
+
 	S_dir="restbed"
 	B_dir="${S_dir}-build"
 	git_source_get "$S_dir" "$RESTBED_SOURCE_REPO" "${RESTBED_SOURCE_VERSION}" \
@@ -598,11 +545,12 @@ build_restbed()
 	make -j${HOST_NUM_CPU}
 	make install
 	popd
-}
+)}
 
 task_register build_udp-discovery-cpp
 build_udp-discovery-cpp()
-{
+{( set -e
+
 	S_dir="udp-discovery-cpp"
 	[ -d $S_dir ] || git clone $UDP_DISCOVERY_CPP_SOURCE $S_dir
 	cd $S_dir
@@ -616,11 +564,12 @@ build_udp-discovery-cpp()
 	cp libudp-discovery.a "${PREFIX}/lib/"
 	cp ../$S_dir/*.hpp "${PREFIX}/include/"
 	cd ..
-}
+)}
 
 task_register build_xapian
 build_xapian()
-{
+{( set -e
+
 	B_dir="xapian-core-${XAPIAN_SOURCE_VERSION}"
 	D_file="$B_dir.tar.xz"
 	verified_download $D_file $XAPIAN_SOURCE_SHA256 \
@@ -630,7 +579,7 @@ build_xapian()
 	pushd $B_dir
 	B_endiannes_detection_failure_workaround="ac_cv_c_bigendian=no"
 	B_large_file=""
-	[ "${ANDROID_PLATFORM_VER}" -lt "24" ] && B_large_file="--disable-largefile"
+	[ "${ANDROID_PLATFORM_VER}" -ge "24" ] || B_large_file="--disable-largefile"
 	./configure ${B_endiannes_detection_failure_workaround} ${B_large_file} \
 		--with-pic \
 		--disable-backend-inmemory --disable-backend-remote \
@@ -643,11 +592,11 @@ build_xapian()
 	# TODO: Fix upstream Xapian CMake package to find static library
 	sed -i 's/libxapian.so/libxapian.a/g' "${SYSROOT}/usr/lib/cmake/xapian/xapian-config.cmake"
 	popd
-}
+)}
 
 task_register build_miniupnpc
 build_miniupnpc()
-{
+{( set -e
 	S_dir="miniupnpc-${MINIUPNPC_SOURCE_VERSION}"
 	B_dir="miniupnpc-${MINIUPNPC_SOURCE_VERSION}-build"
 	D_file="$S_dir.tar.gz"
@@ -666,37 +615,38 @@ build_miniupnpc()
 	make -j${HOST_NUM_CPU}
 	make install
 	cd ..
-}
+)}
 
 task_register build_zlib
 build_zlib()
-{
+{( set -e
+
 	S_dir="zlib-${ZLIB_SOURCE_VERSION}"
 	B_dir="zlib-${ZLIB_SOURCE_VERSION}-build"
-	D_file="$S_dir.tar.xz"
+	D_file="$S_dir.tar.gz"
 	verified_download $D_file $ZLIB_SOURCE_SHA256 \
-		http://www.zlib.net/${D_file}
+		http://distfiles.gentoo.org/distfiles/${D_file}
 	rm -rf $S_dir $B_dir
 	tar -xf $D_file
 	mkdir $B_dir
-	cd $B_dir
+	pushd $B_dir
 	andro_cmake -B. -S../$S_dir
 	make -j${HOST_NUM_CPU}
 	make install
-	rm -f ${PREFIX}/lib/libz.so*
-	cd ..
-}
+	rm -fv ${PREFIX}/lib/libz.so*
+	popd
+)}
 
 task_register build_libpng
 build_libpng()
-{
+{( set -e
 	task_run build_zlib
 
 	S_dir="libpng-${LIBPNG_SOURCE_VERSION}"
 	B_dir="libpng-${LIBPNG_SOURCE_VERSION}-build"
 	D_file="$S_dir.tar.xz"
 	verified_download $D_file $LIBPNG_SOURCE_SHA256 \
-		https://download.sourceforge.net/libpng/${D_file}
+		http://distfiles.gentoo.org/distfiles/${D_file}
 	rm -rf $S_dir $B_dir
 	tar -xf $D_file
 
@@ -727,11 +677,12 @@ build_libpng()
 	make -j${HOST_NUM_CPU}
 	make install
 	popd
-}
+)}
 
 task_register build_libjpeg
 build_libjpeg()
-{
+{( set -e
+
 	S_dir="jpeg-${LIBJPEG_SOURCE_VERSION}"
 	D_file="jpegsrc.v${LIBJPEG_SOURCE_VERSION}.tar.gz"
 	verified_download $D_file $LIBJPEG_SOURCE_SHA256 \
@@ -744,11 +695,12 @@ build_libjpeg()
 	make install
 	rm -f ${PREFIX}/lib/libjpeg.so*
 	cd ..
-}
+)}
 
 task_register build_tiff
 build_tiff()
-{
+{( set -e
+
 	S_dir="tiff-${TIFF_SOURCE_VERSION}"
 	B_dir="${S_dir}-build"
 	D_file="tiff-${TIFF_SOURCE_VERSION}.tar.gz"
@@ -782,7 +734,7 @@ build_tiff()
 	sed -i 's\add_library(tiff\add_library(tiff STATIC\' \
 		$S_dir/libtiff/CMakeLists.txt
 
-	cd $B_dir
+	pushd $B_dir
 	#TODO: build dependecies to support more formats
 	andro_cmake \
 		-Dlibdeflate=OFF -Djbig=OFF -Dlzma=OFF -Dzstd=OFF -Dwebp=OFF \
@@ -791,12 +743,12 @@ build_tiff()
 		-B. -S../$S_dir
 	make -j${HOST_NUM_CPU}
 	make install
-	cd ..
-}
+	popd
+)}
 
 task_register build_cimg
 build_cimg()
-{
+{( set -e
 	task_run build_libpng
 	task_run build_libjpeg
 	task_run build_tiff
@@ -810,11 +762,11 @@ build_cimg()
 	unzip -o $D_file
 
 	cp --archive --verbose "$S_dir/CImg.h" "$PREFIX/include/"
-}
+)}
 
 task_register build_phash
 build_phash()
-{
+{( set -e
 	task_run build_cimg
 
 	S_dir="pHash"
@@ -827,11 +779,11 @@ build_phash()
 	make -j${HOST_NUM_CPU}
 	make install
 	popd
-}
+)}
 
 task_register build_mvptree
 build_mvptree()
-{
+{( set -e
 	S_dir="mvptree"
 	B_dir="${S_dir}-build"
 
@@ -841,11 +793,22 @@ build_mvptree()
 	make -j${HOST_NUM_CPU}
 	make install
 	popd
-}
+)}
 
 task_register build_libretroshare
 build_libretroshare()
-{
+{( set -e
+	task_run build_zlib
+	task_run build_bzlib
+	task_run build_openssl
+	task_run build_sqlcipher
+	task_run build_rapidjson
+	task_run build_restbed
+#	task_run build_udp-discovery-cpp
+	task_run build_xapian
+	task_run build_miniupnpc
+	task_run build_phash
+
 	S_dir="$RS_SRC_DIR"
 	B_dir="libretroshare-build"
 
@@ -860,7 +823,7 @@ build_libretroshare()
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?
 	popd
-}
+)}
 
 task_register get_native_libs_toolchain_path
 get_native_libs_toolchain_path()
@@ -870,21 +833,13 @@ get_native_libs_toolchain_path()
 
 task_register build_default_toolchain
 build_default_toolchain()
-{
-	task_run bootstrap_toolchain || return $?
-	task_run build_bzlib || return $?
-	task_run build_openssl || return $?
-	task_run build_sqlcipher || return $?
-	task_run build_rapidjson || return $?
-	task_run build_restbed || return $?
-#	task_run build_udp-discovery-cpp || return $?
-	task_run build_xapian || return $?
-	task_run build_miniupnpc || return $?
-	task_run build_phash || return $?
-	task_run build_libretroshare || return $?
-#	task_run deduplicate_includes || return $?
-	task_run get_native_libs_toolchain_path || return $?
-}
+{( set -e
+
+	task_run bootstrap_toolchain
+	task_run build_libretroshare
+#	task_run deduplicate_includes
+	task_run get_native_libs_toolchain_path
+)}
 
 if [ "$1" == "" ]; then
 	rm -rf "$REPORT_DIR"
