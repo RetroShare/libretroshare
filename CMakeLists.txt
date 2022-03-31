@@ -558,6 +558,9 @@ endif(RS_ANDROID)
 
 ################################################################################
 
+set( CMAKE_CXX_FLAGS "-Wno-deprecated-declarations" )
+target_compile_definitions(${PROJECT_NAME} PUBLIC RS_NO_WARN_DEPRECATED )
+
 set(V_VERSION_SET OFF)
 
 if( NOT RS_MAJOR_VERSION STREQUAL "" AND
@@ -601,3 +604,4 @@ if(V_VERSION_SET)
 endif(V_VERSION_SET)
 
 ################################################################################
+
