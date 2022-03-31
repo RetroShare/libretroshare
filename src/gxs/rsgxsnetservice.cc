@@ -4019,23 +4019,28 @@ void RsGxsNetService::handleRecvSyncGroup(RsNxsSyncGrpReqItem *item)
     if (!item)
 	    return;
 
-    RS_STACK_MUTEX(mNxsMutex) ;
-
     RsPeerId peer = item->PeerId();
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(peer) << "HandleRecvSyncGroup(): Service: " << mServType << " from " << peer << ", Last update TS (from myself) sent from peer is T = " << std::dec<< time(NULL) - item->updateTS << " secs ago" << std::endl;
 #endif
 
-    if(!locked_CanReceiveUpdate(item))
     {
+        RS_STACK_MUTEX(mNxsMutex) ;
+
+        if(!locked_CanReceiveUpdate(item))
+        {
 #ifdef NXS_NET_DEBUG_0
-	    GXSNETDEBUG_P_(peer) << "  RsGxsNetService::handleRecvSyncGroup() update will not be sent." << std::endl;
+            GXSNETDEBUG_P_(peer) << "  RsGxsNetService::handleRecvSyncGroup() update will not be sent." << std::endl;
 #endif
-	    return;
+            return;
+        }
     }
 
     RsGxsGrpMetaTemporaryMap grp;
-    mDataStore->retrieveGxsGrpMetaData(grp);
+    {
+        RS_STACK_MUTEX(mNxsMutex) ;
+        mDataStore->retrieveGxsGrpMetaData(grp);
+    }
 
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(peer) << "  RsGxsNetService::handleRecvSyncGroup() retrieving local list of groups..." << std::endl;
@@ -4047,10 +4052,13 @@ void RsGxsNetService::handleRecvSyncGroup(RsNxsSyncGrpReqItem *item)
 #endif
 	    return;
     }
-
+    uint32_t transN ;
     std::list<RsNxsItem*> itemL;
 
-    uint32_t transN = locked_getTransactionId();
+    {
+        RS_STACK_MUTEX(mNxsMutex) ;
+        transN = locked_getTransactionId();
+    }
 
     std::vector<GrpIdCircleVet> toVet;
 #ifdef NXS_NET_DEBUG_0
@@ -4118,15 +4126,15 @@ void RsGxsNetService::handleRecvSyncGroup(RsNxsSyncGrpReqItem *item)
 	    }
     }
 
+    RS_STACK_MUTEX(mNxsMutex) ;
+
     if(!toVet.empty())
-	    mPendingCircleVets.push_back(new GrpCircleIdRequestVetting(mCircles, mPgpUtils, toVet, peer));
+        mPendingCircleVets.push_back(new GrpCircleIdRequestVetting(mCircles, mPgpUtils, toVet, peer));
 
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(peer) << "  final list sent (after vetting): " << itemL.size() << " elements." << std::endl;
 #endif
     locked_pushGrpRespFromList(itemL, peer, transN);
-
-    return;
 }
 
 
