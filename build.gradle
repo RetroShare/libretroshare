@@ -112,6 +112,18 @@ ext.getNativeToolchainsDir =
 	}
 }
 
+ext.getRsExtraCmakeOpts =
+{ ->
+	if(project.hasProperty('RS_EXTRA_CMAKE_OPTS'))
+	{
+		return RS_EXTRA_CMAKE_OPTS
+	}
+	else
+	{
+		return ""
+	}
+}
+
 ext.getjniLibsDir =
 { ->
 	return "${buildDir}/native_libs/"
@@ -158,7 +170,6 @@ ext.buildLibretroshareNativeLib =
 
 	def currToolchainPath = "$toolchainsWorkdir/$pApiLevel-$toolchainArch/"
 
-	// Todo: use proper way to resolve the script path
 	def toolChainScriptPath = "${projectDir}/misc/Android/prepare-toolchain-clang.sh"
 
 	if(!pReuseToolchain || !file(currToolchainPath).exists())
@@ -170,6 +181,7 @@ ext.buildLibretroshareNativeLib =
 			environment "NATIVE_LIBS_TOOLCHAIN_PATH", currToolchainPath
 			environment "ANDROID_PLATFORM_VER", pApiLevel
 			environment "ANDROID_NDK_ARCH", toolchainArch
+			environment "RS_EXTRA_CMAKE_OPTS", getRsExtraCmakeOpts()
 			commandLine toolChainScriptPath
 		}
 	}
@@ -182,6 +194,7 @@ ext.buildLibretroshareNativeLib =
 			environment "NATIVE_LIBS_TOOLCHAIN_PATH", currToolchainPath
 			environment "ANDROID_PLATFORM_VER", pApiLevel
 			environment "ANDROID_NDK_ARCH", toolchainArch
+			environment "RS_EXTRA_CMAKE_OPTS", getRsExtraCmakeOpts()
 			commandLine toolChainScriptPath, 'build_libretroshare'
 		}
 	}
