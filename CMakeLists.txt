@@ -9,6 +9,7 @@ cmake_minimum_required (VERSION 3.18.0)
 project(retroshare)
 
 include(CMakeDependentOption)
+include(GNUInstallDirs)
 
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
@@ -122,19 +123,19 @@ option(
 
 set(
 	RS_DATA_DIR
-	"${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}"
+	"${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}"
 	CACHE PATH
 	"Path where to install RetroShare system wide data" )
 
 set(
 	RS_INCLUDE_INSTALL_DIR
-	"${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}"
+	"${CMAKE_INSTALL_FULL_INCLUDEDIR}/${PROJECT_NAME}"
 	CACHE PATH
 	"Path where to install libretroshare headers" )
 
 set(
 	RS_LIB_INSTALL_DIR
-	"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}"
+	"${CMAKE_INSTALL_FULL_LIBDIR}"
 	CACHE PATH
 	"Path where to install libretroshare compiled library" )
 
