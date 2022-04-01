@@ -401,6 +401,8 @@ build_bzlib()
 )}
 
 ## More information available at http://doc.qt.io/qt-5/opensslsupport.html
+## The following article might be interesting for future updates
+## https://proandroiddev.com/tutorial-compile-openssl-to-1-1-1-for-android-application-87137968fee
 task_register build_openssl
 build_openssl()
 {( set -e
