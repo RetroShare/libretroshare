@@ -1,4 +1,6 @@
 android-AAR-minapi16:
+  rules:
+    - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16
   script:
     - > 
@@ -7,8 +9,12 @@ android-AAR-minapi16:
       -PANDROID_MIN_API_LEVEL=16
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+  tags:
+    - storage50
 
 android-AAR-minapi21:
+  rules:
+    - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21
   script:
     - > 
@@ -21,6 +27,8 @@ android-AAR-minapi21:
     - storage50
 
 android-AAR-minapi24:
+  rules:
+    - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_24
   script:
     - > 
