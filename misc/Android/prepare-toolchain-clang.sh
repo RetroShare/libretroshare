@@ -106,6 +106,8 @@ define_default_value REPORT_DIR "$(pwd)/$(basename ${NATIVE_LIBS_TOOLCHAIN_PATH}
 define_default_value RS_SRC_DIR "$(realpath $(dirname $BASH_SOURCE)/../../)"
 define_default_value RS_EXTRA_CMAKE_OPTS ""
 
+# Debug or Release we should give support at least at those two builds type supported by CMake
+define_default_value TOOLCHAIN_BUILD_TYPE ""
 
 cArch=""
 eABI=""
@@ -206,8 +208,13 @@ function andro_cmake()
 	esac
 
 	_hi="$HOST_IGNORE_PREFIX"
+	
+	cmakeBuildType=""
+	[ "$TOOLCHAIN_BUILD_TYPE" == "" ] ||
+		cmakeBuildType="-DCMAKE_BUILD_TYPE=$TOOLCHAIN_BUILD_TYPE"
 
 	cmake \
+		$cmakeBuildType \
 		-DCMAKE_SYSTEM_PROCESSOR=$cmakeProc \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 		-DCMAKE_PREFIX_PATH="${PREFIX}" \

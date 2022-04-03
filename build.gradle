@@ -199,6 +199,7 @@ ext.buildLibretroshareNativeLib =
 			environment "ANDROID_PLATFORM_VER", pApiLevel
 			environment "ANDROID_NDK_ARCH", toolchainArch
 			environment "RS_EXTRA_CMAKE_OPTS", getRsExtraCmakeOpts()
+			environment "TOOLCHAIN_BUILD_TYPE", pBuildType
 			commandLine toolChainScriptPath
 		}
 	}
@@ -212,6 +213,7 @@ ext.buildLibretroshareNativeLib =
 			environment "ANDROID_PLATFORM_VER", pApiLevel
 			environment "ANDROID_NDK_ARCH", toolchainArch
 			environment "RS_EXTRA_CMAKE_OPTS", getRsExtraCmakeOpts()
+			environment "TOOLCHAIN_BUILD_TYPE", pBuildType
 			commandLine toolChainScriptPath, 'build_libretroshare'
 		}
 	}
