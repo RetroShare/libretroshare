@@ -1,8 +1,14 @@
+# Jobs tagged with `storage50` needs custom runners with more storage, they
+# create a full build (multiple architecure, and both debug and release) a job
+# for each minimum Android API level. After build the AAR packages are published
+# on the project Gitlab maven repository
+
 android-AAR-minapi16:
   rules:
     - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16_build
   script:
+    - rm -rf /libretroshare-aar/
     - > 
       ./gradlew build publish
       -Dorg.gradle.project.buildDir=/libretroshare-build/
@@ -17,6 +23,7 @@ android-AAR-minapi21:
     - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21
   script:
+    - rm -rf /libretroshare-aar/
     - > 
       ./gradlew build publish
       -Dorg.gradle.project.buildDir=/libretroshare-build/
@@ -31,6 +38,7 @@ android-AAR-minapi24:
     - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_24
   script:
+    - rm -rf /libretroshare-aar/
     - > 
       ./gradlew build publish
       -Dorg.gradle.project.buildDir=/libretroshare-build/
@@ -40,14 +48,24 @@ android-AAR-minapi24:
   tags:
     - storage50
 
+
+# For forks that doesn't have `storage50` custom runners available the job are
+# split per architecture and build type and without maven publishing, instead at
+# the end of the job the artifact is made available
+    
 android-minapi16_armeabi-v7a_bundleDebugAar:
   rules:
     - if: $PROJECT_HAVE_STORAGE50_RUNNERS != "true"
   image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16_armeabi-v7a_bundleDebugAar
   script:
+    - rm -rf /libretroshare-aar/
     - > 
       ./gradlew bundleDebugAar
       -Dorg.gradle.project.buildDir=/libretroshare-build/
       -PANDROID_MIN_API_LEVEL=16
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+    - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
+  artifacts:
+    paths:
+      - outputs-aar/
