@@ -120,3 +120,37 @@ android-minapi21_arm64-v8a_bundleReleaseAar:
   artifacts:
     paths:
       - outputs-aar/
+
+android-minapi21_armeabi-v7a_bundleDebugAar:
+  rules:
+    - if: $PROJECT_HAVE_STORAGE50_RUNNERS != "true"
+  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21_armeabi-v7a_bundleDebugAar
+  script:
+    - rm -rf /libretroshare-aar/
+    - > 
+      ./gradlew bundleDebugAar
+      -Dorg.gradle.project.buildDir=/libretroshare-build/
+      -PANDROID_MIN_API_LEVEL=21
+      -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
+      -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+    - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
+  artifacts:
+    paths:
+      - outputs-aar/
+
+android-minapi21_armeabi-v7a_bundleReleaseAar:
+  rules:
+    - if: $PROJECT_HAVE_STORAGE50_RUNNERS != "true"
+  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21_armeabi-v7a_bundleReleaseAar
+  script:
+    - rm -rf /libretroshare-aar/
+    - > 
+      ./gradlew bundleReleaseAar
+      -Dorg.gradle.project.buildDir=/libretroshare-build/
+      -PANDROID_MIN_API_LEVEL=21
+      -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
+      -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+    - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
+  artifacts:
+    paths:
+      - outputs-aar/
