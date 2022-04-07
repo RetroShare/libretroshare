@@ -155,6 +155,23 @@ ext.copyChecked =
 	assert file("$destDir/${file(sourceFile).getName()}").exists()
 }
 
+ext.stripLib =
+{
+	toolchainPath,
+	libDir,
+	libFile ->
+
+	def stripCmd = "$toolchainPath/bin/llvm-strip"
+	assert file(stripCmd).exists()
+	assert file("${libDir}/${libFile}").exists()
+
+	exec
+	{
+		workingDir libDir
+		commandLine stripCmd, '--strip-unneeded', libFile
+	}
+}
+
 ext.buildLibretroshareNativeLib =
 {
 	pApiLevel, /* Android API level */
@@ -235,6 +252,16 @@ ext.buildLibretroshareNativeLib =
 		"${currToolchainPath}/sysroot/usr/lib/${libcxxsharedTriple}/${pApiLevel}/liblog.so",
 		currAbiLibDir )
 
+	/* Work around Android gradle stripping bug read more information near
+	 * android.buildTypes.debug packagingOptions.jniLibs.keepDebugSymbols
+	 * section of this file */
+	if(pBuildType.equalsIgnoreCase("Release"))
+	{
+		stripLib(currToolchainPath, currAbiLibDir, "libretroshare.so")
+		stripLib(currToolchainPath, currAbiLibDir, "libc++_shared.so")
+		stripLib(currToolchainPath, currAbiLibDir, "liblog.so")
+	}
+
 	def bdbootAssetDir = "${getAssetsDir()}/values"
 	mkdir bdbootAssetDir
 	copyChecked(
@@ -260,6 +287,42 @@ android
 	}
 
 	setProperty("archivesBaseName", getArtifactBaseName())
+
+	buildTypes
+	{
+		debug
+		{
+			debuggable true
+			jniDebuggable true
+
+			/* The following line was added as an attempt to avoid stripping of
+			 * debugging symbols, for debug build type
+			 * https://developer.android.com/reference/tools/gradle-api/7.3/com/android/build/api/dsl/PackagingOptions#doNotStrip%28kotlin.String%29=
+			 * https://developer.android.com/reference/tools/gradle-api/7.3/com/android/build/api/dsl/JniLibsPackagingOptions
+			 * but it ends up affecting all other build types too.
+			 * So enabling this without other countermeasures bloated release
+			 * library with debugging symbols.
+			 * Even more strange is that this is an old known bug at Google
+			 * https://issuetracker.google.com/issues/155215248
+			 * https://stackoverflow.com/questions/52972371/set-donotstrip-packagingoptions-to-a-specific-buildtype
+			 * but nothing substantial has been done to fix this even on newer
+			 * versions of Android Gradle plugin.
+			 * To work around this bug the release .so libraries must be
+			 * stripped in advance in buildLibretroshareNativeLib
+			 */
+			packagingOptions.jniLibs.keepDebugSymbols += "**/*.so"
+		}
+
+		release
+		{
+			/* The following was added as an attempt to ship separated debugging
+			 * symbols in release mode, but had no effect last time I tested
+			 * 2022/04/06
+			 * https://developer.android.com/studio/build/shrink-code#android_gradle_plugin_version_41_or_later
+			 */
+			//ndk.debugSymbolLevel 'FULL'
+		}
+	}
 
 	buildTypes.all
 	{
