@@ -6,7 +6,7 @@
 android-AAR-minapi16:
   rules:
     - if: $PROJECT_HAVE_STORAGE50_RUNNERS == "true"
-  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16_build
+  image: registry.gitlab.com/retroshare/retroshare:android_aar_base_16
   script:
     - rm -rf /libretroshare-aar/
     - > 
