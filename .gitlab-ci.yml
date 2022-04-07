@@ -65,6 +65,7 @@ android-minapi16_armeabi-v7a_bundleDebugAar:
       -PANDROID_MIN_API_LEVEL=16
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -82,6 +83,7 @@ android-minapi16_armeabi-v7a_bundleReleaseAar:
       -PANDROID_MIN_API_LEVEL=16
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -99,6 +101,7 @@ android-minapi21_arm64-v8a_bundleDebugAar:
       -PANDROID_MIN_API_LEVEL=21
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="arm64-v8a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -116,6 +119,7 @@ android-minapi21_arm64-v8a_bundleReleaseAar:
       -PANDROID_MIN_API_LEVEL=21
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="arm64-v8a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -133,6 +137,7 @@ android-minapi21_armeabi-v7a_bundleDebugAar:
       -PANDROID_MIN_API_LEVEL=21
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -150,6 +155,7 @@ android-minapi21_armeabi-v7a_bundleReleaseAar:
       -PANDROID_MIN_API_LEVEL=21
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -167,6 +173,7 @@ android-minapi24_arm64-v8a_bundleDebugAar:
       -PANDROID_MIN_API_LEVEL=24
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="arm64-v8a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -184,6 +191,7 @@ android-minapi24_arm64-v8a_bundleReleaseAar:
       -PANDROID_MIN_API_LEVEL=24
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="arm64-v8a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -201,6 +209,7 @@ android-minapi24_armeabi-v7a_bundleDebugAar:
       -PANDROID_MIN_API_LEVEL=24
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
@@ -218,6 +227,7 @@ android-minapi24_armeabi-v7a_bundleReleaseAar:
       -PANDROID_MIN_API_LEVEL=24
       -PLIBRETROSHARE_SOURCE_VERSION="$CI_COMMIT_SHORT_SHA"
       -PNATIVE_TOOLCHAINS_DIR="/libretroshare-native-toolchains/"
+      -PJNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
     - mv /libretroshare-build/outputs/aar/ $CI_PROJECT_DIR/outputs-aar/
   artifacts:
     paths:
