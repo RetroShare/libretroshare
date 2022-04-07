@@ -602,3 +602,12 @@ if(V_VERSION_SET)
 endif(V_VERSION_SET)
 
 ################################################################################
+
+## On Android all symbols except for the few ones used called via JNI can be
+## kept hidden allowing for more optimization, and reduced binary size
+if(RS_ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_property(TARGET ${PROJECT_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_VISIBILITY_PRESET hidden)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+endif(RS_ANDROID)

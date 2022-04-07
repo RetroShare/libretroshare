@@ -139,6 +139,7 @@ export CC="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-clang
 export CXX="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-clang++"
 export AR="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-ar"
 export RANLIB="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-ranlib"
+# More interesting GNU Make variables at http://www.gnu.org/software/make/manual/make.html#Implicit-Variables
 
 # Used to instruct cmake to explicitely ignore host libraries
 export HOST_IGNORE_PREFIX="/usr/"
@@ -212,6 +213,12 @@ function andro_cmake()
 	cmakeBuildType=""
 	[ "$TOOLCHAIN_BUILD_TYPE" == "" ] ||
 		cmakeBuildType="-DCMAKE_BUILD_TYPE=$TOOLCHAIN_BUILD_TYPE"
+
+	cmakeOptimizationsOpt=""
+	[ "$TOOLCHAIN_BUILD_TYPE" != "Release" ] ||
+	{
+		cmakeOptimizationsOpt="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+	}
 
 	cmake \
 		$cmakeBuildType \
@@ -828,9 +835,9 @@ build_libretroshare()
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
 		-D RS_SQLCIPHER=OFF -D RS_DH_PRIME_INIT_CHECK=OFF \
 		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
-		$RS_EXTRA_CMAKE_OPTS || return $?
-	make -j${HOST_NUM_CPU} || return $?
-	make install || return $?
+		$RS_EXTRA_CMAKE_OPTS
+	make -j${HOST_NUM_CPU}
+	make install
 	popd
 )}
 
