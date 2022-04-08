@@ -111,7 +111,6 @@ define_default_value TOOLCHAIN_BUILD_TYPE ""
 
 cArch=""
 eABI=""
-cmakeABI=""
 
 case "${ANDROID_NDK_ARCH}" in
 "arm")
@@ -139,10 +138,12 @@ export CC="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-clang
 export CXX="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-clang++"
 export AR="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-ar"
 export RANLIB="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-ranlib"
+# More interesting GNU Make variables at http://www.gnu.org/software/make/manual/make.html#Implicit-Variables
 
 # Used to instruct cmake to explicitely ignore host libraries
 export HOST_IGNORE_PREFIX="/usr/"
 
+export ARMv7_OPTIMIZATION_FLAGS="-march=armv7-a -mfloat-abi=softfp -mfpu=vfp"
 
 ## $1 filename, $2 sha256 hash
 function check_sha256()
@@ -191,6 +192,8 @@ function andro_cmake()
 	case "${ANDROID_NDK_ARCH}" in
 	"arm")
 		cmakeProc="armv7-a"
+		export CFLAGS="$ARMv7_OPTIMIZATION_FLAGS"
+		export CXXFLAGS="$ARMv7_OPTIMIZATION_FLAGS"
 	;;
 	"arm64")
 		cmakeProc="aarch64"
@@ -212,6 +215,12 @@ function andro_cmake()
 	cmakeBuildType=""
 	[ "$TOOLCHAIN_BUILD_TYPE" == "" ] ||
 		cmakeBuildType="-DCMAKE_BUILD_TYPE=$TOOLCHAIN_BUILD_TYPE"
+
+	cmakeOptimizationsOpt=""
+	[ "$TOOLCHAIN_BUILD_TYPE" != "Release" ] ||
+	{
+		cmakeOptimizationsOpt="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+	}
 
 	cmake \
 		$cmakeBuildType \
@@ -429,10 +438,13 @@ build_openssl()
 ## non neglegible security concerns.
 	oBits="32"
 	[[ ${ANDROID_NDK_ARCH} =~ .*64.* ]] && oBits=64
+	
+	armOptimizationFlags=""
+	[[ "${ANDROID_NDK_ARCH}" != "arm" ]] || armOptimizationFlags="$ARMv7_OPTIMIZATION_FLAGS"
 
 	ANDROID_NDK="${ANDROID_NDK_PATH}" PATH="${SYSROOT}/bin/:${PATH}" \
-		./Configure linux-generic${oBits} -fPIC --prefix="${PREFIX}" \
-		--openssldir="${SYSROOT}/etc/ssl"
+	./Configure linux-generic${oBits} -fPIC $armOptimizationFlags \
+		--prefix="${PREFIX}" --openssldir="${SYSROOT}/etc/ssl"
 #	sed -i 's/LIBNAME=$$i LIBVERSION=$(SHLIB_MAJOR).$(SHLIB_MINOR) \\/LIBNAME=$$i \\/g' Makefile
 #	sed -i '/LIBCOMPATVERSIONS=";$(SHLIB_VERSION_HISTORY)" \\/d' Makefile
 
@@ -828,9 +840,9 @@ build_libretroshare()
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
 		-D RS_SQLCIPHER=OFF -D RS_DH_PRIME_INIT_CHECK=OFF \
 		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
-		$RS_EXTRA_CMAKE_OPTS || return $?
-	make -j${HOST_NUM_CPU} || return $?
-	make install || return $?
+		$RS_EXTRA_CMAKE_OPTS
+	make -j${HOST_NUM_CPU}
+	make install
 	popd
 )}
 

@@ -159,7 +159,8 @@ ext.stripLib =
 {
 	toolchainPath,
 	libDir,
-	libFile ->
+	libFile,
+	stripOptions = "" ->
 
 	def stripCmd = "$toolchainPath/bin/llvm-strip"
 	assert file(stripCmd).exists()
@@ -168,7 +169,7 @@ ext.stripLib =
 	exec
 	{
 		workingDir libDir
-		commandLine stripCmd, '--strip-unneeded', libFile
+		commandLine stripCmd, stripOptions, libFile
 	}
 }
 
@@ -257,9 +258,9 @@ ext.buildLibretroshareNativeLib =
 	 * section of this file */
 	if(pBuildType.equalsIgnoreCase("Release"))
 	{
-		stripLib(currToolchainPath, currAbiLibDir, "libretroshare.so")
-		stripLib(currToolchainPath, currAbiLibDir, "libc++_shared.so")
-		stripLib(currToolchainPath, currAbiLibDir, "liblog.so")
+		stripLib(currToolchainPath, currAbiLibDir, "libretroshare.so", "--strip-unneeded")
+		stripLib(currToolchainPath, currAbiLibDir, "libc++_shared.so", "--strip-debug")
+		stripLib(currToolchainPath, currAbiLibDir, "liblog.so", "--strip-debug")
 	}
 
 	def bdbootAssetDir = "${getAssetsDir()}/values"

@@ -215,7 +215,21 @@ if(RS_LIBRETROSHARE_SHARED)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif(RS_LIBRETROSHARE_SHARED)
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+if(RS_ANDROID)
+	# As of today Android NDK libc++ doesn't support std::filesystem properly,
+	# in a very confusing manner the headers have the function declarations but
+	# then the shared object file doesn't have the implementetion.
+	# This fools the compiler which doesn't report any error but then at runtime
+	# we get a crash with this error:
+	# java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol
+	# "_ZNSt6__ndk14__fs10filesystem20__create_directoriesERKNS1_4pathEPNS_10error_codeE"
+	# referenced by "/data/app/==/lib/arm64/libretroshare.so
+	# So set maximum supported C++ version to 14 to workaround this Android bug
+	# https://github.com/android/ndk/issues/609
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
+else()
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+endif()
 
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
@@ -606,3 +620,18 @@ endif(V_VERSION_SET)
 
 ################################################################################
 
+# TODO: Use generator expressions instead of CMAKE_BUILD_TYPE see
+# https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#build-configurations
+# https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#manual:cmake-generator-expressions(7)
+
+## On Android all symbols except for the few ones used called via JNI can be
+## kept hidden allowing for more optimization, and reduced binary size
+if(RS_ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_property(TARGET ${PROJECT_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_VISIBILITY_PRESET hidden)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+endif()

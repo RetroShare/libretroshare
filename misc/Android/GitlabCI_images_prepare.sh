@@ -40,7 +40,7 @@ define_default_value GRADLE_FULL_TASK "build" # set to "none" to disable
 define_default_value GRADLE_SPLIT_TASKS "bundleDebugAar bundleReleaseAar"
 
 
-function buildDetachPushAndClean()
+function buildDetachPush()
 {
 	IMAGE_NAME="$1"
 
@@ -48,32 +48,34 @@ function buildDetachPushAndClean()
 		--build-arg ANDROID_MIN_API_LEVEL=${ANDROID_MIN_API_LEVEL} \
 		--build-arg LIBRETROSHARE_SOURCE_VERSION="$LIBRETROSHARE_SOURCE_VERSION" \
 		--build-arg GRADLE_BUILD_TASK="$GRADLE_BUILD_TASK" \
-		--build-arg JNI_NATIVE_LIBS_ARCHS="$JNI_NATIVE_LIBS_ARCHS" \
+		--build-arg JNI_NATIVE_LIBS_ARCHS="$CURR_JNI_NATIVE_LIBS_ARCHS" \
 		--file misc/Android/Dockerfile .
 
-	# Push and clean in parallel with other builds
-	((docker push "$IMAGE_NAME" && docker system prune --force)&)
+	# Start pushing in parallel with other build
+	((sleep 1m ; docker push "$IMAGE_NAME")&)
 }
 
 for mApiLevel in $(shuf --echo $ANDROID_MIN_API_LEVELS) ; do
 	ANDROID_MIN_API_LEVEL=$mApiLevel
-	[ "$mApiLevel" -gt "16" ] || JNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
+	CURR_JNI_NATIVE_LIBS_ARCHS="$JNI_NATIVE_LIBS_ARCHS"
+	[ "$mApiLevel" -gt "16" ] || CURR_JNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
 
 	[ "$GRADLE_FULL_TASK" == "none" ] ||
 	{
 		GRADLE_BUILD_TASK="$GRADLE_FULL_TASK"
 		CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_aar_base_${ANDROID_MIN_API_LEVEL}"
 
-		buildDetachPushAndClean "$CI_IMAGE_NAME"
+		buildDetachPush "$CI_IMAGE_NAME"
 	}
 
-	for mArch in $(shuf --echo $JNI_NATIVE_LIBS_ARCHS) ; do
+	[ "$GRADLE_SPLIT_TASKS" == "none" ] ||
+	for mArch in $(shuf --echo $CURR_JNI_NATIVE_LIBS_ARCHS) ; do
 		for mTask in $(shuf --echo $GRADLE_SPLIT_TASKS); do
 			GRADLE_BUILD_TASK=$mTask
-			JNI_NATIVE_LIBS_ARCHS=$mArch
-			CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_aar_base_${ANDROID_MIN_API_LEVEL}_${JNI_NATIVE_LIBS_ARCHS}_${GRADLE_BUILD_TASK}"
+			CURR_JNI_NATIVE_LIBS_ARCHS=$mArch
+			CI_IMAGE_NAME="registry.gitlab.com/retroshare/retroshare:android_aar_base_${ANDROID_MIN_API_LEVEL}_${CURR_JNI_NATIVE_LIBS_ARCHS}_${GRADLE_BUILD_TASK}"
 
-			buildDetachPushAndClean "$CI_IMAGE_NAME"
+			buildDetachPush "$CI_IMAGE_NAME"
 		done
 	done
 done
