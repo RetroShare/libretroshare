@@ -215,7 +215,21 @@ if(RS_LIBRETROSHARE_SHARED)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif(RS_LIBRETROSHARE_SHARED)
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+if(RS_ANDROID)
+	# As of today Android NDK libc++ doesn't support std::filesystem properly,
+	# in a very confusing manner the headers have the function declarations but
+	# then the shared object file doesn't have the implementetion.
+	# This fools the compiler which doesn't report any error but then at runtime
+	# we get a crash with this error:
+	# java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol
+	# "_ZNSt6__ndk14__fs10filesystem20__create_directoriesERKNS1_4pathEPNS_10error_codeE"
+	# referenced by "/data/app/==/lib/arm64/libretroshare.so
+	# So set maximum supported C++ version to 14 to workaround this Android bug
+	# https://github.com/android/ndk/issues/609
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
+else()
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+endif()
 
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
