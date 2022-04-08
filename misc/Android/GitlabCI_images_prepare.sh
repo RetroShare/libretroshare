@@ -68,6 +68,7 @@ for mApiLevel in $(shuf --echo $ANDROID_MIN_API_LEVELS) ; do
 		buildDetachPush "$CI_IMAGE_NAME"
 	}
 
+	[ "$GRADLE_SPLIT_TASKS" == "none" ] ||
 	for mArch in $(shuf --echo $CURR_JNI_NATIVE_LIBS_ARCHS) ; do
 		for mTask in $(shuf --echo $GRADLE_SPLIT_TASKS); do
 			GRADLE_BUILD_TASK=$mTask
