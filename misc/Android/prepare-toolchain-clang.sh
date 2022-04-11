@@ -53,8 +53,8 @@ define_default_value ANDROID_NDK_VERSION "21.0.6113669"
 define_default_value BZIP2_SOURCE_VERSION "1.0.6"
 define_default_value BZIP2_SOURCE_SHA256 a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd
 
-define_default_value OPENSSL_SOURCE_VERSION "1.1.1c"
-define_default_value OPENSSL_SOURCE_SHA256 f6fb3079ad15076154eda9413fed42877d668e7069d9b87396d0804fdb3f4c90
+define_default_value OPENSSL_SOURCE_VERSION "1.1.1n"
+define_default_value OPENSSL_SOURCE_SHA256 40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a
 
 define_default_value SQLITE_SOURCE_YEAR "2018"
 define_default_value SQLITE_SOURCE_VERSION "3250200"
