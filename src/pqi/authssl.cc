@@ -561,7 +561,9 @@ int AuthSSLimpl::InitAuth(
 
 	mOwnCert = x509;
 
-	auto& mInfo = RS_INFO( "SSL verification setup complete ") << std::endl <<
+	RsInfo mInfo;
+	mInfo << __PRETTY_FUNCTION__ << " SSL verification setup complete"
+	      << std::endl <<
 	         "\t Certificate id: " << mOwnId << std::endl <<
 	         "\t cipher list: " << cipherString << std::endl <<
 	         "\t PFS enabled: " << (pfs_enabled ? "yes" : "no");
