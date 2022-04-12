@@ -14,26 +14,22 @@ include(GNUInstallDirs)
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
-# sqlcipher
 option(
 	RS_SQLCIPHER
 	"SQLCipher encryption for GXS database"
 	ON )
 
-# rs_gxs_send_all
 option(
 	RS_GXS_SEND_ALL
 	"GXS distribute all available messages on request, indipendently from \
 	local sync timer"
 	ON )
 
-# bitdht
 option(
 	RS_BITDHT
 	"Use bitdht (BitTorrent DHT own implementation) to look for online peers"
 	ON )
 
-# use_dht_stunner
 cmake_dependent_option(
 	RS_BITDHT_STUNNER
 	"Use bitdht (BitTorrent DHT own implementation) for NAT type discovery and \
@@ -42,7 +38,6 @@ cmake_dependent_option(
 	"RS_BITDHT"
 	OFF )
 
-# use_dht_stunner_ext_ip
 cmake_dependent_option(
 	RS_BITDHT_STUNNER_EXT_IP
 	"Use bitdht (BitTorrent DHT own implementation) stunner to figure out our \
@@ -52,25 +47,21 @@ cmake_dependent_option(
 	"RS_BITDHT_STUNNER"
 	OFF )
 
-# rs_jsonapi
 option(
 	RS_JSON_API
 	"Use restbed to expose libretroshare as JSON API via HTTP"
 	OFF )
 
-# rs_deep_forums_index
 option(
 	RS_FORUM_DEEP_INDEX
 	"Xapian based full text index and search of GXS forums"
 	OFF )
 
-# rs_broadcast_discovery
 option(
 	RS_BRODCAST_DISCOVERY
 	"Local area network peer discovery via udp-discovery-cpp"
 	ON )
 
-# rs_dh_init_check
 option(
 	RS_DH_PRIME_INIT_CHECK
 	"Check Diffie Hellman prime at each startup. This is not necessary and on \
@@ -102,20 +93,17 @@ cmake_dependent_option(
 	"NOT RS_LIBRETROSHARE_STATIC"
 	OFF )
 
-# rs_deprecatedwarning
 option(
 	RS_WARN_DEPRECATED
 	"Print warning about RetroShare deprecated components usage during build"
 	ON )
 
-# rs_cppwarning
 option(
 	RS_WARN_LESS
 	"Silence a few at the moment very common warnings about RetroShare \
 	components during build"
 	OFF )
 
-# rs_v07_changes
 option(
 	RS_V07_BREAKING_CHANGES
 	"Enable retro-compatibility breaking changes planned for RetroShare 0.7.0"
@@ -511,6 +499,8 @@ if(RS_BRODCAST_DISCOVERY)
 	## added upstream
 	target_include_directories(
 		${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
+
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
 endif(RS_BRODCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
