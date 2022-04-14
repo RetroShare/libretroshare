@@ -68,6 +68,7 @@ const uint32_t RS_SSL_HANDSHAKE_DIAGNOSTIC_WRONG_SIGNATURE_VERSION     = 0x0a ;
  * #define AUTHSSL_DEBUG 1
  ***/
 
+# if OPENSSL_VERSION_NUMBER < 0x10100000L
 static pthread_mutex_t* mutex_buf = nullptr;
 
 struct CRYPTO_dynlock_value
@@ -75,7 +76,6 @@ struct CRYPTO_dynlock_value
 	pthread_mutex_t mutex;
 };
 
-# if OPENSSL_VERSION_NUMBER < 0x10100000L
 /**
  * OpenSSL locking function.
  *
@@ -93,9 +93,6 @@ static void locking_function(int mode, int n, const char */*file*/, int /*line*/
 		pthread_mutex_unlock(&mutex_buf[n]);
 	}
 }
-#endif
-
-# if OPENSSL_VERSION_NUMBER < 0x10100000L
 /**
  * OpenSSL uniq id function.
  *
@@ -109,9 +106,6 @@ static unsigned long id_function(void)
 	return (unsigned long) pthread_self();
 #endif
 }
-#endif
-
-# if OPENSSL_VERSION_NUMBER < 0x10100000L
 /**
  * OpenSSL allocate and initialize dynamic crypto lock.
  *
@@ -130,9 +124,6 @@ static struct CRYPTO_dynlock_value *dyn_create_function(const char */*file*/, in
 
 	return value;
 }
-#endif
-
-# if OPENSSL_VERSION_NUMBER < 0x10100000L
 /**
  * OpenSSL dynamic locking function.
  *
@@ -150,9 +141,6 @@ static void dyn_lock_function(int mode, struct CRYPTO_dynlock_value *l, const ch
 		pthread_mutex_unlock(&l->mutex);
 	}
 }
-#endif
-
-# if OPENSSL_VERSION_NUMBER < 0x10100000L
 /**
  * OpenSSL destroy dynamic crypto lock.
  *
@@ -175,7 +163,8 @@ static void dyn_destroy_function(struct CRYPTO_dynlock_value *l, const char */*f
  */
 bool tls_init()
 {
-	/* static locks area */
+# if OPENSSL_VERSION_NUMBER < 0x10100000L
+    /* static locks area */
 	mutex_buf = (pthread_mutex_t*) rs_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
 	if (mutex_buf == NULL) 
 		return false;
@@ -183,7 +172,6 @@ bool tls_init()
 	for (int i = 0; i < CRYPTO_num_locks(); i++) {
 		pthread_mutex_init(&mutex_buf[i], NULL);
 	}
-# if OPENSSL_VERSION_NUMBER < 0x10100000L
 	/* static locks callbacks */
 	CRYPTO_set_locking_callback(locking_function);
 	CRYPTO_set_id_callback(id_function);
@@ -209,13 +197,15 @@ void tls_cleanup()
 	CRYPTO_set_locking_callback(NULL);
 	CRYPTO_set_id_callback(NULL);
 
-	if (mutex_buf != NULL) {
+# if OPENSSL_VERSION_NUMBER < 0x10100000L
+    if (mutex_buf != NULL) {
 		for (int i = 0; i < CRYPTO_num_locks(); i++) {
 			pthread_mutex_destroy(&mutex_buf[i]);
 		}
 		free(mutex_buf);
 		mutex_buf = NULL;
 	}
+#endif
 }
 
 /*static*/ AuthSSL& AuthSSL::instance()
@@ -365,7 +355,8 @@ int AuthSSLimpl::InitAuth(
 	}
 
 
-	// actions_to_seed_PRNG();
+    // actions_to_seed_PRNG(); This doesn't *set* the current state, but only adds to it, according to
+    // OpenSSL doc. So it shouldn't normally be needed, but doesn't cause any problem either.
 	RAND_seed(passwd, strlen(passwd));
 
 	RS_DBG("SSL Library Init!");
