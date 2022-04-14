@@ -20,8 +20,11 @@
 # SPDX-FileCopyrightText: Retroshare Team <contact@retroshare.cc>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# If something goes unexpected fail early to detect and debug easy
-set -e
+## In theory if something goes unexpected fail early to detect and debug easier,
+## in practice this is unreliable once `while` loop and functions are involved
+## so do not forget to do proper error handling
+set -o errexit
+set -o errtrace
 
 ## Define default value for variable, take two arguments, $1 variable name,
 ## $2 default variable value, if the variable is not already define define it
@@ -50,8 +53,8 @@ define_default_value ANDROID_NDK_VERSION "21.0.6113669"
 define_default_value BZIP2_SOURCE_VERSION "1.0.6"
 define_default_value BZIP2_SOURCE_SHA256 a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd
 
-define_default_value OPENSSL_SOURCE_VERSION "1.1.1c"
-define_default_value OPENSSL_SOURCE_SHA256 f6fb3079ad15076154eda9413fed42877d668e7069d9b87396d0804fdb3f4c90
+define_default_value OPENSSL_SOURCE_VERSION "1.1.1n"
+define_default_value OPENSSL_SOURCE_SHA256 40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a
 
 define_default_value SQLITE_SOURCE_YEAR "2018"
 define_default_value SQLITE_SOURCE_VERSION "3250200"
@@ -106,10 +109,11 @@ define_default_value REPORT_DIR "$(pwd)/$(basename ${NATIVE_LIBS_TOOLCHAIN_PATH}
 define_default_value RS_SRC_DIR "$(realpath $(dirname $BASH_SOURCE)/../../)"
 define_default_value RS_EXTRA_CMAKE_OPTS ""
 
+# Debug or Release we should give support at least at those two builds type supported by CMake
+define_default_value TOOLCHAIN_BUILD_TYPE ""
 
 cArch=""
 eABI=""
-cmakeABI=""
 
 case "${ANDROID_NDK_ARCH}" in
 "arm")
@@ -137,9 +141,12 @@ export CC="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-clang
 export CXX="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-clang++"
 export AR="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-ar"
 export RANLIB="${NATIVE_LIBS_TOOLCHAIN_PATH}/bin/${cArch}-linux-android${eABI}-ranlib"
+# More interesting GNU Make variables at http://www.gnu.org/software/make/manual/make.html#Implicit-Variables
 
 # Used to instruct cmake to explicitely ignore host libraries
 export HOST_IGNORE_PREFIX="/usr/"
+
+export ARMv7_OPTIMIZATION_FLAGS="-march=armv7-a -mfloat-abi=softfp -mfpu=vfp"
 
 
 ## $1 filename, $2 sha256 hash
@@ -189,6 +196,8 @@ function andro_cmake()
 	case "${ANDROID_NDK_ARCH}" in
 	"arm")
 		cmakeProc="armv7-a"
+		export CFLAGS="$ARMv7_OPTIMIZATION_FLAGS"
+		export CXXFLAGS="$ARMv7_OPTIMIZATION_FLAGS"
 	;;
 	"arm64")
 		cmakeProc="aarch64"
@@ -206,8 +215,19 @@ function andro_cmake()
 	esac
 
 	_hi="$HOST_IGNORE_PREFIX"
+	
+	cmakeBuildType=""
+	[ "$TOOLCHAIN_BUILD_TYPE" == "" ] ||
+		cmakeBuildType="-DCMAKE_BUILD_TYPE=$TOOLCHAIN_BUILD_TYPE"
+
+	cmakeOptimizationsOpt=""
+	[ "$TOOLCHAIN_BUILD_TYPE" != "Release" ] ||
+	{
+		cmakeOptimizationsOpt="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+	}
 
 	cmake \
+		$cmakeBuildType \
 		-DCMAKE_SYSTEM_PROCESSOR=$cmakeProc \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 		-DCMAKE_PREFIX_PATH="${PREFIX}" \
@@ -242,13 +262,13 @@ function git_source_get()
 	[ -d $sourceDir ] || git clone "$sourceRepo" "$sourceDir"
 	pushd $sourceDir
 	
-	git fetch --all
-	git reset --hard ${sourceVersion}
+	git fetch --all || return $?
+	git reset --hard ${sourceVersion} || return $?
 
 	while [ "$1" != "" ] ; do
-		git submodule update --init "$1"
-		pushd "$1"
-		git reset --hard
+		git submodule update --init "$1" || return $?
+		pushd "$1"                       || return $?
+		git reset --hard                 || return $?
 		shift
 		popd
 	done
@@ -303,9 +323,6 @@ function task_zap()
 	rm -f "$(task_logfile $1)"
 }
 
-DUPLICATED_INCLUDES_LIST_FILE="${REPORT_DIR}/duplicated_includes_list"
-DUPLICATED_INCLUDES_DIR="${REPORT_DIR}/duplicated_includes/"
-
 task_register install_android_sdk
 install_android_sdk()
 {
@@ -316,9 +333,9 @@ install_android_sdk()
 	tFile="commandlinetools-linux-${ANDROID_CMD_TOOLS_VERSION}_latest.zip"
 
 	verified_download "${tFile}" "${ANDROID_CMD_TOOLS_SHA256}" \
-		"https://dl.google.com/android/repository/${tFile}"
+		"https://dl.google.com/android/repository/${tFile}" || return $?
 
-	unzip "${tFile}"
+	unzip "${tFile}"  || return $?
 	rm -rf "$ANDROID_SDK_PATH"
 	CMD_TOOLS_DIR="$ANDROID_SDK_PATH/cmdline-tools/latest/"
 	mkdir -p "$CMD_TOOLS_DIR"
@@ -338,81 +355,57 @@ install_android_sdk()
 ## More information available at https://android.googlesource.com/platform/ndk/+/ics-mr0/docs/STANDALONE-TOOLCHAIN.html
 task_register bootstrap_toolchain
 bootstrap_toolchain()
-{( set -e
-
+{
 	rm -rf "${NATIVE_LIBS_TOOLCHAIN_PATH}"
 	${ANDROID_NDK_PATH}/build/tools/make_standalone_toolchain.py --verbose \
 		--arch ${ANDROID_NDK_ARCH} --install-dir ${NATIVE_LIBS_TOOLCHAIN_PATH} \
-		--api ${ANDROID_PLATFORM_VER}
+		--api ${ANDROID_PLATFORM_VER} || return $?
 
 	# Avoid problems with arm64 some libraries installing on lib64
-	ln -s "${PREFIX}/lib/" "${PREFIX}/lib64"
-
-	pushd "${PREFIX}/include/"
-	find . -not -type d > "${DUPLICATED_INCLUDES_LIST_FILE}"
-	popd
-)}
-
-## This avoid <cmath> include errors due to -isystem and -I ordering issue
-task_register deduplicate_includes
-deduplicate_includes()
-{
-	while read delFile ; do
-		mNewPath="${DUPLICATED_INCLUDES_DIR}/$delFile"
-		mkdir --verbose --parents "$(dirname "$mNewPath")"
-		mv --verbose "${PREFIX}/include/$delFile" "$mNewPath"
-	done < "${DUPLICATED_INCLUDES_LIST_FILE}"
-}
-
-task_register reduplicate_includes
-reduplicate_includes()
-{
-	pushd "${DUPLICATED_INCLUDES_DIR}"
-	find . -not -type d | while read delFile ; do
-		mv --verbose "${delFile}" "${PREFIX}/include/$delFile"
-	done
-	popd
+	ln -s "${PREFIX}/lib/" "${PREFIX}/lib64" || return $?
 }
 
 ## More information available at retroshare://file?name=Android%20Native%20Development%20Kit%20Cookbook.pdf&size=29214468&hash=0123361c1b14366ce36118e82b90faf7c7b1b136
 task_register build_bzlib
 build_bzlib()
-{( set -e
-
+{
 	B_dir="bzip2-${BZIP2_SOURCE_VERSION}"
 	rm -rf $B_dir
 
 	verified_download $B_dir.tar.gz $BZIP2_SOURCE_SHA256 \
-		http://distfiles.gentoo.org/distfiles/bzip2-${BZIP2_SOURCE_VERSION}.tar.gz
+		http://distfiles.gentoo.org/distfiles/bzip2-${BZIP2_SOURCE_VERSION}.tar.gz \
+		|| return $?
 
-	tar -xf $B_dir.tar.gz
-	cd $B_dir
-	sed -i "/^CC=.*/d" Makefile
-	sed -i "/^AR=.*/d" Makefile
-	sed -i "/^RANLIB=.*/d" Makefile
-	sed -i "/^LDFLAGS=.*/d" Makefile
-	sed -i "s/^all: libbz2.a bzip2 bzip2recover test/all: libbz2.a bzip2 bzip2recover/" Makefile
-	make -j${HOST_NUM_CPU}
-	make install PREFIX=${PREFIX}
+	tar -xf $B_dir.tar.gz || return $?
+	pushd $B_dir || return $?
+	sed -i "/^CC=.*/d" Makefile || return $?
+	sed -i "/^AR=.*/d" Makefile || return $?
+	sed -i "/^RANLIB=.*/d" Makefile || return $?
+	sed -i "/^LDFLAGS=.*/d" Makefile || return $?
+	sed -i "s/^all: libbz2.a bzip2 bzip2recover test/all: libbz2.a bzip2 bzip2recover/" Makefile \
+		|| return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install PREFIX=${PREFIX} || return $?
 #	sed -i "/^CC=.*/d" Makefile-libbz2_so
 #	make -f Makefile-libbz2_so -j${HOST_NUM_CPU}
 #	cp libbz2.so.1.0.6 ${SYSROOT}/usr/lib/libbz2.so
-	cd ..
-)}
+	popd
+}
 
 ## More information available at http://doc.qt.io/qt-5/opensslsupport.html
+## The following article might be interesting for future updates
+## https://proandroiddev.com/tutorial-compile-openssl-to-1-1-1-for-android-application-87137968fee
 task_register build_openssl
 build_openssl()
-{( set -e
-
+{
 	B_dir="openssl-${OPENSSL_SOURCE_VERSION}"
 	rm -rf $B_dir
 
 	verified_download $B_dir.tar.gz $OPENSSL_SOURCE_SHA256 \
-		https://www.openssl.org/source/$B_dir.tar.gz
+		https://www.openssl.org/source/$B_dir.tar.gz || return $?
 
-	tar -xf $B_dir.tar.gz
-	cd $B_dir
+	tar -xf $B_dir.tar.gz || return $?
+	pushd $B_dir
 ## We link openssl statically to avoid android silently sneaking in his own
 ## version of libssl.so (we noticed this because it had some missing symbol
 ## that made RS crash), the crash in some android version is only one of the
@@ -420,46 +413,47 @@ build_openssl()
 ## non neglegible security concerns.
 	oBits="32"
 	[[ ${ANDROID_NDK_ARCH} =~ .*64.* ]] && oBits=64
+	
+	armOptimizationFlags=""
+	[[ "${ANDROID_NDK_ARCH}" != "arm" ]] || armOptimizationFlags="$ARMv7_OPTIMIZATION_FLAGS"
 
 	ANDROID_NDK="${ANDROID_NDK_PATH}" PATH="${SYSROOT}/bin/:${PATH}" \
-		./Configure linux-generic${oBits} -fPIC --prefix="${PREFIX}" \
-		--openssldir="${SYSROOT}/etc/ssl"
+	./Configure linux-generic${oBits} -fPIC $armOptimizationFlags \
+		--prefix="${PREFIX}" --openssldir="${SYSROOT}/etc/ssl" || return $?
 #	sed -i 's/LIBNAME=$$i LIBVERSION=$(SHLIB_MAJOR).$(SHLIB_MINOR) \\/LIBNAME=$$i \\/g' Makefile
 #	sed -i '/LIBCOMPATVERSIONS=";$(SHLIB_VERSION_HISTORY)" \\/d' Makefile
 
 	# Avoid documentation build which is unneded and time consuming
 	echo "exit 0; " > util/process_docs.pl
 	
-	make -j${HOST_NUM_CPU}
-	make install
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	rm -f ${PREFIX}/lib/libssl.so*
 	rm -f ${PREFIX}/lib/libcrypto.so*
-	cd ..
-)}
+	popd
+}
 
 task_register build_sqlite
 build_sqlite()
-{( set -e
-
+{
 	B_dir="sqlite-autoconf-${SQLITE_SOURCE_VERSION}"
 	rm -rf $B_dir
 
 	verified_download $B_dir.tar.gz $SQLITE_SOURCE_SHA256 \
-		https://www.sqlite.org/${SQLITE_SOURCE_YEAR}/$B_dir.tar.gz
+		https://www.sqlite.org/${SQLITE_SOURCE_YEAR}/$B_dir.tar.gz || return $?
 
-	tar -xf $B_dir.tar.gz
-	cd $B_dir
-	./configure --with-pic --prefix="${PREFIX}" --host=${cArch}-linux
-	make -j${HOST_NUM_CPU}
-	make install
+	tar -xf $B_dir.tar.gz || return $?
+	pushd $B_dir || return $?
+	./configure --with-pic --prefix="${PREFIX}" --host=${cArch}-linux || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	rm -f ${PREFIX}/lib/libsqlite3.so*
-	cd ..
-)}
+	popd
+}
 
 task_register build_sqlcipher
 build_sqlcipher()
-{( set -e
-
+{
 	task_run build_sqlite
 
 	B_dir="sqlcipher-${SQLCIPHER_SOURCE_VERSION}"
@@ -468,10 +462,11 @@ build_sqlcipher()
 	T_file="${B_dir}.tar.gz"
 
 	verified_download $T_file $SQLCIPHER_SOURCE_SHA256 \
-		https://github.com/sqlcipher/sqlcipher/archive/v${SQLCIPHER_SOURCE_VERSION}.tar.gz
+		https://github.com/sqlcipher/sqlcipher/archive/v${SQLCIPHER_SOURCE_VERSION}.tar.gz \
+		|| return $?
 
-	tar -xf $T_file
-	cd $B_dir
+	tar -xf $T_file || return $?
+	pushd $B_dir
 #	case "${ANDROID_NDK_ARCH}" in
 #	"arm64")
 #	# SQLCipher config.sub is outdated and doesn't recognize newer architectures
@@ -485,98 +480,96 @@ build_sqlcipher()
 		--prefix="${PREFIX}" --with-sysroot="${SYSROOT}" \
 		--enable-tempstore=yes \
 		--disable-tcl --disable-shared \
-		CFLAGS="-DSQLITE_HAS_CODEC" LDFLAGS="${PREFIX}/lib/libcrypto.a"
-	make -j${HOST_NUM_CPU}
-	make install
-	cd ..
-)}
+		CFLAGS="-DSQLITE_HAS_CODEC" LDFLAGS="${PREFIX}/lib/libcrypto.a" \
+		|| return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
+	popd
+}
 
 task_register build_libupnp
 build_libupnp()
-{( set -e
-
+{
 	B_dir="pupnp-release-${LIBUPNP_SOURCE_VERSION}"
 	B_ext=".tar.gz"
 	B_file="${B_dir}${B_ext}"
 	rm -rf $B_dir
 
 	verified_download $B_file $LIBUPNP_SOURCE_SHA256 \
-		https://github.com/mrjimenez/pupnp/archive/release-${LIBUPNP_SOURCE_VERSION}${B_ext}
+		https://github.com/mrjimenez/pupnp/archive/release-${LIBUPNP_SOURCE_VERSION}${B_ext} \
+		|| return $?
 
-	tar -xf $B_file
-	cd $B_dir
-	./bootstrap
-## liupnp must be configured as static library because if not the linker will
+	tar -xf $B_file || return $?
+	pusdh $B_dir || return $?
+	./bootstrap || return $?
+## libupnp must be configured as static library because if not the linker will
 ## look for libthreadutils.so.6 at runtime that cannot be packaged on android
 ## as it supports only libname.so format for libraries, thus resulting in a
 ## crash at startup.
 	./configure --with-pic --enable-static --disable-shared --disable-samples \
 		--disable-largefile \
-		--prefix="${PREFIX}" --host=${cArch}-linux
-	make -j${HOST_NUM_CPU}
-	make install
-	cd ..
-)}
+		--prefix="${PREFIX}" --host=${cArch}-linux || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
+	popd
+}
 
 task_register build_rapidjson
 build_rapidjson()
-{( set -e
-
+{
 	B_dir="rapidjson-${RAPIDJSON_SOURCE_VERSION}"
 	D_file="${B_dir}.tar.gz"
 	verified_download $D_file $RAPIDJSON_SOURCE_SHA256 \
-		https://github.com/Tencent/rapidjson/archive/v${RAPIDJSON_SOURCE_VERSION}.tar.gz
-	tar -xf $D_file
-	cp -r "${B_dir}/include/rapidjson/" "${PREFIX}/include/rapidjson"
-)}
+		https://github.com/Tencent/rapidjson/archive/v${RAPIDJSON_SOURCE_VERSION}.tar.gz \
+		 || return $?
+	tar -xf $D_file || return $?
+	cp -r "${B_dir}/include/rapidjson/" "${PREFIX}/include/rapidjson" || return $?
+}
 
 task_register build_restbed
 build_restbed()
-{( set -e
-
+{
 	S_dir="restbed"
 	B_dir="${S_dir}-build"
 	git_source_get "$S_dir" "$RESTBED_SOURCE_REPO" "${RESTBED_SOURCE_VERSION}" \
-		"dependency/asio" "dependency/catch"
+		"dependency/asio" "dependency/catch" || return $?
 
 	rm -rf "$B_dir"; mkdir "$B_dir"
 	pushd "$B_dir"
-	andro_cmake -DBUILD_TESTS=OFF -DBUILD_SSL=OFF -B. -H../${S_dir}
-	make -j${HOST_NUM_CPU}
-	make install
+	andro_cmake -DBUILD_TESTS=OFF -DBUILD_SSL=OFF -B. -H../${S_dir} || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	popd
-)}
+}
 
 task_register build_udp-discovery-cpp
 build_udp-discovery-cpp()
-{( set -e
-
+{
 	S_dir="udp-discovery-cpp"
-	[ -d $S_dir ] || git clone $UDP_DISCOVERY_CPP_SOURCE $S_dir
-	cd $S_dir
-	git checkout $UDP_DISCOVERY_CPP_VERSION
-	cd ..
+	git_source_get "$S_dir" \
+		"$UDP_DISCOVERY_CPP_SOURCE" "$UDP_DISCOVERY_CPP_VERSION" || return $?
 
 	B_dir="udp-discovery-cpp-build"
-	rm -rf ${B_dir}; mkdir ${B_dir}; cd ${B_dir}
-	andro_cmake -B. -H../$S_dir
-	make -j${HOST_NUM_CPU}
-	cp libudp-discovery.a "${PREFIX}/lib/"
-	cp ../$S_dir/*.hpp "${PREFIX}/include/"
-	cd ..
-)}
+	rm -rf ${B_dir};
+	mkdir ${B_dir} || return $?
+	pushd ${B_dir} || return $?
+	andro_cmake -B. -H../$S_dir || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	cp libudp-discovery.a "${PREFIX}/lib/" || return $?
+	cp ../$S_dir/*.hpp "${PREFIX}/include/" || return $?
+	popd
+}
 
 task_register build_xapian
 build_xapian()
-{( set -e
-
+{
 	B_dir="xapian-core-${XAPIAN_SOURCE_VERSION}"
 	D_file="$B_dir.tar.xz"
 	verified_download $D_file $XAPIAN_SOURCE_SHA256 \
-		https://oligarchy.co.uk/xapian/${XAPIAN_SOURCE_VERSION}/$D_file
+		https://oligarchy.co.uk/xapian/${XAPIAN_SOURCE_VERSION}/$D_file || return $?
 	rm -rf $B_dir
-	tar -xf $D_file
-	pushd $B_dir
+	tar -xf $D_file || return $?
+	pushd $B_dir || return $?
 	B_endiannes_detection_failure_workaround="ac_cv_c_bigendian=no"
 	B_large_file=""
 	[ "${ANDROID_PLATFORM_VER}" -ge "24" ] || B_large_file="--disable-largefile"
@@ -585,73 +578,74 @@ build_xapian()
 		--disable-backend-inmemory --disable-backend-remote \
 		--disable--backend-chert --enable-backend-glass \
 		--host=${cArch}-linux --enable-static --disable-shared \
-		--prefix="${PREFIX}" --with-sysroot="${SYSROOT}"
-	make -j${HOST_NUM_CPU}
-	make install
+		--prefix="${PREFIX}" --with-sysroot="${SYSROOT}" || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 
 	# TODO: Fix upstream Xapian CMake package to find static library
-	sed -i 's/libxapian.so/libxapian.a/g' "${SYSROOT}/usr/lib/cmake/xapian/xapian-config.cmake"
+	sed -i 's/libxapian.so/libxapian.a/g' \
+		"${SYSROOT}/usr/lib/cmake/xapian/xapian-config.cmake" || return $?
 	popd
-)}
+}
 
 task_register build_miniupnpc
 build_miniupnpc()
-{( set -e
+{
 	S_dir="miniupnpc-${MINIUPNPC_SOURCE_VERSION}"
 	B_dir="miniupnpc-${MINIUPNPC_SOURCE_VERSION}-build"
 	D_file="$S_dir.tar.gz"
 	verified_download $D_file $MINIUPNPC_SOURCE_SHA256 \
-		http://miniupnp.free.fr/files/${D_file}
+		http://miniupnp.free.fr/files/${D_file} || return $?
 	rm -rf $S_dir $B_dir
-	tar -xf $D_file
-	mkdir $B_dir
-	cd $B_dir
+	tar -xf $D_file || return $?
+	mkdir $B_dir || return $?
+	pushd $B_dir
 	andro_cmake \
 		-DUPNPC_BUILD_STATIC=TRUE \
 		-DUPNPC_BUILD_SHARED=FALSE \
 		-DUPNPC_BUILD_TESTS=FALSE \
 		-DUPNPC_BUILD_SAMPLE=FALSE \
-		-B. -S../$S_dir
-	make -j${HOST_NUM_CPU}
-	make install
-	cd ..
-)}
+		-B. -S../$S_dir || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
+	popd
+}
 
 task_register build_zlib
 build_zlib()
-{( set -e
-
+{
 	S_dir="zlib-${ZLIB_SOURCE_VERSION}"
 	B_dir="zlib-${ZLIB_SOURCE_VERSION}-build"
 	D_file="$S_dir.tar.gz"
 	verified_download $D_file $ZLIB_SOURCE_SHA256 \
-		http://distfiles.gentoo.org/distfiles/${D_file}
+		http://distfiles.gentoo.org/distfiles/${D_file} || return $?
 	rm -rf $S_dir $B_dir
-	tar -xf $D_file
-	mkdir $B_dir
-	pushd $B_dir
-	andro_cmake -B. -S../$S_dir
-	make -j${HOST_NUM_CPU}
-	make install
+	tar -xf $D_file || return $?
+	mkdir $B_dir || return $?
+	pushd $B_dir || return $?
+	andro_cmake -B. -S../$S_dir || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	rm -fv ${PREFIX}/lib/libz.so*
 	popd
-)}
+}
 
 task_register build_libpng
 build_libpng()
-{( set -e
-	task_run build_zlib
+{
+	task_run build_zlib || return $?
 
 	S_dir="libpng-${LIBPNG_SOURCE_VERSION}"
 	B_dir="libpng-${LIBPNG_SOURCE_VERSION}-build"
 	D_file="$S_dir.tar.xz"
 	verified_download $D_file $LIBPNG_SOURCE_SHA256 \
-		http://distfiles.gentoo.org/distfiles/${D_file}
+		http://distfiles.gentoo.org/distfiles/${D_file} || return $?
 	rm -rf $S_dir $B_dir
-	tar -xf $D_file
+	tar -xf $D_file || return $?
 
-	# libm is part of bionic An android
-	sed -i -e 's/find_library(M_LIBRARY m)/set(M_LIBRARY "")/' $S_dir/CMakeLists.txt
+	# libm is part of bionic on android
+	sed -i -e 's/find_library(M_LIBRARY m)/set(M_LIBRARY "")/' \
+		$S_dir/CMakeLists.txt || return $?
 	
 	# Disable hardware acceleration as they are problematic for Android
 	# compilation and are not supported by all phones, it is necessary to fiddle
@@ -673,43 +667,41 @@ build_libpng()
 		-DPNG_TESTS=OFF \
 		-DPNG_HARDWARE_OPTIMIZATIONS=$HW_OPT \
 		-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-		-B. -S../$S_dir
-	make -j${HOST_NUM_CPU}
-	make install
+		-B. -S../$S_dir || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	popd
-)}
+}
 
 task_register build_libjpeg
 build_libjpeg()
-{( set -e
-
+{
 	S_dir="jpeg-${LIBJPEG_SOURCE_VERSION}"
 	D_file="jpegsrc.v${LIBJPEG_SOURCE_VERSION}.tar.gz"
 	verified_download $D_file $LIBJPEG_SOURCE_SHA256 \
-		https://www.ijg.org/files/$D_file
+		https://www.ijg.org/files/$D_file || return $?
 	rm -rf $S_dir
-	tar -xf $D_file
-	cd $S_dir
-	./configure --with-pic --prefix="${PREFIX}" --host=${cArch}-linux
-	make -j${HOST_NUM_CPU}
-	make install
+	tar -xf $D_file || return $?
+	pushd $S_dir
+	./configure --with-pic --prefix="${PREFIX}" --host=${cArch}-linux || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	rm -f ${PREFIX}/lib/libjpeg.so*
-	cd ..
-)}
+	popd
+}
 
 task_register build_tiff
 build_tiff()
-{( set -e
-
+{
 	S_dir="tiff-${TIFF_SOURCE_VERSION}"
 	B_dir="${S_dir}-build"
 	D_file="tiff-${TIFF_SOURCE_VERSION}.tar.gz"
 
 	verified_download $D_file $TIFF_SOURCE_SHA256 \
-		https://download.osgeo.org/libtiff/${D_file}
+		https://download.osgeo.org/libtiff/${D_file} || return $?
 
 	rm -rf $S_dir $B_dir
-	tar -xf $D_file
+	tar -xf $D_file || return $?
 	mkdir $B_dir
 
 	# Disable tools building, not needed for retroshare, and depending on some
@@ -732,7 +724,7 @@ build_tiff()
 
 	# Change to static library build
 	sed -i 's\add_library(tiff\add_library(tiff STATIC\' \
-		$S_dir/libtiff/CMakeLists.txt
+		$S_dir/libtiff/CMakeLists.txt || return $?
 
 	pushd $B_dir
 	#TODO: build dependecies to support more formats
@@ -740,79 +732,87 @@ build_tiff()
 		-Dlibdeflate=OFF -Djbig=OFF -Dlzma=OFF -Dzstd=OFF -Dwebp=OFF \
 		-Djpeg12=OFF \
 		-Dcxx=OFF \
-		-B. -S../$S_dir
-	make -j${HOST_NUM_CPU}
-	make install
+		-B. -S../$S_dir    || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install           || return $?
 	popd
-)}
+}
 
 task_register build_cimg
 build_cimg()
-{( set -e
-	task_run build_libpng
-	task_run build_libjpeg
-	task_run build_tiff
+{
+	task_run build_libpng  || return $?
+	task_run build_libjpeg || return $?
+	task_run build_tiff    || return $?
 
 	S_dir="CImg-${CIMG_SOURCE_VERSION}"
 	D_file="CImg_${CIMG_SOURCE_VERSION}.zip"
 
 	verified_download $D_file $CIMG_SOURCE_SHA256 \
-		https://cimg.eu/files/${D_file}
+		https://cimg.eu/files/${D_file} || return $?
 
-	unzip -o $D_file
+	unzip -o $D_file || return $?
 
-	cp --archive --verbose "$S_dir/CImg.h" "$PREFIX/include/"
-)}
+	cp --archive --verbose "$S_dir/CImg.h" "$PREFIX/include/" || return $?
+}
 
 task_register build_phash
 build_phash()
-{( set -e
-	task_run build_cimg
+{
+	task_run build_cimg || return $?
 
 	S_dir="pHash"
 	B_dir="${S_dir}-build"
 
-	git_source_get "$S_dir" "$PHASH_SOURCE_REPO" "${PHASH_SOURCE_VERSION}"
+	git_source_get "$S_dir" "$PHASH_SOURCE_REPO" "${PHASH_SOURCE_VERSION}" \
+		 || return $?
 
-	rm -rf $B_dir; mkdir $B_dir ; pushd $B_dir
-	andro_cmake -DPHASH_DYNAMIC=OFF -DPHASH_STATIC=ON  -B. -H../pHash
-	make -j${HOST_NUM_CPU}
-	make install
+	rm -rf $B_dir;
+	mkdir $B_dir || return $?
+	pushd $B_dir || return $?
+	andro_cmake -DPHASH_DYNAMIC=OFF -DPHASH_STATIC=ON  -B. -H../pHash \
+		|| return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	popd
-)}
+}
 
 task_register build_mvptree
 build_mvptree()
-{( set -e
+{
 	S_dir="mvptree"
 	B_dir="${S_dir}-build"
 
-	git_source_get "$S_dir" "$MVPTREE_SOURCE_REPO" "${MVPTREE_SOURCE_VERSION}"
-	rm -rf $B_dir; mkdir $B_dir ; pushd $B_dir
-	andro_cmake -B. -H../${S_dir}
-	make -j${HOST_NUM_CPU}
-	make install
+	git_source_get "$S_dir" "$MVPTREE_SOURCE_REPO" "${MVPTREE_SOURCE_VERSION}" \
+		 || return $?
+	rm -rf $B_dir
+	mkdir $B_dir || return $?
+	pushd $B_dir || return $?
+	andro_cmake -B. -H../${S_dir} || return $?
+	make -j${HOST_NUM_CPU} || return $?
+	make install || return $?
 	popd
-)}
+}
 
 task_register build_libretroshare
 build_libretroshare()
-{( set -e
-	task_run build_zlib
-	task_run build_bzlib
-	task_run build_openssl
-	task_run build_sqlcipher
-	task_run build_rapidjson
-	task_run build_restbed
-#	task_run build_udp-discovery-cpp
-	task_run build_xapian
-	task_run build_miniupnpc
-	task_run build_phash
+{
+	task_run build_zlib      || return $?
+	task_run build_bzlib     || return $?
+	task_run build_openssl   || return $?
+	task_run build_sqlcipher || return $?
+	task_run build_rapidjson || return $?
+	task_run build_restbed   || return $?
+	task_run build_xapian    || return $?
+	task_run build_miniupnpc || return $?
+	task_run build_phash     || return $?
 
 	S_dir="$RS_SRC_DIR"
 	B_dir="libretroshare-build"
 
-	rm -rf $B_dir; mkdir $B_dir ; pushd $B_dir
+	rm -rf $B_dir
+	mkdir $B_dir || return $?
+	pushd $B_dir || return $?
 	andro_cmake -B. -H${S_dir} -DCMAKE_BUILD_TYPE=Release \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
 		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
@@ -823,7 +823,7 @@ build_libretroshare()
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?
 	popd
-)}
+}
 
 task_register get_native_libs_toolchain_path
 get_native_libs_toolchain_path()
@@ -833,20 +833,18 @@ get_native_libs_toolchain_path()
 
 task_register build_default_toolchain
 build_default_toolchain()
-{( set -e
-
-	task_run bootstrap_toolchain
-	task_run build_libretroshare
-#	task_run deduplicate_includes
-	task_run get_native_libs_toolchain_path
-)}
+{
+	task_run bootstrap_toolchain || return $?
+	task_run build_libretroshare || return $?
+	task_run get_native_libs_toolchain_path || return $?
+}
 
 if [ "$1" == "" ]; then
 	rm -rf "$REPORT_DIR"
 	mkdir -p "$REPORT_DIR"
 	cat "$0" > "$REPORT_DIR/build_script"
 	env > "$REPORT_DIR/build_env"
-	build_default_toolchain
+	build_default_toolchain || exit $?
 else
 	# do not delete report directory in this case so we can reuse material
 	# produced by previous run, like deduplicated includes

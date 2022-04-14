@@ -9,30 +9,27 @@ cmake_minimum_required (VERSION 3.18.0)
 project(retroshare)
 
 include(CMakeDependentOption)
+include(GNUInstallDirs)
 
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
-# sqlcipher
 option(
 	RS_SQLCIPHER
 	"SQLCipher encryption for GXS database"
 	ON )
 
-# rs_gxs_send_all
 option(
 	RS_GXS_SEND_ALL
 	"GXS distribute all available messages on request, indipendently from \
 	local sync timer"
 	ON )
 
-# bitdht
 option(
 	RS_BITDHT
 	"Use bitdht (BitTorrent DHT own implementation) to look for online peers"
 	ON )
 
-# use_dht_stunner
 cmake_dependent_option(
 	RS_BITDHT_STUNNER
 	"Use bitdht (BitTorrent DHT own implementation) for NAT type discovery and \
@@ -41,7 +38,6 @@ cmake_dependent_option(
 	"RS_BITDHT"
 	OFF )
 
-# use_dht_stunner_ext_ip
 cmake_dependent_option(
 	RS_BITDHT_STUNNER_EXT_IP
 	"Use bitdht (BitTorrent DHT own implementation) stunner to figure out our \
@@ -51,25 +47,21 @@ cmake_dependent_option(
 	"RS_BITDHT_STUNNER"
 	OFF )
 
-# rs_jsonapi
 option(
 	RS_JSON_API
 	"Use restbed to expose libretroshare as JSON API via HTTP"
 	OFF )
 
-# rs_deep_forums_index
 option(
 	RS_FORUM_DEEP_INDEX
 	"Xapian based full text index and search of GXS forums"
 	OFF )
 
-# rs_broadcast_discovery
 option(
 	RS_BRODCAST_DISCOVERY
 	"Local area network peer discovery via udp-discovery-cpp"
 	ON )
 
-# rs_dh_init_check
 option(
 	RS_DH_PRIME_INIT_CHECK
 	"Check Diffie Hellman prime at each startup. This is not necessary and on \
@@ -101,20 +93,17 @@ cmake_dependent_option(
 	"NOT RS_LIBRETROSHARE_STATIC"
 	OFF )
 
-# rs_deprecatedwarning
 option(
 	RS_WARN_DEPRECATED
 	"Print warning about RetroShare deprecated components usage during build"
 	ON )
 
-# rs_cppwarning
 option(
 	RS_WARN_LESS
 	"Silence a few at the moment very common warnings about RetroShare \
 	components during build"
 	OFF )
 
-# rs_v07_changes
 option(
 	RS_V07_BREAKING_CHANGES
 	"Enable retro-compatibility breaking changes planned for RetroShare 0.7.0"
@@ -122,19 +111,19 @@ option(
 
 set(
 	RS_DATA_DIR
-	"${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}"
+	"${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}"
 	CACHE PATH
 	"Path where to install RetroShare system wide data" )
 
 set(
 	RS_INCLUDE_INSTALL_DIR
-	"${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}"
+	"${CMAKE_INSTALL_FULL_INCLUDEDIR}/${PROJECT_NAME}"
 	CACHE PATH
 	"Path where to install libretroshare headers" )
 
 set(
 	RS_LIB_INSTALL_DIR
-	"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}"
+	"${CMAKE_INSTALL_FULL_LIBDIR}"
 	CACHE PATH
 	"Path where to install libretroshare compiled library" )
 
@@ -214,7 +203,21 @@ if(RS_LIBRETROSHARE_SHARED)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif(RS_LIBRETROSHARE_SHARED)
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+if(RS_ANDROID)
+	# As of today Android NDK libc++ doesn't support std::filesystem properly,
+	# in a very confusing manner the headers have the function declarations but
+	# then the shared object file doesn't have the implementetion.
+	# This fools the compiler which doesn't report any error but then at runtime
+	# we get a crash with this error:
+	# java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol
+	# "_ZNSt6__ndk14__fs10filesystem20__create_directoriesERKNS1_4pathEPNS_10error_codeE"
+	# referenced by "/data/app/==/lib/arm64/libretroshare.so
+	# So set maximum supported C++ version to 14 to workaround this Android bug
+	# https://github.com/android/ndk/issues/609
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
+else()
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+endif()
 
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
@@ -496,6 +499,8 @@ if(RS_BRODCAST_DISCOVERY)
 	## added upstream
 	target_include_directories(
 		${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
+
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
 endif(RS_BRODCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
@@ -605,3 +610,18 @@ endif(V_VERSION_SET)
 
 ################################################################################
 
+# TODO: Use generator expressions instead of CMAKE_BUILD_TYPE see
+# https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#build-configurations
+# https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#manual:cmake-generator-expressions(7)
+
+## On Android all symbols except for the few ones used called via JNI can be
+## kept hidden allowing for more optimization, and reduced binary size
+if(RS_ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_property(TARGET ${PROJECT_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_VISIBILITY_PRESET hidden)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+endif()

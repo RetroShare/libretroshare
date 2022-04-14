@@ -251,6 +251,8 @@ public:
 	 * @brief ConfigDirectory (usually ~/.retroshare) you can call this method
 	 * even before initialisation (you can't with some other methods)
 	 * @see RsAccountsDetail::PathBaseDirectory()
+	 * @jsonapi{development,unauthenticated}
+	 * @return a string containing the path
 	 */
 	static std::string ConfigDirectory();
 
