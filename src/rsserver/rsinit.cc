@@ -396,9 +396,6 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	 * 2) Get List of Available Accounts.
 	 * 4) Get List of GPG Accounts.
 	 */
-	/* Initialize AuthSSL */
-	AuthSSL::instance().InitAuth(nullptr, nullptr, nullptr, "");
-
 	rsLoginHelper = new RsLoginHelper;
 
 	int error_code ;
@@ -593,7 +590,9 @@ int RsInit::LoadCertificates(bool autoLoginNT)
 
 	std::cerr << "rsAccounts->PathKeyFile() : " << RsAccounts::AccountPathKeyFile() << std::endl;
 
-    if(0 == AuthSSL::getAuthSSL() -> InitAuth(RsAccounts::AccountPathCertFile().c_str(), RsAccounts::AccountPathKeyFile().c_str(), rsInitConfig->passwd.c_str(),
+    if(0 == AuthSSL::instance().InitAuth(RsAccounts::AccountPathCertFile().c_str(),
+                                              RsAccounts::AccountPathKeyFile().c_str(),
+                                              rsInitConfig->passwd.c_str(),
                                               RsAccounts::AccountLocationName()))
 	{
 		std::cerr << "SSL Auth Failed!";
@@ -842,17 +841,6 @@ int RsServer::StartupRetroShare()
 	/**************************************************************************/
 	/* STARTUP procedure */
 	/**************************************************************************/
-	/**************************************************************************/
-	/* (1) Load up own certificate (DONE ALREADY) - just CHECK */
-	/**************************************************************************/
-
-    if (1 != AuthSSL::getAuthSSL() -> InitAuth(NULL, NULL, NULL, ""))
-	{
-		std::cerr << "main() - Fatal Error....." << std::endl;
-		std::cerr << "Invalid Certificate configuration!" << std::endl;
-		std::cerr << std::endl;
-		return false ;
-	}
 
 	/**************************************************************************/
 	/* Any Initial Configuration (Commandline Options)  */
