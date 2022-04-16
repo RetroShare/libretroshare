@@ -115,15 +115,16 @@ void AuthPGP::init(
 {
 	if(_instance != NULL)
 	{
-		exit();
 		std::cerr << "AuthGPG::init() called twice!" << std::endl ;
-	}
+        print_stacktrace();
+        return;
+    }
 
-//	if(cb) instance()->mPgpHandler->setPassphraseCallback(cb);else
-    instance()->mPgpHandler->setPassphraseCallback(pgp_pwd_callback);
 	_instance = new AuthPGP( path_to_public_keyring,
 	                         path_to_secret_keyring,
 	                         path_to_trustdb, pgp_lock_file );
+
+    _instance->mPgpHandler->setPassphraseCallback(pgp_pwd_callback);
 }
 
 void AuthPGP::exit()
