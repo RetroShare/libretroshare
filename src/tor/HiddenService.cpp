@@ -51,6 +51,7 @@ HiddenService::HiddenService(HiddenServiceClient *client,const std::string& path
     if(RsDirUtil::fileExists(m_dataPath + "/private_key"))
     {
         loadPrivateKey();
+
         if (!m_hostname.empty())
             m_status = Offline;
     }
@@ -138,7 +139,7 @@ bool HiddenService::loadPrivateKey()
             m_hostname = s;
             m_service_id = s.substr(0,s.length() - std::string(".onion").length());
 
-            RsDbg() << "Read existing hostname: " << m_hostname;
+            RsDbg() << "Using existing hostname: " << m_hostname;
         }
         i.close();
     }

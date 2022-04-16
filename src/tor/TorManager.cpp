@@ -228,15 +228,25 @@ bool TorManager::setupHiddenService()
         {
             RsDbg() << "Got key from legacy dir: " ;
             RsDbg() << d->hiddenService->privateKey().bytes().toHex().toString() ;
+            RsDbg() << "Service id is: " << d->hiddenService->serviceId() ;
+
+            if(d->hiddenService->serviceId().size() != 56)
+            {
+                RsWarn() << "Existing service id is not a proper Tor v3 service ID. Creating a new one..." ;
+                delete d->hiddenService;
+                d->hiddenService = nullptr;
+
+                RsDirUtil::removeFile(key_path);
+            }
         }
         else
             RsWarn() << "Failed to load existing hidden service. Creating a new one." ;
     }
-    else
-    {
-        d->hiddenService = new Tor::HiddenService(this,legacyDir);
 
+    if(!d->hiddenService)
+    {
         RsDbg() << "Creating new hidden service." ;
+        d->hiddenService = new Tor::HiddenService(this,legacyDir);
     }
 
     assert(d->hiddenService);
