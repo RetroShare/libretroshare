@@ -497,8 +497,9 @@ int	WinToUnixError(int error)
 		case WSAEINPROGRESS:
 			return EINPROGRESS;
 			break;
+		/* Do not change it back to EWOULDBLOCK, it will cause connections issues! */
 		case WSAEWOULDBLOCK:
-            return EWOULDBLOCK;
+			return EINPROGRESS;
 			break;
 		case WSAENETUNREACH:
 			return ENETUNREACH;
