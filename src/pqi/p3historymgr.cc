@@ -104,7 +104,7 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
 				else
 					peerName = writer_id.toStdString();
 
-				msgPeerId = cm.incoming?RsPeerId(dcpinfo.own_id):RsPeerId(dcpinfo.to_id);
+				msgPeerId = cm.incoming ? RsPeerId(dcpinfo.to_id) : RsPeerId(dcpinfo.own_id);
 			}
 			else
 			{
