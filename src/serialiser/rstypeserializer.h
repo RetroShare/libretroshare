@@ -141,7 +141,6 @@ struct RsTypeSerializer
 					        << std::error_condition(std::errc::no_buffer_space)
 					        << std::endl;
 					print_stacktrace();
-					exit(-1);
 					break;
 				}
 				memcpy(&member, ctx.mData + ctx.mOffset, sizeof(INTT));
