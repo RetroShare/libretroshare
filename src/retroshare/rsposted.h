@@ -244,6 +244,15 @@ public:
 	 */
 	virtual bool getBoardsServiceStatistics(GxsServiceStatistic& stat) =0;
 
+	/**
+	 * @brief Create a vote
+	 * @jsonapi{development}
+	 * @param[in]  up
+	 * @param[in]  postGrpIdId  Id of the board where to vote
+	 * @param[in]  postMsgId    Id of the board post
+	 * @param[in]  voterId      Id of the author that have voted
+	 * @return false on error, true otherwise
+	 */
 	virtual bool voteForPost(bool up,const RsGxsGroupId& postGrpId,const RsGxsMessageId& postMsgId,const RsGxsId& voterId) =0;
 
 	virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
