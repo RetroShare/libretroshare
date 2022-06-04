@@ -35,7 +35,7 @@
 class RsPosted;
 
 /**
- * Pointer to global instance of RsGxsChannels service implementation
+ * Pointer to global instance of RsPosted service implementation
  * @jsonapi{development}
  */
 extern RsPosted* rsPosted;
@@ -151,18 +151,59 @@ class RsPosted : public RsGxsIfaceHelper, public RsGxsCommentService
 public:
 	explicit RsPosted(RsGxsIface& gxs) : RsGxsIfaceHelper(gxs) {}
 
+	/**
+	 * @brief Get boards information (description, thumbnail...).
+	 * Blocking API.
+	 * @jsonapi{development}
+	 * @param[in] boardsIds ids of the boards of which to get the informations
+	 * @param[out] boardsInfo storage for the boards informations
+	 * @return false if something failed, true otherwhise
+	 */
 	virtual bool getBoardsInfo(
 	        const std::list<RsGxsGroupId>& boardsIds,
 	        std::vector<RsPostedGroup>& boardsInfo ) = 0;
 
+	/**
+	 * @brief Get boards summaries list. Blocking API.
+	 * @jsonapi{development}
+	 * @param[out] boards list where to store the boards
+	 * @return false if something failed, true otherwhise
+	 */
 	virtual bool getBoardsSummaries(std::list<RsGroupMetaData>& groupInfo) =0;
 
+	/**
+     * @brief Get all board messages, comments and votes in a given board
+     * @note It's the client's responsibility to figure out which message (resp. comment)
+     * a comment (resp. vote) refers to.
+     *
+     * @jsonapi{development}
+	 * @param[in] boardId id of the board of which the content is requested
+	 * @param[out] posts storage for posts
+	 * @param[out] comments storage for the comments
+	 * @param[out] votes storage for votes
+	 * @return false if something failed, true otherwhise
+	 */
 	virtual bool getBoardAllContent(
 	        const RsGxsGroupId& boardId,
 	        std::vector<RsPostedPost>& posts,
 	        std::vector<RsGxsComment>& comments,
 	        std::vector<RsGxsVote>& votes ) = 0;
 
+	/**
+     * @brief Get board messages, comments and votes corresponding to the given IDs.
+     * @note Since comments are internally themselves messages, this function actually
+     * returns the data for messages, comments or votes that have the given ID.
+     * It *does not* automatically retrieve the comments or votes for a given message
+     * which Id you supplied.
+     *
+     * @jsonapi{development}
+	 * @param[in] boardId id of the channel of which the content is requested
+	 * @param[in] contentsIds ids of requested contents
+	 * @param[out] posts storage for posts
+	 * @param[out] comments storage for the comments
+	 * @param[out] votes storage for the votes
+	 * @return false if something failed, true otherwhise
+	 */
 	virtual bool getBoardContent(
 	        const RsGxsGroupId& boardId,
 	        const std::set<RsGxsMessageId>& contentsIds,
@@ -170,16 +211,48 @@ public:
 	        std::vector<RsGxsComment>& comments,
 	        std::vector<RsGxsVote>& votes ) = 0;
 
+	/**
+	 * @brief Edit board details.
+	 * @jsonapi{development}
+	 * @param[in] board Board data (name, description...) with modifications
+	 * @return false on error, true otherwise
+	 */
 	virtual bool editBoard(RsPostedGroup& board) =0;
 
+	/**
+	 * @brief Create board. Blocking API.
+	 * @jsonapi{development}
+	 * @param[inout] board Board data (name, description...)
+	 * @return false on error, true otherwise
+	 */
 	virtual bool createBoard(RsPostedGroup& board) =0;
 
+    /**
+     * \brief Retrieve statistics about the given board
+	 * @jsonapi{development}
+     * \param[in]  boardId  Id of the channel group
+     * \param[out] stat       Statistics structure
+     * \return
+     */
 	virtual bool getBoardStatistics(const RsGxsGroupId& boardId,GxsGroupStatistic& stat) =0;
 
+    /**
+     * \brief Retrieve statistics about the board service
+	 * @jsonapi{development}
+     * \param[out] stat       Statistics structure
+     * \return
+     */
 	virtual bool getBoardsServiceStatistics(GxsServiceStatistic& stat) =0;
 
     virtual bool voteForPost(bool up,const RsGxsGroupId& postGrpId,const RsGxsMessageId& postMsgId,const RsGxsId& voterId) =0;
 
+	/**
+	 * @brief Toggle post read status. Blocking API.
+	 * @jsonapi{development}
+	 * @param[in] msgId post identifier
+	 * @param[in] read true to mark as read, false to mark as unread
+	 * @return false on error, true otherwise
+	 */
     virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
     enum RS_DEPRECATED RankType {TopRankType, HotRankType, NewRankType };
@@ -213,16 +286,54 @@ public:
 //virtual bool createNewComment(uint32_t &token, RsGxsComment &comment) = 0;
 //virtual bool createNewVote(uint32_t &token, RsGxsVote &vote) = 0;
 
+	/**
+	 * @brief toggle message read status
+	 * @deprecated
+	 * @param[out] token GXS token queue token
+	 * @param[in] msgId
+	 * @param[in] read
+	 */
     RS_DEPRECATED_FOR(setPostReadStatus)
     virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
         //////////////////////////////////////////////////////////////////////////////
+	/**
+	 * @brief Request board creation.
+	 * The action is performed asyncronously, so it could fail in a subsequent
+	 * phase even after returning true.
+	 * @param[out] token Storage for RsTokenService token to track request
+	 * status.
+	 * @param[in] group Board data (name, description...)
+	 * @return false on error, true otherwise
+	 */
+	virtual bool createGroup(uint32_t &token, RsPostedGroup &group) = 0;
 
-virtual bool createGroup(uint32_t &token, RsPostedGroup &group) = 0;
-virtual bool createPost(uint32_t &token, RsPostedPost &post) = 0;
+	/**
+	 * @brief Create board post. Blocking API.
+	 * @jsonapi{development}
+	 * @param[inout] post
+	 * @return false on error, true otherwise
+	 */
+	virtual bool createPost(uint32_t &token, RsPostedPost &post) = 0;
 
-virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) = 0;
+	/**
+	 * @brief Request board change.
+	 * The action is performed asyncronously, so it could fail in a subsequent
+	 * phase even after returning true.
+	 * @param[out] token Storage for RsTokenService token to track request
+	 * status.
+	 * @param[in] group board data (name, description...) with modifications
+	 * @return false on error, true otherwise
+	 */
+	virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) = 0;
 
-    virtual bool groupShareKeys(const RsGxsGroupId& group,const std::set<RsPeerId>& peers) = 0 ;
+	/**
+	 * @brief Share board publishing key
+	 * This can be used to authorize other peers to post on the board
+	 * @param[in] group Board id
+	 * @param[in] peers peers to which share the key
+	 * @return false on error, true otherwise
+	 */
+	virtual bool groupShareKeys(const RsGxsGroupId& group,const std::set<RsPeerId>& peers) = 0 ;
 
 	virtual ~RsPosted();
 };
