@@ -303,9 +303,12 @@ public:
 	virtual bool createGroup(uint32_t &token, RsPostedGroup &group) = 0;
 
 	/**
-	 * @brief Create board post. Blocking API.
-	 * @jsonapi{development}
-	 * @param[inout] post
+	 * @brief Request post creation.
+	 * The action is performed asyncronously, so it could fail in a subsequent
+	 * phase even after returning true.
+	 * @param[out] token Storage for RsTokenService token to track request
+	 * status.
+	 * @param[in] post
 	 * @return false on error, true otherwise
 	 */
 	virtual bool createPost(uint32_t &token, RsPostedPost &post) = 0;
