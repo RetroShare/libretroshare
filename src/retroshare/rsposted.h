@@ -246,13 +246,6 @@ public:
 
     virtual bool voteForPost(bool up,const RsGxsGroupId& postGrpId,const RsGxsMessageId& postMsgId,const RsGxsId& voterId) =0;
 
-	/**
-	 * @brief Toggle post read status. Blocking API.
-	 * @jsonapi{development}
-	 * @param[in] msgId post identifier
-	 * @param[in] read true to mark as read, false to mark as unread
-	 * @return false on error, true otherwise
-	 */
     virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
     enum RS_DEPRECATED RankType {TopRankType, HotRankType, NewRankType };
