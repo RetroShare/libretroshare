@@ -304,6 +304,7 @@ public:
 
 	/**
 	 * @brief Request post creation.
+	 * @jsonapi{development}
 	 * The action is performed asyncronously, so it could fail in a subsequent
 	 * phase even after returning true.
 	 * @param[out] token Storage for RsTokenService token to track request
