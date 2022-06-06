@@ -288,14 +288,6 @@ public:
 //virtual bool createNewComment(uint32_t &token, RsGxsComment &comment) = 0;
 //virtual bool createNewVote(uint32_t &token, RsGxsVote &vote) = 0;
 
-	/**
-	 * @brief toggle message read status
-	 * @deprecated
-	 * @param[out] token GXS token queue token
-	 * @param[in] msgId
-	 * @param[in] read
-	 */
-	RS_DEPRECATED_FOR(setPostReadStatus)
 	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
         //////////////////////////////////////////////////////////////////////////////
 	/**
