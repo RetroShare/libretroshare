@@ -290,41 +290,12 @@ public:
 
 	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
         //////////////////////////////////////////////////////////////////////////////
-	/**
-	 * @brief Request board creation.
-	 * The action is performed asyncronously, so it could fail in a subsequent
-	 * phase even after returning true.
-	 * @deprecated
-	 * @param[out] token Storage for RsTokenService token to track request
-	 * status.
-	 * @param[in] group Board data (name, description...)
-	 * @return false on error, true otherwise
-	 */
+
 	RS_DEPRECATED_FOR(createBoard)
 	virtual bool createGroup(uint32_t &token, RsPostedGroup &group) = 0;
 
-	/**
-	 * @brief Request post creation.
-	 * @jsonapi{development}
-	 * The action is performed asyncronously, so it could fail in a subsequent
-	 * phase even after returning true.
-	 * @param[out] token Storage for RsTokenService token to track request
-	 * status.
-	 * @param[in] post
-	 * @return false on error, true otherwise
-	 */
 	virtual bool createPost(uint32_t &token, RsPostedPost &post) = 0;
 
-	/**
-	 * @brief Request board change.
-	 * The action is performed asyncronously, so it could fail in a subsequent
-	 * phase even after returning true.
-	 * @deprecated
-	 * @param[out] token Storage for RsTokenService token to track request
-	 * status.
-	 * @param[in] group board data (name, description...) with modifications
-	 * @return false on error, true otherwise
-	 */
 	RS_DEPRECATED_FOR(editBoard)
 	virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) = 0;
 
