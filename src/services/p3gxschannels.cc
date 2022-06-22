@@ -1429,6 +1429,14 @@ bool p3GxsChannels::createChannel(RsGxsChannelGroup& channel)
 	return true;
 }
 
+bool p3GxsChannels::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments )
+{
+    std::vector<RsGxsChannelPost> posts;
+    std::vector<RsGxsVote> votes;
+
+    return getChannelContent(gid,msgIds,posts,comments,votes);
+}
+
 bool p3GxsChannels::createVoteV2(
         const RsGxsGroupId& channelId, const RsGxsMessageId& postId,
         const RsGxsMessageId& commentId, const RsGxsId& authorId,

@@ -130,7 +130,7 @@ virtual bool getChannelDownloadDirectory(const RsGxsGroupId &groupId, std::strin
 	        rstime_t maxWait = 30 ) override;
 #endif
 
-	/**
+    /**
 	 * Receive results from turtle search @see RsGenExchange @see RsNxsObserver
 	 * @see RsGxsNetService::receiveTurtleSearchResults
 	 * @see p3turtle::handleSearchResult
@@ -138,7 +138,11 @@ virtual bool getChannelDownloadDirectory(const RsGxsGroupId &groupId, std::strin
 	void receiveDistantSearchResults( TurtleRequestId id,
 	                                  const RsGxsGroupId& grpId ) override;
 
-	/* Comment service - Provide RsGxsCommentService - redirect to p3GxsCommentService */
+    /* Blocking API from RsGxsCommentService */
+
+    virtual bool getRelatedComments(const RsGxsGroupId& gid, const std::set<RsGxsMessageId> &msgIds, std::vector<RsGxsComment> &comments ) override;
+
+    /* Comment service - Provide RsGxsCommentService - redirect to p3GxsCommentService */
 	virtual bool getCommentData(uint32_t token, std::vector<RsGxsComment> &msgs) override
 	{ return mCommentService->getGxsCommentData(token, msgs); }
 
@@ -175,7 +179,6 @@ virtual bool getChannelDownloadDirectory(const RsGxsGroupId &groupId, std::strin
 		}
 		return acknowledgeMsg(token, msgId);
 	}
-
 
 	// Overloaded from RsGxsIface.
 virtual bool subscribeToGroup(uint32_t &token, const RsGxsGroupId &groupId, bool subscribe) override;

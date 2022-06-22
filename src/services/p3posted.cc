@@ -373,6 +373,14 @@ bool p3Posted::getBoardAllContent( const RsGxsGroupId& groupId,
 	return getPostData(token, posts, comments, votes);
 }
 
+bool p3Posted::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments )
+{
+    std::vector<RsPostedPost> posts;
+    std::vector<RsGxsVote> votes;
+
+    return getBoardContent(gid,msgIds,posts,comments,votes);
+}
+
 bool p3Posted::getBoardContent( const RsGxsGroupId& groupId,
                                 const std::set<RsGxsMessageId>& contentsIds,
                                 std::vector<RsPostedPost>& posts,

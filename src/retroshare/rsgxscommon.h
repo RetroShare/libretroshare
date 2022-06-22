@@ -158,24 +158,21 @@ struct RsGxsCommentService
 	RsGxsCommentService() {}
 	virtual ~RsGxsCommentService() {}
 
-	/** Get previously requested comment data with token */
-	virtual bool getCommentData( uint32_t token,
-	                             std::vector<RsGxsComment> &comments ) = 0;
-	virtual bool getRelatedComments( uint32_t token,
-	                                 std::vector<RsGxsComment> &comments ) = 0;
+    /** blocking API */
+    virtual bool getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments ) = 0;
+
+    /** Get previously requested comment data with token */
+    virtual bool getCommentData( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;
+    virtual bool getRelatedComments( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;
 
 	virtual bool createNewComment(uint32_t &token, const RsGxsComment &comment) = 0;  // async API
 	virtual bool createComment(RsGxsComment& comment) = 0;				// blocking API. Updates comment with new metadata.
 
 	virtual bool createNewVote(uint32_t &token, RsGxsVote &vote) = 0;
 
-	virtual bool acknowledgeComment(
-	        uint32_t token,
-	        std::pair<RsGxsGroupId, RsGxsMessageId>& msgId ) = 0;
+    virtual bool acknowledgeComment( uint32_t token, std::pair<RsGxsGroupId, RsGxsMessageId>& msgId ) = 0;
 
-	virtual bool acknowledgeVote(
-	        uint32_t token,
-	        std::pair<RsGxsGroupId, RsGxsMessageId>& msgId ) = 0;
+    virtual bool acknowledgeVote( uint32_t token, std::pair<RsGxsGroupId, RsGxsMessageId>& msgId ) = 0;
 
     virtual bool setCommentAsRead(uint32_t& token,const RsGxsGroupId& gid,const RsGxsMessageId& comment_msg_id) = 0;
 };

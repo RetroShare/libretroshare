@@ -88,6 +88,8 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
 
     bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
+    bool getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments ) override;
+
     virtual bool getGroupData(const uint32_t &token, std::vector<RsPostedGroup> &groups) override;
 	virtual bool getPostData(const uint32_t &token, std::vector<RsPostedPost> &posts, std::vector<RsGxsComment> &cmts, std::vector<RsGxsVote> &vots) override;
 	virtual bool getPostData(const uint32_t &token, std::vector<RsPostedPost> &posts, std::vector<RsGxsComment> &cmts) override;
