@@ -1280,25 +1280,6 @@ bool p3GxsChannels::getChannelContent( const RsGxsGroupId& channelId,
 	return getPostData(token, posts, comments, votes);
 }
 
-bool p3GxsChannels::getChannelComments(const RsGxsGroupId &channelId,
-                                       const std::set<RsGxsMessageId> &contentIds,
-                                       std::vector<RsGxsComment> &comments)
-{
-	std::vector<RsGxsGrpMsgIdPair> msgIds;
-	for (auto& msg:contentIds)
-		msgIds.push_back(RsGxsGrpMsgIdPair(channelId,msg));
-
-	RsTokReqOptions opts;
-	opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
-	opts.mOptions = RS_TOKREQOPT_MSG_THREAD | RS_TOKREQOPT_MSG_LATEST;
-
-	uint32_t token;
-	if( !requestMsgRelatedInfo(token, opts, msgIds) || waitToken(token) != RsTokenService::COMPLETE )
-		return false;
-
-	return getRelatedComments(token,comments);
-}
-
 bool p3GxsChannels::createChannelV2(
         const std::string& name, const std::string& description,
         const RsGxsImage& thumbnail, const RsGxsId& authorId,
@@ -1429,12 +1410,26 @@ bool p3GxsChannels::createChannel(RsGxsChannelGroup& channel)
 	return true;
 }
 
-bool p3GxsChannels::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments )
+bool p3GxsChannels::getChannelComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& messageIds, std::vector<RsGxsComment> &comments )
 {
-    std::vector<RsGxsChannelPost> posts;
-    std::vector<RsGxsVote> votes;
+    return getRelatedComments(gid,messageIds,comments);
+}
+bool p3GxsChannels::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& messageIds, std::vector<RsGxsComment> &comments )
+{
+    std::vector<RsGxsGrpMsgIdPair> msgIds;
 
-    return getChannelContent(gid,msgIds,posts,comments,votes);
+    for (auto& msg:messageIds)
+        msgIds.push_back(RsGxsGrpMsgIdPair(gid,msg));
+
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
+    opts.mOptions = RS_TOKREQOPT_MSG_THREAD | RS_TOKREQOPT_MSG_LATEST;
+
+    uint32_t token;
+    if( !requestMsgRelatedInfo(token, opts, msgIds) || waitToken(token) != RsTokenService::COMPLETE )
+        return false;
+
+    return getRelatedComments(token,comments);
 }
 
 bool p3GxsChannels::createVoteV2(

@@ -373,14 +373,22 @@ bool p3Posted::getBoardAllContent( const RsGxsGroupId& groupId,
 	return getPostData(token, posts, comments, votes);
 }
 
-bool p3Posted::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments )
+bool p3Posted::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& messageIds, std::vector<RsGxsComment> &comments )
 {
-    std::vector<RsPostedPost> posts;
-    std::vector<RsGxsVote> votes;
+    std::vector<RsGxsGrpMsgIdPair> msgIds;
+    for (auto& msg:messageIds)
+        msgIds.push_back(RsGxsGrpMsgIdPair(gid,msg));
 
-    return getBoardContent(gid,msgIds,posts,comments,votes);
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
+    opts.mOptions = RS_TOKREQOPT_MSG_THREAD | RS_TOKREQOPT_MSG_LATEST;
+
+    uint32_t token;
+    if( !requestMsgRelatedInfo(token, opts, msgIds) || waitToken(token) != RsTokenService::COMPLETE )
+        return false;
+
+    return getRelatedComments(token,comments);
 }
-
 bool p3Posted::getBoardContent( const RsGxsGroupId& groupId,
                                 const std::set<RsGxsMessageId>& contentsIds,
                                 std::vector<RsPostedPost>& posts,
