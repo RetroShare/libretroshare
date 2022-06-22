@@ -44,7 +44,7 @@ const uint32_t DMULTIPLEX_MAX   = 1000; /* 1 sec sleep */
 const double   DMULTIPLEX_RELAX = 0.5; /* relax factor to calculate sleep time if not working in /libretroshare/src/util/rsthreads.cc */
 
 static const uint32_t MAX_CHECKING_CHUNK_WAIT_DELAY   = 120 ; //! TTL for an inactive chunk
-const uint32_t MAX_SIMULTANEOUS_CRC_REQUESTS = 20 ;
+const uint32_t MAX_SIMULTANEOUS_CRC_REQUESTS = 500 ;
 
 /******
  * #define MPLEX_DEBUG 1
@@ -490,7 +490,7 @@ bool ftDataMultiplex::dispatchReceivedChunkCheckSum()
 {
 	RsStackMutex stack(dataMtx); /******* LOCK MUTEX ******/
 
-	uint32_t MAX_CHECKSUM_CHECK_PER_FILE = 25 ;
+    uint32_t MAX_CHECKSUM_CHECK_PER_FILE = 500 ;
 
     for(std::map<RsFileHash,Sha1CacheEntry>::iterator it(_cached_sha1maps.begin());it!=_cached_sha1maps.end();)
 	{

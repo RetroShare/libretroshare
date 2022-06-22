@@ -716,6 +716,7 @@ int pqissl::Initiate_Connection()
 		switch (errno)
 		{
 		case EINPROGRESS:
+		case EWOULDBLOCK:
 			waiting = WAITING_SOCK_CONNECT;
 			sockfd = osock;
 			return 0;
