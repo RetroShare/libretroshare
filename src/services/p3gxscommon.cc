@@ -192,104 +192,96 @@ bool p3GxsCommentService::getGxsCommentData(const uint32_t &token, std::vector<R
 	GxsMsgDataMap msgData;
 	bool ok = mExchange->getMsgData(token, msgData);
 		
-	if(ok)
-	{
-		GxsMsgDataMap::iterator mit = msgData.begin();
-		std::multimap<RsGxsMessageId, RsGxsVoteItem *> voteMap;
-		
-		for(; mit != msgData.end();  ++mit)
-		{
-			//RsGxsGroupId grpId = mit->first;
-			std::vector<RsGxsMsgItem*>& msgItems = mit->second;
-			std::vector<RsGxsMsgItem*>::iterator vit = msgItems.begin();
-
-			/* now split into Comments and Votes */
-		
-			for(; vit != msgItems.end(); ++vit)
-			{
-				RsGxsCommentItem* item = dynamic_cast<RsGxsCommentItem*>(*vit);
-		
-				if(item)
-				{
-					RsGxsComment comment = item->mMsg;
-					comment.mMeta = item->meta;
-					comments.push_back(comment);
-					delete item;
-				}
-				else
-				{
-					RsGxsVoteItem* vote = dynamic_cast<RsGxsVoteItem*>(*vit);
-					if (vote)
-					{
-						voteMap.insert(std::make_pair(vote->meta.mParentId, vote));
-					}
-					else
-					{
-						std::cerr << "Not a Comment or Vote, deleting!" << std::endl;
-						delete *vit;
-					}
-				}
-			}
-		}
-
-		/* now iterate through comments - and set the vote counts */
-		std::vector<RsGxsComment>::iterator cit;
-		std::multimap<RsGxsMessageId, RsGxsVoteItem *>::iterator it;
-		for(cit = comments.begin(); cit != comments.end(); ++cit)
-		{
-			for (it = voteMap.lower_bound(cit->mMeta.mMsgId); it != voteMap.upper_bound(cit->mMeta.mMsgId); ++it)
-			{
-				if (it->second->mMsg.mVoteType == GXS_VOTE_UP)
-				{
-					cit->mUpVotes++;
-				}
-				else
-				{
-					cit->mDownVotes++;
-				}
-			}
-			cit->mScore = calculateBestScore(cit->mUpVotes, cit->mDownVotes);
-
-			/* convert Status -> mHaveVoted */
-			if (cit->mMeta.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_MASK)
-			{
-				if (cit->mMeta.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_UP)
-				{
-					cit->mOwnVote = GXS_VOTE_UP;
-				}
-				else
-				{
-					cit->mOwnVote = GXS_VOTE_DOWN;
-				}
-			}
-			else
-			{
-				cit->mOwnVote = GXS_VOTE_NONE;
-			}
-		}
-
-#ifdef DEBUG_GXSCOMMON
-        std::cerr << "p3GxsCommentService::getGxsCommentData() Found " << comments.size() << " Comments";
-		std::cerr << std::endl;
-		std::cerr << "p3GxsCommentService::getGxsCommentData() Found " << voteMap.size() << " Votes";
-        std::cerr << std::endl;
-#endif
-
-		/* delete the votes */
-		for (it = voteMap.begin(); it != voteMap.end(); ++it)
-		{
-			delete it->second;
-		}
-
-
-		
-	}
-		
-	return ok;
+    return ok && convertMsgDataToVotedComments(msgData,comments);
 }
 
+bool p3GxsCommentService::convertMsgDataToVotedComments(const GxsMsgDataMap& msgData,std::vector<RsGxsComment> &comments)
+{
+    std::multimap<RsGxsMessageId, RsGxsVoteItem *> voteMap;
 
+    for(auto mit = msgData.begin(); mit != msgData.end();  ++mit)
+    {
+        //RsGxsGroupId grpId = mit->first;
+        const std::vector<RsGxsMsgItem*>& msgItems = mit->second;
 
+        /* now split into Comments and Votes */
+
+        for(auto vit = msgItems.begin(); vit != msgItems.end(); ++vit)
+        {
+            RsGxsCommentItem* item = dynamic_cast<RsGxsCommentItem*>(*vit);
+
+            if(item)
+            {
+                RsGxsComment comment = item->mMsg;
+                comment.mMeta = item->meta;
+                comments.push_back(comment);
+                delete item;
+            }
+            else
+            {
+                RsGxsVoteItem* vote = dynamic_cast<RsGxsVoteItem*>(*vit);
+                if (vote)
+                {
+                    voteMap.insert(std::make_pair(vote->meta.mParentId, vote));
+                }
+                else
+                {
+                    std::cerr << "Not a Comment or Vote, deleting!" << std::endl;
+                    delete *vit;
+                }
+            }
+        }
+    }
+
+    /* now iterate through comments - and set the vote counts */
+    std::vector<RsGxsComment>::iterator cit;
+    std::multimap<RsGxsMessageId, RsGxsVoteItem *>::iterator it;
+    for(cit = comments.begin(); cit != comments.end(); ++cit)
+    {
+        for (it = voteMap.lower_bound(cit->mMeta.mMsgId); it != voteMap.upper_bound(cit->mMeta.mMsgId); ++it)
+        {
+            if (it->second->mMsg.mVoteType == GXS_VOTE_UP)
+            {
+                cit->mUpVotes++;
+            }
+            else
+            {
+                cit->mDownVotes++;
+            }
+        }
+        cit->mScore = calculateBestScore(cit->mUpVotes, cit->mDownVotes);
+
+        /* convert Status -> mHaveVoted */
+        if (cit->mMeta.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_MASK)
+        {
+            if (cit->mMeta.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_UP)
+            {
+                cit->mOwnVote = GXS_VOTE_UP;
+            }
+            else
+            {
+                cit->mOwnVote = GXS_VOTE_DOWN;
+            }
+        }
+        else
+        {
+            cit->mOwnVote = GXS_VOTE_NONE;
+        }
+    }
+
+#ifdef DEBUG_GXSCOMMON
+    std::cerr << "p3GxsCommentService::getGxsCommentData() Found " << comments.size() << " Comments";
+    std::cerr << std::endl;
+    std::cerr << "p3GxsCommentService::getGxsCommentData() Found " << voteMap.size() << " Votes";
+    std::cerr << std::endl;
+#endif
+
+    /* delete the votes */
+    for (it = voteMap.begin(); it != voteMap.end(); ++it)
+        delete it->second;
+
+    return true;
+}
 
 bool p3GxsCommentService::getGxsRelatedComments(const uint32_t &token, std::vector<RsGxsComment> &comments)
 {
@@ -301,6 +293,15 @@ bool p3GxsCommentService::getGxsRelatedComments(const uint32_t &token, std::vect
 	GxsMsgRelatedDataMap msgData;
 	bool ok = mExchange->getMsgRelatedData(token, msgData);
 			
+    GxsMsgDataMap data_map;
+    for(auto m:msgData)
+        data_map[m.first.first] = m.second;
+
+    return ok && convertMsgDataToVotedComments(data_map,comments);
+}
+
+#ifdef TO_REMOVE
+{
 	if(ok)
 	{
 		GxsMsgRelatedDataMap::iterator mit = msgData.begin();
@@ -390,6 +391,7 @@ bool p3GxsCommentService::getGxsRelatedComments(const uint32_t &token, std::vect
 			
 	return ok;
 }
+#endif
 
 
 

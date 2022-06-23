@@ -153,8 +153,9 @@ struct RsGxsComment : RsSerializable
 };
 
 
-struct RsGxsCommentService
+class RsGxsCommentService
 {
+public:
 	RsGxsCommentService() {}
 	virtual ~RsGxsCommentService() {}
 
