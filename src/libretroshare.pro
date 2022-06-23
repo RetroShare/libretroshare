@@ -244,7 +244,12 @@ win32-g++|win32-clang-g++ {
 	QMAKE_CC = $${QMAKE_CXX}
 	OBJECTS_DIR = temp/obj
 	MOC_DIR = temp/moc
-    !libretroshare_shared:DEFINES *= STATICLIB
+    libretroshare_shared {
+        # Exclude exported symbols from libraries to avoid linker error "export ordinal too large"
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libops.a
+    } else {
+        DEFINES *= STATICLIB
+    }
 
 	# Switch off optimization for release version
 	QMAKE_CXXFLAGS_RELEASE -= -O2
@@ -972,7 +977,11 @@ rs_jsonapi {
     genjsonapi.variable_out = HEADERS
     win32-g++:isEmpty(QMAKE_SH) {
         genjsonapi.commands = \
-            $(CHK_DIR_EXISTS) $$shell_path($$JSONAPI_GENERATOR_OUT) $(MKDIR) $$shell_path($${JSONAPI_GENERATOR_OUT}) $$escape_expand(\\n\\t)
+            $(CHK_DIR_EXISTS) $$shell_path($$JSONAPI_GENERATOR_OUT) $(MKDIR) $$shell_path($${JSONAPI_GENERATOR_OUT}) $$escape_expand(\\n\\t) \
+            $(COPY_FILE) $$shell_path($${DOXIGEN_CONFIG_SRC}) $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t) \
+            echo OUTPUT_DIRECTORY=$${JSONAPI_GENERATOR_OUT} >> $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t) \
+            echo INPUT=$${DOXIGEN_INPUT_DIRECTORY} >> $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t) \
+            doxygen $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t)
     } else {
         genjsonapi.commands = \
             mkdir -p $${JSONAPI_GENERATOR_OUT} && \
