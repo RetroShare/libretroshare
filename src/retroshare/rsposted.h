@@ -166,7 +166,7 @@ public:
 	/**
 	 * @brief Get boards summaries list. Blocking API.
 	 * @jsonapi{development}
-	 * @param[out] boards list where to store the boards
+	 * @param[out] groupInfo list where to store the boards
 	 * @return false if something failed, true otherwhise
 	 */
 	virtual bool getBoardsSummaries(std::list<RsGroupMetaData>& groupInfo) =0;
