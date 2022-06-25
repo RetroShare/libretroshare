@@ -248,7 +248,7 @@ public:
 	 * @brief Create a vote
 	 * @jsonapi{development}
 	 * @param[in]  up
-	 * @param[in]  postGrpIdId  Id of the board where to vote
+	 * @param[in]  postGrpId  Id of the board where to vote
 	 * @param[in]  postMsgId    Id of the board post
 	 * @param[in]  voterId      Id of the author that have voted
 	 * @return false on error, true otherwise
