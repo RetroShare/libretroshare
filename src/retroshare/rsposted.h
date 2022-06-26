@@ -151,6 +151,7 @@ struct RsGxsPostedEvent: RsEvent
 		RS_SERIAL_PROCESS(mPostedEventCode);
 		RS_SERIAL_PROCESS(mPostedGroupId);
 		RS_SERIAL_PROCESS(mPostedMsgId);
+		RS_SERIAL_PROCESS(mPostedThreadId);
 	}
 
 	~RsGxsPostedEvent() override;
