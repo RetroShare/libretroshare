@@ -40,13 +40,22 @@ class RsPosted;
  */
 extern RsPosted* rsPosted;
 
-struct RsPostedGroup: RsGxsGenericGroupData
+struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 {
 	std::string mDescription;
 	RsGxsImage mGroupImage;
+
+	/// @see RsSerializable
+	virtual void serial_process( RsGenericSerializer::SerializeJob j,
+								 RsGenericSerializer::SerializeContext& ctx ) override
+	{
+		RS_SERIAL_PROCESS(mMeta);
+		RS_SERIAL_PROCESS(mDescription);
+		RS_SERIAL_PROCESS(mGroupImage);
+	}
 };
 
-struct RsPostedPost: public RsGxsGenericMsgData
+struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 {
 	RsPostedPost(): mHaveVoted(false), mUpVotes(0), mDownVotes(0), mComments(0),
 	    mHotScore(0), mTopScore(0), mNewScore(0) {}
@@ -72,12 +81,13 @@ struct RsPostedPost: public RsGxsGenericMsgData
 	RsGxsImage mImage;
 
 	/// @see RsSerializable
-	/*virtual void serial_process( RsGenericSerializer::SerializeJob j,
-								 RsGenericSerializer::SerializeContext& ctx )
+	virtual void serial_process( RsGenericSerializer::SerializeJob j,
+								 RsGenericSerializer::SerializeContext& ctx ) override
 	{
 		RS_SERIAL_PROCESS(mImage);
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mLink);
+		RS_SERIAL_PROCESS(mNotes);
 		RS_SERIAL_PROCESS(mHaveVoted);
 		RS_SERIAL_PROCESS(mUpVotes);
 		RS_SERIAL_PROCESS(mDownVotes);
@@ -85,7 +95,7 @@ struct RsPostedPost: public RsGxsGenericMsgData
 		RS_SERIAL_PROCESS(mHotScore);
 		RS_SERIAL_PROCESS(mTopScore);
 		RS_SERIAL_PROCESS(mNewScore);
-	}*/
+	}
 };
 
 
@@ -141,6 +151,7 @@ struct RsGxsPostedEvent: RsEvent
 		RS_SERIAL_PROCESS(mPostedEventCode);
 		RS_SERIAL_PROCESS(mPostedGroupId);
 		RS_SERIAL_PROCESS(mPostedMsgId);
+		RS_SERIAL_PROCESS(mPostedThreadId);
 	}
 
 	~RsGxsPostedEvent() override;
@@ -248,7 +259,7 @@ public:
 	 * @brief Create a vote
 	 * @jsonapi{development}
 	 * @param[in]  up
-	 * @param[in]  postGrpIdId  Id of the board where to vote
+	 * @param[in]  postGrpId  Id of the board where to vote
 	 * @param[in]  postMsgId    Id of the board post
 	 * @param[in]  voterId      Id of the author that have voted
 	 * @return false on error, true otherwise
