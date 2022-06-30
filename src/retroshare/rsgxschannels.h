@@ -278,12 +278,12 @@ public:
 	 *                          only on failure.
 	 * @return false on error, true otherwise
 	 */
-	virtual bool createVoteV2(
+    virtual bool voteForComment(
 	        const RsGxsGroupId& channelId, const RsGxsMessageId& postId,
 	        const RsGxsMessageId& commentId, const RsGxsId& authorId,
 	        RsGxsVoteType vote,
 	        RsGxsMessageId& voteId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
-	        std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) = 0;
+            std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) override = 0;
 
 	/**
 	 * @brief Edit channel details.
@@ -715,16 +715,6 @@ public:
 	 */
 	RS_DEPRECATED_FOR(createPostV2)
 	virtual bool createPost(uint32_t& token, RsGxsChannelPost& post) = 0;
-
-	/**
-	 * @brief createVote
-	 * @jsonapi{development}
-	 * @deprecated
-	 * @param[inout] vote
-	 * @return false on error, true otherwise
-	 */
-	RS_DEPRECATED_FOR(createVoteV2)
-	virtual bool createVote(RsGxsVote& vote) = 0;
 
 	/**
 	 * @brief Request channel change.

@@ -69,13 +69,10 @@ public:
     bool createGxsComment(uint32_t &token, const RsGxsComment &msg);
     bool createGxsVote(uint32_t &token, RsGxsVote &msg);
 
-    static bool convertMsgDataToVotedComments(const GxsMsgDataMap& msgData,std::vector<RsGxsComment> &comments);
-
     // Special Acknowledge.
     bool acknowledgeVote(const uint32_t& token, RsGxsGrpMsgIdPair& msgId);
 
     static double calculateBestScore(int upVotes, int downVotes);
-
 
 #if 0
     void setGxsMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read);
@@ -91,7 +88,6 @@ private:
 
     void load_PendingVoteParent(const uint32_t &token);
     void completeInternalVote(uint32_t &token);
-
     bool castVote(uint32_t &token, RsGxsVote &msg);
 
     RsGenExchange 	*mExchange;

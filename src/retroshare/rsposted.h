@@ -245,16 +245,52 @@ public:
 	virtual bool getBoardsServiceStatistics(GxsServiceStatistic& stat) =0;
 
 	/**
-	 * @brief Create a vote
+     * @brief Create a vote for a comment of a post
 	 * @jsonapi{development}
-	 * @param[in]  up
-	 * @param[in]  postGrpIdId  Id of the board where to vote
-	 * @param[in]  postMsgId    Id of the board post
-	 * @param[in]  voterId      Id of the author that have voted
-	 * @return false on error, true otherwise
-	 */
-	virtual bool voteForPost(bool up,const RsGxsGroupId& postGrpId,const RsGxsMessageId& postMsgId,const RsGxsId& voterId) =0;
+     * @param[in]  boardId      Id of the board where to vote
+     * @param[in]  postId       Id of the board post of which a comment is voted.
+     * @param[in]  commentId    Id of the comment that is voted
+     * @param[in]  authorId     Id of the author. Needs to be of an owned identity.
+     * @param[in]  vote         Vote value, either RsGxsVoteType::DOWN or RsGxsVoteType::UP
+     * @param[out] voteId       Optional storage for the id of the created vote,
+     *                          meaningful only on success.
+     * @param[out] errorMessage Optional storage for error message, meaningful
+     *                          only on failure.
+     * @return false on error, true otherwise
+     */
+    virtual bool voteForComment(const RsGxsGroupId& boardId,
+                                const RsGxsMessageId& postId,
+                                const RsGxsMessageId& commentId,
+                                const RsGxsId& authorId,
+                                RsGxsVoteType vote,
+                                RsGxsMessageId& voteId,
+                                std::string& errorMessage ) override =0;
 
+    /**
+     * @brief Create a vote for a post
+     * @jsonapi{development}
+     * @param[in]  postGrpIdId  Id of the board where to vote
+     * @param[in]  postMsgId    Id of the board post
+     * @param[in]  authorId     Id of the author that have voted
+     * @param[in]  vote         Vote value, either RsGxsVoteType::DOWN or RsGxsVoteType::UP
+     * @param[out] voteId       Id of the created vote
+     * @param[out] errorMessage Error message if applicable
+     * @return     false on error, true otherwise
+     */
+    virtual bool voteForPost(const RsGxsGroupId& channelId,
+                             const RsGxsMessageId& postMsgId,
+                             const RsGxsId& authorId,
+                             RsGxsVoteType vote,
+                             RsGxsMessageId& voteId,
+                             std::string& errorMessage ) =0;
+
+    /**
+     * @brief Updates the read status of a post
+     * @jsonapi{development}
+     * @param[in]  msgId        Pair containing the group ID and message ID to act on
+     * @param[in]  read         New read status
+     * @return false on error, true otherwise
+     */
 	virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
 	enum RS_DEPRECATED RankType {TopRankType, HotRankType, NewRankType };
@@ -279,16 +315,8 @@ public:
 
 	virtual bool setCommentAsRead(uint32_t& token,const RsGxsGroupId& gid,const RsGxsMessageId& comment_msg_id) =0;
 
-    //Not currently used
-//virtual bool getRelatedPosts(const uint32_t &token, std::vector<RsPostedPost> &posts) = 0;
-
-	    /* From RsGxsCommentService */
-//virtual bool getCommentData(const uint32_t &token, std::vector<RsGxsComment> &comments) = 0;
-//virtual bool getRelatedComments(const uint32_t &token, std::vector<RsGxsComment> &comments) = 0;
-//virtual bool createNewComment(uint32_t &token, RsGxsComment &comment) = 0;
-//virtual bool createNewVote(uint32_t &token, RsGxsVote &vote) = 0;
-
-	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+    RS_DEPRECATED_FOR(setPostReadStatus)
+    virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
         //////////////////////////////////////////////////////////////////////////////
 
 	RS_DEPRECATED_FOR(createBoard)

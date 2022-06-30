@@ -177,32 +177,44 @@ p3GxsCommentService::p3GxsCommentService(RsGenExchange *exchange, uint16_t servi
 	return;
 }
 
-void p3GxsCommentService::comment_tick()
+static double calculateBestScore(int upVotes, int downVotes)
 {
-        GxsTokenQueue::checkRequests();
-}
 
-bool p3GxsCommentService::getGxsCommentData(const uint32_t &token, std::vector<RsGxsComment> &comments)
-{
-#ifdef DEBUG_GXSCOMMON
-    std::cerr << "p3GxsCommentService::getGxsCommentData()";
-    std::cerr << std::endl;
-#endif
+    float score;
+    int n = upVotes + downVotes;
 
-	GxsMsgDataMap msgData;
-	bool ok = mExchange->getMsgData(token, msgData);
-		
-    return ok && convertMsgDataToVotedComments(msgData,comments);
-}
-
-bool p3GxsCommentService::convertMsgDataToVotedComments(const GxsMsgDataMap& msgData,std::vector<RsGxsComment> &comments)
-{
-    std::multimap<RsGxsMessageId, RsGxsVoteItem *> voteMap;
-
-    for(auto mit = msgData.begin(); mit != msgData.end();  ++mit)
+    if(n==0)
+        score = 0.0;
+    else
     {
-        //RsGxsGroupId grpId = mit->first;
-        const std::vector<RsGxsMsgItem*>& msgItems = mit->second;
+        // See https://github.com/reddit/reddit/blob/master/r2/r2/lib/db/_sorts.pyx#L45 for the source of this nice formula.
+        //     http://www.evanmiller.org/how-not-to-sort-by-average-rating.html for the mathematical explanation.
+
+        float p = upVotes/n;
+        float z = 1.281551565545 ;
+
+        float left  = p + 1/(2*n)*z*z ;
+        float right = z*sqrt(p*(1-p)/n + z*z/(4*n*n)) ;
+        float under = 1+1/n*z*z ;
+
+        score = (left - right)/under ;
+
+        //static float z = 1.0;
+        //score = sqrt(phat+z*z/(2*n)-z*((phat*(1-phat)+z*z/(4*n))/n))/(1+z*z/n);
+    }
+    return score;
+}
+
+
+
+// Turns message data into comments, counting other data that are votes as votes.
+// Only the latest couple (authorId, parentId) are accounted for, for each vote.
+
+static bool convertMsgDataToVotedComments(const std::vector<RsGxsMsgItem*>& msgItems, std::vector<RsGxsComment>& comments)
+{
+    std::map<std::pair<RsGxsId,RsGxsMessageId>,RsGxsVoteItem *> votes;
+
+    std::multimap<RsGxsMessageId, RsGxsVoteItem *> voteMap;
 
         /* now split into Comments and Votes */
 
@@ -231,7 +243,6 @@ bool p3GxsCommentService::convertMsgDataToVotedComments(const GxsMsgDataMap& msg
                 }
             }
         }
-    }
 
     /* now iterate through comments - and set the vote counts */
     std::vector<RsGxsComment>::iterator cit;
@@ -283,6 +294,33 @@ bool p3GxsCommentService::convertMsgDataToVotedComments(const GxsMsgDataMap& msg
     return true;
 }
 
+
+
+void p3GxsCommentService::comment_tick()
+{
+        GxsTokenQueue::checkRequests();
+}
+
+bool p3GxsCommentService::getGxsCommentData(const uint32_t &token, std::vector<RsGxsComment> &comments)
+{
+#ifdef DEBUG_GXSCOMMON
+    std::cerr << "p3GxsCommentService::getGxsCommentData()";
+    std::cerr << std::endl;
+#endif
+
+	GxsMsgDataMap msgData;
+	bool ok = mExchange->getMsgData(token, msgData);
+		
+    if(msgData.empty())
+        return true;
+
+    if(msgData.size() > 1)
+        return false;
+
+    return ok && convertMsgDataToVotedComments( msgData.begin()->second,comments);
+}
+
+
 bool p3GxsCommentService::getGxsRelatedComments(const uint32_t &token, std::vector<RsGxsComment> &comments)
 {
 #ifdef DEBUG_GXSCOMMON
@@ -292,135 +330,14 @@ bool p3GxsCommentService::getGxsRelatedComments(const uint32_t &token, std::vect
 
 	GxsMsgRelatedDataMap msgData;
 	bool ok = mExchange->getMsgRelatedData(token, msgData);
-			
-    GxsMsgDataMap data_map;
-    for(auto m:msgData)
-        data_map[m.first.first] = m.second;
 
-    return ok && convertMsgDataToVotedComments(data_map,comments);
-}
+    if(msgData.empty())
+        return true;
 
-#ifdef TO_REMOVE
-{
-	if(ok)
-	{
-		GxsMsgRelatedDataMap::iterator mit = msgData.begin();
-		std::multimap<RsGxsMessageId, RsGxsVoteItem *> voteMap;
-		
-		for(; mit != msgData.end();  ++mit)
-		{
-			std::vector<RsGxsMsgItem*>& msgItems = mit->second;
-			std::vector<RsGxsMsgItem*>::iterator vit = msgItems.begin();
-			
-			for(; vit != msgItems.end(); ++vit)
-			{
-				RsGxsCommentItem* item = dynamic_cast<RsGxsCommentItem*>(*vit);
-		
-				if(item)
-				{
-					RsGxsComment comment = item->mMsg;
-					comment.mMeta = item->meta;
-					comments.push_back(comment);
-					delete item;
-				}
-				else
-				{
-					RsGxsVoteItem* vote = dynamic_cast<RsGxsVoteItem*>(*vit);
-					if (vote)
-					{
-						voteMap.insert(std::make_pair(vote->meta.mParentId, vote));
-					}
-					else
-					{
-						std::cerr << "Not a Comment or Vote, deleting!" << std::endl;
-						delete *vit;
-					}
-				}
-			}
-		}
+    if(msgData.size() > 1)
+        return false;
 
-		/* now iterate through comments - and set the vote counts */
-		std::vector<RsGxsComment>::iterator cit;
-		std::multimap<RsGxsMessageId, RsGxsVoteItem *>::iterator it;
-		for(cit = comments.begin(); cit != comments.end(); ++cit)
-		{
-			for (it = voteMap.lower_bound(cit->mMeta.mMsgId); it != voteMap.upper_bound(cit->mMeta.mMsgId); ++it)
-			{
-				if (it->second->mMsg.mVoteType == GXS_VOTE_UP)
-				{
-					cit->mUpVotes++;
-				}
-				else
-				{
-					cit->mDownVotes++;
-				}
-			}
-			cit->mScore = calculateBestScore(cit->mUpVotes, cit->mDownVotes);
-
-			/* convert Status -> mHaveVoted */
-			if (cit->mMeta.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_MASK)
-			{
-				if (cit->mMeta.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_UP)
-				{
-					cit->mOwnVote = GXS_VOTE_UP;
-				}
-				else
-				{
-					cit->mOwnVote = GXS_VOTE_DOWN;
-				}
-			}
-			else
-			{
-				cit->mOwnVote = GXS_VOTE_NONE;
-			}
-		}
-
-#ifdef DEBUG_GXSCOMMON
-        std::cerr << "p3GxsCommentService::getGxsRelatedComments() Found " << comments.size() << " Comments";
-		std::cerr << std::endl;
-		std::cerr << "p3GxsCommentService::getGxsRelatedComments() Found " << voteMap.size() << " Votes";
-        std::cerr << std::endl;
-#endif
-
-		/* delete the votes */
-		for (it = voteMap.begin(); it != voteMap.end(); ++it)
-		{
-			delete it->second;
-		}
-	}
-			
-	return ok;
-}
-#endif
-
-
-
-double p3GxsCommentService::calculateBestScore(int upVotes, int downVotes)
-{
-
-	float score;
-	int n = upVotes + downVotes;
-
-	if(n==0)
-		score = 0.0;
-	else
-	{
-		// See https://github.com/reddit/reddit/blob/master/r2/r2/lib/db/_sorts.pyx#L45 for the source of this nice formula.
-		//     http://www.evanmiller.org/how-not-to-sort-by-average-rating.html for the mathematical explanation.
-
-		float p = upVotes/n;
-		float z = 1.281551565545 ;
-
-		float left  = p + 1/(2*n)*z*z ;
-		float right = z*sqrt(p*(1-p)/n + z*z/(4*n*n)) ;
-		float under = 1+1/n*z*z ;
-
-		score = (left - right)/under ;
-
-		//static float z = 1.0;
-		//score = sqrt(phat+z*z/(2*n)-z*((phat*(1-phat)+z*z/(4*n))/n))/(1+z*z/n);
-	}
-	return score;
+    return ok && convertMsgDataToVotedComments(msgData.begin()->second,comments);
 }
 
 
@@ -728,10 +645,6 @@ void p3GxsCommentService::handleResponse(uint32_t token, uint32_t req_type
         }
 }
 
-
-
-	
-
 bool p3GxsCommentService::castVote(uint32_t &token, RsGxsVote &msg)
 {
 #ifdef DEBUG_GXSCOMMON
@@ -746,29 +659,4 @@ bool p3GxsCommentService::castVote(uint32_t &token, RsGxsVote &msg)
 	mExchange->publishMsg(token, msgItem);
 	return true;
 }
-
-
-
-
-
-
-
-/********************************************************************************************/
-/********************************************************************************************/
-
-#if 0
-void p3GxsCommentService::setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read)
-{
-	uint32_t mask = GXS_SERV::GXS_MSG_STATUS_UNREAD | GXS_SERV::GXS_MSG_STATUS_UNPROCESSED;
-	uint32_t status = GXS_SERV::GXS_MSG_STATUS_UNREAD;
-	if (read)
-	{
-		status = 0;
-	}
-
-	setMsgStatusFlags(token, msgId, status, mask);
-
-}
-
-#endif
 

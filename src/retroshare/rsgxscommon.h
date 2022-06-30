@@ -122,10 +122,10 @@ struct RsGxsVote : RsSerializable
 	}
 };
 
-struct RsGxsComment : RsSerializable
+struct RsGxsComment : RsSerializable, RsGxsGenericMsgData
 {
 	RsGxsComment();
-	RsMsgMetaData mMeta;
+
 	std::string mComment;
 
 	// below is calculated.
@@ -161,6 +161,12 @@ public:
 
     /** blocking API */
     virtual bool getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments ) = 0;
+
+    virtual bool voteForComment(const RsGxsGroupId& postGroupId, const RsGxsMessageId& postMsgId,
+                                const RsGxsMessageId& postCommentId, const RsGxsId& authorId,
+                                RsGxsVoteType vote,
+                                RsGxsMessageId& voteId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
+                                std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) = 0;
 
     /** Get previously requested comment data with token */
     virtual bool getCommentData( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;

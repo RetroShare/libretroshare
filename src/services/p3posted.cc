@@ -39,8 +39,7 @@
 p3Posted::p3Posted(
         RsGeneralDataService *gds, RsNetworkExchangeService *nes,
         RsGixs* gixs ) :
-    p3PostBase( gds, nes, gixs, new RsGxsPostedSerialiser(),
-                RS_SERVICE_GXS_TYPE_POSTED ),
+    p3PostBase( gds, nes, gixs, new RsGxsPostedSerialiser(), RS_SERVICE_GXS_TYPE_POSTED ),
     RsPosted(static_cast<RsGxsIface&>(*this)) {}
 
 const std::string GXS_POSTED_APP_NAME = "gxsposted";
@@ -461,41 +460,116 @@ bool p3Posted::createBoard(RsPostedGroup& board)
 	return true;
 }
 
-bool p3Posted::voteForPost(bool up,const RsGxsGroupId& postGrpId,const RsGxsMessageId& postMsgId,const RsGxsId& authorId)
+bool p3Posted::voteForPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postMsgId, const RsGxsId& authorId, RsGxsVoteType vote, RsGxsMessageId& voteId, std::string& errorMessage )
 {
-    // Do some basic tests
+    RsGxsVote vote_msg;
 
-    if(!rsIdentity->isOwnId(authorId))	// This is ruled out before waitToken complains. Not sure it's needed.
+    vote_msg.mMeta.mGroupId  = boardId;
+    vote_msg.mMeta.mThreadId = postMsgId;
+    vote_msg.mMeta.mParentId = postMsgId;
+    vote_msg.mMeta.mAuthorId = authorId;
+    vote_msg.mVoteType       = (vote==RsGxsVoteType::UP)?GXS_VOTE_UP:GXS_VOTE_DOWN;
+
+    return this->vote(vote_msg,voteId,errorMessage);
+}
+
+bool p3Posted::voteForComment(const RsGxsGroupId& boardId,
+                              const RsGxsMessageId& postId,
+                              const RsGxsMessageId& commentId,
+                              const RsGxsId& authorId,
+                              RsGxsVoteType vote,
+                              RsGxsMessageId& voteId,
+                              std::string& errorMessage )
+{
+    RsGxsVote vote_msg;
+
+    vote_msg.mMeta.mGroupId  = boardId;
+    vote_msg.mMeta.mThreadId = postId;
+    vote_msg.mMeta.mParentId = commentId;
+    vote_msg.mMeta.mAuthorId = authorId;
+    vote_msg.mVoteType       = (vote==RsGxsVoteType::UP)?GXS_VOTE_UP:GXS_VOTE_DOWN;
+
+    return this->vote(vote_msg,voteId,errorMessage);
+}
+
+bool p3Posted::vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::string& errorMessage)
+{
+    // 0 - Do some basic tests
+
+    if(!rsIdentity->isOwnId(vote.mMeta.mAuthorId))	// This is ruled out before waitToken complains. Not sure it's needed.
     {
         std::cerr << __PRETTY_FUNCTION__ << ": vote submitted with an ID that is not yours! This cannot work." << std::endl;
         return false;
     }
 
-    RsGxsVote vote;
+    // 1 - Retrieve the parent message metadata and check if it's already voted. This should be pretty fast
+    //     thanks to the msg meta cache.
 
-    vote.mMeta.mGroupId = postGrpId;
-    vote.mMeta.mThreadId = postMsgId;
-    vote.mMeta.mParentId = postMsgId;
-    vote.mMeta.mAuthorId = authorId;
+    uint32_t meta_token;
+    RsTokReqOptions opts;
+    GxsMsgReq msgReq;
+    msgReq[vote.mMeta.mGroupId] = { vote.mMeta.mParentId };
 
-    if (up)
-            vote.mVoteType = GXS_VOTE_UP;
-    else
-            vote.mVoteType = GXS_VOTE_DOWN;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_META;
 
-    uint32_t token;
+    std::list<RsGxsGroupId> groupIds({vote.mMeta.mGroupId});
 
-    if(!createNewVote(token, vote))
-    {
-        std::cerr << __PRETTY_FUNCTION__ << " Error! Failed submitting vote to (group,msg) " << postGrpId << "," << postMsgId << " from author " << authorId << std::endl;
-        return false;
-    }
-
-    if(waitToken(token) != RsTokenService::COMPLETE)
+    if( !requestMsgInfo(meta_token, opts, msgReq) || waitToken(meta_token) != RsTokenService::COMPLETE)
     {
         std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed." << std::endl;
         return false;
     }
+
+    GxsMsgMetaMap msgMetaInfo;
+    if(!RsGenExchange::getMsgMeta(meta_token,msgMetaInfo) || msgMetaInfo.size() != 1 || msgMetaInfo.begin()->second.size() != 1)
+    {
+        errorMessage = "Failure to find parent post!" ;
+        return false;
+    }
+
+    if(msgMetaInfo.begin()->second.front().mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_MASK)
+    {
+        errorMessage = "Post has already been voted" ;
+        return false;
+    }
+
+    // 2 - create the vote, and get back the vote Id from RsGenExchange
+
+    uint32_t vote_token;
+
+    RsGxsVoteItem* msgItem = new RsGxsVoteItem(getServiceInfo().serviceTypeUInt16());
+    msgItem->mMsg = vote;
+    msgItem->meta = vote.mMeta;
+
+    publishMsg(vote_token, msgItem);
+
+    if(waitToken(vote_token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed." << std::endl;
+        return false;
+    }
+    RsMsgMetaData vote_meta;
+    if(!RsGenExchange::getPublishedMsgMeta(vote_token, vote_meta))
+    {
+        errorMessage = "Failure getting generated vote data.";
+        return false;
+    }
+
+    voteId = vote_meta.mMsgId;
+
+    // 3 - update the parent message vote status
+
+    uint32_t status_token;
+    uint32_t vote_flag = (vote.mVoteType == GXS_VOTE_UP)?(GXS_SERV::GXS_MSG_STATUS_VOTE_UP):(GXS_SERV::GXS_MSG_STATUS_VOTE_DOWN);
+
+    setMsgStatusFlags(status_token, RsGxsGrpMsgIdPair(vote.mMeta.mGroupId,vote.mMeta.mParentId), vote_flag, GXS_SERV::GXS_MSG_STATUS_VOTE_MASK);
+
+    if(waitToken(status_token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed." << std::endl;
+        return false;
+    }
+
     return true;
 }
 

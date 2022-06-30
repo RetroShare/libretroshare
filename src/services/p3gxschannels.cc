@@ -83,10 +83,6 @@ p3GxsChannels::p3GxsChannels(
     RsGxsChannels(static_cast<RsGxsIface&>(*this)), GxsTokenQueue(this),
     mSubscribedGroupsMutex("GXS channels subscribed groups cache"),
     mKnownChannelsMutex("GXS channels known channels timestamp cache")
-#ifdef TO_REMOVE
-    mSearchCallbacksMapMutex("GXS channels search callbacks map"),
-    mDistantChannelsCallbacksMapMutex("GXS channels distant channels callbacks map")
-#endif
 {
 	// For Dummy Msgs.
 	mGenActive = false;
@@ -1432,127 +1428,20 @@ bool p3GxsChannels::getRelatedComments( const RsGxsGroupId& gid,const std::set<R
     return getRelatedComments(token,comments);
 }
 
-bool p3GxsChannels::createVoteV2(
-        const RsGxsGroupId& channelId, const RsGxsMessageId& postId,
-        const RsGxsMessageId& commentId, const RsGxsId& authorId,
-        RsGxsVoteType tVote, RsGxsMessageId& voteId, std::string& errorMessage )
+bool p3GxsChannels::voteForComment(const RsGxsGroupId& channelId, const RsGxsMessageId& postId,
+                                   const RsGxsMessageId& commentId, const RsGxsId& authorId,
+                                   RsGxsVoteType tVote,
+                                   RsGxsMessageId& voteId, std::string& errorMessage )
 {
-	std::vector<RsGxsChannelGroup> channelsInfo;
-	if(!getChannelsInfo(std::list<RsGxsGroupId>({channelId}),channelsInfo))
-	{
-		errorMessage = "Channel with Id " + channelId.toStdString()
-		        + " does not exist.";
-		return false;
-	}
+    RsGxsVote vote_msg;
 
-	if(commentId.isNull())
-	{
-		errorMessage = "You cannot vote on null comment "
-		        + commentId.toStdString();
-		return false;
-	}
+    vote_msg.mMeta.mGroupId  = channelId;
+    vote_msg.mMeta.mThreadId = postId;
+    vote_msg.mMeta.mParentId = commentId;
+    vote_msg.mMeta.mAuthorId = authorId;
+    vote_msg.mVoteType       = (tVote==RsGxsVoteType::UP)?GXS_VOTE_UP:GXS_VOTE_DOWN;
 
-	std::set<RsGxsMessageId> s({commentId});
-	std::vector<RsGxsChannelPost> posts;
-	std::vector<RsGxsComment> comments;
-	std::vector<RsGxsVote> votes;
-
-	if(!getChannelContent(channelId, s, posts, comments, votes))
-	{
-		errorMessage = "You cannot vote on comment "
-		        + commentId.toStdString() + " of channel with Id "
-		        + channelId.toStdString()
-		        + ": this comment does not exists locally!";
-		return false;
-	}
-
-	// is the ID a comment ID or a post ID?
-	// It should be comment => should have a parent ID
-	if(posts.front().mMeta.mParentId.isNull())
-	{
-		errorMessage = "You cannot vote on channel message "
-		        + commentId.toStdString() + " of channel with Id "
-		        + channelId.toStdString()
-		        + ": given id refers to a post, not a comment!";
-		return false;
-	}
-
-	if( tVote != RsGxsVoteType::NONE
-	        && tVote != RsGxsVoteType::UP
-	        && tVote != RsGxsVoteType::DOWN )
-	{
-		errorMessage = "Your vote to channel with Id "
-		        + channelId.toStdString() + " has wrong vote type. "
-		        + " Only RsGxsVoteType::NONE, RsGxsVoteType::UP, "
-		        + "RsGxsVoteType::DOWN are accepted.";
-		return false;
-	}
-
-	if(!rsIdentity->isOwnId(authorId))
-	{
-		errorMessage = "You cannot vote to channel with Id "
-		        + channelId.toStdString() + " with identity "
-		        + authorId.toStdString() + " because it is not yours.";
-		return false;
-	}
-
-	// Create the vote
-	RsGxsVote vote;
-	vote.mMeta.mGroupId = channelId;
-	vote.mMeta.mThreadId = postId;
-	vote.mMeta.mParentId = commentId;
-	vote.mMeta.mAuthorId = authorId;
-	vote.mVoteType = static_cast<uint32_t>(tVote);
-
-	uint32_t token;
-	if(!createNewVote(token, vote))
-	{
-		errorMessage = "Error! Failed creating vote.";
-		return false;
-	}
-
-	if(waitToken(token) != RsTokenService::COMPLETE)
-	{
-		errorMessage = "GXS operation failed.";
-		return false;
-	}
-
-	if(!RsGenExchange::getPublishedMsgMeta(token, vote.mMeta))
-	{
-		errorMessage = "Failure getting generated vote data.";
-		return false;
-	}
-
-	voteId = vote.mMeta.mMsgId;
-	return true;
-}
-
-/// @deprecated use createVoteV2 instead
-bool p3GxsChannels::createVote(RsGxsVote& vote)
-{
-	uint32_t token;
-	if(!createNewVote(token, vote))
-	{
-		std::cerr << __PRETTY_FUNCTION__ << " Error! Failed creating vote."
-		          << std::endl;
-		return false;
-	}
-
-	if(waitToken(token) != RsTokenService::COMPLETE)
-	{
-		std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed."
-		          << std::endl;
-		return false;
-	}
-
-	if(!RsGenExchange::getPublishedMsgMeta(token, vote.mMeta))
-	{
-		std::cerr << __PRETTY_FUNCTION__ << " Error! Failure getting generated "
-		          << " vote data." << std::endl;
-		return false;
-	}
-
-	return true;
+    return vote(vote_msg,voteId,errorMessage);
 }
 
 bool p3GxsChannels::editChannel(RsGxsChannelGroup& channel)
@@ -2739,3 +2628,84 @@ bool p3GxsChannels::importChannelLink( const std::string& link, RsGxsGroupId& ch
 RsGxsChannelGroup::~RsGxsChannelGroup() = default;
 RsGxsChannelPost::~RsGxsChannelPost() = default;
 RsGxsChannels::~RsGxsChannels() = default;
+
+bool p3GxsChannels::vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::string& errorMessage)
+{
+    // 0 - Do some basic tests
+
+    if(!rsIdentity->isOwnId(vote.mMeta.mAuthorId))	// This is ruled out before waitToken complains. Not sure it's needed.
+    {
+        std::cerr << __PRETTY_FUNCTION__ << ": vote submitted with an ID that is not yours! This cannot work." << std::endl;
+        return false;
+    }
+
+    // 1 - Retrieve the parent message metadata and check if it's already voted. This should be pretty fast
+    //     thanks to the msg meta cache.
+
+    uint32_t meta_token;
+    RsTokReqOptions opts;
+    GxsMsgReq msgReq;
+    msgReq[vote.mMeta.mGroupId] = { vote.mMeta.mParentId };
+
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_META;
+
+    std::list<RsGxsGroupId> groupIds({vote.mMeta.mGroupId});
+
+    if( !requestMsgInfo(meta_token, opts, msgReq) || waitToken(meta_token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed." << std::endl;
+        return false;
+    }
+
+    GxsMsgMetaMap msgMetaInfo;
+    if(!RsGenExchange::getMsgMeta(meta_token,msgMetaInfo) || msgMetaInfo.size() != 1 || msgMetaInfo.begin()->second.size() != 1)
+    {
+        errorMessage = "Failure to find parent post!" ;
+        return false;
+    }
+
+    if(msgMetaInfo.begin()->second.front().mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_MASK)
+    {
+        errorMessage = "Post has already been voted" ;
+        return false;
+    }
+
+    // 2 - create the vote, and get back the vote Id from RsGenExchange
+
+    uint32_t vote_token;
+
+    RsGxsVoteItem* msgItem = new RsGxsVoteItem(getServiceInfo().serviceTypeUInt16());
+    msgItem->mMsg = vote;
+    msgItem->meta = vote.mMeta;
+
+    publishMsg(vote_token, msgItem);
+
+    if(waitToken(vote_token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed." << std::endl;
+        return false;
+    }
+    RsMsgMetaData vote_meta;
+    if(!RsGenExchange::getPublishedMsgMeta(vote_token, vote_meta))
+    {
+        errorMessage = "Failure getting generated vote data.";
+        return false;
+    }
+
+    voteId = vote_meta.mMsgId;
+
+    // 3 - update the parent message vote status
+
+    uint32_t status_token;
+    uint32_t vote_flag = (vote.mVoteType == GXS_VOTE_UP)?(GXS_SERV::GXS_MSG_STATUS_VOTE_UP):(GXS_SERV::GXS_MSG_STATUS_VOTE_DOWN);
+
+    setMsgStatusFlags(status_token, RsGxsGrpMsgIdPair(vote.mMeta.mGroupId,vote.mMeta.mParentId), vote_flag, GXS_SERV::GXS_MSG_STATUS_VOTE_MASK);
+
+    if(waitToken(status_token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed." << std::endl;
+        return false;
+    }
+
+    return true;
+}

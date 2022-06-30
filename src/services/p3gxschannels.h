@@ -266,8 +266,8 @@ virtual bool ExtraFileRemove(const RsFileHash &hash) override;
 	        std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string)
 	        ) override;
 
-	/// Implementation of @see RsGxsChannels::createVoteV2
-	bool createVoteV2(
+    /// Implementation of @see RsGxsChannels::voteForComment
+    bool voteForComment(
 	        const RsGxsGroupId& channelId, const RsGxsMessageId& postId,
 	        const RsGxsMessageId& commentId, const RsGxsId& authorId,
 	        RsGxsVoteType vote,
@@ -275,7 +275,7 @@ virtual bool ExtraFileRemove(const RsFileHash &hash) override;
 	        std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string)
 	        ) override;
 
-	/// Implementation of @see RsGxsChannels::subscribeToChannel
+    /// Implementation of @see RsGxsChannels::subscribeToChannel
 	bool subscribeToChannel( const RsGxsGroupId &groupId,
 	                                 bool subscribe ) override;
 
@@ -312,11 +312,6 @@ virtual bool ExtraFileRemove(const RsFileHash &hash) override;
 	RS_DEPRECATED_FOR(createCommentV2)
 	bool createComment(RsGxsComment &comment) override;
 
-	/// @deprecated Implementation of @see RsGxsChannels::createVote
-	RS_DEPRECATED_FOR(createVoteV2)
-	bool createVote(RsGxsVote& vote) override;
-
-
 protected:
 	// Overloaded from GxsTokenQueue for Request callbacks.
 	virtual void handleResponse(uint32_t token, uint32_t req_type
@@ -324,6 +319,8 @@ protected:
 
 
 private:
+
+    bool vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::string& errorMessage);
 
 static uint32_t channelsAuthenPolicy();
 
