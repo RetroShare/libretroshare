@@ -218,7 +218,7 @@ public:
 	RsServiceInfo getServiceInfo() override;
 
 	/// @see RsGxsCircles
-	bool createCircle(
+    bool createCircle(
 	        const std::string& circleName, RsGxsCircleType circleType,
 	        RsGxsCircleId& circleId = RS_DEFAULT_STORAGE_PARAM(RsGxsCircleId),
 	        const RsGxsCircleId& restrictedId = RsGxsCircleId(),
@@ -226,6 +226,8 @@ public:
 	        const std::set<RsGxsId>& gxsIdMembers = std::set<RsGxsId>(),
 	        const std::set<RsPgpId>& localMembers = std::set<RsPgpId>()
 	        ) override;
+
+    bool createCircle(const RsGxsCircleGroup& circle,RsGxsCircleId& circleId) ;
 
     bool editCircle( const RsGxsCircleId& circleId,const std::string& circleName, RsGxsCircleType circleType,
                      const RsGxsCircleId& restrictedId,
@@ -308,10 +310,7 @@ public:
 	virtual void service_tick() override;
 
 protected:
-    bool checkCircleParamConsistency( const std::string& circleName, RsGxsCircleType circleType,
-                     const RsGxsCircleId& restrictedId,
-                     const RsGxsId& authorId, const std::set<RsGxsId>& gxsIdMembers,
-                     const std::set<RsPgpId>& localMembers ) const ;
+    bool checkCircleParamConsistency(RsGxsCircleGroup &cData) const ;
 
 	// overloads p3Config
 	virtual bool saveList(bool &cleanup, std::list<RsItem *>&saveList) override;
