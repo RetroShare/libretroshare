@@ -182,6 +182,15 @@ public:
 	 */
 	virtual bool getBoardsSummaries(std::list<RsGroupMetaData>& groupInfo) =0;
 
+    /**
+     * @brief Subscribe to a board. Blocking API
+     * @jsonapi{development}
+     * @param[in] boardId Board id
+     * @param[in] subscribe true to subscribe, false to unsubscribe
+     * @return false on error, true otherwise
+     */
+    virtual bool subscribeToBoard( const RsGxsGroupId& boardId, bool subscribe ) = 0;
+
 	/**
 	 * @brief Get all board messages, comments and votes in a given board
 	 * @note It's the client's responsibility to figure out which message (resp. comment)
@@ -238,7 +247,16 @@ public:
 	 */
 	virtual bool createBoard(RsPostedGroup& board) =0;
 
-	/**
+    /**
+     * @brief Create post. Blocking API.
+     * @jsonapi{development}
+     * @param[in]  post    Post data (Content, description, files,...)
+     * @param[out] post_id Id of the post message
+     * @return             false on error, true otherwise
+     */
+    virtual bool createPost(const RsPostedPost& post,RsGxsMessageId& post_id) =0;
+
+    /**
 	 * \brief Retrieve statistics about the given board
 	 * @jsonapi{development}
 	 * \param[in]  boardId  Id of the channel group
@@ -324,11 +342,11 @@ public:
 	virtual bool getPostData(
 	        const uint32_t& token, std::vector<RsPostedPost>& posts) = 0;
 
-	virtual bool setCommentAsRead(uint32_t& token,const RsGxsGroupId& gid,const RsGxsMessageId& comment_msg_id) =0;
+    RS_DEPRECATED_FOR(setPostReadStatus)
+    virtual bool setCommentAsRead(uint32_t& token,const RsGxsGroupId& gid,const RsGxsMessageId& comment_msg_id) override =0;
 
     RS_DEPRECATED_FOR(setPostReadStatus)
     virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
-        //////////////////////////////////////////////////////////////////////////////
 
 	RS_DEPRECATED_FOR(createBoard)
 	virtual bool createGroup(uint32_t &token, RsPostedGroup &group) = 0;

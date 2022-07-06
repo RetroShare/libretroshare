@@ -68,13 +68,17 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
 
 	bool getBoardsSummaries(std::list<RsGroupMetaData>& groupInfo) override;
 
-	bool getBoardStatistics(const RsGxsGroupId& boardId,GxsGroupStatistic& stat) override;
+    bool subscribeToBoard( const RsGxsGroupId& boardId, bool subscribe ) override;
+
+    bool getBoardStatistics(const RsGxsGroupId& boardId,GxsGroupStatistic& stat) override;
 
 	bool getBoardsServiceStatistics(GxsServiceStatistic& stat) override;
 
 	bool editBoard(RsPostedGroup& board) override;
 
 	bool createBoard(RsPostedGroup& board) override;
+
+    bool createPost(const RsPostedPost& post,RsGxsMessageId& post_id) override;
 
     bool voteForPost(const RsGxsGroupId& boardId,
                      const RsGxsMessageId& postMsgId,

@@ -319,7 +319,6 @@ bool p3Posted::updateGroup(uint32_t &token, RsPostedGroup &group)
 	return true;
 }
 
-
 bool p3Posted::createPost(uint32_t &token, RsPostedPost &msg)
 {
 	std::cerr << "p3Posted::createPost() GroupId: " << msg.mMeta.mGroupId;
@@ -333,6 +332,16 @@ bool p3Posted::createPost(uint32_t &token, RsPostedPost &msg)
 	
 	RsGenExchange::publishMsg(token, msgItem);
 	return true;
+}
+
+bool p3Posted::subscribeToBoard( const RsGxsGroupId& boardId, bool subscribe )
+{
+    uint32_t token;
+
+    if( !RsGenExchange::subscribeToGroup(token, boardId,subscribe) || waitToken(token) != RsTokenService::COMPLETE )
+            return false;
+
+    return true;
 }
 
 bool p3Posted::getBoardsInfo(
@@ -459,6 +468,38 @@ bool p3Posted::createBoard(RsPostedGroup& board)
 
 	return true;
 }
+
+bool p3Posted::createPost(const RsPostedPost& post,RsGxsMessageId& post_id)
+{
+    std::cerr << "p3Posted::createPost() GroupId: " << post.mMeta.mGroupId;
+    std::cerr << std::endl;
+
+    RsGxsPostedPostItem *msgItem = new RsGxsPostedPostItem();
+
+    uint32_t token;
+
+        auto msg(post);
+        msgItem->fromPostedPost(msg, true);
+        RsGenExchange::publishMsg(token, msgItem);
+
+    if(waitToken(token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << "Error! GXS operation failed." << std::endl;
+        return false;
+    }
+
+    if(!RsGenExchange::getPublishedMsgMeta(token, msg.mMeta))
+    {
+        std::cerr << __PRETTY_FUNCTION__ << "Error! Failure getting updated " << " group data." << std::endl;
+        return false;
+    }
+
+    std::cerr << "New post created, with message ID " << msg.mMeta.mMsgId << std::endl;
+    post_id = msg.mMeta.mMsgId;
+
+    return true;
+}
+
 
 bool p3Posted::voteForPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postMsgId, const RsGxsId& authorId, RsGxsVoteType vote, RsGxsMessageId& voteId, std::string& errorMessage )
 {
