@@ -395,13 +395,22 @@ public:
 	/**
 	 * @brief Toggle post read status. Blocking API.
 	 * @jsonapi{development}
-	 * @param[in] postId post identifier
+     * @param[in] msgId post identifier
 	 * @param[in] read true to mark as read, false to mark as unread
 	 * @return false on error, true otherwise
 	 */
-	virtual bool markRead(const RsGxsGrpMsgIdPair& postId, bool read) = 0;
+    virtual bool setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read) override =0;
 
-	/**
+    /**
+     * @brief Toggle post read status. Blocking API.
+     * @jsonapi{development}
+     * @param[in] msgId post identifier
+     * @param[in] read true to mark as read, false to mark as unread
+     * @return false on error, true otherwise
+     */
+    virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read) =0;
+
+    /**
 	 * @brief Share channel publishing key
 	 * This can be used to authorize other peers to post on the channel
 	 * @jsonapi{development}
@@ -639,8 +648,8 @@ public:
 	 * @param[in] msgId
 	 * @param[in] read
 	 */
-	RS_DEPRECATED_FOR(markRead)
-	virtual void setMessageReadStatus(
+    RS_DEPRECATED_FOR(setMessageReadStatus)
+    virtual void setMessageReadStatus_deprecated(
 	        uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
 	/**

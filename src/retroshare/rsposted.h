@@ -320,7 +320,16 @@ public:
      * @param[in]  read         New read status
      * @return false on error, true otherwise
      */
-	virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+    virtual bool setCommentReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override = 0;
+
+    /**
+     * @brief Updates the read status of a post
+     * @jsonapi{development}
+     * @param[in]  msgId        Pair containing the group ID and post ID to act on
+     * @param[in]  read         New read status
+     * @return false on error, true otherwise
+     */
+    virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
 	enum RS_DEPRECATED RankType {TopRankType, HotRankType, NewRankType };
 
@@ -342,7 +351,7 @@ public:
 	virtual bool getPostData(
 	        const uint32_t& token, std::vector<RsPostedPost>& posts) = 0;
 
-    RS_DEPRECATED_FOR(setPostReadStatus)
+    RS_DEPRECATED_FOR(setCommentReadStatus)
     virtual bool setCommentAsRead(uint32_t& token,const RsGxsGroupId& gid,const RsGxsMessageId& comment_msg_id) override =0;
 
     RS_DEPRECATED_FOR(setPostReadStatus)

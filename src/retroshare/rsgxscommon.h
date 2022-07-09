@@ -168,6 +168,8 @@ public:
                                 RsGxsMessageId& voteId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
                                 std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) = 0;
 
+    virtual bool setCommentReadStatus(const RsGxsGrpMsgIdPair& msg,bool read) =0;
+
     /** Get previously requested comment data with token */
     virtual bool getCommentData( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;
     virtual bool getRelatedComments( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;

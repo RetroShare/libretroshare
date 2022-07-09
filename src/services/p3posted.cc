@@ -614,7 +614,11 @@ bool p3Posted::vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::string& er
     return true;
 }
 
-bool p3Posted::setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read)
+bool p3Posted::setPostReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
+{
+    return setCommentReadStatus(msgId,read);
+}
+bool p3Posted::setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
 {
     uint32_t token;
 

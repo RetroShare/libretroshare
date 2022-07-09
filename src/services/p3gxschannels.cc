@@ -1686,10 +1686,14 @@ bool p3GxsChannels::subscribeToChannel( const RsGxsGroupId& groupId, bool subscr
 	return true;
 }
 
-bool p3GxsChannels::markRead(const RsGxsGrpMsgIdPair& msgId, bool read)
+bool p3GxsChannels::setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
+{
+    return setMessageReadStatus(msgId,read);
+}
+bool p3GxsChannels::setMessageReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
 {
 	uint32_t token;
-	setMessageReadStatus(token, msgId, read);
+    setMessageReadStatus_deprecated(token, msgId, read);
 	if(waitToken(token) != RsTokenService::COMPLETE ) return false;
 
     RsGxsGrpMsgIdPair p;
@@ -1872,9 +1876,7 @@ void p3GxsChannels::setMessageProcessedStatus(uint32_t& token, const RsGxsGrpMsg
 	setMsgStatusFlags(token, msgId, status, mask);
 }
 
-void p3GxsChannels::setMessageReadStatus( uint32_t& token,
-                                          const RsGxsGrpMsgIdPair& msgId,
-                                          bool read )
+void p3GxsChannels::setMessageReadStatus_deprecated(uint32_t &token, const RsGxsGrpMsgIdPair &msgId, bool read)
 {
 #ifdef GXSCHANNELS_DEBUG
 	std::cerr << "p3GxsChannels::setMessageReadStatus()";
