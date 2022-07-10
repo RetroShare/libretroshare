@@ -285,10 +285,10 @@ bool p3GxsCircles::checkCircleParamConsistency( RsGxsCircleGroup& cData ) const
 
     // Check that group messages do not need publish key, and that messages (subscribe requests) need author signature.
 
-    if(cData.mMeta.mSignFlags != GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED)
+    if(cData.mMeta.mSignFlags != (GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED))
     {
         std::cerr << "Warning: SignFlags not properly set when creating this circle. Will be corrected to be GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED" << std::endl;
-        cData.mMeta.mSignFlags != GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED;
+        cData.mMeta.mSignFlags = (GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED);
     }
 
     // Check that the group contact author signature flag is correctly set
