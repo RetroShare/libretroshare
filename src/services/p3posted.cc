@@ -633,6 +633,99 @@ bool p3Posted::setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
     acknowledgeMsg(token,p);
     return true;
 }
+
+bool p3Posted::createCommentV2(
+        const RsGxsGroupId&   boardId,
+        const RsGxsMessageId& postId,
+        const std::string&    comment,
+        const RsGxsId&        authorId,
+        const RsGxsMessageId& parentId,
+        const RsGxsMessageId& origCommentId,
+        RsGxsMessageId&       commentMessageId,
+        std::string&          errorMessage )
+{
+    constexpr auto fname = __PRETTY_FUNCTION__;
+    const auto failure = [&](const std::string& err)
+    {
+        errorMessage = err;
+        RsErr() << fname << " " << err << std::endl;
+        return false;
+    };
+
+    if(boardId.isNull()) return  failure("boardId cannot be null");
+    if(postId.isNull()) return  failure("postId cannot be null");
+    if(parentId.isNull()) return failure("parentId cannot be null");
+
+    std::vector<RsPostedGroup> channelsInfo;
+    if(!getBoardsInfo(std::list<RsGxsGroupId>({boardId}),channelsInfo))
+        return failure( "Channel with Id " + boardId.toStdString() + " does not exist." );
+
+    std::vector<RsPostedPost> posts;
+    std::vector<RsGxsComment> comments;
+    std::vector<RsGxsVote> votes;
+
+    if(!getBoardContent( boardId, std::set<RsGxsMessageId>({postId}), posts, comments, votes) )
+        return failure( "You cannot comment post " + postId.toStdString() + " of channel with Id " + boardId.toStdString() + ": this post does not exists locally!" );
+
+    // check that the post thread Id is actually that of a post thread
+
+    if(posts.size() != 1 || !posts[0].mMeta.mParentId.isNull())
+        return failure( "You cannot comment post " + postId.toStdString() +
+                        " of channel with Id " + boardId.toStdString() +
+                        ": supplied postId is not a thread, or parentMsgId is"
+                        " not a comment!");
+
+    if(!getBoardContent(  boardId, std::set<RsGxsMessageId>({parentId}), posts, comments, votes) )// does the post parent exist?
+        return failure( "You cannot comment post " + parentId.toStdString() + ": supplied parent doesn't exists locally!" );
+
+    if(!origCommentId.isNull())
+    {
+        std::set<RsGxsMessageId> s({origCommentId});
+        std::vector<RsGxsComment> cmts;
+
+        if( !getBoardContent(boardId, s, posts, cmts, votes) || comments.size() != 1 )
+            return failure( "You cannot edit comment " +
+                            origCommentId.toStdString() +
+                            " of channel with Id " + boardId.toStdString() +
+                            ": this comment does not exist locally!");
+
+        const RsGxsId& commentAuthor = comments[0].mMeta.mAuthorId;
+
+        if(commentAuthor != authorId)
+            return failure( "Editor identity and creator doesn't match "
+                            + authorId.toStdString() + " != "
+                            + commentAuthor.toStdString() );
+    }
+
+    if(!rsIdentity->isOwnId(authorId)) // is the author ID actually ours?
+        return failure( "You cannot comment to channel with Id " +
+                        boardId.toStdString() + " with identity " +
+                        authorId.toStdString() + " because it is not yours." );
+
+    // Now create the comment
+    RsGxsComment cmt;
+    cmt.mMeta.mGroupId  = boardId;
+    cmt.mMeta.mThreadId = postId;
+    cmt.mMeta.mParentId = parentId;
+    cmt.mMeta.mAuthorId = authorId;
+    cmt.mMeta.mOrigMsgId = origCommentId;
+    cmt.mComment = comment;
+
+    uint32_t token;
+    if(!createNewComment(token, cmt))
+        return failure("createNewComment failed");
+
+    RsTokenService::GxsRequestStatus wSt = waitToken(token);
+    if(wSt != RsTokenService::COMPLETE)
+        return failure( "GXS operation waitToken failed with: " + std::to_string(wSt) );
+
+    if(!RsGenExchange::getPublishedMsgMeta(token, cmt.mMeta))
+        return failure("Failure getting created comment data.");
+
+    commentMessageId = cmt.mMeta.mMsgId;
+    return true;
+}
+
 bool p3Posted::editBoard(RsPostedGroup& board)
 {
 	uint32_t token;

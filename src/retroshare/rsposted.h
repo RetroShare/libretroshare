@@ -256,6 +256,32 @@ public:
      */
     virtual bool createPost(const RsPostedPost& post,RsGxsMessageId& post_id) =0;
 
+    /** @brief Add a comment on a post or on another comment. Blocking API.
+     * @jsonapi{development}
+     * @param[in]  boardId   Id of the board in which the comment is to be posted
+     * @param[in]  postId    Id of the post in the board where the comment is placed
+     * @param[in]  comment   UTF-8 string containing the comment itself
+     * @param[in]  authorId  Id of the author of the comment
+     * @param[in]  parentId  Id of the parent of the comment that is either a
+     *                       board post Id or the message Id of another comment.
+     * @param[in]  origCommentId  If this is supposed to replace an already
+     *                            existing comment, the id of the old post.
+     *                            If left blank a new comment will be created.
+     * @param[out] commentMessageId Optional storage for the id of the comment that was created, meaningful only on success.
+     * @param[out] errorMessage Optional storage for error message, meaningful only on failure.
+     * @return false on error, true otherwise
+     */
+   virtual bool createCommentV2(
+           const RsGxsGroupId&   boardId,
+           const RsGxsMessageId& postId,
+           const std::string&    comment,
+           const RsGxsId&        authorId,
+           const RsGxsMessageId& parentId = RsGxsMessageId(),
+           const RsGxsMessageId& origCommentId = RsGxsMessageId(),
+           RsGxsMessageId&       commentMessageId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
+           std::string&          errorMessage     = RS_DEFAULT_STORAGE_PARAM(std::string)
+           ) = 0;
+
     /**
 	 * \brief Retrieve statistics about the given board
 	 * @jsonapi{development}

@@ -170,12 +170,13 @@ public:
 
     virtual bool setCommentReadStatus(const RsGxsGrpMsgIdPair& msg,bool read) =0;
 
+    virtual bool createComment(RsGxsComment& comment) = 0;
+
     /** Get previously requested comment data with token */
     virtual bool getCommentData( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;
     virtual bool getRelatedComments( uint32_t token, std::vector<RsGxsComment> &comments ) = 0;
 
 	virtual bool createNewComment(uint32_t &token, const RsGxsComment &comment) = 0;  // async API
-	virtual bool createComment(RsGxsComment& comment) = 0;				// blocking API. Updates comment with new metadata.
 
 	virtual bool createNewVote(uint32_t &token, RsGxsVote &vote) = 0;
 
