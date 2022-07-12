@@ -57,46 +57,44 @@ class VoteHolder
 
 class p3GxsCommentService: public GxsTokenQueue
 {
-	public:
+public:
 
-	p3GxsCommentService(RsGenExchange *exchange, uint16_t service_type);
+    p3GxsCommentService(RsGenExchange *exchange, uint16_t service_type);
 
-	void comment_tick();
+    void comment_tick();
 
-	bool getGxsCommentData(const uint32_t &token, std::vector<RsGxsComment> &msgs);
-	bool getGxsRelatedComments(const uint32_t &token, std::vector<RsGxsComment> &msgs);
+    bool getGxsCommentData(const uint32_t &token, std::vector<RsGxsComment> &msgs);
+    bool getGxsRelatedComments(const uint32_t &token, std::vector<RsGxsComment> &msgs);
 
-	bool createGxsComment(uint32_t &token, const RsGxsComment &msg);
-	bool createGxsVote(uint32_t &token, RsGxsVote &msg);
+    bool createGxsComment(uint32_t &token, const RsGxsComment &msg);
+    bool createGxsVote(uint32_t &token, RsGxsVote &msg);
 
-	// Special Acknowledge.
-    	bool acknowledgeVote(const uint32_t& token, RsGxsGrpMsgIdPair& msgId);
+    // Special Acknowledge.
+    bool acknowledgeVote(const uint32_t& token, RsGxsGrpMsgIdPair& msgId);
 
-static double calculateBestScore(int upVotes, int downVotes);
-
+    static double calculateBestScore(int upVotes, int downVotes);
 
 #if 0
-	void setGxsMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read);
+    void setGxsMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read);
 #endif
 
-	protected:
+protected:
 
-	// Overloaded from GxsTokenQueue for Request callbacks.
-	virtual void handleResponse(uint32_t token, uint32_t req_type
-	                            , RsTokenService::GxsRequestStatus status) override;
+    // Overloaded from GxsTokenQueue for Request callbacks.
+    virtual void handleResponse(uint32_t token, uint32_t req_type
+                                , RsTokenService::GxsRequestStatus status) override;
 
-	private:
+private:
 
-	void load_PendingVoteParent(const uint32_t &token);
-	void completeInternalVote(uint32_t &token);
+    void load_PendingVoteParent(const uint32_t &token);
+    void completeInternalVote(uint32_t &token);
+    bool castVote(uint32_t &token, RsGxsVote &msg);
 
-	bool castVote(uint32_t &token, RsGxsVote &msg);
+    RsGenExchange 	*mExchange;
+    uint16_t	mServiceType;
 
-	RsGenExchange 	*mExchange;
-	uint16_t	mServiceType;
-
-	/* pending queue of Votes */
-	std::map<RsGxsGrpMsgIdPair, VoteHolder> mPendingVotes;
+    /* pending queue of Votes */
+    std::map<RsGxsGrpMsgIdPair, VoteHolder> mPendingVotes;
 
 
 };

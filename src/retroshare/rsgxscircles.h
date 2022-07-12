@@ -288,12 +288,12 @@ public:
 	 * @param[in] circleName String containing cirlce name
 	 * @param[in] circleType Circle type
 	 * @param[out] circleId Optional storage to output created circle id
-	 * @param[in] restrictedId Optional id of a pre-existent circle that see the
-	 *	created circle. Meaningful only if circleType == EXTERNAL, must be null
-	 *	in all other cases.
+     * @param[in] restrictedId Optional id of a pre-existing circle (circleType == EXTERNAL),
+     *            or node group (circleType == NODES_GROUP), to which the created circle is restricted
+     *			  must be null in all other cases.
 	 * @param[in] authorId Optional author of the circle.
-	 * @param[in] gxsIdMembers GXS ids of the members of the circle.
-	 * @param[in] localMembers PGP ids of the members if the circle.
+     * @param[in] gxsIdMembers GXS ids of the members of the created circle.
+     * @param[in] localMembers PGP ids of the members of the created circle. Not currently used by GXS.
 	 * @return false if something failed, true otherwhise
 	 */
 	virtual bool createCircle(
@@ -324,7 +324,6 @@ public:
 //                     const RsGxsCircleId& restrictedId,
 //                     const RsGxsId& authorId, const std::set<RsGxsId>& gxsIdMembers,
 //                     const std::set<RsPgpId>& localMembers ) =0;
-
     /**
      * @brief Edit own existing circle
      * @jsonapi{development}

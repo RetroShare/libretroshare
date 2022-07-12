@@ -278,12 +278,12 @@ public:
 	 *                          only on failure.
 	 * @return false on error, true otherwise
 	 */
-	virtual bool createVoteV2(
+    virtual bool voteForComment(
 	        const RsGxsGroupId& channelId, const RsGxsMessageId& postId,
 	        const RsGxsMessageId& commentId, const RsGxsId& authorId,
 	        RsGxsVoteType vote,
 	        RsGxsMessageId& voteId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
-	        std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) = 0;
+            std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) override = 0;
 
 	/**
 	 * @brief Edit channel details.
@@ -395,13 +395,22 @@ public:
 	/**
 	 * @brief Toggle post read status. Blocking API.
 	 * @jsonapi{development}
-	 * @param[in] postId post identifier
+     * @param[in] msgId post identifier
 	 * @param[in] read true to mark as read, false to mark as unread
 	 * @return false on error, true otherwise
 	 */
-	virtual bool markRead(const RsGxsGrpMsgIdPair& postId, bool read) = 0;
+    virtual bool setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read) override =0;
 
-	/**
+    /**
+     * @brief Toggle post read status. Blocking API.
+     * @jsonapi{development}
+     * @param[in] msgId post identifier
+     * @param[in] read true to mark as read, false to mark as unread
+     * @return false on error, true otherwise
+     */
+    virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read) =0;
+
+    /**
 	 * @brief Share channel publishing key
 	 * This can be used to authorize other peers to post on the channel
 	 * @jsonapi{development}
@@ -639,8 +648,8 @@ public:
 	 * @param[in] msgId
 	 * @param[in] read
 	 */
-	RS_DEPRECATED_FOR(markRead)
-	virtual void setMessageReadStatus(
+    RS_DEPRECATED_FOR(setMessageReadStatus)
+    virtual void setMessageReadStatus_deprecated(
 	        uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
 	/**
@@ -715,16 +724,6 @@ public:
 	 */
 	RS_DEPRECATED_FOR(createPostV2)
 	virtual bool createPost(uint32_t& token, RsGxsChannelPost& post) = 0;
-
-	/**
-	 * @brief createVote
-	 * @jsonapi{development}
-	 * @deprecated
-	 * @param[inout] vote
-	 * @return false on error, true otherwise
-	 */
-	RS_DEPRECATED_FOR(createVoteV2)
-	virtual bool createVote(RsGxsVote& vote) = 0;
 
 	/**
 	 * @brief Request channel change.

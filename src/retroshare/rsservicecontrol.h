@@ -50,6 +50,7 @@ struct RsServiceInfo : RsSerializable
 		const uint16_t min_version_minor);
 
 	static unsigned int RsServiceInfoUIn16ToFullServiceId(uint16_t serviceType);
+    uint16_t serviceTypeUInt16() { return (mServiceType >> 8)& 0xffff; }
 
 	std::string mServiceName;
 	uint32_t    mServiceType;
