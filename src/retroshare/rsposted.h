@@ -298,7 +298,7 @@ public:
     /**
      * @brief Create a vote for a post
      * @jsonapi{development}
-     * @param[in]  postGrpIdId  Id of the board where to vote
+     * @param[in]  postGrpId    Id of the board where to vote
      * @param[in]  postMsgId    Id of the board post
      * @param[in]  authorId     Id of the author that have voted
      * @param[in]  vote         Vote value, either RsGxsVoteType::DOWN or RsGxsVoteType::UP
@@ -306,7 +306,7 @@ public:
      * @param[out] errorMessage Error message if applicable
      * @return     false on error, true otherwise
      */
-    virtual bool voteForPost(const RsGxsGroupId& channelId,
+    virtual bool voteForPost(const RsGxsGroupId& postGrpId,
                              const RsGxsMessageId& postMsgId,
                              const RsGxsId& authorId,
                              RsGxsVoteType vote,
