@@ -323,7 +323,8 @@ autoProxyService *rsAutoProxyMonitor::lookUpService(autoProxyType::autoProxyType
 	if ((itService = mProxies.find(t)) != mProxies.end()) {
 		return itService->second;
 	}
-	RS_DBG("no service for type ", t, " found!");
+	if (!mRSShutDown)
+		RS_DBG("no service for type ", t, " found!");
 	return NULL;
 }
 
