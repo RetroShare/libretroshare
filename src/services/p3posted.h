@@ -95,6 +95,15 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
                         RsGxsMessageId& voteId,
                         std::string& errorMessage ) override;
 
+    bool createCommentV2(const RsGxsGroupId&   boardId,
+                         const RsGxsMessageId& postId,
+                         const std::string&    comment,
+                         const RsGxsId&        authorId,
+                         const RsGxsMessageId& parentId,
+                         const RsGxsMessageId& origCommentId,
+                         RsGxsMessageId&       commentMessageId,
+                         std::string&          errorMessage ) override;
+
     bool setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read) override;
     bool setPostReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read) override;
 
