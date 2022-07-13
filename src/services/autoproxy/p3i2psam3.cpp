@@ -483,6 +483,8 @@ bool p3I2pSam3::startSession()
 		// backup quantity
 		params.push_back(i2p::makeOption("inbound.backupQuantity", + mSetting.inBackupQuantity));
 		params.push_back(i2p::makeOption("outbound.backupQuantity", + mSetting.outBackupQuantity));
+		// lease set type (support encrypted one, too)
+		params.push_back("i2cp.leaseSetEncType=0,4");
 	}
 
 	std::string paramsStr;
