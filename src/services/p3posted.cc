@@ -20,6 +20,8 @@
  *                                                                             *
  *******************************************************************************/
 #include "services/p3posted.h"
+#include "retroshare/rsgxscircles.h"
+#include "retroshare/rspeers.h"
 #include "rsitems/rsposteditems.h"
 
 #include <math.h>
@@ -445,6 +447,93 @@ bool p3Posted::getBoardStatistics(const RsGxsGroupId& boardId,GxsGroupStatistic&
     return RsGenExchange::getGroupStatistic(token,stat);
 }
 
+bool p3Posted::createBoardV2(
+        const std::string& board_name,
+        const std::string& board_description,
+        const RsGxsImage& board_image,
+        const RsGxsId& authorId,
+        RsGxsCircleType circleType,
+        const RsGxsCircleId& circleId,
+        RsGxsGroupId& boardId,
+        std::string& errorMessage )
+{
+    const auto fname = __PRETTY_FUNCTION__;
+    const auto failure = [&](const std::string& err)
+    {
+        errorMessage = err;
+        RsErr() << fname << " " << err << std::endl;
+        return false;
+    };
+
+    if(!authorId.isNull() && !rsIdentity->isOwnId(authorId))
+        return failure("authorId must be either null, or of an owned identity");
+
+    if(        circleType != RsGxsCircleType::PUBLIC
+            && circleType != RsGxsCircleType::EXTERNAL
+            && circleType != RsGxsCircleType::NODES_GROUP
+            && circleType != RsGxsCircleType::LOCAL
+            && circleType != RsGxsCircleType::YOUR_EYES_ONLY)
+        return failure("circleType has invalid value");
+
+    switch(circleType)
+    {
+    case RsGxsCircleType::EXTERNAL:
+        if(circleId.isNull())
+            return failure("circleType is EXTERNAL but circleId is null");
+        break;
+    case RsGxsCircleType::NODES_GROUP:
+    {
+        RsGroupInfo ginfo;
+
+        if(!rsPeers->getGroupInfo(RsNodeGroupId(circleId), ginfo))
+            return failure( "circleType is NODES_GROUP but circleId does not correspond to an actual group of friends" );
+        break;
+    }
+    default:
+        if(!circleId.isNull())
+            return failure( "circleType requires a null circleId, but a non null circleId (" + circleId.toStdString() + ") was supplied" );
+        break;
+    }
+
+    // Create a consistent posted group meta from the information supplied
+    RsPostedGroup board;
+
+    board.mMeta.mGroupName = board_name;
+    board.mMeta.mAuthorId = authorId;
+    board.mMeta.mCircleType = static_cast<uint32_t>(circleType);
+
+    board.mMeta.mSignFlags = GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED;
+    board.mMeta.mGroupFlags = GXS_SERV::FLAG_PRIVACY_PUBLIC;
+
+    board.mMeta.mCircleId.clear();
+    board.mMeta.mInternalCircle.clear();
+
+    switch(circleType)
+    {
+    case RsGxsCircleType::NODES_GROUP:
+        board.mMeta.mInternalCircle = circleId; break;
+    case RsGxsCircleType::EXTERNAL:
+        board.mMeta.mCircleId = circleId; break;
+    default: break;
+    }
+
+    board.mGroupImage = board_image;
+    board.mDescription = board_description;
+
+    RsGenericSerializer::SerializeContext ctx;
+    board.serial_process(RsGenericSerializer::SIZE_ESTIMATE,ctx);
+
+    if(ctx.mSize > 200000)
+        return failure("Maximum size of 200000 bytes exceeded for board.");
+
+    bool res = createBoard(board);
+
+    if(res)
+        boardId = board.mMeta.mGroupId;
+
+    return res;
+}
+
 bool p3Posted::createBoard(RsPostedGroup& board)
 {
 	uint32_t token;
@@ -632,6 +721,57 @@ bool p3Posted::setCommentReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
     RsGxsGrpMsgIdPair p;
     acknowledgeMsg(token,p);
     return true;
+}
+
+bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
+                            const std::string& title,
+                            const RsUrl& link,
+                            const std::string& notes,
+                            const RsGxsId& authorId,
+                            const RsGxsImage& image,
+                            RsGxsMessageId& postId,
+                            std::string& error_message)
+{
+    // check boardId
+
+    std::vector<RsPostedGroup> groupsInfo;
+
+    if(!getBoardsInfo( { boardId }, groupsInfo))
+    {
+        error_message = "Board with Id " + boardId.toStdString() + " does not exist.";
+        RsErr() << error_message;
+        return false;
+    }
+
+    // check author
+
+    if(!rsIdentity->isOwnId(authorId))
+    {
+        error_message = "Attempt to create a board post with an author that is not a own ID: " + authorId.toStdString() ;
+        RsErr() << error_message;
+        return false;
+    }
+
+    RsPostedPost post;
+    post.mMeta.mGroupId = boardId;
+    post.mLink = link.toString();
+    post.mImage = image;
+    post.mNotes = notes;
+    post.mMeta.mAuthorId = authorId;
+    post.mMeta.mMsgName = title;
+
+    // check size
+
+    RsGenericSerializer::SerializeContext ctx;
+    post.serial_process(RsGenericSerializer::SIZE_ESTIMATE,ctx);
+
+    if(ctx.mSize > 200000) {
+        error_message = "Maximum size of 200000 bytes exceeded for board post.";
+        RsErr() << error_message;
+        return false;
+    }
+
+    return createPost(post,postId);
 }
 
 bool p3Posted::createCommentV2(

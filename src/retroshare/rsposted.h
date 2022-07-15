@@ -30,6 +30,7 @@
 #include "retroshare/rstokenservice.h"
 #include "retroshare/rsgxsifacehelper.h"
 #include "retroshare/rsgxscommon.h"
+#include "retroshare/rsgxscircles.h"
 #include "serialiser/rsserializable.h"
 
 class RsPosted;
@@ -248,6 +249,28 @@ public:
 	virtual bool createBoard(RsPostedGroup& board) =0;
 
     /**
+     * @brief createBoardV2				Create a board. Blocking API.
+     * @jsonapi{development}
+     * @param[in] board_name			Name of the board to create
+     * @param[in] board_description		Description of the board
+     * @param[in] board_image			Image/thumbnail
+     * @param[in] authorId				Contact author (optional)
+     * @param[in] circleType			Type of the circle to limit the board
+     * @param[in] circleId				Id of the circle to limit the board
+     * @param[out] boardId				Id of the board that was created
+     * @param[out] errorMessage			Error message if anything goes wrong
+     * @return 							true when the board is correctly created, false otherwise.
+     */
+    virtual bool createBoardV2(const std::string& board_name,
+                       const std::string& board_description,
+                       const RsGxsImage& board_image,
+                       const RsGxsId& authorId,
+                       RsGxsCircleType circleType,
+                       const RsGxsCircleId& circleId,
+                       RsGxsGroupId& boardId,
+                       std::string& errorMessage ) =0;
+
+    /**
      * @brief Create post. Blocking API.
      * @jsonapi{development}
      * @param[in]  post    Post data (Content, description, files,...)
@@ -255,6 +278,28 @@ public:
      * @return             false on error, true otherwise
      */
     virtual bool createPost(const RsPostedPost& post,RsGxsMessageId& post_id) =0;
+
+    /**
+     * @brief createPostV2. Create post. Blocking API
+     * @jsonapi{development}
+     * @param[in] boardId        Id of the board where to post
+     * @param[in] title          title of the post
+     * @param[in] link           link attached to the post. Should be a https/http link
+     * @param[in] notes          text attached to the post.
+     * @param[in] authorId       signing author. Should be our own ID.
+     * @param[in] image          optional post image.
+     * @param[out] postId        id of the post after it's been generated
+     * @param[out] error_message possible error message if the method returns false
+     * @return true if ok, false if an error occured (see error_message)
+     */
+    virtual bool createPostV2(const RsGxsGroupId& boardId,
+                      const std::string& title,
+                      const RsUrl& link,
+                      const std::string& notes,
+                      const RsGxsId& authorId,
+                      const RsGxsImage& image,
+                      RsGxsMessageId& postId,
+                      std::string& error_message) =0;
 
     /** @brief Add a comment on a post or on another comment. Blocking API.
      * @jsonapi{development}

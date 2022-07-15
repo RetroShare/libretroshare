@@ -39,31 +39,42 @@ namespace GXS_SERV {
 
     /** START privacy **/
 
+    // These allow to segment the authenticaion policy for different types of distribution.
+    // Currently only PUBLIC is really used in the software.
+
     static const uint32_t FLAG_PRIVACY_MASK       = 0x0000000f;
     static const uint32_t FLAG_PRIVACY_PRIVATE    = 0x00000001; // pub key encrypted. No-one can read unless he has the key to decrypt the publish key.
     static const uint32_t FLAG_PRIVACY_RESTRICTED = 0x00000002; // publish private key needed to publish. Typical usage: channels.
     static const uint32_t FLAG_PRIVACY_PUBLIC     = 0x00000004; // anyone can publish, publish key pair not needed. Typical usage: forums.
 
     /** END privacy **/
-
-    /** END authentication **/
     
     /** START author authentication flags **/
+
+    // Authentication flags add constraints to who signs a message.
+
     static const uint32_t FLAG_AUTHOR_AUTHENTICATION_MASK           = 0x0000ff00;
     static const uint32_t FLAG_AUTHOR_AUTHENTICATION_NONE           = 0x00000000;
     static const uint32_t FLAG_AUTHOR_AUTHENTICATION_GPG            = 0x00000100;   // Anti-spam feature. Allows to ask higher reputation to anonymous IDs
-	static const uint32_t FLAG_AUTHOR_AUTHENTICATION_REQUIRED       = 0x00000200;
-    static const uint32_t FLAG_AUTHOR_AUTHENTICATION_IFNOPUBSIGN    = 0x00000400;	// ???
+    static const uint32_t FLAG_AUTHOR_AUTHENTICATION_REQUIRED       = 0x00000200;	// unused
+    static const uint32_t FLAG_AUTHOR_AUTHENTICATION_IFNOPUBSIGN    = 0x00000400;	// unused
     static const uint32_t FLAG_AUTHOR_AUTHENTICATION_TRACK_MESSAGES = 0x00000800;	// not used anymore
     static const uint32_t FLAG_AUTHOR_AUTHENTICATION_GPG_KNOWN      = 0x00001000;   // Anti-spam feature. Allows to ask higher reputation to unknown IDs and anonymous IDs
 
+    /** END authentication **/
+
+    // These constants GROUP_SIGN_PUBLISH_* are not used apparently.
+
     static const uint32_t FLAG_GROUP_SIGN_PUBLISH_MASK       = 0x000000ff;
-    static const uint32_t FLAG_GROUP_SIGN_PUBLISH_ENCRYPTED  = 0x00000001;
+    static const uint32_t FLAG_GROUP_SIGN_PUBLISH_ENCRYPTED  = 0x00000001;  // unused
     static const uint32_t FLAG_GROUP_SIGN_PUBLISH_ALLSIGNED  = 0x00000002;	// unused
-    static const uint32_t FLAG_GROUP_SIGN_PUBLISH_THREADHEAD = 0x00000004;
-    static const uint32_t FLAG_GROUP_SIGN_PUBLISH_NONEREQ    = 0x00000008;
+    static const uint32_t FLAG_GROUP_SIGN_PUBLISH_THREADHEAD = 0x00000004;  // unused
+    static const uint32_t FLAG_GROUP_SIGN_PUBLISH_NONEREQ    = 0x00000008;  // set for all services, but never checked
     
     /** START msg authentication flags **/
+
+    // Adds constraints to how messages are authenticated depending on whether they are root messages or child message (which are
+    // generally comments). Each Root/Child can be signed with Publish key, or Author key, or both.
 
     static const uint8_t MSG_AUTHEN_MASK               = 0x0f;
     static const uint8_t MSG_AUTHEN_ROOT_PUBLISH_SIGN  = 0x01;  // means: new threads need to be signed by the publish signature of the group. Typical use: posts in channels.
@@ -103,12 +114,12 @@ namespace GXS_SERV {
      *
      * NOTE: RsGxsCommentService uses 0x000f0000.
      */
-    static const uint32_t GXS_MSG_STATUS_GEN_MASK    = 0x0000ffff;
-    static const uint32_t GXS_MSG_STATUS_UNPROCESSED = 0x00000001;	// Flags to store the read/process status of group messages.
-    static const uint32_t GXS_MSG_STATUS_GUI_UNREAD  = 0x00000002;	// The actual meaning may depend on the type of service.
-    static const uint32_t GXS_MSG_STATUS_GUI_NEW     = 0x00000004;	//
+    static const uint32_t GXS_MSG_STATUS_GEN_MASK     = 0x0000ffff;
+    static const uint32_t GXS_MSG_STATUS_UNPROCESSED  = 0x00000001;	// Flags to store the read/process status of group messages.
+    static const uint32_t GXS_MSG_STATUS_GUI_UNREAD   = 0x00000002;	// The actual meaning may depend on the type of service.
+    static const uint32_t GXS_MSG_STATUS_GUI_NEW      = 0x00000004;	//
     static const uint32_t GXS_MSG_STATUS_KEEP_FOREVER = 0x00000008; // Do not delete message even if older then group maximum storage time
-    static const uint32_t GXS_MSG_STATUS_DELETE      = 0x00000020;	//
+    static const uint32_t GXS_MSG_STATUS_DELETE       = 0x00000020;	//
 
     /** END GXS Msg status flags **/
 
