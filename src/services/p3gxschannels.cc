@@ -1330,9 +1330,7 @@ bool p3GxsChannels::createChannelV2(
 	channel.mMeta.mAuthorId = authorId;
 	channel.mMeta.mCircleType = static_cast<uint32_t>(circleType);
 
-	channel.mMeta.mSignFlags = GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ
-	        | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED;
-
+    channel.mMeta.mSignFlags = GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED;
 	channel.mMeta.mGroupFlags = GXS_SERV::FLAG_PRIVACY_PUBLIC;
 
 	channel.mMeta.mCircleId.clear();

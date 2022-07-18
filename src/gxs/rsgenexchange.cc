@@ -878,9 +878,14 @@ int RsGenExchange::createMessage(RsNxsMsg* msg)
 
 int RsGenExchange::validateMsg(RsNxsMsg *msg, const uint32_t& grpFlag, const uint32_t& /*signFlag*/, RsTlvSecurityKeySet& grpKeySet)
 {
+    // 1 - determine which signatures are needed, by looking for the flags corresponding to the
+    //     type of message we have, in the authentication policy of the service
+
     bool needIdentitySign = false;
     bool needPublishSign = false;
     bool publishValidate = true, idValidate = true;
+
+    // These are the types of flags we want to check in the authenticaiton policy
 
     uint8_t author_flag = GXS_SERV::MSG_AUTHEN_ROOT_AUTHOR_SIGN;
     uint8_t publish_flag = GXS_SERV::MSG_AUTHEN_ROOT_PUBLISH_SIGN;
@@ -891,6 +896,9 @@ int RsGenExchange::validateMsg(RsNxsMsg *msg, const uint32_t& grpFlag, const uin
         author_flag = GXS_SERV::MSG_AUTHEN_CHILD_AUTHOR_SIGN;
         publish_flag = GXS_SERV::MSG_AUTHEN_CHILD_PUBLISH_SIGN;
     }
+
+    // Now determine which part of the authentication policy we look into, depending on the type of distribution flag
+    // the particular group is using.
 
     PrivacyBitPos pos = PUBLIC_GRP_BITS;
     if (grpFlag & GXS_SERV::FLAG_PRIVACY_RESTRICTED)
@@ -913,6 +921,8 @@ int RsGenExchange::validateMsg(RsNxsMsg *msg, const uint32_t& grpFlag, const uin
     std::cerr << "Validate message: msgId=" << msg->msgId << ", grpId=" << msg->grpId << " grpFlags=" << std::hex << grpFlag << std::dec
               << ". Need publish=" << needPublishSign << ", needIdentitySign=" << needIdentitySign ;
 #endif
+
+    // 2 - validate the signatures when required.
 
     RsGxsMsgMetaData& metaData = *(msg->metaData);
 
@@ -964,11 +974,7 @@ int RsGenExchange::validateMsg(RsNxsMsg *msg, const uint32_t& grpFlag, const uin
 		}
 	}
     else
-    {
     	publishValidate = true;
-    }
-
-
 
     if(needIdentitySign)
     {
@@ -1056,9 +1062,7 @@ int RsGenExchange::validateMsg(RsNxsMsg *msg, const uint32_t& grpFlag, const uin
         }
     }
     else
-    {
     	idValidate = true;
-    }
 
 #ifdef GEN_EXCH_DEBUG
     std::cerr << ", publish val=" << publishValidate << ", idValidate=" << idValidate << ". Result=" << (publishValidate && idValidate) << std::endl;

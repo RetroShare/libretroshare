@@ -28,6 +28,7 @@
 #include "services/p3postbase.h"
 
 #include <retroshare/rsidentity.h>
+#include <retroshare/rsgxscircles.h>
 
 #include <map>
 #include <string>
@@ -78,7 +79,25 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
 
 	bool createBoard(RsPostedGroup& board) override;
 
+    bool createBoardV2(const std::string& board_name,
+                       const std::string& board_description,
+                       const RsGxsImage& board_image,
+                       const RsGxsId& authorId,
+                       RsGxsCircleType circleType,
+                       const RsGxsCircleId& circleId,
+                       RsGxsGroupId& boardId,
+                       std::string& errorMessage ) override;
+
     bool createPost(const RsPostedPost& post,RsGxsMessageId& post_id) override;
+
+    bool createPostV2(const RsGxsGroupId& boardId,
+                      const std::string& title,
+                      const RsUrl& link,
+                      const std::string& notes,
+                      const RsGxsId& authorId,
+                      const RsGxsImage& image,
+                      RsGxsMessageId& postId,
+                      std::string& error_message) override;
 
     bool voteForPost(const RsGxsGroupId& boardId,
                      const RsGxsMessageId& postMsgId,
