@@ -298,7 +298,7 @@ public:
     /**
      * @brief Create a vote for a post
      * @jsonapi{development}
-     * @param[in]  postGrpIdId  Id of the board where to vote
+     * @param[in]  channelId    Id of the board where to vote
      * @param[in]  postMsgId    Id of the board post
      * @param[in]  authorId     Id of the author that have voted
      * @param[in]  vote         Vote value, either RsGxsVoteType::DOWN or RsGxsVoteType::UP
