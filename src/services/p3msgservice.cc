@@ -204,7 +204,7 @@ void p3MsgService::processIncomingMsg(RsMsgItem *mi)
 		msi->srcId = mi->PeerId();
 		mSrcIds.insert(std::pair<uint32_t, RsMsgSrcId*>(msi->msgId, msi));
 
-		IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 		/**** STACK UNLOCKED ***/
 	}
@@ -423,7 +423,7 @@ int p3MsgService::checkOutgoingMessages()
 			}
 		}
 
-		if (toErase.size() > 0) IndicateConfigChanged();
+		if (toErase.size() > 0) IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	}
 
 	for( std::list<RsMsgItem*>::const_iterator it(output_queue.begin());
@@ -557,7 +557,7 @@ void p3MsgService::initStandardTagTypes()
 	}
 
 	if (bChanged) {
-		IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 	}
 }
 
@@ -783,7 +783,7 @@ void p3MsgService::loadWelcomeMsg()
 
 	imsg[msg->msgId] = msg;
 
-	IndicateConfigChanged();
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 }
 
 
@@ -938,7 +938,7 @@ bool    p3MsgService::removeMsgId(const std::string &mid)
 	}
 
 	if(changed) {
-		IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 		setMessageTag(mid, 0, false);
 		setMsgParentId(msgId, 0);
@@ -977,7 +977,7 @@ bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
 
 			if (mi->msgFlags != msgFlags)
 			{
-				IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+				IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 				auto pEvent = std::make_shared<RsMailStatusEvent>();
 				pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_CHANGED;
@@ -1016,7 +1016,7 @@ bool    p3MsgService::setMsgFlag(const std::string &mid, uint32_t flag, uint32_t
 		mit->second->msgFlags |= flag;
 
 		if (mit->second->msgFlags != oldFlag) {
-			IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+			IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 			auto pEvent = std::make_shared<RsMailStatusEvent>();
 			pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_CHANGED;
@@ -1080,7 +1080,7 @@ bool    p3MsgService::setMsgParentId(uint32_t msgId, uint32_t msgParentId)
 	} /* UNLOCKED */
 
 	if (changed) {
-		IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 	}
 
 	return true;
@@ -1118,7 +1118,7 @@ uint32_t p3MsgService::sendMessage(RsMsgItem* item)
 	    }
     }
 
-    IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	auto pEvent = std::make_shared<RsMailStatusEvent>();
 	pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
@@ -1159,7 +1159,7 @@ uint32_t p3MsgService::sendDistantMessage(RsMsgItem *item, const RsGxsId& from)
 		}
 	}
 
-	IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	auto pEvent = std::make_shared<RsMailStatusEvent>();
 	pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
@@ -1403,7 +1403,7 @@ bool p3MsgService::MessageToDraft(MessageInfo &info, const std::string &msgParen
 
         setMsgParentId(msg->msgId, atoi(msgParentId.c_str()));
 
-        IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
     auto pEvent = std::make_shared<RsMailStatusEvent>();
     pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
@@ -1484,7 +1484,7 @@ bool  	p3MsgService::setMessageTagType(uint32_t tagId, std::string& text, uint32
 	} /* UNLOCKED */
 
 	if (!ev->mChangedMsgTagIds.empty()) {
-		IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 		rsEvents->postEvent(ev);
 
@@ -1546,7 +1546,7 @@ bool    p3MsgService::removeMessageTagType(uint32_t tagId)
 
 	} /* UNLOCKED */
 
-	IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 	auto ev = std::make_shared<RsMailTagEvent>();
 	ev->mMailTagEventCode = RsMailTagEventCode::TAG_REMOVED;
@@ -1660,7 +1660,7 @@ bool 	p3MsgService::setMessageTag(const std::string &msgId, uint32_t tagId, bool
 	} /* UNLOCKED */
 
 	if (!ev->mChangedMsgIds.empty()) {
-		IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
 		rsEvents->postEvent(ev);
 
@@ -1726,7 +1726,7 @@ bool p3MsgService::MessageToTrash(const std::string &mid, bool bTrash)
     }
 
     if (!pEvent->mChangedMsgIds.empty()) {
-        IndicateConfigChanged(); /**** INDICATE MSG CONFIG CHANGED! *****/
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
         checkOutgoingMessages();
 
@@ -1991,7 +1991,7 @@ void p3MsgService::enableDistantMessaging(bool b)
     // We use a temporary variable because the call to OwnIds() might fail.
 
     mShouldEnableDistantMessaging = b ;
-    IndicateConfigChanged() ;
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW) ;
 }
 
 bool p3MsgService::distantMessagingEnabled()
@@ -2116,7 +2116,7 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
 		msgOutgoing.erase(it2);
 #endif
 
-		IndicateConfigChanged();
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
 		if(rsEvents)
 		{
@@ -2151,7 +2151,7 @@ void p3MsgService::setDistantMessagingPermissionFlags(uint32_t flags)
     {
 	    mDistantMessagePermissions = flags ;
 
-	    IndicateConfigChanged() ;
+	    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW) ;
     }
 }
             
@@ -2182,7 +2182,7 @@ bool p3MsgService::receiveGxsTransMail( const RsGxsId& authorId,
 		mRecentlyReceivedMessageHashes[hash] = static_cast<uint32_t>(time(nullptr));
 	}
 
-	IndicateConfigChanged();
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
 	RsItem *item = _serialiser->deserialise( const_cast<uint8_t*>(data), &dataSize );
 	RsMsgItem *msg_item = dynamic_cast<RsMsgItem*>(item);
@@ -2270,7 +2270,7 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
 			}
 		}
 
-		IndicateConfigChanged();
+		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	}
 	else if( status >= GxsTransSendStatus::FAILED_RECEIPT_SIGNATURE )
 	{
@@ -2353,7 +2353,7 @@ void p3MsgService::receiveGRouterData( const RsGxsId &destination_key,
 		mRecentlyReceivedMessageHashes[hash] = time(NULL);
 	}
 
-	IndicateConfigChanged() ;
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW) ;
 
 	RsItem *item = _serialiser->deserialise(data,&data_size) ;
 	free(data) ;
@@ -2456,7 +2456,7 @@ void p3MsgService::sendDistantMsgItem(RsMsgItem *msgitem)
 		gxsOngoingMessages[gxsMailId] = msgitem->msgId;
 	}
 
-	IndicateConfigChanged(); // save _ongoing_messages
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); // save _ongoing_messages
 }
 
 
