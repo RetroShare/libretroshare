@@ -94,11 +94,11 @@ static const uint32_t TURTLE_SEARCH_RESULT_MAX_HITS_DEFAULT    = 100 ; /// defau
 
 static const float depth_peer_probability[7] = { 1.0f,0.99f,0.9f,0.7f,0.6f,0.5,0.4f } ;
 
-static const int TUNNEL_REQUEST_PACKET_SIZE             = 50 ;
-static const int MAX_TR_FORWARD_PER_SEC                 = 20 ;
-static const int MAX_TR_FORWARD_PER_SEC_UPPER_LIMIT     = 30 ;
-static const int MAX_TR_FORWARD_PER_SEC_LOWER_LIMIT     = 10 ;
-static const int DISTANCE_SQUEEZING_POWER               =  8 ;
+static const int TUNNEL_REQUEST_PACKET_SIZE            =  50 ;
+static const int MAX_TR_FORWARD_PER_SEC                =  20 ;
+static const int MAX_TR_FORWARD_PER_SEC_UPPER_LIMIT    = 100 ;
+static const int MAX_TR_FORWARD_PER_SEC_LOWER_LIMIT    =  10 ;
+static const int DISTANCE_SQUEEZING_POWER              =   8 ;
 
 #define HEX_PRINT(a) std::hex << a << std::dec
 
@@ -773,6 +773,11 @@ void p3turtle::setMaxTRForwardRate(int val)
 	IndicateConfigChanged() ;
 }
 
+void p3turtle::getMaxTRForwardRateLimits(int& low,int& high) const
+{
+    low  = MAX_TR_FORWARD_PER_SEC_LOWER_LIMIT;
+    high = MAX_TR_FORWARD_PER_SEC_UPPER_LIMIT;
+}
 
 // -----------------------------------------------------------------------------------//
 // --------------------------------  Helper functions  ------------------------------ //
