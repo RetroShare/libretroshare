@@ -166,5 +166,6 @@ public:
 
 		// Hardcore handles
 		virtual void setMaxTRForwardRate(int max_tr_up_rate) = 0 ;
-		virtual int getMaxTRForwardRate() const = 0 ;
+        virtual int  getMaxTRForwardRate() const = 0 ;
+        virtual void getMaxTRForwardRateLimits(int& low,int& high) const = 0 ;
 };

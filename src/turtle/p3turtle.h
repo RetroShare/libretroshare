@@ -320,7 +320,8 @@ class p3turtle: public p3Service, public RsTurtle, public p3Config
 		/// sets/gets the max number of forwarded tunnel requests per second.
 		virtual void setMaxTRForwardRate(int max_tr_up_rate) ;
 		virtual int getMaxTRForwardRate() const ;
-		
+        virtual void getMaxTRForwardRateLimits(int& low,int& high) const ;
+
 		/// Examines the peer id, finds the turtle tunnel in it, and respond yes if the tunnel is ok and operational.
 		bool isOnline(const RsPeerId& peer_id) const ;
 
