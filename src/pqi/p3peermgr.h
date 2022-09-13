@@ -366,7 +366,7 @@ public:
 
     void 	tick();
 
-    const RsPeerId& getOwnId();
+    const RsPeerId& 	getOwnId();
     bool 	setOwnNetworkMode(uint32_t netMode);
     bool 	setOwnVisState(uint16_t vs_disc, uint16_t vs_dht);
 

@@ -153,7 +153,7 @@ bool p3Peers::OthersChanged()
 }
 
 	/* Peer Details (Net & Auth) */
-const RsPeerId& p3Peers::getOwnId()
+RsPeerId p3Peers::getOwnId()
 {
 #ifdef P3PEERS_DEBUG
         std::cerr << "p3Peers::getOwnId()" << std::endl;

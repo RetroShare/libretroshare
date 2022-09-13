@@ -52,7 +52,7 @@ public:
 	virtual bool OthersChanged();
 
 	/* Peer Details (Net & Auth) */
-    virtual const RsPeerId& getOwnId() override;
+    virtual RsPeerId getOwnId() override;
 
     virtual bool haveSecretKey(const RsPgpId& gpg_id)  override;
 

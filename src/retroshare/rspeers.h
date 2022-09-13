@@ -540,7 +540,7 @@ public:
 	 * @brief Get own SSL peer id
 	 * @return own peer id
 	 */
-	virtual const RsPeerId& getOwnId() = 0;
+	virtual RsPeerId getOwnId() = 0;
 
 	virtual bool haveSecretKey(const RsPgpId& gpg_id) = 0 ;
 
