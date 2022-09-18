@@ -39,7 +39,6 @@ public:
                                           ) =0;
 
     virtual void setServerAddress(const std::string&,uint16_t) =0;
-    virtual void setProxyAddress(const std::string&,uint16_t) =0;
     virtual void setFriendsToRequest(uint32_t) =0;
 
     /*!

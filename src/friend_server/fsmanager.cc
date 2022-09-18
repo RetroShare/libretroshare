@@ -18,9 +18,6 @@ FriendServerManager::FriendServerManager()
 {
     mLastFriendReqestCampain = 0;
     mFriendsToRequest = DEFAULT_FRIENDS_TO_REQUEST;
-
-    mProxyAddress = DEFAULT_PROXY_ADDRESS;
-    mProxyPort = DEFAULT_PROXY_PORT;
     mServerPort = DEFAULT_FRIEND_SERVER_PORT;
 }
 void FriendServerManager::startServer()
@@ -42,18 +39,19 @@ void FriendServerManager::stopServer()
 void FriendServerManager::checkServerAddress_async(const std::string& addr,uint16_t port, uint32_t timeout_ms,
                                                    const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback)
 {
-    callback(addr,port,FsClient::checkProxyConnection(addr,port,mProxyAddress,mProxyPort,timeout_ms));
+    uint16_t rs_tor_port;
+    std::string rs_tor_addr;
+    uint32_t flags;
+
+    rsPeers->getProxyServer(RS_HIDDEN_TYPE_TOR,rs_tor_addr,rs_tor_port,flags);
+
+    callback(addr,port,FsClient::checkProxyConnection(addr,port,rs_tor_addr,rs_tor_port,timeout_ms));
 }
 
 void FriendServerManager::setServerAddress(const std::string& addr,uint16_t port)
 {
     mServerAddress = addr;
     mServerPort = port;
-}
-void FriendServerManager::setProxyAddress(const std::string& addr,uint16_t port)
-{
-    mProxyAddress = addr;
-    mProxyPort = port;
 }
 void FriendServerManager::setFriendsToRequest(uint32_t n)
 {
@@ -113,9 +111,25 @@ void FriendServerManager::threadTick()
 
         std::cerr << "Requesting new friends to friend server..." << std::endl;
 
+        // get current proxy port and address from RS Tor proxy
+
+        uint16_t rs_tor_port;
+        std::string rs_tor_addr;
+        uint32_t flags;
+
+        rsPeers->getProxyServer(RS_HIDDEN_TYPE_TOR,rs_tor_addr,rs_tor_port,flags);
+
+        std::cerr << "Got Tor proxy address/port: " << rs_tor_addr << ":" << rs_tor_port << std::endl;
+
         std::map<std::string,bool> friend_certificates;
-        FsClient().requestFriends(mServerAddress,mServerPort,mProxyAddress,mProxyPort,mFriendsToRequest,mCachedPGPPassphrase,
-                                  mAlreadyReceivedPeers, friend_certificates);	// blocking call
+        FsClient().requestFriends(mServerAddress,
+                                  mServerPort,
+                                  rs_tor_addr,
+                                  rs_tor_port,
+                                  mFriendsToRequest,
+                                  mCachedPGPPassphrase,
+                                  mAlreadyReceivedPeers,
+                                  friend_certificates);	// blocking call
 
         std::cerr << "Got the following list of friend certificates:" << std::endl;
 

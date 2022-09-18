@@ -1169,7 +1169,11 @@ int RsServer::StartupRetroShare()
 
 #ifdef RS_EMBEDED_FRIEND_SERVER
     // setup friend server
-    rsFriendServer = new FriendServerManager();
+
+    if(RsAccounts::isTorAuto())
+    {
+        rsFriendServer = new FriendServerManager();
+    }
 #endif
 
 	/****** New Ft Server **** !!! */
