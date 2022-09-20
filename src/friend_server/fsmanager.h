@@ -31,7 +31,6 @@ public:
 
     virtual void setProfilePassphrase(const std::string& passphrase) override { mCachedPGPPassphrase = passphrase; }
     virtual void setServerAddress(const std::string&,uint16_t) override ;
-    virtual void setProxyAddress(const std::string&,uint16_t) override ;
     virtual void setFriendsToRequest(uint32_t) override ;
 
     virtual uint32_t    friendsToRequest()     override { return mFriendsToRequest ; }
@@ -49,7 +48,6 @@ private:
     std::set<RsPeerId> mAlreadyReceivedPeers; // we keep track of these so as to not re-receive the ones we already have.
     std::string mServerAddress ;
     uint16_t mServerPort;
-    std::string mProxyAddress ;
     uint16_t mProxyPort;
     std::string mCachedPGPPassphrase;
 };
