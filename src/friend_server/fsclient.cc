@@ -20,6 +20,8 @@
  *                                                                             *
  ******************************************************************************/
 
+#include <netinet/tcp.h>
+
 #include "pqi/pqithreadstreamer.h"
 #include "retroshare/rspeers.h"
 #include "retroshare/rsnotify.h"
@@ -28,6 +30,8 @@
 #include "pqi/authgpg.h"
 #include "pqi/pqifdbin.h"
 #include "pqi/pqiproxy.h"
+
+#define DEBUG_FSCLIENT
 
 bool FsClient::requestFriends(const std::string& address,uint16_t port,
                               const std::string& proxy_address,uint16_t proxy_port,
@@ -127,7 +131,7 @@ void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item,std::
 
 bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
                         const std::string& proxy_address,uint16_t proxy_port,
-                        RsItem *item,std::list<RsItem*>& response)
+                        RsFriendServerItem *item,std::list<RsItem*>& response)
 {
     // open a connection
 
@@ -144,6 +148,9 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
         printf("Socket not created \n");
         return 1;
     }
+
+    int flags=1;
+    setsockopt(CreateSocket,SOL_SOCKET,TCP_NODELAY,(char*)&flags,sizeof(flags));
 
     ipOfServer.sin_family = AF_INET;
     ipOfServer.sin_port = htons(proxy_port);
@@ -182,26 +189,26 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
     pqithreadstreamer p(this,rss,RsPeerId(),bio,BIN_FLAGS_READABLE | BIN_FLAGS_WRITEABLE | BIN_FLAGS_NO_CLOSE);
     p.start();
 
-    uint32_t ss;
-    p.SendItem(item,ss);
-
-    RsDbg() << "Item sent. Waiting for response..." ;
+    RsDbg() << "Sending item. size=" << fss->size(item) << ". Waiting for response..." ;
 
     // Now attempt to read and deserialize anything that comes back from that connexion until it gets closed by the server.
+
+    uint32_t ss;
+    p.SendItem(item,ss);
 
     while(true)
     {
         p.tick(); // ticks bio
 
-        RsItem *item = GetItem();
+        RsItem *ritem = GetItem();
 #ifdef DEBUG_FSCLIENT
         RsDbg() << "Ticking for response...";
 #endif
-        if(item)
+        if(ritem)
         {
-            response.push_back(item);
+            response.push_back(ritem);
             std::cerr << "Got a response item: " << std::endl;
-            std::cerr << *item << std::endl;
+            std::cerr << *ritem << std::endl;
 
             RsDbg() << "End of transmission. " ;
             break;
@@ -232,6 +239,8 @@ bool FsClient::checkProxyConnection(const std::string& onion_address,uint16_t po
         RsErr() << "Socket not created";
         return false;
     }
+    int flags=1;
+    setsockopt(CreateSocket,SOL_SOCKET,TCP_NODELAY,(char*)&flags,sizeof(flags));
 
     ipOfServer.sin_family = AF_INET;
     ipOfServer.sin_port = htons(proxy_port);
