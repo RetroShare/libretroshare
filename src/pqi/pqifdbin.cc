@@ -24,6 +24,10 @@
 #include "util/rsfile.h"
 #include "pqi/pqifdbin.h"
 
+#ifdef DEBUG_FS_BIN
+#include "util/rsprint.h"
+#endif
+
 RsFdBinInterface::RsFdBinInterface(int file_descriptor, bool is_socket)
     : mCLintConnt(file_descriptor),mIsSocket(is_socket),mIsActive(false)
 {
@@ -99,7 +103,7 @@ int RsFdBinInterface::read_pending()
     if(readbytes == 0)
     {
         RsDbg() << "Reached END of the stream!" ;
-        RsDbg() << "Closing!" ;
+        RsDbg() << "Closing socket!" ;
 
         close();
         return mTotalInBufferBytes;
@@ -125,8 +129,8 @@ int RsFdBinInterface::read_pending()
     if(readbytes > 0)
     {
 #ifdef DEBUG_FS_BIN
-        RsDbg() << "Received the following bytes: " << RsUtil::BinToHex( reinterpret_cast<unsigned char*>(inBuffer),readbytes,50) << std::endl;
-        RsDbg() << "Received the following bytes: " << std::string(inBuffer,readbytes) << std::endl;
+        RsDbg() << "Received the following bytes: size=" << readbytes << " len=" << RsUtil::BinToHex( reinterpret_cast<unsigned char*>(inBuffer),readbytes,50) << std::endl;
+        RsDbg() << "Received the following bytes: size=" << readbytes << " len=" << std::string(inBuffer,readbytes) << std::endl;
 #endif
 
         void *ptr = malloc(readbytes);
@@ -248,6 +252,9 @@ int RsFdBinInterface::readdata(void *data, int len)
         if(in_buffer.empty())
         {
             mTotalInBufferBytes -= total_len;
+#ifdef DEBUG_FS_BIN
+            std::cerr << "RsFdBinInterface -- READ --- len=" << total_len << " data=" << RsUtil::BinToHex((uint8_t*)data,total_len)<< std::endl;
+#endif
             return total_len;
         }
 
@@ -255,16 +262,22 @@ int RsFdBinInterface::readdata(void *data, int len)
 
         if(total_len + in_buffer.front().second > len)
         {
-            memcpy(&(static_cast<unsigned char *>(data)[total_len]),in_buffer.front().first,len - total_len);
+            int bytes_in  = len - total_len;
+            int bytes_out = in_buffer.front().second - bytes_in;
 
-            void *ptr = malloc(in_buffer.front().second - (len - total_len));
-            memcpy(ptr,&(static_cast<unsigned char*>(in_buffer.front().first)[len - total_len]),in_buffer.front().second - (len - total_len));
+            memcpy(&(static_cast<unsigned char *>(data)[total_len]),in_buffer.front().first,bytes_in);
+
+            void *ptr = malloc(bytes_out);
+            memcpy(ptr,&(static_cast<unsigned char*>(in_buffer.front().first)[bytes_in]),bytes_out);
 
             free(in_buffer.front().first);
             in_buffer.front().first = ptr;
-            in_buffer.front().second -= len-total_len;
+            in_buffer.front().second -= bytes_in;
 
             mTotalInBufferBytes -= len;
+#ifdef DEBUG_FS_BIN
+            std::cerr << "RsFdBinInterface -- READ --- len=" << len << " data=" << RsUtil::BinToHex((uint8_t*)data,len)<< std::endl;
+#endif
             return len;
         }
         else // copy everything
@@ -278,6 +291,9 @@ int RsFdBinInterface::readdata(void *data, int len)
         }
     }
     mTotalInBufferBytes -= len;
+#ifdef DEBUG_FS_BIN
+    std::cerr << "RsFdBinInterface -- READ --- len=" << len << " data=" << RsUtil::BinToHex((uint8_t*)data,len)<< std::endl;
+#endif
     return len;
 }
 
@@ -285,6 +301,9 @@ int RsFdBinInterface::senddata(void *data, int len)
 {
     // shouldn't we better send in multiple packets, similarly to how we read?
 
+#ifdef DEBUG_FS_BIN
+    std::cerr << "RsFdBinInterface -- SENDING --- len=" << len << " data=" << RsUtil::BinToHex((uint8_t*)data,len)<< std::endl;
+#endif
     if(len == 0)
     {
         RsErr() << "Calling FsBioInterface::senddata() with null size or null data pointer";
@@ -332,9 +351,11 @@ bool RsFdBinInterface::cansend(uint32_t)
 int RsFdBinInterface::close()
 {
     RsDbg() << "Stopping network interface" << std::endl;
+    if(moretoread(0) || moretowrite(0))
+        RsWarn() << "Interface still has " << mTotalInBufferBytes << " / " << mTotalOutBufferBytes << "bytes in/out buffers" << std::endl;
+
     mIsActive = false;
     mCLintConnt = 0;
-    clean();
 
     return 1;
 }

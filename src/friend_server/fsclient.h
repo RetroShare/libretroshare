@@ -48,7 +48,7 @@ protected:
 private:
     bool sendItem(const std::string &server_address, uint16_t server_port,
                   const std::string &proxy_address, uint16_t proxy_port,
-                  RsItem *item, std::list<RsItem *> &response);
+                  RsFriendServerItem *item, std::list<RsItem *> &response);
 
     void handleServerResponse(RsFriendServerServerResponseItem *item, std::map<std::string, bool> &friend_certificates);
 
