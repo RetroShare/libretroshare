@@ -201,8 +201,9 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
 
     uint32_t ss;
     p.SendItem(item,ss);
+    time_t now = time(nullptr);
 
-    while(true)
+    while(now > time(nullptr)+15) // wait 15 secs for a response.
     {
         p.tick(); // ticks bio
 

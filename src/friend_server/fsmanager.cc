@@ -36,8 +36,8 @@ void FriendServerManager::stopServer()
         RsTickingThread::askForStop() ;
     }
 }
-void FriendServerManager::checkServerAddress_async(const std::string& addr,uint16_t port, uint32_t timeout_ms,
-                                                   const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback)
+
+bool FriendServerManager::checkServerAddress(const std::string& addr,uint16_t port, uint32_t timeout_ms)
 {
     uint16_t rs_tor_port;
     std::string rs_tor_addr;
@@ -45,7 +45,7 @@ void FriendServerManager::checkServerAddress_async(const std::string& addr,uint1
 
     rsPeers->getProxyServer(RS_HIDDEN_TYPE_TOR,rs_tor_addr,rs_tor_port,flags);
 
-    callback(addr,port,FsClient::checkProxyConnection(addr,port,rs_tor_addr,rs_tor_port,timeout_ms));
+    return FsClient::checkProxyConnection(addr,port,rs_tor_addr,rs_tor_port,timeout_ms);
 }
 
 void FriendServerManager::setServerAddress(const std::string& addr,uint16_t port)

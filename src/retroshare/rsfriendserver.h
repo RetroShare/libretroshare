@@ -27,16 +27,10 @@ public:
     virtual void stopServer() =0;
 
     // Testing system. Since the test can take some time (contacting the proxy, setting the connection,
-    // getting some ack from the server), the whole test is asynchronous. The callback will be used to
-    // return the result of the test, recalling the tested address and port.
+    // getting some ack from the server). The whole test is synchronous and might be blocking for a while.
+    // Consequently, the client needs to take care to avoid blocking e.g. the UI when calling this.
     //
-    virtual void checkServerAddress_async(const std::string& addr,
-                                          uint16_t port,
-                                          uint32_t timeout_ms,
-                                          const std::function<void (const std::string& address,
-                                                                    uint16_t port,
-                                                                    bool result_status)>& callback
-                                          ) =0;
+    virtual bool checkServerAddress(const std::string& addr,uint16_t port, uint32_t timeout_ms) =0;
 
     virtual void setServerAddress(const std::string&,uint16_t) =0;
     virtual void setFriendsToRequest(uint32_t) =0;
