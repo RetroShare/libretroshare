@@ -20,7 +20,13 @@
  *                                                                             *
  ******************************************************************************/
 
+#ifdef WINDOWS_SYS
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <netinet/tcp.h>
+#endif
 
 #include "pqi/pqithreadstreamer.h"
 #include "retroshare/rspeers.h"
