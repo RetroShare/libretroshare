@@ -40,7 +40,7 @@
 #include "util/rsprint.h"         // for BinToHex
 #include "util/rsstring.h"        // for rs_sprintf_append, rs_sprintf
 
-#define DEBUG_PQISTREAMER 1
+//#define DEBUG_PQISTREAMER 1
 
 static struct RsLog::logInfo pqistreamerzoneInfo = {RsLog::Default, "pqistreamer"};
 #define pqistreamerzone &pqistreamerzoneInfo

@@ -24,7 +24,7 @@
 #include "util/rsfile.h"
 #include "pqi/pqifdbin.h"
 
-#define DEBUG_FS_BIN
+//#define DEBUG_FS_BIN
 
 #ifdef DEBUG_FS_BIN
 #include "util/rsprint.h"
