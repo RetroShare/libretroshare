@@ -40,6 +40,8 @@
 #include "util/rsprint.h"         // for BinToHex
 #include "util/rsstring.h"        // for rs_sprintf_append, rs_sprintf
 
+#define DEBUG_PQISTREAMER 1
+
 static struct RsLog::logInfo pqistreamerzoneInfo = {RsLog::Default, "pqistreamer"};
 #define pqistreamerzone &pqistreamerzoneInfo
 
@@ -898,8 +900,8 @@ continue_packet:
 		    int tmplen ;
 
 		    // Don't reset the block now! If pqissl is in the middle of a multiple-chunk
-		    // packet (larger than 16384 bytes), and pqistreamer jumped directly yo
-		    // continue_packet:, then readdata is going to write after the beginning of
+            // packet (larger than 16384 bytes), and pqistreamer jumped directly to
+            // continue_packet, then readdata is going to write after the beginning of
 		    // extradata, yet not exactly at start -> the start of the packet would be wiped out.
 		    //
 		    // so, don't do that:

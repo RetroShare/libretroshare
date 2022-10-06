@@ -286,6 +286,11 @@ public:
 
 	/**
 	 * reads data from a prescribed location (implementation dependent)
+     * -- WARNING -- if used to feed a pqistreamer, the streamer will assume one of the two situations:
+     *    1 - len bytes are read, or
+     *    2 - less than len bytes are read, but in this case the interface should keep the data
+     * This rule corresponds to openssl behavior. If not followed, incoming packets will be lost.
+     *
 	 *@param data what will be sent
 	 *@param len the size of data pointed to in memory
 	 */
