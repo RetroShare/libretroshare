@@ -26,8 +26,7 @@ public:
     virtual void startServer() override ;
     virtual void stopServer() override ;
 
-    virtual void checkServerAddress_async(const std::string& addr, uint16_t, uint32_t timeout_ms,
-                                          const std::function<void (const std::string& address,uint16_t port,bool result_status)>& callback) override ;
+    virtual bool checkServerAddress(const std::string& addr,uint16_t port, uint32_t timeout_ms) override;
 
     virtual void setProfilePassphrase(const std::string& passphrase) override { mCachedPGPPassphrase = passphrase; }
     virtual void setServerAddress(const std::string&,uint16_t) override ;

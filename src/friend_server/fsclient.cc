@@ -20,7 +20,13 @@
  *                                                                             *
  ******************************************************************************/
 
+#ifdef WINDOWS_SYS
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <netinet/tcp.h>
+#endif
 
 #include "pqi/pqithreadstreamer.h"
 #include "retroshare/rspeers.h"
@@ -195,15 +201,18 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
 
     uint32_t ss;
     p.SendItem(item,ss);
+    time_t now = time(nullptr);
+    bool got_response = false;
 
-    while(true)
+#ifdef DEBUG_FSCLIENT
+    RsDbg() << "Ticking for response...";
+#endif
+    while(now + 15 > time(nullptr)) // wait 15 secs for a response.
     {
         p.tick(); // ticks bio
 
         RsItem *ritem = GetItem();
-#ifdef DEBUG_FSCLIENT
-        RsDbg() << "Ticking for response...";
-#endif
+
         if(ritem)
         {
             response.push_back(ritem);
@@ -211,11 +220,15 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
             std::cerr << *ritem << std::endl;
 
             RsDbg() << "End of transmission. " ;
+            got_response = true;
             break;
         }
         else
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+
+    if(!got_response)
+        std::cerr << "Sending timed out. Connection is dead?" << std::endl;
 
     RsDbg() << "  Stopping/killing pqistreamer" ;
     p.fullstop();

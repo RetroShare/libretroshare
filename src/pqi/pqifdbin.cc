@@ -24,6 +24,8 @@
 #include "util/rsfile.h"
 #include "pqi/pqifdbin.h"
 
+//#define DEBUG_FS_BIN
+
 #ifdef DEBUG_FS_BIN
 #include "util/rsprint.h"
 #endif
@@ -103,7 +105,7 @@ int RsFdBinInterface::read_pending()
     if(readbytes == 0)
     {
         RsDbg() << "Reached END of the stream!" ;
-        RsDbg() << "Closing socket!" ;
+        RsDbg() << "Closing socket! mTotalInBufferBytes = " << mTotalInBufferBytes ;
 
         close();
         return mTotalInBufferBytes;
@@ -129,8 +131,8 @@ int RsFdBinInterface::read_pending()
     if(readbytes > 0)
     {
 #ifdef DEBUG_FS_BIN
-        RsDbg() << "Received the following bytes: size=" << readbytes << " len=" << RsUtil::BinToHex( reinterpret_cast<unsigned char*>(inBuffer),readbytes,50) << std::endl;
-        RsDbg() << "Received the following bytes: size=" << readbytes << " len=" << std::string(inBuffer,readbytes) << std::endl;
+        RsDbg() << "Received the following bytes: size=" << readbytes << " data=" << RsUtil::BinToHex( reinterpret_cast<unsigned char*>(inBuffer),readbytes,50) << std::endl;
+        //RsDbg() << "Received the following bytes: size=" << readbytes << " len=" << std::string(inBuffer,readbytes) << std::endl;
 #endif
 
         void *ptr = malloc(readbytes);
@@ -148,6 +150,7 @@ int RsFdBinInterface::read_pending()
         RsDbg() << "Socket: " << mCLintConnt << ". Total read: " << mTotalReadBytes << ". Buffer size: " << mTotalInBufferBytes ;
 #endif
     }
+    RsDbg() << "End of read_pending: mTotalInBufferBytes = " << mTotalInBufferBytes;
     return mTotalInBufferBytes;
 }
 
@@ -164,6 +167,8 @@ int RsFdBinInterface::write_pending()
         written = send(mCLintConnt, (char*) p.first, p.second, 0);
     else
 #endif
+    std::cerr << "RsFdBinInterface -- SENDING --- len=" << p.second << " data=" << RsUtil::BinToHex((uint8_t*)p.first,p.second)<< std::endl;
+
     written = write(mCLintConnt, p.first, p.second);
 
     if(written < 0)
@@ -217,6 +222,7 @@ int RsFdBinInterface::write_pending()
 
 RsFdBinInterface::~RsFdBinInterface()
 {
+    close();
     clean();
 }
 
@@ -243,36 +249,43 @@ int RsFdBinInterface::readline(void *data, int len)
 
 int RsFdBinInterface::readdata(void *data, int len)
 {
+    // Expected behavior of BinInterface: when the full amount of bytes (len bytes) can not be provided, we keep the data.
+
+    if((int)mTotalInBufferBytes < len)
+    {
+        std::cerr << "RsFdBinInterface -- READ --- not enough data to fill " << len << " bytes. Current buffer is " << mTotalInBufferBytes << " bytes." << std::endl;
+        return mTotalInBufferBytes;
+    }
+
     // read incoming bytes in the buffer
 
     int total_len = 0;
 
     while(total_len < len)
     {
-        if(in_buffer.empty())
-        {
-            mTotalInBufferBytes -= total_len;
-#ifdef DEBUG_FS_BIN
-            std::cerr << "RsFdBinInterface -- READ --- len=" << total_len << " data=" << RsUtil::BinToHex((uint8_t*)data,total_len)<< std::endl;
-#endif
-            return total_len;
-        }
-
         // If the remaining buffer is too large, chop of the beginning of it.
 
-        if(total_len + in_buffer.front().second > len)
+        if(total_len + in_buffer.front().second >= len)
         {
             int bytes_in  = len - total_len;
             int bytes_out = in_buffer.front().second - bytes_in;
 
             memcpy(&(static_cast<unsigned char *>(data)[total_len]),in_buffer.front().first,bytes_in);
 
-            void *ptr = malloc(bytes_out);
-            memcpy(ptr,&(static_cast<unsigned char*>(in_buffer.front().first)[bytes_in]),bytes_out);
+            auto tmp_ptr = in_buffer.front().first;
 
-            free(in_buffer.front().first);
-            in_buffer.front().first = ptr;
+            if(bytes_out > 0)
+            {
+                void *ptr = malloc(bytes_out);
+                memcpy(ptr,&(static_cast<unsigned char*>(in_buffer.front().first)[bytes_in]),bytes_out);
+                in_buffer.front().first = ptr;
+            }
+
+            free(tmp_ptr);
             in_buffer.front().second -= bytes_in;
+
+            if(in_buffer.front().second == 0)
+                in_buffer.pop_front();
 
             mTotalInBufferBytes -= len;
 #ifdef DEBUG_FS_BIN
@@ -290,11 +303,10 @@ int RsFdBinInterface::readdata(void *data, int len)
             in_buffer.pop_front();
         }
     }
-    mTotalInBufferBytes -= len;
 #ifdef DEBUG_FS_BIN
-    std::cerr << "RsFdBinInterface -- READ --- len=" << len << " data=" << RsUtil::BinToHex((uint8_t*)data,len)<< std::endl;
+    std::cerr << "RsFdBinInterface: ERROR. Shouldn't be here!" << std::endl;
 #endif
-    return len;
+    return 0;
 }
 
 int RsFdBinInterface::senddata(void *data, int len)
@@ -302,7 +314,7 @@ int RsFdBinInterface::senddata(void *data, int len)
     // shouldn't we better send in multiple packets, similarly to how we read?
 
 #ifdef DEBUG_FS_BIN
-    std::cerr << "RsFdBinInterface -- SENDING --- len=" << len << " data=" << RsUtil::BinToHex((uint8_t*)data,len)<< std::endl;
+    std::cerr << "RsFdBinInterface -- QUEUEING OUT --- len=" << len << " data=" << RsUtil::BinToHex((uint8_t*)data,len)<< std::endl;
 #endif
     if(len == 0)
     {
@@ -330,7 +342,7 @@ int RsFdBinInterface::netstatus()
 
 int RsFdBinInterface::isactive()
 {
-    return mIsActive ;
+    return mIsActive || mTotalInBufferBytes>0;
 }
 
 bool RsFdBinInterface::moretoread(uint32_t /* usec */)
