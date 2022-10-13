@@ -24,6 +24,7 @@
 
 #include "serialiser/rsserial.h"
 #include "serialiser/rsserializer.h"
+#include "retroshare/rsfriendserver.h"
 
 #include "rsitems/rsitem.h"
 #include "serialiser/rstlvbinary.h"
@@ -71,7 +72,7 @@ public:
     uint32_t           n_requested_friends;
     std::string        short_invite;
     std::string        pgp_public_key_b64;
-    std::set<RsPeerId> already_received_peers;
+    std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel> already_received_peers;
 };
 
 class RsFriendServerStatusItem: public RsFriendServerItem
@@ -98,12 +99,12 @@ public:
 class RsFriendServerClientRemoveItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerClientRemoveItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_CLIENT_REMOVE),nonce(0) {}
+    RsFriendServerClientRemoveItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_CLIENT_REMOVE),unique_identifier(0) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
     {
         RS_SERIAL_PROCESS(peer_id);
-        RS_SERIAL_PROCESS(nonce);
+        RS_SERIAL_PROCESS(unique_identifier);
     }
 
     // Peer ID for the peer to remove.
@@ -114,7 +115,7 @@ public:
     // a malicious actor from removing peers from the server. Since the nonce is sent through Tor tunnels, it cannot be known by
     // anyone else than the client.
 
-    uint64_t nonce;
+    uint64_t unique_identifier;
 };
 
 class RsFriendServerEncryptedServerResponseItem: public RsFriendServerItem
@@ -144,24 +145,29 @@ public:
 class RsFriendServerServerResponseItem: public RsFriendServerItem
 {
 public:
-    RsFriendServerServerResponseItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_RESPONSE), nonce(0) {}
+    RsFriendServerServerResponseItem() : RsFriendServerItem(RS_PKT_SUBTYPE_FS_SERVER_RESPONSE), unique_identifier(0) {}
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
     {
-        RS_SERIAL_PROCESS(nonce);
+        RS_SERIAL_PROCESS(unique_identifier);
         RS_SERIAL_PROCESS(friend_invites);
     }
 
     virtual void clear() override
     {
         friend_invites.clear();
-        nonce = 0;
+        unique_identifier = 0;
     }
     // specific members for that item
 
-    uint64_t nonce; // Note: calling this a "nonce" is a bit misleading because this value will be used once for every client but
-                    // will be re-used by the client. It acts as some kind of identifier for the server to quickly know who's talking.
-    std::map<std::string,bool> friend_invites;
+    uint64_t unique_identifier; // This value will be used once for every client but
+                                // will be re-used by the client. It acts as some kind of
+                                // identifier for the server to quickly know who's talking.
+
+    // The PeerFriendshipLevel determines what the peer has done with
+    // our profile: accepted or not, or even not received at all yet.
+
+    std::map<std::string,RsFriendServer::PeerFriendshipLevel> friend_invites;
 };
 
 struct FsSerializer : RsServiceSerializer

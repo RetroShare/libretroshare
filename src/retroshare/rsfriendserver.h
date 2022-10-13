@@ -1,5 +1,31 @@
+/*******************************************************************************
+ * libretroshare/src/retroshare: rsfriendserver.h                              *
+ *                                                                             *
+ * libretroshare: retroshare core library                                      *
+ *                                                                             *
+ * Copyright 2022 by Retroshare Team <contact@retroshare.cc>                   *
+ *                                                                             *
+ * This program is free software: you can redistribute it and/or modify        *
+ * it under the terms of the GNU Lesser General Public License as              *
+ * published by the Free Software Foundation, either version 3 of the          *
+ * License, or (at your option) any later version.                             *
+ *                                                                             *
+ * This program is distributed in the hope that it will be useful,             *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of              *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the                *
+ * GNU Lesser General Public License for more details.                         *
+ *                                                                             *
+ * You should have received a copy of the GNU Lesser General Public License    *
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
+ *                                                                             *
+ *******************************************************************************/
+
+#pragma once
+
 #include <functional>
 #include <thread>
+#include <map>
+#include "retroshare/rspeers.h"
 #include "util/rstime.h"
 
 // The Friend Server component of Retroshare automatically adds/removes some friends so that the
@@ -23,6 +49,26 @@
 class RsFriendServer
 {
 public:
+    enum class PeerFriendshipLevel {
+        UNKNOWN          =  0x00,
+        NO_KEY           =  0x01,
+        HAS_KEY          =  0x02,
+        HAS_ACCEPTED_KEY =  0x03,
+    };
+
+    // Data structure to communicate internal states of the FS to the UI client.
+
+    struct RsFsPeerInfo
+    {
+        RsFsPeerInfo(): mPeerLevel(PeerFriendshipLevel::UNKNOWN),mOwnLevel(PeerFriendshipLevel::UNKNOWN) {}
+        RsFsPeerInfo(const std::string& invite,PeerFriendshipLevel peer_level,PeerFriendshipLevel own_level)
+            : mInvite(invite),mPeerLevel(peer_level),mOwnLevel(own_level) {}
+
+        std::string mInvite;
+        PeerFriendshipLevel mPeerLevel ;
+        PeerFriendshipLevel mOwnLevel ;
+    };
+
     virtual void startServer() =0;
     virtual void stopServer() =0;
 
@@ -46,6 +92,8 @@ public:
     virtual uint32_t friendsToRequest() =0;
     virtual uint16_t friendsServerPort() =0;
     virtual std::string friendsServerAddress() =0;
+
+    virtual std::map<RsPeerId,RsFsPeerInfo> getPeersInfo() =0 ;
 };
 
 extern RsFriendServer *rsFriendServer;

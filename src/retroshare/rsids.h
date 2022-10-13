@@ -140,6 +140,7 @@ struct t_RsGenericIdType
 
 	/// Converts to a std::string using cached value.
 	const uint8_t* toByteArray() const { return &bytes[0]; }
+    uint8_t* asByteArray() { return &bytes[0]; }
 
 	static constexpr uint32_t SIZE_IN_BYTES = ID_SIZE_IN_BYTES;
 
@@ -167,6 +168,13 @@ struct t_RsGenericIdType
 			ret.bytes[i] = bytes[i] | fp.bytes[i];
 		return ret;
 	}
+
+    inline Id_t& operator&=(const Id_t& fp)
+    {
+        for(uint32_t i=0; i < ID_SIZE_IN_BYTES; ++i)
+            bytes[i] &= fp.bytes[i];
+        return *this;
+    }
 
     inline Id_t operator^ (const Id_t& fp) const
     {

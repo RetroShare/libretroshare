@@ -85,15 +85,15 @@ void FriendServerManager::threadTick()
 
     // This formula makes RS wait much longuer between two requests to the server when the number of friends is close the
     // wanted number
-    //   Delay for 0 friends: 30 secs.
-    //   Delay for 1 friends: 30 secs.
-    //   Delay for 2 friends: 32 secs.
-    //   Delay for 3 friends: 35 secs.
-    //   Delay for 4 friends: 44 secs.
-    //   Delay for 5 friends: 66 secs.
-    //   Delay for 6 friends: 121 secs.
-    //   Delay for 7 friends: 258 secs.
-    //   Delay for 8 friends: 603 secs.
+    //   Delay for 0 friends:   30 secs.
+    //   Delay for 1 friends:   30 secs.
+    //   Delay for 2 friends:   32 secs.
+    //   Delay for 3 friends:   35 secs.
+    //   Delay for 4 friends:   44 secs.
+    //   Delay for 5 friends:   66 secs.
+    //   Delay for 6 friends:  121 secs.
+    //   Delay for 7 friends:  258 secs.
+    //   Delay for 8 friends:  603 secs.
     //   Delay for 9 friends: 1466 secs.
 
     RsDbg() << friends.size() << " friends already, " << std::max((int)mFriendsToRequest - (int)friends.size(),0) << " friends to request";
@@ -121,19 +121,36 @@ void FriendServerManager::threadTick()
 
         std::cerr << "Got Tor proxy address/port: " << rs_tor_addr << ":" << rs_tor_port << std::endl;
 
-        std::map<std::string,bool> friend_certificates;
+        std::map<RsPeerId,PeerFriendshipLevel> already_received_peers;
+
+        for(auto& it:mAlreadyReceivedPeers)
+        {
+            RsPeerDetails det;
+            PeerFriendshipLevel lev;
+
+            if(!rsPeers->getPeerDetails(it.first,det) || !det.accept_connection)
+                lev = PeerFriendshipLevel::HAS_KEY;
+            else
+                lev = PeerFriendshipLevel::HAS_ACCEPTED_KEY;
+
+            already_received_peers[it.first] = lev;
+        }
+
+        std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > friend_certificates;
+
         FsClient().requestFriends(mServerAddress,
                                   mServerPort,
                                   rs_tor_addr,
                                   rs_tor_port,
                                   mFriendsToRequest,
                                   mCachedPGPPassphrase,
-                                  mAlreadyReceivedPeers,
+                                  already_received_peers,
                                   friend_certificates);	// blocking call
 
         std::cerr << "Got the following list of friend certificates:" << std::endl;
 
         // Let's put them in a vector to easy searching.
+
         std::list<RsPeerId> lst;
         rsPeers->getFriendList(lst);
         std::set<RsPeerId> friend_locations_set(lst.begin(),lst.end());
@@ -143,24 +160,48 @@ void FriendServerManager::threadTick()
             RsPeerDetails det;
             uint32_t err_code;
 
-            if(!rsPeers->parseShortInvite(invite.first,det,err_code))
+            if(!rsPeers->parseShortInvite(invite.second.first,det,err_code))
             {
                 RsErr() << "Parsing error " << err_code << " in invite \"" << invite.first << "\"";
                 continue;
             }
 
-            mAlreadyReceivedPeers.insert(det.id);
+            mAlreadyReceivedPeers[det.id] = invite.second;
 
             if(friend_locations_set.find(det.id) != friend_locations_set.end())
             {
-                RsDbg() << "    Knw: " << (invite.second?"OK":"--") << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
+                RsDbg() << "    Kwn -- Distant status: " << static_cast<int>(invite.second.second) << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
                 continue;
             }
 
-            RsDbg() << "    New: " << (invite.second?"OK":"--") << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
+            RsDbg() << "    New -- Distant status: " << static_cast<int>(invite.second.second) << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
 
-            rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
+            if(mAutoAddFriends)
+                rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
         }
     }
+}
+
+std::map<RsPeerId,RsFriendServer::RsFsPeerInfo> FriendServerManager::getPeersInfo()
+{
+    std::map<RsPeerId,RsFsPeerInfo> res;
+
+    for(auto it:mAlreadyReceivedPeers)
+    {
+        RsFsPeerInfo info;
+
+        info.mInvite = it.second.first;
+        info.mPeerLevel = it.second.second;
+
+        RsPeerDetails det;
+
+        if(!rsPeers->getPeerDetails(it.first,det) || !det.accept_connection)
+            info.mOwnLevel = PeerFriendshipLevel::HAS_KEY;
+        else
+            info.mOwnLevel = PeerFriendshipLevel::HAS_ACCEPTED_KEY;
+
+        res[it.first] = info;
+    }
+    return res;
 }
 
