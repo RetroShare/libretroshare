@@ -19,6 +19,7 @@ FriendServerManager::FriendServerManager()
     mLastFriendReqestCampain = 0;
     mFriendsToRequest = DEFAULT_FRIENDS_TO_REQUEST;
     mServerPort = DEFAULT_FRIEND_SERVER_PORT;
+    mAutoAddFriends = true;
 }
 void FriendServerManager::startServer()
 {
@@ -120,6 +121,7 @@ void FriendServerManager::threadTick()
         rsPeers->getProxyServer(RS_HIDDEN_TYPE_TOR,rs_tor_addr,rs_tor_port,flags);
 
         std::cerr << "Got Tor proxy address/port: " << rs_tor_addr << ":" << rs_tor_port << std::endl;
+        std::cerr << "Preparing list of already received peers:" << std::endl;
 
         std::map<RsPeerId,PeerFriendshipLevel> already_received_peers;
 
@@ -134,6 +136,8 @@ void FriendServerManager::threadTick()
                 lev = PeerFriendshipLevel::HAS_ACCEPTED_KEY;
 
             already_received_peers[it.first] = lev;
+
+            std::cerr << "  " << it.first << ", level " << static_cast<int>(lev);
         }
 
         std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > friend_certificates;
@@ -147,13 +151,17 @@ void FriendServerManager::threadTick()
                                   already_received_peers,
                                   friend_certificates);	// blocking call
 
-        std::cerr << "Got the following list of friend certificates:" << std::endl;
+        if(!friend_certificates.empty())
+            std::cerr << "The following list of friend certificates came from FriendServer:" << std::endl;
+        else
+            std::cerr << "No friend certificates came from FriendServer." << std::endl;
 
         // Let's put them in a vector to easy searching.
 
         std::list<RsPeerId> lst;
         rsPeers->getFriendList(lst);
         std::set<RsPeerId> friend_locations_set(lst.begin(),lst.end());
+        bool changed = false;
 
         for(const auto& invite:friend_certificates)
         {
@@ -166,7 +174,12 @@ void FriendServerManager::threadTick()
                 continue;
             }
 
-            mAlreadyReceivedPeers[det.id] = invite.second;
+            auto& p(mAlreadyReceivedPeers[det.id]);
+
+            if(p.second != invite.second.second)
+                changed = true;
+
+            p = invite.second;
 
             if(friend_locations_set.find(det.id) != friend_locations_set.end())
             {
@@ -174,10 +187,19 @@ void FriendServerManager::threadTick()
                 continue;
             }
 
+            changed = true;
+
             RsDbg() << "    New -- Distant status: " << static_cast<int>(invite.second.second) << " " << det.gpg_id << " " << det.id << " " << det.dyndns;
 
             if(mAutoAddFriends)
                 rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
+        }
+
+        if(changed)
+        {
+            auto ev = std::make_shared<RsFriendServerEvent>();
+            ev->mFriendServerEventType = RsFriendServerEventCode::PEER_INFO_CHANGED;
+            rsEvents->postEvent(ev);
         }
     }
 }

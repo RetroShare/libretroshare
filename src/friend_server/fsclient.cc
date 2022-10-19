@@ -120,6 +120,8 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
             continue;
         }
 
+        RsDbg() << "Response item contains:" << *response_item;
+
         handleServerResponse(response_item,friend_certificates);
 
         delete item;

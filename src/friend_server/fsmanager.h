@@ -23,6 +23,8 @@ public:
     virtual std::string friendsServerAddress() override { return mServerAddress ; }
 
     virtual std::map<RsPeerId,RsFsPeerInfo> getPeersInfo() override;
+    virtual bool autoAddFriends() const override { return mAutoAddFriends; }
+    virtual bool setAutoAddFriends(bool b) override { mAutoAddFriends = b; }
 protected:
     virtual void threadTick() override;
 

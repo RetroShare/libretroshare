@@ -46,6 +46,27 @@
 // It's important to keep the ones that are already connected because they may count on us.
 // Friends supplied by the FS who never connected for a few days should be removed automatically.
 
+enum class RsFriendServerEventCode: uint8_t
+{
+    UNKNOWN                   = 0x00,
+    PEER_INFO_CHANGED         = 0x01,
+};
+
+struct RsFriendServerEvent: public RsEvent
+{
+    RsFriendServerEvent(): RsEvent(RsEventType::FRIEND_SERVER), mFriendServerEventType(RsFriendServerEventCode::UNKNOWN) {}
+    ~RsFriendServerEvent() = default;
+
+    RsFriendServerEventCode mFriendServerEventType;
+
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RsEvent::serial_process(j, ctx);
+
+        RS_SERIAL_PROCESS(mFriendServerEventType);
+    }
+};
+
 class RsFriendServer
 {
 public:
@@ -81,6 +102,8 @@ public:
     virtual void setServerAddress(const std::string&,uint16_t) =0;
     virtual void setFriendsToRequest(uint32_t) =0;
 
+    virtual bool autoAddFriends() const =0;
+    virtual bool setAutoAddFriends(bool b) =0;
     /*!
      * \brief setProfilePassphrase
      * 		Needs to be called as least once, and before the friend server is enabled, so as to be able to decrypt incoming information
