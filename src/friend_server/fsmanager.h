@@ -4,20 +4,6 @@
 #include "retroshare/rsfriendserver.h"
 #include "retroshare/rspeers.h"
 
-struct FriendServerPeerInfo
-{
-    enum FriendServerPeerStatus: uint8_t
-    {
-    UNKNOWN           = 0x00,
-    LOCALLY_ACCEPTED  = 0x01,
-    HAS_ACCEPTED_ME   = 0x02,
-    ALREADY_CONNECTED = 0x03
-    };
-
-    uint32_t status ;
-    rstime_t received_TS;
-};
-
 class FriendServerManager: public RsFriendServer, public RsTickingThread
 {
 public:
@@ -35,6 +21,10 @@ public:
     virtual uint32_t    friendsToRequest()     override { return mFriendsToRequest ; }
     virtual uint16_t    friendsServerPort()    override { return mServerPort ; }
     virtual std::string friendsServerAddress() override { return mServerAddress ; }
+
+    virtual std::map<RsPeerId,RsFsPeerInfo> getPeersInfo() override;
+    virtual bool autoAddFriends() const override { return mAutoAddFriends; }
+    virtual bool setAutoAddFriends(bool b) override { mAutoAddFriends = b; }
 protected:
     virtual void threadTick() override;
 
@@ -44,9 +34,10 @@ private:
 
     // encode the current list of friends obtained through the friendserver and their status
 
-    std::set<RsPeerId> mAlreadyReceivedPeers; // we keep track of these so as to not re-receive the ones we already have.
+    std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > mAlreadyReceivedPeers; // we keep track of these so as to not re-receive the ones we already have.
     std::string mServerAddress ;
     uint16_t mServerPort;
     uint16_t mProxyPort;
     std::string mCachedPGPPassphrase;
+    bool mAutoAddFriends ; // should new friends be added automatically?
 };

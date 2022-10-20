@@ -39,12 +39,12 @@
 
 #define DEBUG_FSCLIENT
 
-bool FsClient::requestFriends(const std::string& address,uint16_t port,
-                              const std::string& proxy_address,uint16_t proxy_port,
+bool FsClient::requestFriends(const std::string& address, uint16_t port,
+                              const std::string& proxy_address, uint16_t proxy_port,
                               uint32_t reqs,
                               const std::string& pgp_passphrase,
-                              const std::set<RsPeerId>& already_received_peers,
-                              std::map<std::string,bool>& friend_certificates)
+                              const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
+                              std::map<RsPeerId,std::pair<std::string, RsFriendServer::PeerFriendshipLevel> >& friend_certificates)
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
@@ -120,6 +120,8 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
             continue;
         }
 
+        RsDbg() << "Response item contains:" << *response_item;
+
         handleServerResponse(response_item,friend_certificates);
 
         delete item;
@@ -127,12 +129,23 @@ bool FsClient::requestFriends(const std::string& address,uint16_t port,
     return friend_certificates.size();
 }
 
-void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item,std::map<std::string,bool>& friend_certificates)
+void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item,std::map<RsPeerId,std::pair<std::string,RsFriendServer::PeerFriendshipLevel> >& friend_certificates)
 {
     RsDbg() << "Received a response item from server: " << (void*)item ;
 
     for(const auto& it:item->friend_invites)
-        friend_certificates.insert(it);
+    {
+        RsPeerDetails det;
+        uint32_t err_code;
+
+        if(!rsPeers->parseShortInvite(it.first,det,err_code))
+        {
+            RsErr() << "Friend server sent a buggy short invite: " << it.first << ". Err_code=" << err_code << ". Skipping it." ;
+            continue;
+        }
+        RsDbg() << "  New certificate: " << det.id ;
+        friend_certificates[det.id] = it;
+    }
 }
 
 bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,

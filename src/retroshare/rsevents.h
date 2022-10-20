@@ -112,6 +112,9 @@ enum class RsEventType : uint32_t
     /// @see rspeers.h
     TOR_MANAGER                                             = 21,
 
+    /// @see rsfriendserver.h
+    FRIEND_SERVER                                           = 22,
+
     __MAX /// Used internally, keep last
 };
 

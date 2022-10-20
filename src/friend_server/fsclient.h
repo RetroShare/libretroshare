@@ -21,6 +21,7 @@
  ******************************************************************************/
 
 #include <string>
+#include <map>
 #include "fsitem.h"
 #include "pqi/pqi_base.h"
 
@@ -34,8 +35,9 @@ public:
     bool requestFriends(const std::string& address, uint16_t port,
                         const std::string &proxy_address, uint16_t proxy_port,
                         uint32_t reqs,
-                        const std::string &pgp_passphrase, const std::set<RsPeerId> &already_received_peers,
-                        std::map<std::string,bool>& friend_certificates);
+                        const std::string &pgp_passphrase,
+                        const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
+                        std::map<RsPeerId, std::pair<std::string, RsFriendServer::PeerFriendshipLevel> > &friend_certificates);
 
     static bool checkProxyConnection(const std::string& onion_address, uint16_t port, const std::string &proxy_address, uint16_t proxy_port, uint32_t timeout_ms);
 protected:
@@ -50,7 +52,7 @@ private:
                   const std::string &proxy_address, uint16_t proxy_port,
                   RsFriendServerItem *item, std::list<RsItem *> &response);
 
-    void handleServerResponse(RsFriendServerServerResponseItem *item, std::map<std::string, bool> &friend_certificates);
+    void handleServerResponse(RsFriendServerServerResponseItem *item, std::map<RsPeerId, std::pair<std::string, RsFriendServer::PeerFriendshipLevel> > &friend_certificates);
 
     std::list<RsItem*> mIncomingItems;
 };
