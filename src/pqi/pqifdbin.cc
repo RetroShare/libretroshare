@@ -101,6 +101,7 @@ int RsFdBinInterface::read_pending()
 #endif
     readbytes = read(mCLintConnt, inBuffer, sizeof(inBuffer));	// Needs read instead of recv which is only for sockets.
                                                                 // Sockets should be set to non blocking by the client process.
+//#endif WINDOWS_SYS
 
     if(readbytes == 0)
     {
@@ -112,10 +113,16 @@ int RsFdBinInterface::read_pending()
     }
     if(readbytes < 0)
     {
+#ifdef WINDOWS_SYS
+        int lastError = WSAGetLastError();
+        if (lastError == WSAEWOULDBLOCK) {
+            errno = EWOULDBLOCK;
+        }
+#endif
         if(errno != 0 && errno != EWOULDBLOCK && errno != EAGAIN)
 #ifdef WINDOWS_SYS
             // A non blocking read to file descriptor gets ERROR_NO_DATA for empty data
-            if (mIsSocket == true || GetLastError() != ERROR_NO_DATA)
+            if (mIsSocket == true || WSAGetLastError() != ERROR_NO_DATA)
 #endif
             RsErr() << "read() failed. Errno=" << errno ;
 
@@ -160,6 +167,8 @@ int RsFdBinInterface::write_pending()
         return mTotalOutBufferBytes;
 
     auto& p = out_buffer.front();
+    std::cerr << "RsFdBinInterface -- SENDING --- len=" << p.second << " data=" << RsUtil::BinToHex((uint8_t*)p.first,p.second)<< std::endl;
+
     int written;
 #if WINDOWS_SYS
     if (mIsSocket)
@@ -167,12 +176,17 @@ int RsFdBinInterface::write_pending()
         written = send(mCLintConnt, (char*) p.first, p.second, 0);
     else
 #endif
-    std::cerr << "RsFdBinInterface -- SENDING --- len=" << p.second << " data=" << RsUtil::BinToHex((uint8_t*)p.first,p.second)<< std::endl;
-
     written = write(mCLintConnt, p.first, p.second);
+//#endif WINDOWS_SYS
 
     if(written < 0)
     {
+#ifdef WINDOWS_SYS
+        int lastError = WSAGetLastError();
+        if (lastError == WSAEWOULDBLOCK) {
+            errno = EWOULDBLOCK;
+        }
+#endif
         if(errno != EWOULDBLOCK && errno != EAGAIN)
             RsErr() << "write() failed. Errno=" << errno ;
 
