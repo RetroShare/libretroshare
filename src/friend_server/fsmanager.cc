@@ -10,9 +10,7 @@ static const rstime_t MIN_DELAY_BETWEEN_FS_REQUESTS =   30;
 static const rstime_t MAX_DELAY_BETWEEN_FS_REQUESTS = 3600;
 static const uint32_t DEFAULT_FRIENDS_TO_REQUEST    =   10;
 
-static const std::string DEFAULT_PROXY_ADDRESS         = "127.0.0.1";
-static const uint16_t    DEFAULT_FRIEND_SERVER_PORT    = 2017;
-static const uint16_t    DEFAULT_PROXY_PORT            = 9050;
+static const uint16_t    DEFAULT_FRIEND_SERVER_PORT = 9878;
 
 FriendServerManager::FriendServerManager()
 {
@@ -20,6 +18,7 @@ FriendServerManager::FriendServerManager()
     mFriendsToRequest = DEFAULT_FRIENDS_TO_REQUEST;
     mServerPort = DEFAULT_FRIEND_SERVER_PORT;
     mAutoAddFriends = true;
+    mStatus = RsFriendServerStatus::OFFLINE;
 }
 void FriendServerManager::startServer()
 {
