@@ -30,10 +30,14 @@ protected:
     virtual void threadTick() override;
 
 private:
+    void updateStatus(RsFriendServerStatus new_status);
+
     uint32_t mFriendsToRequest;
     rstime_t mLastFriendReqestCampain;
 
     // encode the current list of friends obtained through the friendserver and their status
+
+    RsFriendServerStatus mStatus;
 
     std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > mAlreadyReceivedPeers; // we keep track of these so as to not re-receive the ones we already have.
     std::string mServerAddress ;

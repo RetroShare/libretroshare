@@ -69,6 +69,7 @@ void FriendServerManager::threadTick()
     if(mServerAddress.empty())
     {
         RsErr() << "No friend server address has been setup. This is probably a bug.";
+        updateStatus(RsFriendServerStatus::OFFLINE);
         return;
     }
     // Check for requests. Compute how much to wait based on how many friends we have already
@@ -141,15 +142,25 @@ void FriendServerManager::threadTick()
         }
 
         std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > friend_certificates;
+        FsClient::FsClientErrorCode error_code;
 
-        FsClient().requestFriends(mServerAddress,
+        if(!FsClient().requestFriends(mServerAddress,          // blocking call
                                   mServerPort,
                                   rs_tor_addr,
                                   rs_tor_port,
                                   mFriendsToRequest,
                                   mCachedPGPPassphrase,
                                   already_received_peers,
-                                  friend_certificates);	// blocking call
+                                  friend_certificates,
+                                  error_code))
+        {
+            if(error_code == FsClient::FsClientErrorCode::NO_CONNECTION)
+                updateStatus(RsFriendServerStatus::OFFLINE);
+
+            return;
+        };
+
+        updateStatus(RsFriendServerStatus::ONLINE);
 
         if(!friend_certificates.empty())
             std::cerr << "The following list of friend certificates came from FriendServer:" << std::endl;
@@ -204,6 +215,18 @@ void FriendServerManager::threadTick()
     }
 }
 
+void FriendServerManager::updateStatus(RsFriendServerStatus new_status)
+{
+    if(new_status != mStatus)
+    {
+        auto ev = std::make_shared<RsFriendServerEvent>();
+        ev->mFriendServerStatus = new_status;
+        ev->mFriendServerEventType = RsFriendServerEventCode::FRIEND_SERVER_STATUS_CHANGED;
+        rsEvents->sendEvent(ev);
+    }
+    mStatus = new_status;
+}
+
 std::map<RsPeerId,RsFriendServer::RsFsPeerInfo> FriendServerManager::getPeersInfo()
 {
     std::map<RsPeerId,RsFsPeerInfo> res;
@@ -244,6 +267,8 @@ void FriendServerManager::allowPeer(const RsPeerId& pid)
         RsErr() << "Unexpected parsing error in short invite received by the friend server. Err_code=" << err_code ;
         return;
     }
+    RsDbg() << "Allowing peer " << pid << ": making friend." ;
+
     rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
 }
 

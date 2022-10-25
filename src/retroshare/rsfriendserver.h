@@ -46,10 +46,18 @@
 // It's important to keep the ones that are already connected because they may count on us.
 // Friends supplied by the FS who never connected for a few days should be removed automatically.
 
+enum class RsFriendServerStatus: uint8_t
+{
+    UNKNOWN              = 0x00,
+    OFFLINE              = 0x01,
+    ONLINE               = 0x02,
+};
+
 enum class RsFriendServerEventCode: uint8_t
 {
-    UNKNOWN                   = 0x00,
-    PEER_INFO_CHANGED         = 0x01,
+    UNKNOWN                      = 0x00,
+    PEER_INFO_CHANGED            = 0x01,
+    FRIEND_SERVER_STATUS_CHANGED = 0x02,
 };
 
 struct RsFriendServerEvent: public RsEvent
@@ -58,12 +66,14 @@ struct RsFriendServerEvent: public RsEvent
     ~RsFriendServerEvent() = default;
 
     RsFriendServerEventCode mFriendServerEventType;
+    RsFriendServerStatus mFriendServerStatus;
 
     void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
     {
         RsEvent::serial_process(j, ctx);
 
         RS_SERIAL_PROCESS(mFriendServerEventType);
+        RS_SERIAL_PROCESS(mFriendServerStatus);
     }
 };
 

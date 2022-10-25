@@ -44,7 +44,8 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
                               uint32_t reqs,
                               const std::string& pgp_passphrase,
                               const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
-                              std::map<RsPeerId,std::pair<std::string, RsFriendServer::PeerFriendshipLevel> >& friend_certificates)
+                              std::map<RsPeerId,std::pair<std::string, RsFriendServer::PeerFriendshipLevel> >& friend_certificates,
+                              FsClientErrorCode error_code)
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
@@ -66,7 +67,12 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
     pitem->short_invite = short_invite;
 
     std::list<RsItem*> response;
-    sendItem(address,port,proxy_address,proxy_port,pitem,response);
+
+    if(!sendItem(address,port,proxy_address,proxy_port,pitem,response))
+    {
+        error_code = FsClientErrorCode::NO_CONNECTION;
+        return false;
+    }
 
     // now decode the response
 
@@ -126,7 +132,8 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
 
         delete item;
     }
-    return friend_certificates.size();
+    error_code = FsClientErrorCode::NO_ERROR;
+    return true;
 }
 
 void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item,std::map<RsPeerId,std::pair<std::string,RsFriendServer::PeerFriendshipLevel> >& friend_certificates)
@@ -165,7 +172,7 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
     if((CreateSocket = socket(AF_INET, SOCK_STREAM, 0))< 0)
     {
         printf("Socket not created \n");
-        return 1;
+        return false;
     }
 
     int flags=1;
