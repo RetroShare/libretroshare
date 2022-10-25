@@ -227,3 +227,23 @@ std::map<RsPeerId,RsFriendServer::RsFsPeerInfo> FriendServerManager::getPeersInf
     return res;
 }
 
+void FriendServerManager::allowPeer(const RsPeerId& pid)
+{
+    auto fit = mAlreadyReceivedPeers.find(pid);
+
+    if(fit == mAlreadyReceivedPeers.end())
+    {
+        RsErr() << "FriendServerManager: unknown peer " << pid ;
+        return;
+    }
+    RsPeerDetails det;
+    uint32_t err_code;
+
+    if(!rsPeers->parseShortInvite(fit->second.first,det,err_code))
+    {
+        RsErr() << "Unexpected parsing error in short invite received by the friend server. Err_code=" << err_code ;
+        return;
+    }
+    rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
+}
+

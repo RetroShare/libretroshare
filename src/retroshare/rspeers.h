@@ -265,6 +265,8 @@ enum class RsConnectionEventCode: uint8_t
 	PEER_DISCONNECTED       = 0x02,
 	PEER_TIME_SHIFT         = 0x03, // mTimeShift = time shift in seconds
 	PEER_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
+    PEER_ADDED              = 0x05,
+    PEER_REMOVED            = 0x06,
 };
 
 struct RsConnectionEvent : RsEvent

@@ -24,7 +24,8 @@ public:
 
     virtual std::map<RsPeerId,RsFsPeerInfo> getPeersInfo() override;
     virtual bool autoAddFriends() const override { return mAutoAddFriends; }
-    virtual bool setAutoAddFriends(bool b) override { mAutoAddFriends = b; }
+    virtual void setAutoAddFriends(bool b) override { mAutoAddFriends = b; }
+    virtual void allowPeer(const RsPeerId& pid) override;
 protected:
     virtual void threadTick() override;
 
