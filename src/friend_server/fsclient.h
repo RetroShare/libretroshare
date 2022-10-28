@@ -35,6 +35,7 @@ public:
     enum class FsClientErrorCode: uint8_t {
         NO_ERROR            = 0x00,
         NO_CONNECTION       = 0x01,
+        UNKNOWN_ERROR       = 0x02,
     };
 
     /*!
@@ -55,7 +56,7 @@ public:
                         uint32_t reqs,
                         const std::string &pgp_passphrase,
                         const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
-                        std::map<RsPeerId, std::pair<std::string, RsFriendServer::PeerFriendshipLevel> > &friend_certificates, FsClientErrorCode error_code);
+                        std::map<RsPeerId, std::pair<std::string, RsFriendServer::PeerFriendshipLevel> > &friend_certificates, FsClientErrorCode &error_code);
 
     static bool checkProxyConnection(const std::string& onion_address, uint16_t port, const std::string &proxy_address, uint16_t proxy_port, uint32_t timeout_ms);
 protected:

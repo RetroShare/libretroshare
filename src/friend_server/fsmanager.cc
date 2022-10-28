@@ -1,6 +1,7 @@
 #include <cmath>
 #include "fsmanager.h"
 #include "fsclient.h"
+#include "rsitems/rsconfigitems.h"
 
 // #define DEBUG_FS_MANAGER 1
 
@@ -12,7 +13,7 @@ static const uint32_t DEFAULT_FRIENDS_TO_REQUEST    =   10;
 
 static const uint16_t    DEFAULT_FRIEND_SERVER_PORT = 9878;
 
-FriendServerManager::FriendServerManager()
+FriendServerManager::FriendServerManager() : fsMgrMtx("FriendServerManager")
 {
     mLastFriendReqestCampain = 0;
     mFriendsToRequest = DEFAULT_FRIENDS_TO_REQUEST;
@@ -52,6 +53,8 @@ void FriendServerManager::setServerAddress(const std::string& addr,uint16_t port
 {
     mServerAddress = addr;
     mServerPort = port;
+
+    IndicateConfigChanged();
 }
 void FriendServerManager::setFriendsToRequest(uint32_t n)
 {
@@ -141,7 +144,7 @@ void FriendServerManager::threadTick()
         }
 
         std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > friend_certificates;
-        FsClient::FsClientErrorCode error_code;
+        FsClient::FsClientErrorCode error_code = FsClient::FsClientErrorCode::NO_ERROR;
 
         if(!FsClient().requestFriends(mServerAddress,          // blocking call
                                   mServerPort,
@@ -269,5 +272,65 @@ void FriendServerManager::allowPeer(const RsPeerId& pid)
     RsDbg() << "Allowing peer " << pid << ": making friend." ;
 
     rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
+}
+
+bool FriendServerManager::loadList(std::list<RsItem*>& items)
+{
+    RS_STACK_MUTEX(fsMgrMtx) ;
+
+    for(const auto item:items)
+    {
+        RsConfigKeyValueSet *vitem = dynamic_cast<RsConfigKeyValueSet*>(item);
+
+        if(!vitem)
+            continue;
+
+        for(const auto v:vitem->tlvkvs.pairs)
+        {
+            if(v.key == "FRIEND_SERVER_ONION_ADDRESS")
+                mServerAddress = std::string(v.value);
+
+            if(v.key == "FRIEND_SERVER_ONION_PORT")
+                sscanf(v.value.c_str(),"%hu",&mServerPort);
+        }
+        delete item;
+    }
+
+    items.clear() ;
+    return true ;
+}
+
+bool FriendServerManager::saveList(bool& cleanup,std::list<RsItem*>& items)
+{
+    RS_STACK_MUTEX(fsMgrMtx) ;
+    RsConfigKeyValueSet *vitem = new RsConfigKeyValueSet ;
+
+    {
+        RsTlvKeyValue kv;
+        kv.key = "FRIEND_SERVER_ONION_ADDRESS";
+        kv.value = mServerAddress;
+        vitem->tlvkvs.pairs.push_back(kv);
+    }
+
+    {
+        RsTlvKeyValue kv;
+        kv.key = "FRIEND_SERVER_ONION_PORT";
+        kv.value = mServerPort;
+        vitem->tlvkvs.pairs.push_back(kv);
+    }
+    items.push_back(vitem);
+
+    cleanup = true;
+    return true;
+}
+
+RsSerialiser *FriendServerManager::setupSerialiser()
+{
+    RS_STACK_MUTEX(fsMgrMtx) ;
+
+    RsSerialiser *rss = new RsSerialiser ;
+    rss->addSerialType(new RsGeneralConfigSerialiser());
+
+    return rss ;
 }
 

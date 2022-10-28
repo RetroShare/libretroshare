@@ -45,10 +45,11 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
                               const std::string& pgp_passphrase,
                               const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
                               std::map<RsPeerId,std::pair<std::string, RsFriendServer::PeerFriendshipLevel> >& friend_certificates,
-                              FsClientErrorCode error_code)
+                              FsClientErrorCode& error_code)
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
+    error_code = FsClientErrorCode::NO_ERROR;
     RsFriendServerClientPublishItem *pitem = new RsFriendServerClientPublishItem();
 
     pitem->n_requested_friends = reqs;
@@ -60,6 +61,7 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
     if(!rsPeers->getShortInvite(short_invite,RsPeerId(),RetroshareInviteFlags::RADIX_FORMAT | RetroshareInviteFlags::DNS))
     {
         RsErr() << "Cannot request own short invite! Something's very wrong." ;
+        error_code = FsClientErrorCode::UNKNOWN_ERROR;
         return false;
     }
 
@@ -132,7 +134,6 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
 
         delete item;
     }
-    error_code = FsClientErrorCode::NO_ERROR;
     return true;
 }
 
@@ -266,6 +267,19 @@ bool FsClient::checkProxyConnection(const std::string& onion_address,uint16_t po
 {
     int CreateSocket = 0;
     struct sockaddr_in ipOfServer;
+
+    // Early check for server port and address syntax
+
+    if(onion_address.length() != 62 || strcmp(onion_address.substr(56).c_str(),".onion"))
+    {
+        RsErr() << "Inconsistent onion address for friend server \"" << onion_address << "\"";
+        return false;
+    }
+    if(port < 1025)
+    {
+        RsErr() << "Inconsistent (private) port " << port << " for friend server";
+        return false;
+    }
 
     if((CreateSocket = socket(AF_INET, SOCK_STREAM, 0))< 0)
     {

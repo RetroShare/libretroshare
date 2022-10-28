@@ -3,8 +3,9 @@
 #include "util/rsthreads.h"
 #include "retroshare/rsfriendserver.h"
 #include "retroshare/rspeers.h"
+#include "pqi/p3cfgmgr.h"
 
-class FriendServerManager: public RsFriendServer, public RsTickingThread
+class FriendServerManager: public RsFriendServer, public RsTickingThread, public p3Config
 {
 public:
     FriendServerManager();
@@ -29,6 +30,17 @@ public:
 protected:
     virtual void threadTick() override;
 
+    //===================================================//
+    //                  p3Config methods                 //
+    //===================================================//
+
+    // Load/save the routing info, the pending items in transit, and the config variables.
+    //
+    bool loadList(std::list<RsItem*>& items) override ;
+    bool saveList(bool& cleanup,std::list<RsItem*>& items) override ;
+
+    RsSerialiser *setupSerialiser() override ;
+
 private:
     void updateStatus(RsFriendServerStatus new_status);
 
@@ -45,4 +57,6 @@ private:
     uint16_t mProxyPort;
     std::string mCachedPGPPassphrase;
     bool mAutoAddFriends ; // should new friends be added automatically?
+
+    RsMutex fsMgrMtx;
 };
