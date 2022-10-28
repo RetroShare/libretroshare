@@ -1,6 +1,7 @@
 #include <cmath>
 #include "fsmanager.h"
 #include "fsclient.h"
+#include "rsitems/rsconfigitems.h"
 
 // #define DEBUG_FS_MANAGER 1
 
@@ -10,16 +11,15 @@ static const rstime_t MIN_DELAY_BETWEEN_FS_REQUESTS =   30;
 static const rstime_t MAX_DELAY_BETWEEN_FS_REQUESTS = 3600;
 static const uint32_t DEFAULT_FRIENDS_TO_REQUEST    =   10;
 
-static const std::string DEFAULT_PROXY_ADDRESS         = "127.0.0.1";
-static const uint16_t    DEFAULT_FRIEND_SERVER_PORT    = 2017;
-static const uint16_t    DEFAULT_PROXY_PORT            = 9050;
+static const uint16_t    DEFAULT_FRIEND_SERVER_PORT = 9878;
 
-FriendServerManager::FriendServerManager()
+FriendServerManager::FriendServerManager() : fsMgrMtx("FriendServerManager")
 {
     mLastFriendReqestCampain = 0;
     mFriendsToRequest = DEFAULT_FRIENDS_TO_REQUEST;
     mServerPort = DEFAULT_FRIEND_SERVER_PORT;
     mAutoAddFriends = true;
+    mStatus = RsFriendServerStatus::OFFLINE;
 }
 void FriendServerManager::startServer()
 {
@@ -53,6 +53,8 @@ void FriendServerManager::setServerAddress(const std::string& addr,uint16_t port
 {
     mServerAddress = addr;
     mServerPort = port;
+
+    IndicateConfigChanged();
 }
 void FriendServerManager::setFriendsToRequest(uint32_t n)
 {
@@ -69,6 +71,7 @@ void FriendServerManager::threadTick()
     if(mServerAddress.empty())
     {
         RsErr() << "No friend server address has been setup. This is probably a bug.";
+        updateStatus(RsFriendServerStatus::OFFLINE);
         return;
     }
     // Check for requests. Compute how much to wait based on how many friends we have already
@@ -141,15 +144,25 @@ void FriendServerManager::threadTick()
         }
 
         std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > friend_certificates;
+        FsClient::FsClientErrorCode error_code = FsClient::FsClientErrorCode::NO_ERROR;
 
-        FsClient().requestFriends(mServerAddress,
+        if(!FsClient().requestFriends(mServerAddress,          // blocking call
                                   mServerPort,
                                   rs_tor_addr,
                                   rs_tor_port,
                                   mFriendsToRequest,
                                   mCachedPGPPassphrase,
                                   already_received_peers,
-                                  friend_certificates);	// blocking call
+                                  friend_certificates,
+                                  error_code))
+        {
+            if(error_code == FsClient::FsClientErrorCode::NO_CONNECTION)
+                updateStatus(RsFriendServerStatus::OFFLINE);
+
+            return;
+        };
+
+        updateStatus(RsFriendServerStatus::ONLINE);
 
         if(!friend_certificates.empty())
             std::cerr << "The following list of friend certificates came from FriendServer:" << std::endl;
@@ -204,6 +217,18 @@ void FriendServerManager::threadTick()
     }
 }
 
+void FriendServerManager::updateStatus(RsFriendServerStatus new_status)
+{
+    if(new_status != mStatus)
+    {
+        auto ev = std::make_shared<RsFriendServerEvent>();
+        ev->mFriendServerStatus = new_status;
+        ev->mFriendServerEventType = RsFriendServerEventCode::FRIEND_SERVER_STATUS_CHANGED;
+        rsEvents->sendEvent(ev);
+    }
+    mStatus = new_status;
+}
+
 std::map<RsPeerId,RsFriendServer::RsFsPeerInfo> FriendServerManager::getPeersInfo()
 {
     std::map<RsPeerId,RsFsPeerInfo> res;
@@ -225,5 +250,87 @@ std::map<RsPeerId,RsFriendServer::RsFsPeerInfo> FriendServerManager::getPeersInf
         res[it.first] = info;
     }
     return res;
+}
+
+void FriendServerManager::allowPeer(const RsPeerId& pid)
+{
+    auto fit = mAlreadyReceivedPeers.find(pid);
+
+    if(fit == mAlreadyReceivedPeers.end())
+    {
+        RsErr() << "FriendServerManager: unknown peer " << pid ;
+        return;
+    }
+    RsPeerDetails det;
+    uint32_t err_code;
+
+    if(!rsPeers->parseShortInvite(fit->second.first,det,err_code))
+    {
+        RsErr() << "Unexpected parsing error in short invite received by the friend server. Err_code=" << err_code ;
+        return;
+    }
+    RsDbg() << "Allowing peer " << pid << ": making friend." ;
+
+    rsPeers->addSslOnlyFriend(det.id,det.gpg_id,det);
+}
+
+bool FriendServerManager::loadList(std::list<RsItem*>& items)
+{
+    RS_STACK_MUTEX(fsMgrMtx) ;
+
+    for(const auto item:items)
+    {
+        RsConfigKeyValueSet *vitem = dynamic_cast<RsConfigKeyValueSet*>(item);
+
+        if(!vitem)
+            continue;
+
+        for(const auto v:vitem->tlvkvs.pairs)
+        {
+            if(v.key == "FRIEND_SERVER_ONION_ADDRESS")
+                mServerAddress = std::string(v.value);
+
+            if(v.key == "FRIEND_SERVER_ONION_PORT")
+                sscanf(v.value.c_str(),"%hu",&mServerPort);
+        }
+        delete item;
+    }
+
+    items.clear() ;
+    return true ;
+}
+
+bool FriendServerManager::saveList(bool& cleanup,std::list<RsItem*>& items)
+{
+    RS_STACK_MUTEX(fsMgrMtx) ;
+    RsConfigKeyValueSet *vitem = new RsConfigKeyValueSet ;
+
+    {
+        RsTlvKeyValue kv;
+        kv.key = "FRIEND_SERVER_ONION_ADDRESS";
+        kv.value = mServerAddress;
+        vitem->tlvkvs.pairs.push_back(kv);
+    }
+
+    {
+        RsTlvKeyValue kv;
+        kv.key = "FRIEND_SERVER_ONION_PORT";
+        kv.value = mServerPort;
+        vitem->tlvkvs.pairs.push_back(kv);
+    }
+    items.push_back(vitem);
+
+    cleanup = true;
+    return true;
+}
+
+RsSerialiser *FriendServerManager::setupSerialiser()
+{
+    RS_STACK_MUTEX(fsMgrMtx) ;
+
+    RsSerialiser *rss = new RsSerialiser ;
+    rss->addSerialType(new RsGeneralConfigSerialiser());
+
+    return rss ;
 }
 

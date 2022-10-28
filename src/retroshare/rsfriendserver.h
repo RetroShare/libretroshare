@@ -46,10 +46,18 @@
 // It's important to keep the ones that are already connected because they may count on us.
 // Friends supplied by the FS who never connected for a few days should be removed automatically.
 
+enum class RsFriendServerStatus: uint8_t
+{
+    UNKNOWN              = 0x00,
+    OFFLINE              = 0x01,
+    ONLINE               = 0x02,
+};
+
 enum class RsFriendServerEventCode: uint8_t
 {
-    UNKNOWN                   = 0x00,
-    PEER_INFO_CHANGED         = 0x01,
+    UNKNOWN                      = 0x00,
+    PEER_INFO_CHANGED            = 0x01,
+    FRIEND_SERVER_STATUS_CHANGED = 0x02,
 };
 
 struct RsFriendServerEvent: public RsEvent
@@ -58,12 +66,14 @@ struct RsFriendServerEvent: public RsEvent
     ~RsFriendServerEvent() = default;
 
     RsFriendServerEventCode mFriendServerEventType;
+    RsFriendServerStatus mFriendServerStatus;
 
     void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
     {
         RsEvent::serial_process(j, ctx);
 
         RS_SERIAL_PROCESS(mFriendServerEventType);
+        RS_SERIAL_PROCESS(mFriendServerStatus);
     }
 };
 
@@ -103,7 +113,7 @@ public:
     virtual void setFriendsToRequest(uint32_t) =0;
 
     virtual bool autoAddFriends() const =0;
-    virtual bool setAutoAddFriends(bool b) =0;
+    virtual void setAutoAddFriends(bool b) =0;
     /*!
      * \brief setProfilePassphrase
      * 		Needs to be called as least once, and before the friend server is enabled, so as to be able to decrypt incoming information
@@ -115,6 +125,12 @@ public:
     virtual uint32_t friendsToRequest() =0;
     virtual uint16_t friendsServerPort() =0;
     virtual std::string friendsServerAddress() =0;
+
+    /*!
+     * \brief allowPeer
+     * 			Allows the friend server to make the given peer as friend.
+     */
+    virtual void allowPeer(const RsPeerId& pid) =0;
 
     virtual std::map<RsPeerId,RsFsPeerInfo> getPeersInfo() =0 ;
 };

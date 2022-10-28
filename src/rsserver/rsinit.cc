@@ -1172,7 +1172,11 @@ int RsServer::StartupRetroShare()
 
     if(RsAccounts::isTorAuto())
     {
-        rsFriendServer = new FriendServerManager();
+        auto tmp = new FriendServerManager();
+        rsFriendServer = tmp;
+        mConfigMgr->addConfiguration("fsmanager.cfg", tmp);
+        RsFileHash tmpHash;
+        tmp->loadConfiguration(tmpHash) ;
     }
 #endif
 

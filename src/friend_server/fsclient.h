@@ -32,12 +32,31 @@ class FsClient: public PQInterface
 public:
     FsClient() :PQInterface(RsPeerId()) {}
 
+    enum class FsClientErrorCode: uint8_t {
+        NO_ERROR            = 0x00,
+        NO_CONNECTION       = 0x01,
+        UNKNOWN_ERROR       = 0x02,
+    };
+
+    /*!
+     * \brief requestFriends
+     * \param address
+     * \param port
+     * \param proxy_address
+     * \param proxy_port
+     * \param reqs
+     * \param pgp_passphrase
+     * \param already_received_peers
+     * \param friend_certificates
+     * \param error_code
+     * \return
+     */
     bool requestFriends(const std::string& address, uint16_t port,
                         const std::string &proxy_address, uint16_t proxy_port,
                         uint32_t reqs,
                         const std::string &pgp_passphrase,
                         const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
-                        std::map<RsPeerId, std::pair<std::string, RsFriendServer::PeerFriendshipLevel> > &friend_certificates);
+                        std::map<RsPeerId, std::pair<std::string, RsFriendServer::PeerFriendshipLevel> > &friend_certificates, FsClientErrorCode &error_code);
 
     static bool checkProxyConnection(const std::string& onion_address, uint16_t port, const std::string &proxy_address, uint16_t proxy_port, uint32_t timeout_ms);
 protected:

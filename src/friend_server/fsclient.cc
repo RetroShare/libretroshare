@@ -44,10 +44,12 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
                               uint32_t reqs,
                               const std::string& pgp_passphrase,
                               const std::map<RsPeerId,RsFriendServer::PeerFriendshipLevel>& already_received_peers,
-                              std::map<RsPeerId,std::pair<std::string, RsFriendServer::PeerFriendshipLevel> >& friend_certificates)
+                              std::map<RsPeerId,std::pair<std::string, RsFriendServer::PeerFriendshipLevel> >& friend_certificates,
+                              FsClientErrorCode& error_code)
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
+    error_code = FsClientErrorCode::NO_ERROR;
     RsFriendServerClientPublishItem *pitem = new RsFriendServerClientPublishItem();
 
     pitem->n_requested_friends = reqs;
@@ -59,6 +61,7 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
     if(!rsPeers->getShortInvite(short_invite,RsPeerId(),RetroshareInviteFlags::RADIX_FORMAT | RetroshareInviteFlags::DNS))
     {
         RsErr() << "Cannot request own short invite! Something's very wrong." ;
+        error_code = FsClientErrorCode::UNKNOWN_ERROR;
         return false;
     }
 
@@ -66,7 +69,12 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
     pitem->short_invite = short_invite;
 
     std::list<RsItem*> response;
-    sendItem(address,port,proxy_address,proxy_port,pitem,response);
+
+    if(!sendItem(address,port,proxy_address,proxy_port,pitem,response))
+    {
+        error_code = FsClientErrorCode::NO_CONNECTION;
+        return false;
+    }
 
     // now decode the response
 
@@ -126,7 +134,7 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
 
         delete item;
     }
-    return friend_certificates.size();
+    return true;
 }
 
 void FsClient::handleServerResponse(RsFriendServerServerResponseItem *item,std::map<RsPeerId,std::pair<std::string,RsFriendServer::PeerFriendshipLevel> >& friend_certificates)
@@ -165,7 +173,7 @@ bool FsClient::sendItem(const std::string& server_address,uint16_t server_port,
     if((CreateSocket = socket(AF_INET, SOCK_STREAM, 0))< 0)
     {
         printf("Socket not created \n");
-        return 1;
+        return false;
     }
 
     int flags=1;
@@ -259,6 +267,19 @@ bool FsClient::checkProxyConnection(const std::string& onion_address,uint16_t po
 {
     int CreateSocket = 0;
     struct sockaddr_in ipOfServer;
+
+    // Early check for server port and address syntax
+
+    if(onion_address.length() != 62 || strcmp(onion_address.substr(56).c_str(),".onion"))
+    {
+        RsErr() << "Inconsistent onion address for friend server \"" << onion_address << "\"";
+        return false;
+    }
+    if(port < 1025)
+    {
+        RsErr() << "Inconsistent (private) port " << port << " for friend server";
+        return false;
+    }
 
     if((CreateSocket = socket(AF_INET, SOCK_STREAM, 0))< 0)
     {
