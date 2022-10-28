@@ -144,7 +144,7 @@ void FriendServerManager::threadTick()
         }
 
         std::map<RsPeerId,std::pair<std::string,PeerFriendshipLevel> > friend_certificates;
-        FsClient::FsClientErrorCode error_code = FsClient::FsClientErrorCode::NO_ERROR;
+        FsClient::FsClientErrorCode error_code = FsClient::FsClientErrorCode::FS_CLIENT_NO_ERROR;
 
         if(!FsClient().requestFriends(mServerAddress,          // blocking call
                                   mServerPort,

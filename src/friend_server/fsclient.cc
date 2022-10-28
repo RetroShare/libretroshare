@@ -49,7 +49,7 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
 {
     // Send our own certificate to publish and expects response from the server, decrypts it and returns friend list
 
-    error_code = FsClientErrorCode::NO_ERROR;
+    error_code = FsClientErrorCode::FS_CLIENT_NO_ERROR;
     RsFriendServerClientPublishItem *pitem = new RsFriendServerClientPublishItem();
 
     pitem->n_requested_friends = reqs;

@@ -33,7 +33,7 @@ public:
     FsClient() :PQInterface(RsPeerId()) {}
 
     enum class FsClientErrorCode: uint8_t {
-        NO_ERROR            = 0x00,
+        FS_CLIENT_NO_ERROR  = 0x00,
         NO_CONNECTION       = 0x01,
         UNKNOWN_ERROR       = 0x02,
     };
