@@ -68,7 +68,7 @@ public:
 	void fullstop() override { RsThread::fullstop(); }
 
 	/// @see RsJsonApi
-	 std::error_condition restart() override;
+     std::error_condition restart(bool wait=false) override;
 
 	/// @see RsJsonApi
 	void askForStop() override { RsThread::askForStop(); }

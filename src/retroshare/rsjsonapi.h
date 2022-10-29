@@ -116,7 +116,7 @@ public:
 	 * @jsonapi{development,manualwrapper}
 	 * @return Success or error details
 	 */
-	virtual std::error_condition restart() = 0;
+    virtual std::error_condition restart(bool wait=false) = 0;
 
 	/** @brief Request RsJsonApi to stop and wait until it has stopped.
 	 * Do not expose this method to JSON API as fullstop must not be called from
