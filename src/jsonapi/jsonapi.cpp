@@ -744,17 +744,20 @@ std::vector<std::shared_ptr<rb::Resource> > JsonApiServer::getResources() const
 std::error_condition JsonApiServer::restart(bool wait)
 {
     time_t now = time(nullptr);
+    time_t restart_TS_copy ;
 
-    while(wait && mRestartReqTS + RESTART_BURST_PROTECTION > (now=time(nullptr)))
+    std::exchange(restart_TS_copy,mRestartReqTS);
+
+    while(wait && restart_TS_copy + RESTART_BURST_PROTECTION > (now=time(nullptr)))
     {
-        RsInfo() << "Restarting jsonapi server in " << mRestartReqTS + RESTART_BURST_PROTECTION - now << " seconds.";
+        RsInfo() << "Restarting jsonapi server in " << restart_TS_copy + RESTART_BURST_PROTECTION - now << " seconds.";
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    if(mRestartReqTS + RESTART_BURST_PROTECTION > now)
+    if(restart_TS_copy + RESTART_BURST_PROTECTION > now)
 		return RsJsonApiErrorNum::NOT_A_MACHINE_GUN;
 
-    mRestartReqTS = now;
+    std::exchange(mRestartReqTS,now);
 
 	unProtectedRestart();
 	return std::error_condition();
