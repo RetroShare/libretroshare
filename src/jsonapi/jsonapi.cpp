@@ -741,23 +741,24 @@ std::vector<std::shared_ptr<rb::Resource> > JsonApiServer::getResources() const
 	return tab;
 }
 
+static RsMutex restartMtx("JSON API Restart");	// In global scope, to make sure it's allocated in the main thread
+
 std::error_condition JsonApiServer::restart(bool wait)
 {
     time_t now = time(nullptr);
-    time_t restart_TS_copy ;
 
-    std::exchange(restart_TS_copy,mRestartReqTS);
+    RS_STACK_MUTEX(restartMtx); // prevents 2 simultaneous calls. In wait mode, the mutex doesn't cause harm since the thread is supposed to wait anyway
 
-    while(wait && restart_TS_copy + RESTART_BURST_PROTECTION > (now=time(nullptr)))
+    while(wait && mRestartReqTS + RESTART_BURST_PROTECTION > (now=time(nullptr)))
     {
-        RsInfo() << "Restarting jsonapi server in " << restart_TS_copy + RESTART_BURST_PROTECTION - now << " seconds.";
+        RsInfo() << "Restarting jsonapi server in " << mRestartReqTS + RESTART_BURST_PROTECTION - now << " seconds.";
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    if(restart_TS_copy + RESTART_BURST_PROTECTION > now)
+    if(mRestartReqTS + RESTART_BURST_PROTECTION > now)
 		return RsJsonApiErrorNum::NOT_A_MACHINE_GUN;
 
-    std::exchange(mRestartReqTS,now);
+    mRestartReqTS = now;
 
 	unProtectedRestart();
 	return std::error_condition();
