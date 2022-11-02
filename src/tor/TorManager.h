@@ -59,6 +59,9 @@ public:
     std::string torDataDirectory() const;
     void setTorDataDirectory(const std::string &path);
 
+    std::string torExecutablePath() const;
+    void setTorExecutablePath(const std::string& tor_exe_full_path) ;
+
     std::string hiddenServiceDirectory() const;
     void setHiddenServiceDirectory(const std::string &path);
 

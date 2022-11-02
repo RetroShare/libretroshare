@@ -69,13 +69,16 @@ public:
     std::list<std::string> logMessages;
     std::string errorMessage;
     bool configNeeded;
+    std::string userProvidedTorExecutablePath;
 
 	HiddenService *hiddenService ;
 
     explicit TorManagerPrivate(TorManager *parent = 0);
     virtual ~TorManagerPrivate();
 
-    std::string torExecutablePath() const;
+    std::string torExecutablePath() const ;
+    void setTorExecutablePath(const std::string& tor_exe_path) ;
+
     bool createDataDir(const std::string &path);
     bool createDefaultTorrc(const std::string &path);
 
@@ -112,6 +115,10 @@ TorManagerPrivate::TorManagerPrivate(TorManager *parent)
     control->set_statusChanged_callback([this](int new_status,int /*old_status*/) { controlStatusChanged(new_status); });
 }
 
+void TorManagerPrivate::setTorExecutablePath(const std::string& tor_exe_path)
+{
+    userProvidedTorExecutablePath = tor_exe_path;
+}
 TorManagerPrivate::~TorManagerPrivate()
 {
     delete(control);
@@ -333,6 +340,15 @@ void TorManager::hiddenServiceHostnameChanged()
 bool TorManager::configurationNeeded() const
 {
     return d->configNeeded;
+}
+
+void TorManager::setTorExecutablePath(const std::string& tor_exe_full_path)
+{
+    d->setTorExecutablePath(tor_exe_full_path);
+}
+std::string TorManager::torExecutablePath() const
+{
+    return (d==nullptr)?(std::string()):(d->torExecutablePath());
 }
 
 const std::list<std::string>& TorManager::logMessages() const
@@ -650,6 +666,9 @@ void TorManagerPrivate::getConfFinished(TorControlCommand *sender)
 
 std::string TorManagerPrivate::torExecutablePath() const
 {
+    if(!userProvidedTorExecutablePath.empty())
+        return userProvidedTorExecutablePath;
+
     std::string path;
 #ifdef TODO
     SettingsObject settings("tor");
@@ -768,6 +787,16 @@ bool RsTor::getHiddenServiceInfo(std::string& service_id,
 std::list<std::string> RsTor::logMessages()
 {
     return instance()->logMessages();
+}
+
+std::string RsTor::torExecutablePath()
+{
+    return instance()->torExecutablePath();
+}
+
+void RsTor::setTorExecutablePath(const std::string& e)
+{
+    instance()->setTorExecutablePath(e);
 }
 
 std::string RsTor::socksAddress()
