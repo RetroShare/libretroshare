@@ -71,7 +71,7 @@ struct RsJsonApiErrorCategory: std::error_category
 		case RsJsonApiErrorNum::AUTHORIZATION_REQUEST_DENIED:
 			return "User denied new token autorization";
 		case RsJsonApiErrorNum::CANNOT_EXECUTE_BEFORE_RS_LOGIN:
-			return "This operation cannot be executed bedore RetroShare login";
+            return "This operation cannot be executed before RetroShare login";
 		case RsJsonApiErrorNum::NOT_A_MACHINE_GUN:
 			return "Method must not be called in burst";
 		default:

@@ -49,6 +49,7 @@
 
 /*extern*/ RsJsonApi* rsJsonApi = nullptr;
 
+static RsMutex restartMtx("JSON API Restart");	// In global scope, to make sure it's allocated in the main thread
 const std::string RsJsonApi::DEFAULT_BINDING_ADDRESS = "127.0.0.1";
 
 /*static*/ const std::multimap<std::string, std::string>
@@ -452,8 +453,13 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 			std::error_condition retval;
 
 			const auto now = time(nullptr);
-			if(mRestartReqTS.exchange(now) + RESTART_BURST_PROTECTION > now)
+
+            RS_STACK_MUTEX(restartMtx); // prevents 2 simultaneous calls. In wait mode, the mutex doesn't cause harm since the thread is supposed to wait anyway
+
+            if(mRestartReqTS + RESTART_BURST_PROTECTION > now)
 				retval = RsJsonApiErrorNum::NOT_A_MACHINE_GUN;
+            else
+                mRestartReqTS = now;
 
 			// serialize out parameters and return value to JSON
 			{
@@ -740,8 +746,6 @@ std::vector<std::shared_ptr<rb::Resource> > JsonApiServer::getResources() const
 
 	return tab;
 }
-
-static RsMutex restartMtx("JSON API Restart");	// In global scope, to make sure it's allocated in the main thread
 
 std::error_condition JsonApiServer::restart(bool wait)
 {
