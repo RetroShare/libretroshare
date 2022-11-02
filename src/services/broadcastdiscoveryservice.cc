@@ -1,8 +1,8 @@
 /*******************************************************************************
  * RetroShare Broadcast Domain Discovery                                       *
  *                                                                             *
- * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@altermundi.net>           *
- * Copyright (C) 2019-2022  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2021  Gioacchino Mazzurco <gio@altermundi.net>           *
+ * Copyright (C) 2019-2021  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -25,7 +25,6 @@
 #include <chrono>
 #include <vector>
 #include <iostream>
-#include <cstdlib>
 
 #include "services/broadcastdiscoveryservice.h"
 #include "retroshare/rspeers.h"
@@ -68,46 +67,14 @@ struct BroadcastDiscoveryPack : RsSerializable
 		return bdp;
 	}
 
-	/**
-	* @param[out] ec Optional storage for eventual error code,
-	*	meaningful only on failure, if a nullptr is passed ther error is treated
-	*	as fatal downstream, otherwise it is bubbled up to be treated upstream
-	*/
-	static std::unique_ptr<BroadcastDiscoveryPack> fromSerializedString(
-	        const std::string& st,
-	        rs_view_ptr<std::error_condition> ec )
+	static BroadcastDiscoveryPack fromSerializedString(const std::string& st)
 	{
-		if(st.empty())
-		{
-			if(!ec)
-			{
-				RS_FATAL("Attempteted from empty string ", std::errc::no_message);
-				print_stacktrace();
-				exit(static_cast<int>(std::errc::no_message));
-			}
-
-			*ec = std::errc::no_message;
-			return nullptr;
-		}
-
 		RsGenericSerializer::SerializeContext ctx(
 		            reinterpret_cast<uint8_t*>(const_cast<char*>(st.data())),
 		            static_cast<uint32_t>(st.size()) );
-
-		auto bdp = std::make_unique<BroadcastDiscoveryPack>();
-		bdp->serial_process(RsGenericSerializer::DESERIALIZE, ctx);
-		if(ctx.mOk) return bdp;
-
-		if(!ec)
-		{
-			RS_FATAL( "Attempteted from invalid string ",
-			          std::errc::invalid_argument );
-			print_stacktrace();
-			exit(static_cast<int>(std::errc::invalid_argument));
-		}
-
-		*ec =  std::errc::invalid_argument;
-		return nullptr;
+		BroadcastDiscoveryPack bdp;
+		bdp.serial_process(RsGenericSerializer::DESERIALIZE, ctx);
+		return bdp;
 	}
 
 	std::string serializeToString()
@@ -161,11 +128,7 @@ BroadcastDiscoveryService::getDiscoveredPeers()
 
 	RS_STACK_MUTEX(mDiscoveredDataMutex);
 	for(auto&& pp: mDiscoveredData)
-	{
-		/* Results must be clean at this point so let downstrem treat errors as
-		 * fatal if something dirty gets here */
-		ret.push_back(*createResult(pp.first, pp.second));
-	}
+		ret.push_back(createResult(pp.first, pp.second));
 
 	return ret;
 }
@@ -190,18 +153,8 @@ void BroadcastDiscoveryService::threadTick()
 		mDiscoveredDataMutex.lock();
 		for(auto&& dEndpoint: currentEndpoints)
 		{
-			/* Getting something invalid here from network is possible so treat
-			 * it gracefully */
-			std::error_condition errC;
-			if(!createResult(dEndpoint.ip_port(), dEndpoint.user_data(), &errC))
-			{
-				RS_INFO( "Discovered peer: ",
-				         UDC::IpPortToString(dEndpoint.ip_port()),
-				         " with invalid data discarding it ", errC);
-				continue;
-			}
-
 			currentMap[dEndpoint.ip_port()] = dEndpoint.user_data();
+
 			auto findIt = mDiscoveredData.find(dEndpoint.ip_port());
 			if( !dEndpoint.user_data().empty() && (
 			            findIt == mDiscoveredData.end() ||
@@ -215,25 +168,29 @@ void BroadcastDiscoveryService::threadTick()
 		{
 			for (auto&& pp : updateMap)
 			{
-				/* At this point all peers must be valid as we checked them
-				 * before, so no need to check errors gracefully again */
-				auto rbdr = createResult(pp.first, pp.second);
+				RsBroadcastDiscoveryResult rbdr =
+				        createResult(pp.first, pp.second);
 
-				const bool isFriend = mRsPeers.isFriend(rbdr->mSslId);
-				if( isFriend && rbdr->mLocator.hasPort() &&
-				        !mRsPeers.isOnline(rbdr->mSslId) )
+				const bool isFriend = mRsPeers.isFriend(rbdr.mSslId);
+				if( isFriend && rbdr.mLocator.hasPort() &&
+				        !mRsPeers.isOnline(rbdr.mSslId) )
 				{
 					mRsPeers.setLocalAddress(
-					            rbdr->mSslId, rbdr->mLocator.host(),
-					            rbdr->mLocator.port() );
-					mRsPeers.connectAttempt(rbdr->mSslId);
+					            rbdr.mSslId, rbdr.mLocator.host(),
+					            rbdr.mLocator.port() );
+					mRsPeers.connectAttempt(rbdr.mSslId);
 				}
 				else if(!isFriend)
 				{
-					auto ev = std::make_shared<RsBroadcastDiscoveryEvent>();
-					ev->mDiscoveryEventType = RsBroadcastDiscoveryEventType::PEER_FOUND;
-					ev->mData = *rbdr;
-					rsEvents->postEvent(ev);
+					if(rsEvents)
+                    {
+						auto ev = std::make_shared<RsBroadcastDiscoveryEvent>();
+
+                        ev->mDiscoveryEventType = RsBroadcastDiscoveryEventType::PEER_FOUND;
+                        ev->mData = rbdr;
+
+						rsEvents->postEvent(ev);
+                    }
 				}
 			}
 		}
@@ -243,33 +200,29 @@ void BroadcastDiscoveryService::threadTick()
 	if( mUdcParameters.can_be_discovered() &&
 	        !mRsPeers.isHiddenNode(mRsPeers.getOwnId()) ) updatePublishedData();
 
-	/* This avoids waiting 5 secs when the thread should actually terminate
-	 * (when RS closes). */
-	for(uint32_t i=0;i<10;++i)
-	{
-		if(shouldStop()) return;
-		rstime::rs_usleep(500*1000); // sleep for 0.5 sec.
-	}
+    // This avoids waiting 5 secs when the thread should actually terminate (when RS closes).
+    for(uint32_t i=0;i<10;++i)
+    {
+        if(shouldStop())
+            return;
+        rstime::rs_usleep(500*1000); // sleep for 0.5 sec.
+    }
 }
 
-/*static*/
-std::unique_ptr<RsBroadcastDiscoveryResult>
-BroadcastDiscoveryService::createResult(
-        const UDC::IpPort& ipp, const std::string& uData,
-        rs_view_ptr<std::error_condition> ec )
+RsBroadcastDiscoveryResult BroadcastDiscoveryService::createResult(
+        const udpdiscovery::IpPort& ipp, const std::string& uData )
 {
-	/* if ec is nullptr the error is treathed downstream otherwise upstream in
-	 * any case should not be treated here */
-	auto bdp = BroadcastDiscoveryPack::fromSerializedString(uData, ec);
+	BroadcastDiscoveryPack bdp =
+	        BroadcastDiscoveryPack::fromSerializedString(uData);
 
-	auto rbdr = std::make_unique<RsBroadcastDiscoveryResult>();
-	rbdr->mPgpFingerprint = bdp->mPgpFingerprint;
-	rbdr->mSslId = bdp->mSslId;
-	rbdr->mProfileName = bdp->mProfileName;
-	rbdr->mLocator.
+	RsBroadcastDiscoveryResult rbdr;
+	rbdr.mPgpFingerprint = bdp.mPgpFingerprint;
+	rbdr.mSslId = bdp.mSslId;
+	rbdr.mProfileName = bdp.mProfileName;
+	rbdr.mLocator.
 	        setScheme("ipv4").
 	        setHost(UDC::IpToString(ipp.ip())).
-	        setPort(bdp->mLocalPort);
+	        setPort(bdp.mLocalPort);
 
 	return rbdr;
 }
