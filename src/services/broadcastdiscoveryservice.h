@@ -1,8 +1,8 @@
 /*******************************************************************************
  * RetroShare Broadcast Domain Discovery                                       *
  *                                                                             *
- * Copyright (C) 2019-2021  Gioacchino Mazzurco <gio@altermundi.net>           *
- * Copyright (C) 2019-2021  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@altermundi.net>           *
+ * Copyright (C) 2019-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -23,12 +23,13 @@
 #include <cstdint>
 #include <map>
 #include <iostream>
-#include <memory>
 #include <forward_list>
+#include <system_error>
 
 #include <udp_discovery_peer.hpp>
 
 #include "retroshare/rsbroadcastdiscovery.h"
+#include "util/rsmemory.h"
 #include "util/rsthreads.h"
 #include "util/rsdebug.h"
 
@@ -76,8 +77,18 @@ protected:
 
 	RsPeers& mRsPeers;
 
-	RsBroadcastDiscoveryResult createResult(
-	        const UDC::IpPort& ipp, const std::string& uData );
+	/**
+	 * @brief Create result object from data
+	 * @param[in] ipp peer IP and port
+	 * @param[in] uData serialized data associated to the peer
+	 * @param[out] ec Optional storage for eventual error code,
+	 *	meaningful only on failure, if a nullptr is passed ther error is treated
+	 *	as fatal downstream, otherwise it bubble up to be treated upstream
+	 * @return nullptr on failure, pointer to the generated result otherwise
+	 */
+	static std::unique_ptr<RsBroadcastDiscoveryResult> createResult(
+	        const UDC::IpPort& ipp, const std::string& uData,
+	        rs_view_ptr<std::error_condition> ec = nullptr );
 
 #ifdef __ANDROID__
 	struct AndroidMulticastLock

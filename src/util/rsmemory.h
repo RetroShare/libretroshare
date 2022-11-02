@@ -120,7 +120,9 @@ static constexpr size_t SAFE_MEMALLOC_THRESHOLD = 1024*1024*1024;
  * `uint8_t* ptr = rs_malloc<uint8_t>(40);`
  * @param[in] size number of bytes to allocate
  * @param[out] ec optional storage for error details. Value is meaningful only
- *	whem nullptr is returned.
+ *	when nullptr is returned. If a nullptr is passed then errors are treated
+ *	as fatal inside rs_malloc, otherwise they are bubbled up to be treated
+ *	upstream
  * @return nullptr on error, pointer to the allocated chuck of memory on success
  */
 template<typename T = void> rs_owner_ptr<T> rs_malloc(
@@ -146,6 +148,7 @@ template<typename T = void> rs_owner_ptr<T> rs_malloc(
 		{
 			RS_ERR( "A chunk of size larger than ", SAFE_MEMALLOC_THRESHOLD,
 			        " was requested" );
+			print_stacktrace();
 			exit(static_cast<int>(std::errc::argument_out_of_domain));
 		}
 
