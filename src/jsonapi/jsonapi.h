@@ -37,7 +37,6 @@
 #include "rsitems/rsitem.h"
 #include "jsonapi/jsonapiitems.h"
 #include "retroshare/rsjsonapi.h"
-#include "util/rsthreads.h"
 
 namespace rb = restbed;
 
@@ -68,7 +67,7 @@ public:
 	void fullstop() override { RsThread::fullstop(); }
 
 	/// @see RsJsonApi
-	 std::error_condition restart() override;
+     std::error_condition restart(bool wait=false) override;
 
 	/// @see RsJsonApi
 	void askForStop() override { RsThread::askForStop(); }
@@ -216,7 +215,7 @@ private:
 	std::string mBindingAddress;
 
 	/// @see unProtectedRestart()
-	std::atomic<rstime_t> mRestartReqTS;
+    rstime_t mRestartReqTS;
 
 	/// @see unProtectedRestart()
 	constexpr static rstime_t RESTART_BURST_PROTECTION = 7;

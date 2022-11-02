@@ -71,7 +71,7 @@ struct RsJsonApiErrorCategory: std::error_category
 		case RsJsonApiErrorNum::AUTHORIZATION_REQUEST_DENIED:
 			return "User denied new token autorization";
 		case RsJsonApiErrorNum::CANNOT_EXECUTE_BEFORE_RS_LOGIN:
-			return "This operation cannot be executed bedore RetroShare login";
+            return "This operation cannot be executed before RetroShare login";
 		case RsJsonApiErrorNum::NOT_A_MACHINE_GUN:
 			return "Method must not be called in burst";
 		default:
@@ -112,11 +112,11 @@ public:
 
 	/**
 	 * @brief Restart RsJsonApi server.
-	 * This method is asyncronous when called from JSON API.
+     * This method is asyncronous and will ignore the wait parameter when called from JSON API.
 	 * @jsonapi{development,manualwrapper}
 	 * @return Success or error details
 	 */
-	virtual std::error_condition restart() = 0;
+    virtual std::error_condition restart(bool wait=false) = 0;
 
 	/** @brief Request RsJsonApi to stop and wait until it has stopped.
 	 * Do not expose this method to JSON API as fullstop must not be called from
