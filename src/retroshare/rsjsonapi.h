@@ -112,7 +112,7 @@ public:
 
 	/**
 	 * @brief Restart RsJsonApi server.
-	 * This method is asyncronous when called from JSON API.
+     * This method is asyncronous and will ignore the wait parameter when called from JSON API.
 	 * @jsonapi{development,manualwrapper}
 	 * @return Success or error details
 	 */
