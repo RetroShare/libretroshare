@@ -109,8 +109,8 @@ define_default_value REPORT_DIR "$(pwd)/$(basename ${NATIVE_LIBS_TOOLCHAIN_PATH}
 define_default_value RS_SRC_DIR "$(realpath $(dirname $BASH_SOURCE)/../../)"
 define_default_value RS_EXTRA_CMAKE_OPTS ""
 
-# Debug or Release we should give support at least at those two builds type supported by CMake
-define_default_value TOOLCHAIN_BUILD_TYPE ""
+# Debug or Release we should give support at least at those two builds type
+define_default_value TOOLCHAIN_BUILD_TYPE Release
 
 cArch=""
 eABI=""
@@ -215,19 +215,24 @@ function andro_cmake()
 	esac
 
 	_hi="$HOST_IGNORE_PREFIX"
-	
+
 	cmakeBuildType=""
 	[ "$TOOLCHAIN_BUILD_TYPE" == "" ] ||
 		cmakeBuildType="-DCMAKE_BUILD_TYPE=$TOOLCHAIN_BUILD_TYPE"
 
 	cmakeOptimizationsOpt=""
-	[ "$TOOLCHAIN_BUILD_TYPE" != "Release" ] ||
-	{
+	cmakeDebugOptions=""
+	case "$TOOLCHAIN_BUILD_TYPE" in
+	"Release"|"RelWithDebInfo")
 		cmakeOptimizationsOpt="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
-	}
+		cmakeDebugOptions="-DRS_SPLIT_DEBUG=ON"
+		;;
+	esac
 
 	cmake \
-		$cmakeBuildType \
+		$cmakeBuildType $cmakeCompileOptions $cmakeDebugOptions \
+		-DCMAKE_C_COMPILER_AR=$AR \
+		-DCMAKE_C_COMPILER_RANLIB=$RANLIB \
 		-DCMAKE_SYSTEM_PROCESSOR=$cmakeProc \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
 		-DCMAKE_PREFIX_PATH="${PREFIX}" \
@@ -813,7 +818,7 @@ build_libretroshare()
 	rm -rf $B_dir
 	mkdir $B_dir || return $?
 	pushd $B_dir || return $?
-	andro_cmake -B. -H${S_dir} -DCMAKE_BUILD_TYPE=Release \
+	andro_cmake -B. -H${S_dir} \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
 		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
