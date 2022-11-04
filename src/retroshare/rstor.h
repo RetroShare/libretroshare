@@ -171,6 +171,8 @@ public:
     static std::map<std::string,std::string> bootstrapStatus();
     static std::list<std::string> logMessages();
 
+    static std::string torExecutablePath();
+    static void setTorExecutablePath(const std::string&);
     static std::string socksAddress();
     static uint16_t socksPort();
 
