@@ -513,7 +513,8 @@ HEADERS +=	util/folderiterator.h \
     util/cxx14retrocompat.h \
     util/cxx17retrocompat.h \
     util/cxx23retrocompat.h \
-    util/rsurl.h
+    util/rsurl.h \
+    util/rsmacrosugar.hpp
 
 SOURCES +=	ft/ftchunkmap.cc \
 			ft/ftcontroller.cc \

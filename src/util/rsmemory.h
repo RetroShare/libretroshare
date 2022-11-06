@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2012  Cyril Soler <csoler@users.sourceforge.net>              *
- * Copyright (C) 2019-2021  Gioacchino Mazzurco <gio@altermundi.net>           *
- * Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>       *
+ * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@altermundi.net>           *
+ * Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -131,43 +131,27 @@ template<typename T = void> rs_owner_ptr<T> rs_malloc(
 {
 	if(size == 0)
 	{
-		if(!ec)
-		{
-			RS_ERR("A chunk of size 0 was requested");
-			print_stacktrace();
-			exit(static_cast<int>(std::errc::invalid_argument));
-		}
-
-		*ec = std::errc::invalid_argument;
+		rs_error_bubble_or_exit(
+		            std::errc::invalid_argument, ec,
+		            "A chunk of size 0 was requested" );
 		return nullptr;
 	}
 
 	if(size > SAFE_MEMALLOC_THRESHOLD)
 	{
-		if(!ec)
-		{
-			RS_ERR( "A chunk of size larger than ", SAFE_MEMALLOC_THRESHOLD,
-			        " was requested" );
-			print_stacktrace();
-			exit(static_cast<int>(std::errc::argument_out_of_domain));
-		}
-
-		*ec = std::errc::argument_out_of_domain;
+		rs_error_bubble_or_exit(
+		            std::errc::argument_out_of_domain, ec,
+		            "A chunk of size larger than ", SAFE_MEMALLOC_THRESHOLD,
+		            " was requested" );
 		return nullptr;
 	}
 
 	void* mem = malloc(size);
 	if(!mem)
 	{
-		if(!ec)
-		{
-			RS_ERR( "Allocation failed for a chunk of ", size,
-			        " bytes with: ", errno);
-			print_stacktrace();
-			exit(errno);
-		}
-
-		*ec = rs_errno_to_condition(errno);
+		rs_error_bubble_or_exit(
+		            rs_errno_to_condition(errno), ec,
+		            "malloc failed for a chunk of ", size, " bytes" );
 		return nullptr;
 	}
 
