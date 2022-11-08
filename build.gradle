@@ -471,12 +471,12 @@ afterEvaluate
 				version getLibretroshareSourceVersion()
 				artifact bundleReleaseAar
 			}
-			releaseDebugSymbols(MavenPublication)
+			releaseWithDebuggingSymbols(MavenPublication)
 			{
 				groupId = getRsId()
 				artifactId "${getArtifactBaseName()}-$name"
 				version getLibretroshareSourceVersion()
-				artifact bundleReleaseAar
+				artifact bundleReleaseWithDebuggingSymbolsAar
 			}
 		}
 		repositories
