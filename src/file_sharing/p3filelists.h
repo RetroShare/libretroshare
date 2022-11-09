@@ -189,7 +189,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
 		bool hashingProcessPaused();
 
     protected:
-		void getExtraFilesDirDetails(void *ref,DirectoryStorage::EntryIndex e,DirDetails& d) const;
+        void getExtraFilesDirDetails_locked(void *ref,DirectoryStorage::EntryIndex e,DirDetails& d) const;
 
         int filterResults(const std::list<void*>& firesults,std::list<DirDetails>& results,FileSearchFlags flags,const RsPeerId& peer_id) const;
         std::string makeRemoteFileName(const RsPeerId& pid) const;
@@ -289,7 +289,6 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
 		std::map<RsFileHash,BannedFileEntry> mPrimaryBanList ;	// primary list (user controlled) of files banned from FT search and forwarding. map<real hash, BannedFileEntry>
         std::map<RsPeerId,PeerBannedFilesEntry> mPeerBannedFiles ;   // records of which files other peers ban, stored as H(H(f))
 		std::set<RsFileHash> mBannedFileList ;	// list of banned hashes. This include original hashs and H(H(f)) when coming from friends.
-        mutable std::vector<FileInfo> mExtraFilesCache;	// cache for extra files, to avoid requesting them too often.
         mutable rstime_t mLastExtraFilesCacheUpdate ;
         bool mTrustFriendNodesForBannedFiles ;
         bool mBannedFileListNeedsUpdate;
