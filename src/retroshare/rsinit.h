@@ -141,6 +141,7 @@ struct RsConfigOptions
 
 	std::string opModeStr;          /* operating mode. Acceptable values: "Full", "NoTurtle", "Gaming", "Minimal" */
 	std::string optBaseDir;			/* base directory where to find profiles, etc */
+    std::string userSuppliedTorExecutable; /* allows the user to supply his own Tor executable, or to tell RS where to find Tor */
 
 	uint16_t    jsonApiPort;		/* port to use fo Json API */
 	std::string jsonApiBindAddress; /* bind address for Json API */

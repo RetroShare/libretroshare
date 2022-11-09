@@ -417,8 +417,8 @@ bool TorManager::startTorManager()
 
         RsDbg() << "Executable path: " << executable ;
 
-        if (executable.empty()) {
-            d->setError("Cannot find tor executable");
+        if (executable.empty() || !RsDirUtil::fileExists(executable)) {
+            d->setError("Cannot find tor executable. Current path is \"" + executable + "\".");
             return false;
         }
 
