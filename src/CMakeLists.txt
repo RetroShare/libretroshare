@@ -650,6 +650,7 @@ list(
 	util/rsjson.h
 	util/rskbdinput.cc
 	util/rskbdinput.h
+	util/rsmacrosugar.hpp
 	util/rsmemcache.h
 	util/rsmemory.h
 	util/rsnet.h
