@@ -985,50 +985,41 @@ bool p3FileDatabase::removeExtraFile(const RsFileHash& hash)
 	return ret;
 }
 
-void p3FileDatabase::getExtraFilesDirDetails(void *ref,DirectoryStorage::EntryIndex e,DirDetails& d) const
+void p3FileDatabase::getExtraFilesDirDetails_locked(void *ref,DirectoryStorage::EntryIndex e,DirDetails& d) const
 {
-    // update the cache of extra files if last requested too long ago
+    std::vector<FileInfo> tmp_extrafiles;	// cache for extra files, to avoid requesting them too often.
+    mExtraFiles->getExtraFileList(tmp_extrafiles);
 
-    rstime_t now = time(NULL);
-
-    if(mLastExtraFilesCacheUpdate + DELAY_BETWEEN_EXTRA_FILES_CACHE_UPDATES <= now)
-    {
-        mExtraFiles->getExtraFileList(mExtraFilesCache);
-        mLastExtraFilesCacheUpdate = now;
-    }
-
-    //
-
-	if(e == 0)	// "virtual extra files directory" => create a dir with as many child as they are extra files
+    if(e == 0)	// "virtual extra files directory" => create a dir with as many child as they are extra files
 	{
 		d.parent = NULL ;
 
 		d.prow = 0;//fi-1 ;
 		d.type = DIR_TYPE_PERSON;
 		d.hash.clear() ;
-        d.size   = mExtraFilesCache.size();
+        d.size   = tmp_extrafiles.size();
 		d.max_mtime = time(NULL);
 		d.mtime     = time(NULL);
 		d.name = "[Extra List]";
 		d.path    = "/";
 		d.ref     = ref ;
 
-        for(uint32_t i=0;i<mExtraFilesCache.size();++i)
+        for(uint32_t i=0;i<tmp_extrafiles.size();++i)
 		{
 			DirStub stub;
 			stub.type = DIR_TYPE_FILE;
-			stub.name = mExtraFilesCache[i].fname;
+            stub.name = tmp_extrafiles[i].fname;
 			convertEntryIndexToPointer<sizeof(void*)>(i+1,1,stub.ref);	// local shared files from extra list
 
 			d.children.push_back(stub);
 		}
 	}
-	else	// extra file. Just query the corresponding data from ftExtra
+    else if(e < tmp_extrafiles.size() + 1)	// extra file. Just query the corresponding data from ftExtra
 	{
 		d.prow = 1;//fi-1 ;
 		d.type = DIR_TYPE_EXTRA_FILE;
 
-        FileInfo& f(mExtraFilesCache[(int)e-1]) ;
+        FileInfo& f(tmp_extrafiles[(int)e-1]) ;
 
 		d.hash      = f.hash;
         d.size     = f.size;
@@ -1040,6 +1031,16 @@ void p3FileDatabase::getExtraFilesDirDetails(void *ref,DirectoryStorage::EntryIn
 
 		convertEntryIndexToPointer<sizeof(void*)>(0,1,d.parent) ;
 	}
+    else
+    {
+        d.ref = nullptr;
+        d.parent = nullptr ;
+
+        d.prow = 0;//fi-1 ;
+        d.type = DIR_TYPE_UNKNOWN;
+        d.hash.clear() ;
+        d.size   = 0;
+    }
 
     d.flags = DIR_FLAGS_ANONYMOUS_DOWNLOAD ;
 	d.id = RsPeerId();
@@ -1151,7 +1152,10 @@ int p3FileDatabase::RequestDirDetails(
 
 	if((flags & RS_FILE_HINTS_LOCAL) && fi == 1) // extra list
     {
-        getExtraFilesDirDetails(ref,e,d);
+        getExtraFilesDirDetails_locked(ref,e,d);
+
+        if(d.ref == nullptr)
+            return false;
 
 #ifdef DEBUG_FILE_HIERARCHY
 		P3FILELISTS_DEBUG() << "ExtractData: ref=" << ref << ", flags=" << flags << " : returning this: " << std::endl;

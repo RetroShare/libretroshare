@@ -164,7 +164,6 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 		++i ;
 	}
 	_pubring_last_update_time = time(NULL) ;
-    _pubring_changed = false;
 
 	RS_INFO("Pubring read successfully");
 
