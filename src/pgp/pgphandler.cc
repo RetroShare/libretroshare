@@ -57,11 +57,15 @@ void PGPHandler::setPassphraseCallback(PassphraseCallback cb)
 }
 
 PGPHandler::PGPHandler(const std::string& pubring, const std::string& secring,const std::string& trustdb,const std::string& pgp_lock_filename)
-	: pgphandlerMtx(std::string("PGPHandler")), _pubring_path(pubring),_secring_path(secring),_trustdb_path(trustdb),_pgp_lock_filename(pgp_lock_filename)
+	: pgphandlerMtx(std::string("PGPHandler")), 
+	_pubring_path(pubring),
+	_secring_path(secring),
+	_trustdb_path(trustdb),
+	_pgp_lock_filename(pgp_lock_filename),
+	_trustdb_changed(false),
+	_pubring_changed(false),
+	_pubring_last_update_time(time(NULL))
 {
-    _trustdb_changed = false;
-    _pubring_changed = false;
-    _pubring_last_update_time = time(NULL) ;
 }
 
 PGPHandler::~PGPHandler()
