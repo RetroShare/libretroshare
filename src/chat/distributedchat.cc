@@ -979,17 +979,17 @@ void DistributedChatService::sendLobbyStatusPeerChangedNickname(const ChatLobbyI
 
 void DistributedChatService::sendLobbyStatusPeerLeaving(const ChatLobbyId& lobby_id)
 {
-    sendLobbyStatusItem(lobby_id,RS_CHAT_LOBBY_EVENT_PEER_LEFT,std::string()) ;
+    //sendLobbyStatusItem(lobby_id,RS_CHAT_LOBBY_EVENT_PEER_LEFT,std::string()) ;
 }
 
 void DistributedChatService::sendLobbyStatusNewPeer(const ChatLobbyId& lobby_id)
 {
-    sendLobbyStatusItem(lobby_id,RS_CHAT_LOBBY_EVENT_PEER_JOINED,std::string()) ;
+    //sendLobbyStatusItem(lobby_id,RS_CHAT_LOBBY_EVENT_PEER_JOINED,std::string()) ;
 }
 
 void DistributedChatService::sendLobbyStatusKeepAlive(const ChatLobbyId& lobby_id)
 {
-    sendLobbyStatusItem(lobby_id,RS_CHAT_LOBBY_EVENT_KEEP_ALIVE,std::string()) ;
+    //sendLobbyStatusItem(lobby_id,RS_CHAT_LOBBY_EVENT_KEEP_ALIVE,std::string()) ;
 }
 
 void DistributedChatService::sendLobbyStatusItem(const ChatLobbyId& lobby_id,int type,const std::string& status_string) 
