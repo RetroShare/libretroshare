@@ -33,7 +33,7 @@
 // re-ferifying signatures and hashes, to make sure that the data hasn't been tempered. This shouldn't
 // happen anyway, but we still conduct these test as an extra safety measure.
 
-static const uint32_t MAX_GXS_IDS_REQUESTS_NET   =  10 ; // max number of requests from cache/net (avoids killing the system!)
+static const uint32_t MAX_GXS_IDS_REQUESTS_NET   =  100 ; // max number of requests from cache/net (avoids killing the system!)
 
 // #define DEBUG_GXSUTIL 1
 
