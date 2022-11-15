@@ -160,7 +160,7 @@ private:
 
 	/** This contains the ongoing tunnel handling contacts.
 	 * The map is indexed by the hash */
-	std::map<GRouterMsgPropagationId, uint32_t> _ongoing_messages;
+    std::map<GRouterMsgPropagationId, uint32_t> _grouter_ongoing_messages;
 
 	/// Contains ongoing messages handed to gxs mail
 	std::map<RsGxsTransId, uint32_t> gxsOngoingMessages;
@@ -173,7 +173,6 @@ private:
 
     // Utility functions
 
-    bool createDistantMessage(const RsGxsId& destination_gxs_id,const RsGxsId& source_gxs_id,RsMsgItem *msg) ;
     bool locked_findHashForVirtualPeerId(const RsPeerId& pid,Sha1CheckSum& hash) ;
     void sendGRouterData(const RsGxsId &key_id,RsMsgItem *) ;
 
@@ -192,10 +191,13 @@ private:
     bool checkAndRebuildPartialMessage(RsMsgItem*) ;
 
     void 	initRsMI(RsMsgItem *msg, Rs::Msgs::MessageInfo &mi);
-    void 	initRsMIS(RsMsgItem *msg, Rs::Msgs::MsgInfoSummary &mis);
+    void 	initRsMIS(RsMsgItem *msg, Rs::Msgs::MsgInfoSummary &mis, bool outgoing);
 
-    RsMsgItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info, const RsPeerId& to);
+    // Creates a RsItem from a message info and a 'from' field.
+    RsMsgItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info, const Rs::Msgs::MsgAddress &to);
     RsMsgItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info, const RsGxsId& to);
+
+    // Creates a message info from a RsMsgItem.
     void initMIRsMsg(RsMsgItem *item,const Rs::Msgs::MessageInfo &info) ;
 
     void    initStandardTagTypes();
@@ -209,10 +211,14 @@ private:
     RsMutex mMsgMtx;
     RsMsgSerialiser *_serialiser ;
 
-    /* stored list of messages */
-    std::map<uint32_t, RsMsgItem *> imsg;
-    /* ones that haven't made it out yet! */
+    /* stored list of received messages */
+    std::map<uint32_t, RsMsgItem *> mReceivedMessages;
+
+    /* messages that haven't made it out yet! */
     std::map<uint32_t, RsMsgItem *> msgOutgoing; 
+
+    // This map stores node-to-node incoming messages that need to be sent in multiple chunks. GRouter and p3GxsTrans already
+    // handle large messages internally.
 
     std::map<RsPeerId, RsMsgItem *> _pendingPartialMessages ;
 

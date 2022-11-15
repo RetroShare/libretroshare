@@ -20,6 +20,47 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
+// Messaging system
+// ================
+//
+//
+//
+// sendMail()
+//     |
+//     +---- for each to/cc --- sendDistantMessage(RsMsgItem *,GxsId from)  // sends from GxsId to GxsId
+//     |                              |
+// messageSend()                      +--- store in msgOutgoing[]
+//     |                              |
+//     +-----for each to/cc --- sendMessage(RsMsgItem *)					   // sends from node to node
+//
+// tick()
+//   |
+//   +----- checkOutgoingMessages()
+//   |              |
+//   |              +----- sendDistantMsgItem()
+//   |                               |
+//   |                               +-- p3Grouter::sendData()
+//   |                               |
+//   |                               +-- p3GxsTrans::sendData()
+//   |
+//   +----- manageDistantPeers()
+//   |              |
+//   |              +----- p3GRouter::register/unregisterKey()              // adds remove peers
+//   |
+//   +----- incomingMsg()
+//   |         |
+//   |        ...
+//   |         |
+//   |         +--- processIncomingMsg()
+//   |                       |
+//   |                       +--- store in mReceivedMessages[]
+//   |                       |
+//   |                       +--- store in mRecentlyReceivedMessageHashes[]
+//   |
+//   +----- cleanListOfReceivedMessageHashes()
+//
+
 #include "retroshare/rsiface.h"
 #include "retroshare/rspeers.h"
 #include "retroshare/rsidentity.h"
@@ -123,7 +164,7 @@ p3MsgService::~p3MsgService()
     for(auto tag:mMsgTags)       delete tag.second;
     for(auto msgid:mSrcIds)      delete msgid.second;
     for(auto parentid:mParentId) delete parentid.second;
-    for(auto img:imsg)           delete img.second;
+    for(auto img:mReceivedMessages) delete img.second;
     for(auto mout:msgOutgoing)   delete mout.second;
 
     for(auto mpend:_pendingPartialMessages) delete mpend.second;
@@ -198,7 +239,7 @@ void p3MsgService::processIncomingMsg(RsMsgItem *mi)
 			rsEvents->postEvent(ev);
 		}
 
-		imsg[mi->msgId] = mi;
+        mReceivedMessages[mi->msgId] = mi;
 		RsMsgSrcId* msi = new RsMsgSrcId();
 		msi->msgId = mi->msgId;
 		msi->srcId = mi->PeerId();
@@ -426,8 +467,7 @@ int p3MsgService::checkOutgoingMessages()
 		if (toErase.size() > 0) IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 	}
 
-	for( std::list<RsMsgItem*>::const_iterator it(output_queue.begin());
-	     it != output_queue.end(); ++it )
+    for( std::list<RsMsgItem*>::const_iterator it(output_queue.begin()); it != output_queue.end(); ++it )
 		if( (*it)->msgFlags & RS_MSG_FLAGS_DISTANT ) // don't split distant messages. The global router takes care of it.
 			sendDistantMsgItem(*it);
 		else
@@ -458,7 +498,7 @@ bool p3MsgService::saveList(bool& cleanup, std::list<RsItem*>& itemList)
 
 	mMsgMtx.lock();
 
-	for(mit = imsg.begin(); mit != imsg.end(); ++mit)
+    for(mit = mReceivedMessages.begin(); mit != mReceivedMessages.end(); ++mit)
         itemList.push_back(new RsMsgItem(*mit->second));
 
 	for(lit = mSrcIds.begin(); lit != mSrcIds.end(); ++lit)
@@ -478,7 +518,7 @@ bool p3MsgService::saveList(bool& cleanup, std::list<RsItem*>& itemList)
         itemList.push_back(new RsMsgParentId(*mit4->second));
 
     RsMsgGRouterMap *grmap = new RsMsgGRouterMap ;
-    grmap->ongoing_msgs = _ongoing_messages ;
+    grmap->ongoing_msgs = _grouter_ongoing_messages ;
 
     itemList.push_back(grmap) ;
 
@@ -606,7 +646,7 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 			typedef std::map<GRouterMsgPropagationId,uint32_t> tT;
 			for( tT::const_iterator bit = grm->ongoing_msgs.begin();
 			     bit != grm->ongoing_msgs.end(); ++bit )
-				_ongoing_messages.insert(*bit);
+                _grouter_ongoing_messages.insert(*bit);
 			delete *it;
 			continue;
 		}
@@ -707,13 +747,13 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 
 		RS_STACK_MUTEX(mMsgMtx);
 
-	    srcIt = srcIdMsgMap.find(mitem->msgId);
-	    if(srcIt != srcIdMsgMap.end()) {
-		    mitem->PeerId(srcIt->second);
-		    srcIdMsgMap.erase(srcIt);
-	    }
+        srcIt = srcIdMsgMap.find(mitem->msgId);
+        if(srcIt != srcIdMsgMap.end()) {
+            mitem->PeerId(srcIt->second);
+            srcIdMsgMap.erase(srcIt);
+        }
 
-	    /* switch depending on the PENDING
+        /* switch depending on the PENDING
 		 * flags
 		 */
 	    if (mitem -> msgFlags & RS_MSG_FLAGS_PENDING)
@@ -726,9 +766,9 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 		    msgOutgoing[mitem->msgId] = mitem;
 	    }
 	    else
-	    {
-		    imsg[mitem->msgId] = mitem;
-	    }
+        {
+            mReceivedMessages[mitem->msgId] = mitem;
+        }
     }
 
     RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
@@ -745,7 +785,7 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
     /* remove missing msgId in mParentId */
     std::map<uint32_t, RsMsgParentId *>::iterator mit = mParentId.begin();
     while (mit != mParentId.end()) {
-	    if (imsg.find(mit->first) == imsg.end()) {
+        if (mReceivedMessages.find(mit->first) == mReceivedMessages.end()) {
 		    if (msgOutgoing.find(mit->first) == msgOutgoing.end()) {
 			    /* not found */
 			    mParentId.erase(mit++);
@@ -781,7 +821,7 @@ void p3MsgService::loadWelcomeMsg()
 
 	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-	imsg[msg->msgId] = msg;
+    mReceivedMessages[msg->msgId] = msg;
 
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 }
@@ -804,17 +844,17 @@ bool p3MsgService::getMessageSummaries(std::list<MsgInfoSummary> &msgList)
 	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
 	std::map<uint32_t, RsMsgItem *>::iterator mit;
-	for(mit = imsg.begin(); mit != imsg.end(); ++mit)
+    for(mit = mReceivedMessages.begin(); mit != mReceivedMessages.end(); ++mit)
 	{
 		MsgInfoSummary mis;
-		initRsMIS(mit->second, mis);
+        initRsMIS(mit->second, mis,false);
 		msgList.push_back(mis);
 	}
 
 	for(mit = msgOutgoing.begin(); mit != msgOutgoing.end(); ++mit)
 	{
 		MsgInfoSummary mis;
-		initRsMIS(mit->second, mis);
+        initRsMIS(mit->second, mis,true);
 		msgList.push_back(mis);
 	}
 	return true;
@@ -827,8 +867,8 @@ bool p3MsgService::getMessage(const std::string &mId, MessageInfo &msg)
 
 	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-	mit = imsg.find(msgId);
-	if (mit == imsg.end())
+    mit = mReceivedMessages.find(msgId);
+    if (mit == mReceivedMessages.end())
 	{
 		mit = msgOutgoing.find(msgId);
 		if (mit == msgOutgoing.end())
@@ -842,7 +882,15 @@ bool p3MsgService::getMessage(const std::string &mId, MessageInfo &msg)
 
 	std::map<uint32_t, RsMsgSrcId*>::const_iterator it = mSrcIds.find(msgId) ;
 	if(it != mSrcIds.end())
-		msg.rsgxsid_srcId = RsGxsId(it->second->srcId) ;	// (cyril) this is a hack. Not good. I'm not removing it because it may have consequences, but I dont like this.
+    {
+        // (Cyril) This is a hack. Not good. I'm not removing it because it may have consequences, but I dont like this.
+        // Saddly mSrcIds only store RsPeerId.
+
+        if(mit->second->msgFlags & RS_MSG_FLAGS_DISTANT)
+            msg.from = MsgAddress(RsGxsId(it->second->srcId),MsgAddress::MSG_ADDRESS_MODE_TO) ;
+        else
+            msg.from = MsgAddress(RsPeerId(it->second->srcId),MsgAddress::MSG_ADDRESS_MODE_TO) ;
+    }
 
 	return true;
 }
@@ -859,12 +907,12 @@ void p3MsgService::getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32
 	nTrashbox = 0;
 
     std::map<uint32_t, RsMsgItem *>::iterator mit;
-    std::map<uint32_t, RsMsgItem *> *apMsg [2] = { &imsg, &msgOutgoing };
+    std::map<uint32_t, RsMsgItem *> *apMsg [2] = { &mReceivedMessages, &msgOutgoing };
 
     for (int i = 0; i < 2; i++) {
         for (mit = apMsg [i]->begin(); mit != apMsg [i]->end(); ++mit) {
             MsgInfoSummary mis;
-            initRsMIS(mit->second, mis);
+            initRsMIS(mit->second, mis,i==1);
 
             if (mis.msgflags & RS_MSG_TRASH) {
 				++nTrashbox;
@@ -908,12 +956,12 @@ bool    p3MsgService::removeMsgId(const std::string &mid)
 	{
 		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-		mit = imsg.find(msgId);
-		if (mit != imsg.end())
+        mit = mReceivedMessages.find(msgId);
+        if (mit != mReceivedMessages.end())
 		{
 			changed = true;
 			RsMsgItem *mi = mit->second;
-			imsg.erase(mit);
+            mReceivedMessages.erase(mit);
 			delete mi;
 			pEvent->mChangedMsgIds.insert(mid);
 		}
@@ -958,8 +1006,8 @@ bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
 	{
 		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-		mit = imsg.find(msgId);
-		if (mit != imsg.end())
+        mit = mReceivedMessages.find(msgId);
+        if (mit != mReceivedMessages.end())
 		{
 			RsMsgItem *mi = mit->second;
 
@@ -1000,8 +1048,8 @@ bool    p3MsgService::setMsgFlag(const std::string &mid, uint32_t flag, uint32_t
 	{
 		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-		mit = imsg.find(msgId);
-		if (mit == imsg.end())
+        mit = mReceivedMessages.find(msgId);
+        if (mit == mReceivedMessages.end())
 		{
 			mit = msgOutgoing.find(msgId);
 			if (mit == msgOutgoing.end())
@@ -1114,7 +1162,8 @@ uint32_t p3MsgService::sendMessage(RsMsgItem* item)
 		    RsMsgSrcId* msi = new RsMsgSrcId();
 		    msi->msgId = item->msgId;
 		    msi->srcId = mServiceCtrl->getOwnId();	
-		    mSrcIds.insert(std::pair<uint32_t, RsMsgSrcId*>(msi->msgId, msi));
+
+            mSrcIds.insert(std::make_pair(msi->msgId, msi));
 	    }
     }
 
@@ -1171,40 +1220,41 @@ uint32_t p3MsgService::sendDistantMessage(RsMsgItem *item, const RsGxsId& from)
 
 bool 	p3MsgService::MessageSend(MessageInfo &info)
 {
-	for(std::set<RsPeerId>::const_iterator pit = info.rspeerid_msgto.begin();  pit != info.rspeerid_msgto.end();  ++pit) sendMessage(initMIRsMsg(info, *pit));
-	for(std::set<RsPeerId>::const_iterator pit = info.rspeerid_msgcc.begin();  pit != info.rspeerid_msgcc.end();  ++pit) sendMessage(initMIRsMsg(info, *pit));
-	for(std::set<RsPeerId>::const_iterator pit = info.rspeerid_msgbcc.begin(); pit != info.rspeerid_msgbcc.end(); ++pit) sendMessage(initMIRsMsg(info, *pit));
+    // These calls essentially store one outgoing message for each destination in the msgOutgoing list as a RsMsgItem ready to send.
 
-	for(std::set<RsGxsId>::const_iterator pit = info.rsgxsid_msgto.begin();  pit != info.rsgxsid_msgto.end();  ++pit) sendDistantMessage(initMIRsMsg(info, *pit),info.rsgxsid_srcId);
-	for(std::set<RsGxsId>::const_iterator pit = info.rsgxsid_msgcc.begin();  pit != info.rsgxsid_msgcc.end();  ++pit) sendDistantMessage(initMIRsMsg(info, *pit),info.rsgxsid_srcId);
-	for(std::set<RsGxsId>::const_iterator pit = info.rsgxsid_msgbcc.begin(); pit != info.rsgxsid_msgbcc.end(); ++pit) sendDistantMessage(initMIRsMsg(info, *pit),info.rsgxsid_srcId);
+    for(auto pit: info.to) sendMessage(initMIRsMsg(info, pit));
 
-	// store message in outgoing list. In order to appear as sent the message needs to have the OUTGOING flg, but no pending flag on.
+    // Store message in Sent list. In order to appear as sent the message needs to have the OUTGOING flg, but no PENDING flag.
+    // This makes absolutely no sense. A message that is sent shouldn't be stored into the list of incoming messages.
 
-	RsMsgItem *msg = initMIRsMsg(info, mServiceCtrl->getOwnId());
+#warning TODO
 
-	if (msg)
-	{
-		if (msg->msgFlags & RS_MSG_FLAGS_SIGNED)
-			msg->msgFlags |= RS_MSG_FLAGS_SIGNATURE_CHECKS;	// this is always true, since we are sending the message
-
-		/* use processMsg to get the new msgId */
-		msg->recvTime = time(NULL);
-		msg->msgId = getNewUniqueMsgId();
-
-		msg->msgFlags |= RS_MSG_OUTGOING;
-
-		imsg[msg->msgId] = msg;
-
-		// Update info for caller
-		info.msgId = std::to_string(msg->msgId);
-		info .msgflags = msg->msgFlags;
-	}
-
-    auto pEvent = std::make_shared<RsMailStatusEvent>();
-    pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
-    pEvent->mChangedMsgIds.insert(std::to_string(msg->msgId));
-    rsEvents->postEvent(pEvent);
+//    RsMsgItem *msg = initMIRsMsg(info, info.to);
+//
+//	if (msg)
+//	{
+//		if (msg->msgFlags & RS_MSG_FLAGS_SIGNED)
+//			msg->msgFlags |= RS_MSG_FLAGS_SIGNATURE_CHECKS;	// this is always true, since we are sending the message
+//
+//		/* use processMsg to get the new msgId */
+//
+//
+//        msg->recvTime = time(NULL);
+//		msg->msgId = getNewUniqueMsgId();
+//
+//		msg->msgFlags |= RS_MSG_OUTGOING;
+//
+//        mReceivedMessages[msg->msgId] = msg;
+//
+//		// Update info for caller
+//		info.msgId = std::to_string(msg->msgId);
+//		info .msgflags = msg->msgFlags;
+//	}
+//
+//    auto pEvent = std::make_shared<RsMailStatusEvent>();
+//    pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
+//    pEvent->mChangedMsgIds.insert(std::to_string(msg->msgId));
+//    rsEvents->postEvent(pEvent);
 
     return true;
 }
@@ -1268,12 +1318,14 @@ uint32_t p3MsgService::sendMail(
 
 	MessageInfo msgInfo;
 
-	msgInfo.rsgxsid_srcId = from;
+    msgInfo.from = MsgAddress(from,MsgAddress::MSG_ADDRESS_MODE_TO);
 	msgInfo.title = subject;
 	msgInfo.msg = body;
-	msgInfo.rsgxsid_msgto = to;
-	msgInfo.rsgxsid_msgcc = cc;
-	msgInfo.rsgxsid_msgbcc = bcc;
+
+    for(auto t:to) msgInfo.to.insert(MsgAddress(t,MsgAddress::MSG_ADDRESS_MODE_TO));
+    for(auto t:cc) msgInfo.to.insert(MsgAddress(t,MsgAddress::MSG_ADDRESS_MODE_CC));
+    for(auto t:bcc) msgInfo.to.insert(MsgAddress(t,MsgAddress::MSG_ADDRESS_MODE_BCC));
+
 	std::copy( attachments.begin(), attachments.end(),
 	           std::back_inserter(msgInfo.files) );
 
@@ -1286,7 +1338,8 @@ uint32_t p3MsgService::sendMail(
 	{
 		for(const RsGxsId& dst : sDest)
 		{
-			RsMsgItem* msgItem = initMIRsMsg(msgInfo, dst);
+            RsMsgItem* msgItem = initMIRsMsg(msgInfo, MsgAddress(dst,MsgAddress::MSG_ADDRESS_MODE_TO));
+
 			if(!msgItem)
 			{
 				errorMsg += " initMIRsMsg from: " + from.toStdString()
@@ -1364,7 +1417,8 @@ bool p3MsgService::SystemMessage(const std::string &title, const std::string &me
 
 bool p3MsgService::MessageToDraft(MessageInfo &info, const std::string &msgParentId)
 {
-    RsMsgItem *msg = initMIRsMsg(info, mServiceCtrl->getOwnId());
+    RsMsgItem *msg = initMIRsMsg(info, info.from);
+
     if (msg)
     {
         uint32_t msgId = 0;
@@ -1387,15 +1441,15 @@ bool p3MsgService::MessageToDraft(MessageInfo &info, const std::string &msgParen
             if (msgId) {
                 // remove existing message
                 std::map<uint32_t, RsMsgItem *>::iterator mit;
-                mit = imsg.find(msgId);
-                if (mit != imsg.end()) {
+                mit = mReceivedMessages.find(msgId);
+                if (mit != mReceivedMessages.end()) {
                     RsMsgItem *mi = mit->second;
-                    imsg.erase(mit);
+                    mReceivedMessages.erase(mit);
                     delete mi;
                 }
             }
             /* STORE MsgID */
-            imsg[msg->msgId] = msg;
+            mReceivedMessages[msg->msgId] = msg;
 
             // return new message id
             rs_sprintf(info.msgId, "%lu", msg->msgId);
@@ -1698,8 +1752,8 @@ bool p3MsgService::MessageToTrash(const std::string &mid, bool bTrash)
 
         RsMsgItem *mi = NULL;
 
-        mit = imsg.find(msgId);
-        if (mit != imsg.end()) {
+        mit = mReceivedMessages.find(msgId);
+        if (mit != mReceivedMessages.end()) {
             mi = mit->second;
         } else {
             mit = msgOutgoing.find(msgId);
@@ -1776,15 +1830,26 @@ void p3MsgService::initRsMI(RsMsgItem *msg, MessageInfo &mi)
 	if (msg->msgFlags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)    mi.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
 
 	mi.ts = msg->sendTime;
-	mi.rspeerid_srcId = msg->PeerId();
+#warning TODO: we don't know the actual type of the PeerId field. Needs to be stored earlier depending on the status.
 
-	mi.rspeerid_msgto  = msg->rspeerid_msgto.ids ;
-	mi.rspeerid_msgcc  = msg->rspeerid_msgcc.ids ;
-	mi.rspeerid_msgbcc = msg->rspeerid_msgbcc.ids ;
+    if(msg->msgFlags & RS_MSG_FLAGS_DISTANT)
+        mi.from = MsgAddress(RsGxsId(msg->PeerId()),MsgAddress::MSG_ADDRESS_MODE_TO);
+    else
+        mi.from = MsgAddress(msg->PeerId(),MsgAddress::MSG_ADDRESS_MODE_TO);
 
-	mi.rsgxsid_msgto  = msg->rsgxsid_msgto.ids ;
-	mi.rsgxsid_msgcc  = msg->rsgxsid_msgcc.ids ;
-	mi.rsgxsid_msgbcc = msg->rsgxsid_msgbcc.ids ;
+    for(auto m:msg->rspeerid_msgto.ids) mi.to.insert(MsgAddress(m,MsgAddress::MSG_ADDRESS_MODE_TO));
+    for(auto m:msg->rspeerid_msgcc.ids) mi.to.insert(MsgAddress(m,MsgAddress::MSG_ADDRESS_MODE_CC));
+    for(auto m:msg->rspeerid_msgbcc.ids) mi.to.insert(MsgAddress(m,MsgAddress::MSG_ADDRESS_MODE_BCC));
+    //mi.rspeerid_msgto  = msg->rspeerid_msgto.ids ;
+    //mi.rspeerid_msgcc  = msg->rspeerid_msgcc.ids ;
+    //mi.rspeerid_msgbcc = msg->rspeerid_msgbcc.ids ;
+
+    for(auto m:msg->rsgxsid_msgto.ids) mi.to.insert(MsgAddress(m,MsgAddress::MSG_ADDRESS_MODE_TO));
+    for(auto m:msg->rsgxsid_msgcc.ids) mi.to.insert(MsgAddress(m,MsgAddress::MSG_ADDRESS_MODE_CC));
+    for(auto m:msg->rsgxsid_msgbcc.ids) mi.to.insert(MsgAddress(m,MsgAddress::MSG_ADDRESS_MODE_BCC));
+    //mi.rsgxsid_msgto  = msg->rsgxsid_msgto.ids ;
+    //mi.rsgxsid_msgcc  = msg->rsgxsid_msgcc.ids ;
+    //mi.rsgxsid_msgbcc = msg->rsgxsid_msgbcc.ids ;
 
 	mi.title = msg->subject;
 	mi.msg   = msg->message;
@@ -1812,14 +1877,24 @@ void p3MsgService::initRsMI(RsMsgItem *msg, MessageInfo &mi)
 	}
 }
 
-void p3MsgService::initRsMIS(RsMsgItem *msg, MsgInfoSummary &mis)
+void p3MsgService::initRsMIS(RsMsgItem *msg, MsgInfoSummary &mis,bool outgoing)
 {
 	mis.msgflags = 0;
 
-	if(msg->msgFlags & RS_MSG_FLAGS_DISTANT)
-		mis.msgflags |= RS_MSG_DISTANT ;
+    std::cerr << "msg (peerId=" << msg->PeerId() << ", distant=" << bool(msg->msgFlags & RS_MSG_FLAGS_DISTANT)<< ": " << *msg << std::endl;
+            auto fit = mDistantOutgoingMsgSigners.find(msg->msgId);
 
-	if (msg->msgFlags & RS_MSG_FLAGS_SIGNED)
+#warning TODO: there is no way to figure out what the type is, since it is not serialized and sent.
+            // When the msg i in the outgoing list, its PeerId() is the destination, not the from. So we need to correct it here.
+            if(fit != mDistantOutgoingMsgSigners.end())
+                mis.from = MsgAddress(RsPeerId(fit->second),MsgAddress::MSG_ADDRESS_MODE_TO);
+            else
+                mis.from = MsgAddress(msg->PeerId(),MsgAddress::MSG_ADDRESS_MODE_TO); // from
+
+    if(msg->msgFlags & RS_MSG_FLAGS_DISTANT)
+        mis.msgflags |= RS_MSG_DISTANT ;
+
+    if (msg->msgFlags & RS_MSG_FLAGS_SIGNED)
 		mis.msgflags |= RS_MSG_SIGNED ;
 
 	if (msg->msgFlags & RS_MSG_FLAGS_SIGNATURE_CHECKS)
@@ -1885,7 +1960,6 @@ void p3MsgService::initRsMIS(RsMsgItem *msg, MsgInfoSummary &mis)
 		mis.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
 	}
 
-	mis.srcId = msg->PeerId();
 	{
 		//msg->msgId;
 		rs_sprintf(mis.msgId, "%lu", msg->msgId);
@@ -1898,6 +1972,23 @@ void p3MsgService::initRsMIS(RsMsgItem *msg, MsgInfoSummary &mis)
     MsgTagInfo taginfo;
     locked_getMessageTag(mis.msgId,taginfo);
     mis.msgtags = taginfo.tagIds ;
+
+    if(outgoing)
+        mis.to = { MsgAddress(msg->PeerId(),MsgAddress::MSG_ADDRESS_MODE_TO) };
+    else
+    {
+        auto addToDestination_gxsid  = [&mis](const RsTlvGxsIdSet & s,MsgAddress::AddressMode mode) { for(auto m:s.ids) mis.to.insert(MsgAddress(m,mode)); };
+        auto addToDestination_peerid = [&mis](const RsTlvPeerIdSet& s,MsgAddress::AddressMode mode) { for(auto m:s.ids) mis.to.insert(MsgAddress(m,mode)); };
+
+        addToDestination_gxsid(msg->rsgxsid_msgto,MsgAddress::MSG_ADDRESS_MODE_TO);
+        addToDestination_gxsid(msg->rsgxsid_msgcc,MsgAddress::MSG_ADDRESS_MODE_CC);
+        addToDestination_gxsid(msg->rsgxsid_msgbcc,MsgAddress::MSG_ADDRESS_MODE_BCC);
+        addToDestination_peerid(msg->rspeerid_msgto,MsgAddress::MSG_ADDRESS_MODE_TO);
+        addToDestination_peerid(msg->rspeerid_msgcc,MsgAddress::MSG_ADDRESS_MODE_CC);
+        addToDestination_peerid(msg->rspeerid_msgbcc,MsgAddress::MSG_ADDRESS_MODE_BCC);
+    }
+
+    std::cerr << "InitRsMIS called from PeerId()=" << mis.from.toStdString() << ", to=" << (*mis.to.begin()).toStdString() << " outgoing=" << outgoing << std::endl;
 }
 
 void p3MsgService::initMIRsMsg(RsMsgItem *msg,const MessageInfo& info)
@@ -1909,19 +2000,30 @@ void p3MsgService::initMIRsMsg(RsMsgItem *msg,const MessageInfo& info)
 	msg -> subject = info.title;
 	msg -> message = info.msg;
 
-	msg->rspeerid_msgto.ids  = info.rspeerid_msgto ;
-	msg->rspeerid_msgcc.ids  = info.rspeerid_msgcc ;
-
-	msg->rsgxsid_msgto.ids  = info.rsgxsid_msgto ;
-	msg->rsgxsid_msgcc.ids  = info.rsgxsid_msgcc ;
-
-	/* We don't fill in bcc (unless to ourselves) */
-
-	if (msg->PeerId() == mServiceCtrl->getOwnId())
-	{
-		msg->rsgxsid_msgbcc.ids = info.rsgxsid_msgbcc ;
-		msg->rspeerid_msgbcc.ids = info.rspeerid_msgbcc ;
-	}
+    // We need to use the RsItem format. It's bad, but needed for backward compatibility at the network layer.
+    for(auto m:info.to)
+        switch(m.mode())
+        {
+        case MsgAddress::MSG_ADDRESS_MODE_TO:
+            if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
+                msg->rsgxsid_msgto.ids.insert(m.toGxsId());
+            else
+                msg->rspeerid_msgto.ids.insert(m.toRsPeerId());
+            break;
+        case MsgAddress::MSG_ADDRESS_MODE_CC:
+            if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
+                msg->rsgxsid_msgcc.ids.insert(m.toGxsId());
+            else
+                msg->rspeerid_msgcc.ids.insert(m.toRsPeerId());
+            break;
+        case MsgAddress::MSG_ADDRESS_MODE_BCC:
+#warning Not sure about this line
+            if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && rsIdentity->isOwnId(m.toGxsId())) 	 /* We don't fill in bcc (unless to ourselves) */
+                msg->rsgxsid_msgbcc.ids.insert(m.toGxsId());
+            else if(msg->PeerId() == mServiceCtrl->getOwnId());
+                msg->rspeerid_msgbcc.ids.insert(m.toRsPeerId());
+            break;
+        }
 
 	msg -> attachment.title   = info.attach_title;
 	msg -> attachment.comment = info.attach_comment;
@@ -1941,43 +2043,29 @@ void p3MsgService::initMIRsMsg(RsMsgItem *msg,const MessageInfo& info)
 	if (info.msgflags & RS_MSG_FRIEND_RECOMMENDATION)
 		msg->msgFlags |= RS_MSG_FLAGS_FRIEND_RECOMMENDATION;
 }
-RsMsgItem *p3MsgService::initMIRsMsg(const MessageInfo& info, const RsGxsId& to)
+
+RsMsgItem *p3MsgService::initMIRsMsg(const MessageInfo &info, const MsgAddress& to)
 {
-    RsMsgItem *msg = new RsMsgItem();
-
-    initMIRsMsg(msg,info) ;
-
-    msg->PeerId(RsPeerId(to));
-    msg->msgFlags |= RS_MSG_FLAGS_DISTANT;
-
-    if (info.msgflags & RS_MSG_SIGNED)
-        msg->msgFlags |= RS_MSG_FLAGS_SIGNED;
-
-//	// We replace the msg text by the whole message serialized possibly signed,
-//	// and binary encrypted, so as to obfuscate all its content.
-//	//
-//	if(!createDistantMessage(to,info.rsgxsid_srcId,msg))
-//	{
-//		std::cerr << "Cannot encrypt distant message. Something went wrong." << std::endl;
-//		delete msg ;
-//		return NULL ;
-//	}
-
-	return msg ;
-}
-
-RsMsgItem *p3MsgService::initMIRsMsg(const MessageInfo &info, const RsPeerId& to)
-{
+    if(to.type() != MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && to.type() != MsgAddress::MSG_ADDRESS_TYPE_RSPEERID)
+    {
+        RsErr() << "Trying to create a PeerId from an incompatible message address type: \"" << to.toStdString() ;
+        return nullptr;
+    }
     RsMsgItem *msg = new RsMsgItem();
 
 	initMIRsMsg(msg,info) ;
 
-	msg->PeerId(to) ;
+    if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
+        msg->msgFlags |= RS_MSG_FLAGS_DISTANT;
+    else
+        msg->msgFlags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images from own messages */  // (cyril: ?!?!)
 
-	/* load embedded images from own messages */
-	msg->msgFlags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES;
+    msg->PeerId(to.toRsPeerId()) ;	// always works for GxsId and PeerId (hack)
 
-	return msg;
+    if (info.msgflags & RS_MSG_SIGNED)
+        msg->msgFlags |= RS_MSG_FLAGS_SIGNED;
+
+    return msg;
 }
 
 void p3MsgService::connectToGlobalRouter(p3GRouter *gr)
@@ -2040,8 +2128,8 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
 	{
 		RS_STACK_MUTEX(mMsgMtx);
 
-		auto it = _ongoing_messages.find(id);
-		if(it == _ongoing_messages.end())
+        auto it = _grouter_ongoing_messages.find(id);
+        if(it == _grouter_ongoing_messages.end())
 		{
 			RsErr() << __PRETTY_FUNCTION__
 			        << " cannot find pending message to acknowledge. "
@@ -2086,8 +2174,8 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
 #ifdef DEBUG_DISTANT_MSG
 		std::cerr << "p3MsgService::acknowledgeDataReceived(): acknowledging data received for msg propagation id  " << id << std::endl;
 #endif
-		auto it = _ongoing_messages.find(id);
-		if(it == _ongoing_messages.end())
+        auto it = _grouter_ongoing_messages.find(id);
+        if(it == _grouter_ongoing_messages.end())
 		{
 			std::cerr << "  (EE) cannot find pending message to acknowledge. "
 			          << "Weird. grouter id = " << id << std::endl;
@@ -2112,7 +2200,7 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
 #else
 		// Do not delete it move to sent folder instead!
 		it2->second->msgFlags &= ~RS_MSG_FLAGS_PENDING;
-		imsg[msg_id] = it2->second;
+        mReceivedMessages[msg_id] = it2->second;
 		msgOutgoing.erase(it2);
 #endif
 
@@ -2263,7 +2351,7 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
 #else
 				// Do not delete it move to sent folder instead!
 				it2->second->msgFlags &= ~RS_MSG_FLAGS_PENDING;
-				imsg[msg_id] = it2->second;
+                mReceivedMessages[msg_id] = it2->second;
 				msgOutgoing.erase(it2);
 #endif
 				pEvent->mChangedMsgIds.insert(std::to_string(msg_id));
@@ -2448,7 +2536,7 @@ void p3MsgService::sendDistantMsgItem(RsMsgItem *msgitem)
 
 	{
 		RS_STACK_MUTEX(mMsgMtx);
-		_ongoing_messages[grouter_message_id] = msgitem->msgId;
+        _grouter_ongoing_messages[grouter_message_id] = msgitem->msgId;
 	}
 
 	{
