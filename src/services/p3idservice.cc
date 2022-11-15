@@ -593,7 +593,7 @@ void	p3IdService::service_tick()
 
     if(mLastKeyCleaningTime + MAX_DELAY_BEFORE_CLEANING < now)
     {
-        cleanUnusedKeys() ;
+        //cleanUnusedKeys() ;
         mLastKeyCleaningTime = now ;
     }
 
