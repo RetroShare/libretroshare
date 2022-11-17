@@ -49,6 +49,18 @@
 class p3LinkMgr;
 class p3IdService;
 
+typedef uint32_t MessageIdentifier;
+
+// This structure stores the status of separate copies of outgoing messages (one copy per destination).
+// It also stores GRouter data status for each of them.
+
+struct RsOutgoingMessageInfo: public RsSerializable
+{
+    Rs::Msgs::MsgAddress origin;
+    Rs::Msgs::MsgAddress destination;
+    uint32_t flags;
+};
+
 // Temp tweak to test grouter
 class p3MsgService :
         public p3Service, public p3Config, public pqiServiceMonitor, GRouterClientService,
@@ -75,7 +87,7 @@ public:
 
     /* External Interface */
     bool 	getMessageSummaries(std::list<Rs::Msgs::MsgInfoSummary> &msgList);
-    bool 	getMessage(const std::string &mid, Rs::Msgs::MessageInfo &msg);
+    bool 	getMessage(const std::string& mid, bool inbox_or_outbox, Rs::Msgs::MessageInfo &msg);
 	void	getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox);
 
     bool decryptMessage(const std::string& mid) ;
@@ -155,7 +167,7 @@ public:
 	                                       GxsTransSendStatus status );
 
 private:
-	void sendDistantMsgItem(RsMsgItem *msgitem);
+    void sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from);
     bool locked_getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
 
 	/** This contains the ongoing tunnel handling contacts.
@@ -181,24 +193,28 @@ private:
     void handleIncomingItem(RsMsgItem *) ;
 
     uint32_t getNewUniqueMsgId();
-    uint32_t sendMessage(RsMsgItem *item);
+    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to);
     uint32_t sendDistantMessage(RsMsgItem *item,const RsGxsId& signing_gxs_id);
-    void    checkSizeAndSendMessage(RsMsgItem *msg);
+    void    checkSizeAndSendMessage(RsMsgItem *msg, const RsPeerId &destination);
     void cleanListOfReceivedMessageHashes();
 
     int 	incomingMsgs();
     void    processIncomingMsg(RsMsgItem *mi) ;
     bool checkAndRebuildPartialMessage(RsMsgItem*) ;
 
-    void 	initRsMI(RsMsgItem *msg, Rs::Msgs::MessageInfo &mi);
-    void 	initRsMIS(RsMsgItem *msg, Rs::Msgs::MsgInfoSummary &mis, bool outgoing);
+    // These two functions generate MessageInfo and MessageInfoSummary structures for the UI to use
 
-    // Creates a RsItem from a message info and a 'from' field.
-    RsMsgItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info, const Rs::Msgs::MsgAddress &to);
-    RsMsgItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info, const RsGxsId& to);
+    void    initRsMI (const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to,Rs::Msgs::MessageInfo&    mi );
+    void 	initRsMIS(const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to,MessageIdentifier mid,Rs::Msgs::MsgInfoSummary& mis);
 
-    // Creates a message info from a RsMsgItem.
-    void initMIRsMsg(RsMsgItem *item,const Rs::Msgs::MessageInfo &info) ;
+    // Creates a RsMsgItem from a RsMailStorageItem, a 'from' and a 'to' fields.
+    RsMsgItem *createOutgoingMessageItem(const RsMailStorageItem& msi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to);
+
+    // Creates a RsMailStorageItem from a message info and a 'from' field.
+    RsMailStorageItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info);
+
+    // Creates a RsMailStorageItem from a MessageInfo.
+    bool initMIRsMsg(RsMailStorageItem *msi, const Rs::Msgs::MessageInfo &info) ;
 
     void    initStandardTagTypes();
 
@@ -211,16 +227,21 @@ private:
     RsMutex mMsgMtx;
     RsMsgSerialiser *_serialiser ;
 
-    /* stored list of received messages */
-    std::map<uint32_t, RsMsgItem *> mReceivedMessages;
+    // Stored list of received/sent messages. Here we use a complete info containing the msg item itself, plus its
+    // origin.
+    std::map<uint32_t, RsMailStorageItem *> mReceivedMessages;		// Inbox
+    std::map<uint32_t, RsMailStorageItem *> mSentMessages;			// Sent box (msgOutgoing points to elements in this list). Also contains drafts and pending messages
 
-    /* messages that haven't made it out yet! */
-    std::map<uint32_t, RsMsgItem *> msgOutgoing; 
+    // Messages that haven't made it out yet. These are stored as reference to the original message it->first.
+    // For each of them, a list of outgoing copies are stored (with their own identifier) along with the
+    // outgoing message information: flags, grouter status, etc.
+
+    std::map<MessageIdentifier, std::map<MessageIdentifier,RsOutgoingMessageInfo> > msgOutgoing;
 
     // This map stores node-to-node incoming messages that need to be sent in multiple chunks. GRouter and p3GxsTrans already
     // handle large messages internally.
 
-    std::map<RsPeerId, RsMsgItem *> _pendingPartialMessages ;
+    std::map<RsPeerId, RsMsgItem *> _pendingPartialIncomingMessages ;
 
     /* maps for tags types and msg tags */
 
@@ -231,13 +252,7 @@ private:
 	std::map<Sha1CheckSum, uint32_t> mRecentlyReceivedMessageHashes;
 	RsMutex recentlyReceivedMutex;
 
-    // used delete msgSrcIds after config save
-    std::map<uint32_t, RsMsgSrcId*> mSrcIds;
-
-    // temporary storage. Will not be needed when messages have a proper "from" field. Not saved!
-    std::map<uint32_t, RsGxsId> mDistantOutgoingMsgSigners;
-
-    // save the parent of the messages in draft for replied and forwarded
+    // Saves the parent of the messages in draft for replied and forwarded
     std::map<uint32_t, RsMsgParentId*> mParentId;
 
     std::string config_dir;

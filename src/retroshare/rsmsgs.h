@@ -167,6 +167,7 @@ class MsgAddress: public RsSerializable
         std::string toEmail() const { checkType(MSG_ADDRESS_TYPE_EMAIL   );return          _addr_string ;}
         std::string toStdString() const { return _addr_string ;}
 
+        void clear() { _addr_string=""; _type=MSG_ADDRESS_TYPE_UNKNOWN; _mode=MSG_ADDRESS_MODE_UNKNOWN;}
         void checkType(MsgAddress::AddressType t) const
         {
             if(t != _type)
@@ -187,9 +188,11 @@ struct MessageInfo : RsSerializable
 	std::string msgId;
 
     MsgAddress from;
+    MsgAddress to;
+
     unsigned int msgflags;
 
-    std::set<MsgAddress> to;
+    std::set<MsgAddress> destinations;
 
     std::string title;
     std::string msg;
@@ -210,7 +213,8 @@ struct MessageInfo : RsSerializable
 
         RS_SERIAL_PROCESS(from);
         RS_SERIAL_PROCESS(to);
-		RS_SERIAL_PROCESS(msgflags);
+        RS_SERIAL_PROCESS(destinations);
+        RS_SERIAL_PROCESS(msgflags);
 
 		RS_SERIAL_PROCESS(title);
 		RS_SERIAL_PROCESS(msg);
@@ -234,6 +238,7 @@ struct MsgInfoSummary : RsSerializable
 
 	RsMailMessageId msgId;
     MsgAddress from;
+    MsgAddress to;						// specific address the message has been sent to (may be used for e.g. reply)
 
 	uint32_t msgflags;
 	std::list<uint32_t> msgtags; /// that leaves 25 bits for user-defined tags.
@@ -242,7 +247,7 @@ struct MsgInfoSummary : RsSerializable
 	int count; /** file count     */
 	rstime_t ts;
 
-    std::set<MsgAddress> to;
+    std::set<MsgAddress> destinations;  // all destinations of the message
 
 	/// @see RsSerializable
 	void serial_process(
@@ -259,6 +264,8 @@ struct MsgInfoSummary : RsSerializable
 		RS_SERIAL_PROCESS(title);
 		RS_SERIAL_PROCESS(count);
 		RS_SERIAL_PROCESS(ts);
+
+        RS_SERIAL_PROCESS(destinations);
     }
 
 	~MsgInfoSummary() override;

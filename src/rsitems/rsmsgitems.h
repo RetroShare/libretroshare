@@ -24,6 +24,7 @@
 #include <map>
 
 #include "retroshare/rstypes.h"
+#include "retroshare/rsmsgs.h"
 #include "serialiser/rstlvkeys.h"
 #include "rsitems/rsserviceids.h"
 #include "serialiser/rsserial.h"
@@ -36,14 +37,14 @@
 /**************************************************************************/
 
 // for defining tags themselves and msg tags
-const uint8_t RS_PKT_SUBTYPE_MSG_TAG_TYPE 	   = 0x03;
-const uint8_t RS_PKT_SUBTYPE_MSG_TAGS 	 	   = 0x04;
-const uint8_t RS_PKT_SUBTYPE_MSG_SRC_TAG 	   = 0x05;
-const uint8_t RS_PKT_SUBTYPE_MSG_PARENT_TAG 	   = 0x06;
-const uint8_t RS_PKT_SUBTYPE_MSG_INVITE    	   = 0x07;
-const uint8_t RS_PKT_SUBTYPE_MSG_GROUTER_MAP  	   = 0x08;
-const uint8_t RS_PKT_SUBTYPE_MSG_DISTANT_MSG_MAP  = 0x09;
-
+const uint8_t RS_PKT_SUBTYPE_MSG_TAG_TYPE 	     = 0x03;
+const uint8_t RS_PKT_SUBTYPE_MSG_TAGS 	 	     = 0x04;
+const uint8_t RS_PKT_SUBTYPE_MSG_SRC_TAG 	     = 0x05;
+const uint8_t RS_PKT_SUBTYPE_MSG_PARENT_TAG 	 = 0x06;
+const uint8_t RS_PKT_SUBTYPE_MSG_INVITE    	     = 0x07;
+const uint8_t RS_PKT_SUBTYPE_MSG_GROUTER_MAP  	 = 0x08;
+const uint8_t RS_PKT_SUBTYPE_MSG_DISTANT_MSG_MAP = 0x09;
+const uint8_t RS_PKT_SUBTYPE_MSG_MAIL_STORAGE    = 0x0a;
 
 /**************************************************************************/
 
@@ -72,6 +73,8 @@ const uint32_t RS_MSG_FLAGS_SPAM                  = 0x00400000;
 
 const uint32_t RS_MSG_FLAGS_SYSTEM                = RS_MSG_FLAGS_USER_REQUEST | RS_MSG_FLAGS_FRIEND_RECOMMENDATION | RS_MSG_FLAGS_PUBLISH_KEY;
 
+typedef uint32_t MessageIdentifier;
+
 class RsMessageItem: public RsItem
 {
 	public:
@@ -98,7 +101,7 @@ class RsMsgItem: public RsMessageItem
 		// ----------- Specific fields ------------- //
 
 		uint32_t msgFlags;
-		uint32_t msgId;
+        MessageIdentifier msgId;
 
 		uint32_t sendTime;
 		uint32_t recvTime;
@@ -167,6 +170,41 @@ class RsMsgSrcId : public RsMessageItem
 		uint32_t msgId;
 		RsPeerId srcId;
 };
+
+class RsMailStorageItem : public RsMessageItem
+{
+    public:
+        RsMailStorageItem() : RsMessageItem(RS_PKT_SUBTYPE_MSG_MAIL_STORAGE) {}
+
+        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+        {
+            RS_SERIAL_PROCESS(from);
+            RS_SERIAL_PROCESS(to);
+            RS_SERIAL_PROCESS(tagIds);
+            RS_SERIAL_PROCESS(parentId);
+
+            msg.serial_process(j,ctx);
+        }
+
+        virtual ~RsMailStorageItem() {}
+        virtual void clear()
+        {
+            msg.clear();
+            from.clear();
+            to.clear();
+            tagIds.clear();
+        }
+
+        // ----------- Specific fields ------------- //
+        //
+
+        Rs::Msgs::MsgAddress from;
+        Rs::Msgs::MsgAddress to;
+        std::list<uint32_t> tagIds;
+        uint32_t parentId;
+        RsMsgItem msg;
+};
+
 
 class RsMsgGRouterMap : public RsMessageItem
 {
