@@ -344,7 +344,7 @@ bool p3Msgs::MessageDelete(const std::string &mid)
 	//std::cerr << "p3Msgs::MessageDelete() ";
 	//std::cerr << "mid: " << mid << std::endl;
 
-	return mMsgSrv -> removeMsgId(mid);
+    return mMsgSrv -> deleteMessage(mid);
 }
 
 bool p3Msgs::MessageRead(const std::string &mid, bool unreadByUser)

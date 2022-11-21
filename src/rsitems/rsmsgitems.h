@@ -37,14 +37,15 @@
 /**************************************************************************/
 
 // for defining tags themselves and msg tags
-const uint8_t RS_PKT_SUBTYPE_MSG_TAG_TYPE 	     = 0x03;
-const uint8_t RS_PKT_SUBTYPE_MSG_TAGS 	 	     = 0x04;
-const uint8_t RS_PKT_SUBTYPE_MSG_SRC_TAG 	     = 0x05;
-const uint8_t RS_PKT_SUBTYPE_MSG_PARENT_TAG 	 = 0x06;
-const uint8_t RS_PKT_SUBTYPE_MSG_INVITE    	     = 0x07;
-const uint8_t RS_PKT_SUBTYPE_MSG_GROUTER_MAP  	 = 0x08;
-const uint8_t RS_PKT_SUBTYPE_MSG_DISTANT_MSG_MAP = 0x09;
-const uint8_t RS_PKT_SUBTYPE_MSG_MAIL_STORAGE    = 0x0a;
+const uint8_t RS_PKT_SUBTYPE_MSG_TAG_TYPE 	          = 0x03;
+const uint8_t RS_PKT_SUBTYPE_MSG_TAGS 	 	          = 0x04;
+const uint8_t RS_PKT_SUBTYPE_MSG_SRC_TAG 	          = 0x05;
+const uint8_t RS_PKT_SUBTYPE_MSG_PARENT_TAG 	      = 0x06;
+const uint8_t RS_PKT_SUBTYPE_MSG_INVITE    	          = 0x07;
+const uint8_t RS_PKT_SUBTYPE_MSG_GROUTER_MAP  	      = 0x08;
+const uint8_t RS_PKT_SUBTYPE_MSG_DISTANT_MSG_MAP      = 0x09;
+const uint8_t RS_PKT_SUBTYPE_MSG_MAIL_STORAGE         = 0x0a;
+const uint8_t RS_PKT_SUBTYPE_MSG_OUTGOING_MAP_STORAGE = 0x0b;
 
 /**************************************************************************/
 
@@ -169,6 +170,38 @@ class RsMsgSrcId : public RsMessageItem
 
 		uint32_t msgId;
 		RsPeerId srcId;
+};
+
+// This structure stores the status of separate copies of outgoing messages (one copy per destination).
+// It also stores GRouter data status for each of them.
+
+struct RsOutgoingMessageInfo: public RsSerializable
+{
+    virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+    {
+        RS_SERIAL_PROCESS(origin);
+        RS_SERIAL_PROCESS(destination);
+        RS_SERIAL_PROCESS(flags);
+        RS_SERIAL_PROCESS(grouter_id);
+    }
+
+    Rs::Msgs::MsgAddress origin;
+    Rs::Msgs::MsgAddress destination;
+    uint32_t flags;
+    GRouterMsgPropagationId grouter_id;
+};
+
+class RsMsgOutgoingMapStorageItem: public RsMessageItem
+{
+public:
+    RsMsgOutgoingMapStorageItem() : RsMessageItem(RS_PKT_SUBTYPE_MSG_OUTGOING_MAP_STORAGE) {}
+
+    virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+    {
+        RS_SERIAL_PROCESS(outgoing_map);
+    }
+
+    std::map< uint32_t, std::map<uint32_t, RsOutgoingMessageInfo> > outgoing_map;
 };
 
 class RsMailStorageItem : public RsMessageItem

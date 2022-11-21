@@ -48,8 +48,10 @@ RsItem *RsMsgSerialiser::create_item(uint16_t service,uint8_t type) const
 	case RS_PKT_SUBTYPE_MSG_SRC_TAG 	   : return new RsMsgSrcId();                  //= 0x05;
 	case RS_PKT_SUBTYPE_MSG_PARENT_TAG 	   : return new RsMsgParentId() ;              //= 0x06;
 	case RS_PKT_SUBTYPE_MSG_GROUTER_MAP    : return new RsMsgGRouterMap();             //= 0x08;
-	case RS_PKT_SUBTYPE_MSG_DISTANT_MSG_MAP : return new RsMsgDistantMessagesHashMap();//= 0x09;
-	default:
+    case RS_PKT_SUBTYPE_MSG_DISTANT_MSG_MAP: return new RsMsgDistantMessagesHashMap(); //= 0x09;
+    case RS_PKT_SUBTYPE_MSG_MAIL_STORAGE   : return new RsMailStorageItem();           //= 0x0a;
+    case RS_PKT_SUBTYPE_MSG_OUTGOING_MAP_STORAGE : return new RsMsgOutgoingMapStorageItem(); //= 0x0b;
+    default:
 		return NULL ;
 	}
 }

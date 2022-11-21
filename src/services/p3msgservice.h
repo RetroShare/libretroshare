@@ -51,16 +51,6 @@ class p3IdService;
 
 typedef uint32_t MessageIdentifier;
 
-// This structure stores the status of separate copies of outgoing messages (one copy per destination).
-// It also stores GRouter data status for each of them.
-
-struct RsOutgoingMessageInfo: public RsSerializable
-{
-    Rs::Msgs::MsgAddress origin;
-    Rs::Msgs::MsgAddress destination;
-    uint32_t flags;
-};
-
 // Temp tweak to test grouter
 class p3MsgService :
         public p3Service, public p3Config, public pqiServiceMonitor, GRouterClientService,
@@ -87,11 +77,10 @@ public:
 
     /* External Interface */
     bool 	getMessageSummaries(std::list<Rs::Msgs::MsgInfoSummary> &msgList);
-    bool 	getMessage(const std::string& mid, bool inbox_or_outbox, Rs::Msgs::MessageInfo &msg);
+    bool 	getMessage(const std::string& mid, Rs::Msgs::MessageInfo &msg);
 	void	getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox);
 
-    bool decryptMessage(const std::string& mid) ;
-    bool    removeMsgId(const std::string &mid); 
+    bool    deleteMessage(const std::string &mid);
     bool    markMsgIdRead(const std::string &mid, bool bUnreadByUser);
     bool    setMsgFlag(const std::string &mid, uint32_t flag, uint32_t mask);
     bool    getMsgParentId(const std::string &msgId, std::string &msgParentId);
@@ -227,10 +216,14 @@ private:
     RsMutex mMsgMtx;
     RsMsgSerialiser *_serialiser ;
 
+    // Extra method to convert previous data into new format.
+    bool parseList_backwardCompatibility(std::list<RsItem*>& load);
+
     // Stored list of received/sent messages. Here we use a complete info containing the msg item itself, plus its
     // origin.
     std::map<uint32_t, RsMailStorageItem *> mReceivedMessages;		// Inbox
     std::map<uint32_t, RsMailStorageItem *> mSentMessages;			// Sent box (msgOutgoing points to elements in this list). Also contains drafts and pending messages
+    std::map<uint32_t, RsMailStorageItem *> mTrashMessages;			// Trash box
 
     // Messages that haven't made it out yet. These are stored as reference to the original message it->first.
     // For each of them, a list of outgoing copies are stored (with their own identifier) along with the

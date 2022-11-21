@@ -47,6 +47,7 @@
 #define RS_MSG_SENTBOX         0x01     /* Sentbox  = OUTGOING           */
 #define RS_MSG_OUTBOX          0x03     /* Outbox   = OUTGOING + PENDING */
 #define RS_MSG_DRAFTBOX        0x05     /* Draftbox = OUTGOING + DRAFT   */
+#define RS_MSG_TRASHBOX        0x20     /* Trashbox = RS_MSG_TRASH       */
 
 #define RS_MSG_NEW                   0x000010   /* New */
 #define RS_MSG_TRASH                 0x000020   /* Trash */
