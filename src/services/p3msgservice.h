@@ -156,7 +156,7 @@ public:
 	                                       GxsTransSendStatus status );
 
 private:
-    void sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from);
+    void locked_sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from);
     bool locked_getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
 
 	/** This contains the ongoing tunnel handling contacts.

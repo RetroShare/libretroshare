@@ -456,7 +456,7 @@ int p3MsgService::checkOutgoingMessages()
 #endif
                     Dbg3() << __PRETTY_FUNCTION__ << " Sending out message" << std::endl;
                     auto msg_item = createOutgoingMessageItem(*sit->second,from,to);
-                    sendDistantMsgItem(msg_item,from.toGxsId());
+                    locked_sendDistantMsgItem(msg_item,from.toGxsId());
 
                     pEvent->mChangedMsgIds.insert(std::to_string(mit->first));
                 }
@@ -2478,7 +2478,7 @@ void p3MsgService::receiveGRouterData( const RsGxsId &destination_key,
 		std::cerr << "  Item could not be deserialised. Format error??" << std::endl;
 }
 
-void p3MsgService::sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& signing_key_id)
+void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& signing_key_id)
 {
 	RsGxsId destination_key_id(msgitem->PeerId());
 
@@ -2486,15 +2486,11 @@ void p3MsgService::sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& signing_
 	 * ending up here. */
 	msgitem->msgFlags |= RS_MSG_FLAGS_DISTANT;
 
-	{
-		RS_STACK_MUTEX(mMsgMtx);
-
-		if(signing_key_id.isNull())
-		{
-            std::cerr << "ERROR: cannot find signing key id for msg id " << msgitem->msgId << " available keys are:" << std::endl;
-			return;
-		}
-	}
+    if(signing_key_id.isNull())
+    {
+        std::cerr << "ERROR: cannot find signing key id for msg id " << msgitem->msgId << " available keys are:" << std::endl;
+        return;
+    }
 #ifdef DEBUG_DISTANT_MSG
 	std::cerr << "p3MsgService::sendDistanteMsgItem(): sending distant msg item"
 	          << " msg ID: " << msgitem->msgId << " to peer:"
@@ -2530,15 +2526,8 @@ void p3MsgService::sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& signing_
 	/* now store the grouter id along with the message id, so that we can keep
 	 * track of received messages */
 
-	{
-		RS_STACK_MUTEX(mMsgMtx);
-        _grouter_ongoing_messages[grouter_message_id] = msgitem->msgId;
-	}
-
-	{
-		RS_STACK_MUTEX(gxsOngoingMutex);
-		gxsOngoingMessages[gxsMailId] = msgitem->msgId;
-	}
+    _grouter_ongoing_messages[grouter_message_id] = msgitem->msgId;
+    gxsOngoingMessages[gxsMailId] = msgitem->msgId;
 
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); // save _ongoing_messages
 }
