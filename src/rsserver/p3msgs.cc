@@ -266,9 +266,9 @@ ChatLobbyId ChatId::toLobbyId() const
     }
 }
 
-bool p3Msgs::getMessageSummaries(std::list<MsgInfoSummary> &msgList)
+bool p3Msgs::getMessageSummaries(BoxName box,std::list<MsgInfoSummary> &msgList)
 {
-	return mMsgSrv->getMessageSummaries(msgList);
+    return mMsgSrv->getMessageSummaries(box,msgList);
 }
 
 

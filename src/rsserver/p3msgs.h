@@ -64,7 +64,7 @@ public:
 	  /*!
 	   * @param msgList ref to list summarising client's msgs
 	   */
-      virtual bool getMessageSummaries(std::list<Rs::Msgs::MsgInfoSummary> &msgList)override ;
+      virtual bool getMessageSummaries(Rs::Msgs::BoxName box,std::list<Rs::Msgs::MsgInfoSummary> &msgList) override;
       virtual bool getMessage(const std::string &mId, Rs::Msgs::MessageInfo &msg)override ;
       virtual void getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox)override ;
 

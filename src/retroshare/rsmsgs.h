@@ -100,6 +100,7 @@ typedef uint64_t	ChatLobbyMsgId ;
 typedef std::string ChatLobbyNickName ;
 typedef std::string RsMailMessageId; // TODO: rebase on t_RsGenericIdType
 
+
 /**
  * Used to return a tracker id so the API user can keep track of sent mail
  * status, it contains mail id, and recipient id
@@ -128,6 +129,15 @@ namespace Rs
 {
 namespace Msgs
 {
+
+enum class BoxName:uint8_t {
+        BOX_NONE   = 0x00,
+        BOX_INBOX  = 0x01,
+        BOX_OUTBOX = 0x02,
+        BOX_DRAFTS = 0x03,
+        BOX_SENT   = 0x04,
+        BOX_TRASH  = 0x05
+    };
 
 class MsgAddress: public RsSerializable
 {
@@ -160,8 +170,8 @@ class MsgAddress: public RsSerializable
             RS_SERIAL_PROCESS(_addr_string);
         }
 
-        MsgAddress::AddressType type() { return _type ;}
-		MsgAddress::AddressMode mode() { return _mode ;}
+        MsgAddress::AddressType type() const { return _type ;}
+        MsgAddress::AddressMode mode() const { return _mode ;}
 
         RsGxsId toGxsId()     const { checkType(MSG_ADDRESS_TYPE_RSGXSID);return RsGxsId (_addr_string);}
         RsPeerId toRsPeerId() const { checkType(MSG_ADDRESS_TYPE_RSPEERID);return RsPeerId(_addr_string);}
@@ -175,7 +185,6 @@ class MsgAddress: public RsSerializable
                 RsErr() << "WRONG TYPE in MsgAddress. This is not a good sign. Something's going wrong." ;
         }
         bool operator<(const MsgAddress& m) const { return _addr_string < m._addr_string; }
-        AddressType type() const { return _type ; }
 	private:
 		AddressType _type ;
 		AddressMode _mode ;
@@ -603,10 +612,11 @@ public:
 	/**
 	 * @brief getMessageSummaries
 	 * @jsonapi{development}
-	 * @param[out] msgList
+     * @param[in]  box
+     * @param[out] msgList
 	 * @return always true
 	 */
-	virtual bool getMessageSummaries(std::list<Rs::Msgs::MsgInfoSummary> &msgList) = 0;
+    virtual bool getMessageSummaries(Rs::Msgs::BoxName box,std::list<Rs::Msgs::MsgInfoSummary> &msgList) = 0;
 
 	/**
 	 * @brief getMessage

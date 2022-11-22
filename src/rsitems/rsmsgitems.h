@@ -207,7 +207,7 @@ public:
 class RsMailStorageItem : public RsMessageItem
 {
     public:
-        RsMailStorageItem() : RsMessageItem(RS_PKT_SUBTYPE_MSG_MAIL_STORAGE) {}
+        RsMailStorageItem() : RsMessageItem(RS_PKT_SUBTYPE_MSG_MAIL_STORAGE), parentId(0) {}
 
         virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
         {

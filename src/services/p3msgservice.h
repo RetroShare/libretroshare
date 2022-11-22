@@ -76,7 +76,7 @@ public:
 	            RS_DEFAULT_STORAGE_PARAM(std::string) );
 
     /* External Interface */
-    bool 	getMessageSummaries(std::list<Rs::Msgs::MsgInfoSummary> &msgList);
+    bool 	getMessageSummaries(Rs::Msgs::BoxName box, std::list<Rs::Msgs::MsgInfoSummary> &msgList);
     bool 	getMessage(const std::string& mid, Rs::Msgs::MessageInfo &msg);
 	void	getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox);
 
@@ -179,7 +179,7 @@ private:
 
     void manageDistantPeers() ;
 
-    void handleIncomingItem(RsMsgItem *) ;
+    void handleIncomingItem(RsMsgItem *, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to) ;
 
     uint32_t getNewUniqueMsgId();
     MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to);
@@ -188,7 +188,7 @@ private:
     void cleanListOfReceivedMessageHashes();
 
     int 	incomingMsgs();
-    void    processIncomingMsg(RsMsgItem *mi) ;
+    void    processIncomingMsg(RsMsgItem *mi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to) ;
     bool checkAndRebuildPartialMessage(RsMsgItem*) ;
 
     // These two functions generate MessageInfo and MessageInfoSummary structures for the UI to use
@@ -224,6 +224,7 @@ private:
     std::map<uint32_t, RsMailStorageItem *> mReceivedMessages;		// Inbox
     std::map<uint32_t, RsMailStorageItem *> mSentMessages;			// Sent box (msgOutgoing points to elements in this list). Also contains drafts and pending messages
     std::map<uint32_t, RsMailStorageItem *> mTrashMessages;			// Trash box
+    std::map<uint32_t, RsMailStorageItem *> mDraftMessages;			// Draft box
 
     // Messages that haven't made it out yet. These are stored as reference to the original message it->first.
     // For each of them, a list of outgoing copies are stored (with their own identifier) along with the

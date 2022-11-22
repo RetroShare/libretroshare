@@ -216,7 +216,7 @@ void p3MsgService::cleanListOfReceivedMessageHashes()
 		else ++it;
 }
 
-void p3MsgService::processIncomingMsg(RsMsgItem *mi)
+void p3MsgService::processIncomingMsg(RsMsgItem *mi,const MsgAddress& from,const MsgAddress& to)
 {
 	mi -> recvTime = static_cast<uint32_t>(time(nullptr));
 	mi -> msgId = getNewUniqueMsgId();
@@ -239,9 +239,8 @@ void p3MsgService::processIncomingMsg(RsMsgItem *mi)
 
         RsMailStorageItem * msi = new RsMailStorageItem;
         msi->msg = *mi;
-        msi->from = (mi->msgFlags & RS_MSG_FLAGS_DISTANT)?
-                         MsgAddress(RsGxsId(mi->PeerId()),MsgAddress::MSG_ADDRESS_MODE_TO)
-                        :MsgAddress(RsPeerId(mi->PeerId()),MsgAddress::MSG_ADDRESS_MODE_TO) ;
+        msi->from = from;
+        msi->to = to;
 
         mReceivedMessages[mi->msgId] = msi;
 
@@ -306,26 +305,28 @@ bool p3MsgService::checkAndRebuildPartialMessage(RsMsgItem *ci)
 	}
 }
 
-int p3MsgService::incomingMsgs()
+int p3MsgService::incomingMsgs()	// direct node-to-node messages
 {
 	RsMsgItem *mi;
 	int i = 0;
 
 	while((mi = (RsMsgItem *) recvItem()) != NULL)
 	{
-		handleIncomingItem(mi) ;
-		++i ;
+        handleIncomingItem(mi,
+                           Rs::Msgs::MsgAddress(mi->PeerId(),            Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+        ++i ;
 	}
 
 	return i;
 }
 
-void p3MsgService::handleIncomingItem(RsMsgItem *mi)
+void p3MsgService::handleIncomingItem(RsMsgItem *mi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to)
 {
 	// only returns true when a msg is complete.
 	if(checkAndRebuildPartialMessage(mi))
 	{
-		processIncomingMsg(mi);
+        processIncomingMsg(mi,from,to);
         delete mi;
     }
 }
@@ -593,6 +594,8 @@ void p3MsgService::initStandardTagTypes()
 #warning TODO
 bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
 {
+    // should also delete the items.
+
     RsMsgTags* mti;
     RsMsgSrcId* msi;
     RsMsgParentId* msp;
@@ -634,6 +637,7 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
 
 
     }
+    return true;
 }
 
 bool p3MsgService::loadList(std::list<RsItem*>& load)
@@ -660,7 +664,9 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
     std::map<uint32_t, RsMsgTagType*>::iterator tagIt;
     std::map<uint32_t, RsPeerId> srcIdMsgMap;
     std::map<uint32_t, RsPeerId>::iterator srcIt;
+    RsConfigKeyValueSet *vitem = nullptr ;
 
+    std::list<RsItem*> unhandled_items;
     uint32_t max_msg_id = 0 ;
     
     // load items and calculate next unique msgId
@@ -671,6 +677,8 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
             typedef std::map<GRouterMsgPropagationId,uint32_t> tT;
             for( tT::const_iterator bit = grm->ongoing_msgs.begin(); bit != grm->ongoing_msgs.end(); ++bit )
                 _grouter_ongoing_messages.insert(*bit);
+
+            delete *it;
         }
         else if(NULL != (ghm = dynamic_cast<RsMsgDistantMessagesHashMap*>(*it)))
         {
@@ -684,6 +692,7 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
             for(std::map<Sha1CheckSum,uint32_t>::const_iterator it(mRecentlyReceivedDistantMessageHashes.begin());it!=mRecentlyReceivedDistantMessageHashes.end();++it)
                 std::cerr << "    " << it->first << " received " << time(NULL)-it->second << " secs ago." << std::endl;
 #endif
+            delete *it;
         }
         else if(NULL != (mtt = dynamic_cast<RsMsgTagType *>(*it)))
         {
@@ -696,10 +705,9 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
                 mTags.erase(tagIt);
                 mTags.insert(std::pair<uint32_t, RsMsgTagType* >(mtt->tagId, mtt));
             }
+            // no delete here because the item is stored.
         }
-        RsConfigKeyValueSet *vitem = NULL ;
-
-        if(NULL != (vitem = dynamic_cast<RsConfigKeyValueSet*>(*it)))
+        else if(NULL != (vitem = dynamic_cast<RsConfigKeyValueSet*>(*it)))
         {
             for(std::list<RsTlvKeyValue>::const_iterator kit = vitem->tlvkvs.pairs.begin(); kit != vitem->tlvkvs.pairs.end(); ++kit)
             {
@@ -729,9 +737,12 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
                     }
                 }
             }
+            delete *it;
         }
         else if(nullptr != (msi = dynamic_cast<RsMailStorageItem*>(*it)))
         {
+            RsErr() << "Loaded msg with msg.to=" << msi->to ;
+
             /* STORE MsgID */
             if (msi->msg.msgId != 0)
             {
@@ -744,24 +755,29 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
                     mTrashMessages[msi->msg.msgId] = msi;
                 else if (msi->msg.msgFlags & RS_MSG_FLAGS_OUTGOING)
                     mSentMessages[msi->msg.msgId] = msi;
+                else if (msi->msg.msgFlags & RS_MSG_FLAGS_DRAFT)
+                    mDraftMessages[msi->msg.msgId] = msi;
                 else
                     mReceivedMessages[msi->msg.msgId] = msi;
             }
             else
+            {
                 RsErr() << "Found Message item without an ID. This is an error. Item will be dropped." ;
+                delete *it;
+            }
+
+            // no delete here because the item is stored.
         }
         else if(nullptr != (mom = dynamic_cast<RsMsgOutgoingMapStorageItem*>(*it)))
         {
             msgOutgoing = mom->outgoing_map;
+            delete *it;
         }
+        else
+            unhandled_items.push_back(*it);
     }
 
-    parseList_backwardCompatibility(load);
-
-    // now clean it all
-
-    for(auto it:load)
-        delete it;
+    parseList_backwardCompatibility(unhandled_items);
 
     load.clear();
 
@@ -836,48 +852,72 @@ void p3MsgService::loadWelcomeMsg()
 /****************************************/
 /****************************************/
 
-bool p3MsgService::getMessageSummaries(std::list<MsgInfoSummary> &msgList)
+bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& msgList)
 {
-	/* do stuff */
-	msgList.clear();
+    /* do stuff */
+    msgList.clear();
 
-	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
+    RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-    for(auto mit : mReceivedMessages)
-	{
-		MsgInfoSummary mis;
-        initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
-		msgList.push_back(mis);
-	}
-
-    for(auto mit : mSentMessages)
-	{
-		MsgInfoSummary mis;
-        initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
-        msgList.push_back(mis);
-	}
-
-    // Now special process for outgoing, since it's references with their own Ids
-
-    for(auto mit:msgOutgoing)
+    switch(box)
     {
-        auto mref = mSentMessages.find(mit.first);
-
-        if(mref == mSentMessages.end())
-        {
-            RsErr() << "Cannot find original source message with ID=" << mit.first << " for outgoing msg" ;
-            continue;
-        }
-
-        for(auto sit:mit.second)
+    case BoxName::BOX_SENT:
+        for(const auto& mit : mSentMessages)
         {
             MsgInfoSummary mis;
-            initRsMIS(*mref->second,sit.second.origin,sit.second.destination,sit.first,mis);
-
+            initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
             msgList.push_back(mis);
         }
+        break;
+    case BoxName::BOX_INBOX:
+        for(const auto& mit : mReceivedMessages)
+        {
+            MsgInfoSummary mis;
+            initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
+            msgList.push_back(mis);
+        }
+        break;
+    case BoxName::BOX_DRAFTS:
+        for(const auto& mit : mTrashMessages)
+        {
+            MsgInfoSummary mis;
+            initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
+            msgList.push_back(mis);
+        }
+        break;
+    case BoxName::BOX_TRASH:
+        for(const auto& mit : mTrashMessages)
+        {
+            MsgInfoSummary mis;
+            initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
+            msgList.push_back(mis);
+        }
+        break;
+    case BoxName::BOX_OUTBOX:
+        for(const auto& mit:msgOutgoing) // Now special process for outgoing, since it's references with their own Ids
+        {
+            auto mref = mSentMessages.find(mit.first);
+
+            if(mref == mSentMessages.end())
+            {
+                RsErr() << "Cannot find original source message with ID=" << mit.first << " for outgoing msg" ;
+                continue;
+            }
+
+            for(auto sit:mit.second)
+            {
+                MsgInfoSummary mis;
+                initRsMIS(*mref->second,sit.second.origin,sit.second.destination,sit.first,mis);
+
+                msgList.push_back(mis);
+            }
+        }
+        break;
+    default:
+        RsErr() << "Unhandled box name " << (int)box << " in getMessageSummaries()";
+        return false;
     }
-	return true;
+    return true;
 }
 
 bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
@@ -1175,6 +1215,8 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
             info.flags |= RS_MSG_FLAGS_DISTANT;
+        else
+            info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
     }
 
     IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
@@ -1392,7 +1434,9 @@ bool p3MsgService::SystemMessage(const std::string &title, const std::string &me
 
 	msg->rspeerid_msgto.ids.insert(mServiceCtrl->getOwnId());
 
-	processIncomingMsg(msg);
+    processIncomingMsg(msg,
+                           Rs::Msgs::MsgAddress(RsPeerId(),              Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
 
 	return true;
 }
@@ -1859,12 +1903,12 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
     mis.msgId = mid;
 	mis.msgflags = 0;
 
-    auto msg = &msi.msg;	// trick to keep the old code
+    const RsMsgItem *msg = &msi.msg;	// trick to keep the old code
 
     mis.to = to;
     mis.from = from;
 
-    std::cerr << "msg (peerId=" << msg->PeerId() << ", distant=" << bool(msg->msgFlags & RS_MSG_FLAGS_DISTANT)<< ": " << *msg << std::endl;
+    std::cerr << "msg (peerId=" << msg->PeerId() << ", distant=" << bool(msg->msgFlags & RS_MSG_FLAGS_DISTANT)<< ": " << msg << std::endl;
 
     mis.from = msi.from;
 
@@ -1963,11 +2007,6 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
 
 bool p3MsgService::initMIRsMsg(RsMailStorageItem *msi,const MessageInfo& info)
 {
-    if(info.to.type() != MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && info.to.type() != MsgAddress::MSG_ADDRESS_TYPE_RSPEERID)
-    {
-        RsErr() << "Trying to create a PeerId from an incompatible message address type: \"" << info.to.toStdString() << "\"";
-        return false;
-    }
     auto msg(&msi->msg);	// trick to keep the previous code.
 
 	msg -> msgFlags = 0;
@@ -1998,7 +2037,7 @@ bool p3MsgService::initMIRsMsg(RsMailStorageItem *msi,const MessageInfo& info)
 #warning Not sure about this line
             if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && rsIdentity->isOwnId(m.toGxsId())) 	 /* We don't fill in bcc (unless to ourselves) */
                 msg->rsgxsid_msgbcc.ids.insert(m.toGxsId());
-            else if(msg->PeerId() == mServiceCtrl->getOwnId());
+            else if(msg->PeerId() == mServiceCtrl->getOwnId())
                 msg->rspeerid_msgbcc.ids.insert(m.toRsPeerId());
             break;
         default:
@@ -2022,11 +2061,6 @@ bool p3MsgService::initMIRsMsg(RsMailStorageItem *msi,const MessageInfo& info)
 
 	if (info.msgflags & RS_MSG_FRIEND_RECOMMENDATION)
 		msg->msgFlags |= RS_MSG_FLAGS_FRIEND_RECOMMENDATION;
-
-    if(info.to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
-        msg->msgFlags |= RS_MSG_FLAGS_DISTANT;
-    else
-        msg->msgFlags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
 
     if (info.msgflags & RS_MSG_SIGNED)
         msg->msgFlags |= RS_MSG_FLAGS_SIGNED;
@@ -2264,8 +2298,11 @@ bool p3MsgService::receiveGxsTransMail( const RsGxsId& authorId,
 
 		// hack to pass on GXS id.
 		msg_item->PeerId(RsPeerId(authorId));
-		handleIncomingItem(msg_item);
-	}
+
+        handleIncomingItem(msg_item,
+                           Rs::Msgs::MsgAddress(authorId,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Msgs::MsgAddress(recipientId,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+    }
 	else
 	{
 		RsWarn() << __PRETTY_FUNCTION__ << " Item could not be "
@@ -2432,8 +2469,11 @@ void p3MsgService::receiveGRouterData( const RsGxsId &destination_key,
 		msg_item->msgFlags &= ~RS_MSG_FLAGS_PARTIAL;
 
 		msg_item->PeerId(RsPeerId(signing_key)) ;	// hack to pass on GXS id.
-		handleIncomingItem(msg_item) ;
-	}
+
+        handleIncomingItem(msg_item,
+                           Rs::Msgs::MsgAddress(signing_key,    Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Msgs::MsgAddress(destination_key,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+    }
 	else
 		std::cerr << "  Item could not be deserialised. Format error??" << std::endl;
 }
