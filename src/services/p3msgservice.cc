@@ -1273,6 +1273,9 @@ bool 	p3MsgService::MessageSend(MessageInfo &info)
 
     RsMailStorageItem *msi = initMIRsMsg(info);
 
+    msi->to = *info.destinations.begin();
+    msi->from = info.from;
+
     if(!msi)
         return false;
 
