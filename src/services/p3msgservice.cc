@@ -878,7 +878,7 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
         }
         break;
     case BoxName::BOX_DRAFTS:
-        for(const auto& mit : mTrashMessages)
+        for(const auto& mit : mDraftMessages)
         {
             MsgInfoSummary mis;
             initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
