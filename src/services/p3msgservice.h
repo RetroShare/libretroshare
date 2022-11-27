@@ -182,7 +182,7 @@ private:
     void handleIncomingItem(RsMsgItem *, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to) ;
 
     uint32_t getNewUniqueMsgId();
-    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to);
+    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to, uint32_t flags);
     uint32_t sendDistantMessage(RsMsgItem *item,const RsGxsId& signing_gxs_id);
     void    checkSizeAndSendMessage(RsMsgItem *msg, const RsPeerId &destination);
     void cleanListOfReceivedMessageHashes();
@@ -193,7 +193,7 @@ private:
 
     // These two functions generate MessageInfo and MessageInfoSummary structures for the UI to use
 
-    void    initRsMI (const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to,Rs::Msgs::MessageInfo&    mi );
+    void    initRsMI (const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to, uint32_t flags, Rs::Msgs::MessageInfo&    mi );
     void 	initRsMIS(const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to,MessageIdentifier mid,Rs::Msgs::MsgInfoSummary& mis);
 
     // Creates a RsMsgItem from a RsMailStorageItem, a 'from' and a 'to' fields.
@@ -256,6 +256,8 @@ private:
     bool mShouldEnableDistantMessaging ;
 
 	p3GxsTrans& mGxsTransServ;
+
+    void debug_dump();
 
 	RS_SET_CONTEXT_DEBUG_LEVEL(3)
 };

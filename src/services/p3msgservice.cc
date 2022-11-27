@@ -192,6 +192,8 @@ int p3MsgService::tick()
 		cleanListOfReceivedMessageHashes();
 
 		last_management_time = now;
+
+        debug_dump();
 	}
 
 	return 0;
@@ -909,6 +911,8 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
                 MsgInfoSummary mis;
                 initRsMIS(*mref->second,sit.second.origin,sit.second.destination,sit.first,mis);
 
+                // correct the flags
+                mis.msgflags = sit.second.flags;
                 msgList.push_back(mis);
             }
         }
@@ -930,7 +934,7 @@ bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
 
     if (mit != mReceivedMessages.end())
     {
-        initRsMI(*mit->second, mit->second->from,mit->second->to,msg);
+        initRsMI(*mit->second, mit->second->from,mit->second->to,mit->second->msg.msgFlags,msg);
         return true;
     }
 
@@ -938,7 +942,7 @@ bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
 
     if (mit != mSentMessages.end())
     {
-        initRsMI(*mit->second, mit->second->from,mit->second->to,msg);
+        initRsMI(*mit->second, mit->second->from,mit->second->to,mit->second->msg.msgFlags,msg);
         return true;
     }
 
@@ -946,7 +950,7 @@ bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
 
     if (mit != mTrashMessages.end())
     {
-        initRsMI(*mit->second, mit->second->from,mit->second->to,msg);
+        initRsMI(*mit->second, mit->second->from,mit->second->to,mit->second->msg.msgFlags,msg);
         return true;
     }
 
@@ -963,7 +967,8 @@ bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
                 RsErr() << "Cannot find original message of id=" << mit.first << " for outbox element with id=" << msgId ;
                 return false;
             }
-            initRsMI(*bit->second,sit->second.origin,sit->second.destination,msg);
+            // We supply our own flags because the outging msg has specific flags.
+            initRsMI(*bit->second,sit->second.origin,sit->second.destination,sit->second.flags,msg);
 
             return true;
         }
@@ -1151,7 +1156,7 @@ bool    p3MsgService::getMsgParentId(const std::string& msgId, std::string& msgP
 
     if(mit != mReceivedMessages.end())
     {
-        rs_sprintf(msgParentId, "%lu", mit->second->parentId);
+        msgParentId = std::to_string(mit->second->parentId);
         return true;
     }
 
@@ -1159,7 +1164,7 @@ bool    p3MsgService::getMsgParentId(const std::string& msgId, std::string& msgP
 
     if(mit != mSentMessages.end())
     {
-        rs_sprintf(msgParentId, "%lu", mit->second->parentId);
+        msgParentId = std::to_string(mit->second->parentId);
         return true;
     }
 
@@ -1196,7 +1201,7 @@ bool    p3MsgService::setMsgParentId(uint32_t msgId, uint32_t msgParentId)
 /****************************************/
 	/* Message Items */
 // no from field because it's implicitly our own PeerId
-MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const MsgAddress& from,const MsgAddress& to)
+MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const MsgAddress& from,const MsgAddress& to,uint32_t flags)
 {
     auto msgId     = getNewUniqueMsgId(); /* grabs Mtx as well */
     {
@@ -1209,9 +1214,11 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
 
         // then add the new msg id with the correct from/to
 
+        info.flags = flags;
         info.origin = from;
         info.destination = to;
-        info.flags = RS_MSG_FLAGS_OUTGOING | RS_MSG_FLAGS_PENDING;
+
+        info.flags |= RS_MSG_FLAGS_OUTGOING ;
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
             info.flags |= RS_MSG_FLAGS_DISTANT;
@@ -1300,7 +1307,9 @@ bool 	p3MsgService::MessageSend(MessageInfo &info)
     // Then stores outgoing message references for each destination in the msgOutgoing list
 
     for(auto pit: info.destinations)
-        internal_sendMessage(msg->msgId,info.from, pit);
+        internal_sendMessage(msg->msgId,info.from, pit,info.msgflags);
+
+    msi->msg.msgFlags |= RS_MSG_FLAGS_PENDING;
 
     auto pEvent = std::make_shared<RsMailStatusEvent>();
     pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
@@ -1379,6 +1388,7 @@ uint32_t p3MsgService::sendMail(
     auto msi = initMIRsMsg(msgInfo);
 
     msi->msg.msgId = getNewUniqueMsgId();
+    msi->msg.msgFlags = RS_MSG_FLAGS_DISTANT | RS_MSG_FLAGS_PENDING;
 
     mSentMessages[msi->msg.msgId] = msi;
 
@@ -1389,7 +1399,7 @@ uint32_t p3MsgService::sendMail(
 
     for(auto dst:msgInfo.destinations)
     {
-        auto msg_copy_id = internal_sendMessage(msi->msg.msgId,MsgAddress(from,MsgAddress::MSG_ADDRESS_MODE_TO),dst);
+        auto msg_copy_id = internal_sendMessage(msi->msg.msgId,MsgAddress(from,MsgAddress::MSG_ADDRESS_MODE_TO),dst,msi->msg.msgFlags);
 
         const RsMailMessageId mailId = std::to_string(msg_copy_id);
         pEvent->mChangedMsgIds.insert(mailId);
@@ -1474,7 +1484,7 @@ bool p3MsgService::MessageToDraft(MessageInfo& info, const std::string& msgParen
         mSentMessages[msgId] = msg;
 
         // return new message id
-        rs_sprintf(info.msgId, "%lu", msgId);
+       info.msgId = std::to_string(msgId);
     }
 
     IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
@@ -1642,7 +1652,7 @@ bool 	p3MsgService::locked_getMessageTag(const std::string &msgId, MsgTagInfo& i
 	std::map<uint32_t, RsMsgTags*>::iterator mit;
 
 	if(mMsgTags.end() != (mit = mMsgTags.find(mid))) {
-		rs_sprintf(info.msgId, "%lu", mit->second->msgId);
+        info.msgId = std::to_string(mit->second->msgId);
 		info.tagIds = mit->second->tagIds;
 
 		return true;
@@ -1788,6 +1798,18 @@ bool p3MsgService::MessageToTrash(const std::string& mid, bool bTrash)
             pEvent->mChangedMsgIds.insert(mid);
             mSentMessages.erase(mit);
         }
+
+        mit = mDraftMessages.find(msgId);
+
+        if(mit != mDraftMessages.end())
+        {
+            bFound = true;
+            mTrashMessages[mit->first] = mit->second;
+            mit->second->msg.msgFlags |= RS_MSG_FLAGS_TRASH;
+            pEvent->mChangedMsgIds.insert(mid);
+            mDraftMessages.erase(mit);
+        }
+
     }
     else
     {
@@ -1836,31 +1858,31 @@ bool p3MsgService::MessageToTrash(const std::string& mid, bool bTrash)
  * the data used is from internal stores -> then they should be.
  */
 
-void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from, const MsgAddress& to, MessageInfo &mi)
+void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from, const MsgAddress& to, uint32_t flags,MessageInfo &mi)
 {
     auto msg(&msi.msg);
 	mi.msgflags = 0;
 
 	/* translate flags, if we sent it... outgoing */
 
-	if (msg->msgFlags & RS_MSG_FLAGS_OUTGOING)        mi.msgflags |= RS_MSG_OUTGOING;
-	if (msg->msgFlags & RS_MSG_FLAGS_PENDING)         mi.msgflags |= RS_MSG_PENDING;    /* if it has a pending flag, then its in the outbox */
-	if (msg->msgFlags & RS_MSG_FLAGS_DRAFT)           mi.msgflags |= RS_MSG_DRAFT;
-	if (msg->msgFlags & RS_MSG_FLAGS_NEW)             mi.msgflags |= RS_MSG_NEW;
+    if (flags & RS_MSG_FLAGS_OUTGOING)        mi.msgflags |= RS_MSG_OUTGOING;
+    if (flags & RS_MSG_FLAGS_PENDING)         mi.msgflags |= RS_MSG_PENDING;    /* if it has a pending flag, then its in the outbox */
+    if (flags & RS_MSG_FLAGS_DRAFT)           mi.msgflags |= RS_MSG_DRAFT;
+    if (flags & RS_MSG_FLAGS_NEW)             mi.msgflags |= RS_MSG_NEW;
 
-	if (msg->msgFlags & RS_MSG_FLAGS_SIGNED)                  mi.msgflags |= RS_MSG_SIGNED ;
-	if (msg->msgFlags & RS_MSG_FLAGS_SIGNATURE_CHECKS)        mi.msgflags |= RS_MSG_SIGNATURE_CHECKS ;
-    if (msg->msgFlags & RS_MSG_FLAGS_DISTANT)                 mi.msgflags |= RS_MSG_DISTANT ;
-	if (msg->msgFlags & RS_MSG_FLAGS_TRASH)                   mi.msgflags |= RS_MSG_TRASH;
-	if (msg->msgFlags & RS_MSG_FLAGS_UNREAD_BY_USER)          mi.msgflags |= RS_MSG_UNREAD_BY_USER;
-	if (msg->msgFlags & RS_MSG_FLAGS_REPLIED)                 mi.msgflags |= RS_MSG_REPLIED;
-	if (msg->msgFlags & RS_MSG_FLAGS_FORWARDED)               mi.msgflags |= RS_MSG_FORWARDED;
-	if (msg->msgFlags & RS_MSG_FLAGS_STAR)                    mi.msgflags |= RS_MSG_STAR;
-	if (msg->msgFlags & RS_MSG_FLAGS_SPAM)                    mi.msgflags |= RS_MSG_SPAM;
-	if (msg->msgFlags & RS_MSG_FLAGS_USER_REQUEST)            mi.msgflags |= RS_MSG_USER_REQUEST;
-	if (msg->msgFlags & RS_MSG_FLAGS_FRIEND_RECOMMENDATION)   mi.msgflags |= RS_MSG_FRIEND_RECOMMENDATION;
-	if (msg->msgFlags & RS_MSG_FLAGS_PUBLISH_KEY)             mi.msgflags |= RS_MSG_PUBLISH_KEY;
-	if (msg->msgFlags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)    mi.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
+    if (flags & RS_MSG_FLAGS_SIGNED)                  mi.msgflags |= RS_MSG_SIGNED ;
+    if (flags & RS_MSG_FLAGS_SIGNATURE_CHECKS)        mi.msgflags |= RS_MSG_SIGNATURE_CHECKS ;
+    if (flags & RS_MSG_FLAGS_DISTANT)                 mi.msgflags |= RS_MSG_DISTANT ;
+    if (flags & RS_MSG_FLAGS_TRASH)                   mi.msgflags |= RS_MSG_TRASH;
+    if (flags & RS_MSG_FLAGS_UNREAD_BY_USER)          mi.msgflags |= RS_MSG_UNREAD_BY_USER;
+    if (flags & RS_MSG_FLAGS_REPLIED)                 mi.msgflags |= RS_MSG_REPLIED;
+    if (flags & RS_MSG_FLAGS_FORWARDED)               mi.msgflags |= RS_MSG_FORWARDED;
+    if (flags & RS_MSG_FLAGS_STAR)                    mi.msgflags |= RS_MSG_STAR;
+    if (flags & RS_MSG_FLAGS_SPAM)                    mi.msgflags |= RS_MSG_SPAM;
+    if (flags & RS_MSG_FLAGS_USER_REQUEST)            mi.msgflags |= RS_MSG_USER_REQUEST;
+    if (flags & RS_MSG_FLAGS_FRIEND_RECOMMENDATION)   mi.msgflags |= RS_MSG_FRIEND_RECOMMENDATION;
+    if (flags & RS_MSG_FLAGS_PUBLISH_KEY)             mi.msgflags |= RS_MSG_PUBLISH_KEY;
+    if (flags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)    mi.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
 
 	mi.ts = msg->sendTime;
 
@@ -1877,10 +1899,7 @@ void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from
 
 	mi.title = msg->subject;
 	mi.msg   = msg->message;
-	{
-		//msg->msgId;
-		rs_sprintf(mi.msgId, "%lu", msg->msgId);
-	}
+    mi.msgId = std::to_string(msg->msgId);
 
 	mi.attach_title = msg->attachment.title;
 	mi.attach_comment = msg->attachment.comment;
@@ -1903,8 +1922,8 @@ void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from
 
 void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& from, const MsgAddress& to, MessageIdentifier mid,MsgInfoSummary& mis)
 {
-    mis.msgId = mid;
-	mis.msgflags = 0;
+    mis.msgId = std::to_string(mid);
+    mis.msgflags = 0;
 
     const RsMsgItem *msg = &msi.msg;	// trick to keep the old code
 
@@ -1984,12 +2003,7 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
 		mis.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
 	}
 
-	{
-		//msg->msgId;
-		rs_sprintf(mis.msgId, "%lu", msg->msgId);
-	}
-
-	mis.title = msg->subject;
+    mis.title = msg->subject;
 	mis.count = msg->attachment.items.size();
 	mis.ts = msg->sendTime;
 
@@ -2553,5 +2567,35 @@ RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,
     return item;
 }
 
+void p3MsgService::debug_dump()
+{
+    std::cerr << "Dump of p3MsgService data:" << std::endl;
+    auto display_box = [=](const std::map<uint32_t,RsMailStorageItem*>& msgs,const std::string& box_name) {
+    std::cerr << "  " + box_name + ":" << std::endl;
+    for(auto msg:msgs)
+        std::cerr << "    " << msg.first << ": from " << msg.second->from.toStdString() << " to " << msg.second->to.toStdString() << " flags: " << msg.second->msg.msgFlags << " destinations: "
+                  << msg.second->msg.rsgxsid_msgto.ids.size()
+                    +msg.second->msg.rsgxsid_msgcc.ids.size()
+                    +msg.second->msg.rsgxsid_msgbcc.ids.size()
+                    +msg.second->msg.rspeerid_msgto.ids.size()
+                    +msg.second->msg.rspeerid_msgcc.ids.size()
+                    +msg.second->msg.rspeerid_msgbcc.ids.size() << " subject:\"" << msg.second->msg.subject << "\"" << std::endl;
+    };
+
+    display_box(mReceivedMessages,"Received");
+    display_box(mSentMessages,"Sent");
+    display_box(mTrashMessages,"Trash");
+    display_box(mDraftMessages,"Draft");
+
+    std::cerr << "  Outgoing:" << std::endl;
+
+    for(auto msg:msgOutgoing)
+    {
+        std::cerr << "    " << msg.first << ":" << std::endl;
+
+        for(auto msg2:msg.second)
+            std::cerr << "      " << msg2.first << ": from " << msg2.second.origin.toStdString() << " to " << msg2.second.destination.toStdString() << " flags:" << msg2.second.flags << std::endl;
+    }
+}
 
 
