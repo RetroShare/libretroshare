@@ -136,8 +136,7 @@ p3MsgService::p3MsgService( p3ServiceControl *sc, p3IdService *id_serv,
 
 	if(sc) initStandardTagTypes(); // Initialize standard tag types
 
-	mGxsTransServ.registerGxsTransClient( GxsTransSubServices::P3_MSG_SERVICE,
-	                                      this );
+    mGxsTransServ.registerGxsTransClient( GxsTransSubServices::P3_MSG_SERVICE, this );
 }
 
 const std::string MSG_APP_NAME = "msg";
@@ -348,9 +347,7 @@ void    p3MsgService::statusChange(const std::list<pqiServicePeer> &plist)
 	}
 
 	if (newPeers)
-	{
 		checkOutgoingMessages();
-	}
 }
 
 void p3MsgService::checkSizeAndSendMessage(RsMsgItem *msg,const RsPeerId& destination)
@@ -434,6 +431,9 @@ int p3MsgService::checkOutgoingMessages()
                     {
                         auto msg_item = createOutgoingMessageItem(*sit->second,from,to);
 
+                        // Use the msg_id of the outgoing message copy.
+                        msg_item->msgId = mit->first;
+
                         Dbg3() << __PRETTY_FUNCTION__ << " Sending out message" << std::endl;
                         checkSizeAndSendMessage(msg_item,to.toRsPeerId());
 
@@ -458,6 +458,9 @@ int p3MsgService::checkOutgoingMessages()
 #endif
                     Dbg3() << __PRETTY_FUNCTION__ << " Sending out message" << std::endl;
                     auto msg_item = createOutgoingMessageItem(*sit->second,from,to);
+
+                    // Use the msg_id of the outgoing message copy.
+                    msg_item->msgId = mit->first;
                     locked_sendDistantMsgItem(msg_item,from.toGxsId());
 
                     pEvent->mChangedMsgIds.insert(std::to_string(mit->first));
@@ -473,9 +476,15 @@ int p3MsgService::checkOutgoingMessages()
             // cleanup.
 
             if(mit->second.empty())
+            {
                 sit->second->msg.msgFlags &= ~RS_MSG_FLAGS_PENDING;
-
-            ++mit;
+                auto tmp = mit;
+                ++tmp;
+                msgOutgoing.erase(mit);
+                mit=tmp;
+            }
+            else
+                ++mit;
         }
     }
 
@@ -2212,6 +2221,8 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
         // We should now remove the item from the msgOutgoing list. msgOutgoing is indexed by the original msg, not its copy, so we need
         // a linear search. It's bad, but really doesn't happen very often.
 
+        bool found = false;
+
         for(auto it=msgOutgoing.begin();it!=msgOutgoing.end();++it)
         {
             auto mit = it->second.find(msg_id);
@@ -2219,19 +2230,17 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
             if(mit != it->second.end())
             {
                 it->second.erase(mit);
-
-                if(it->second.empty())
-                    msgOutgoing.erase(it);
-
+                found = true;
                 break;
             }
-            else
-            {
-                std::cerr << "(ii) message has been notified as delivered, but it's"
-                          << " not in outgoing list. probably it has been delivered"
-                          << " successfully by other means." << std::endl;
-                return;
-            }
+
+        }
+        if(!found)
+        {
+            std::cerr << "(ii) message has been notified as delivered, but it's"
+                      << " not in outgoing list. probably it has been delivered"
+                      << " successfully by other means." << std::endl;
+            return;
         }
 
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
@@ -2338,13 +2347,14 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
 
     auto pEvent = std::make_shared<RsMailStatusEvent>();
 
+    RsErr() << __PRETTY_FUNCTION__ << " GXS Trans mail notification "
+            << "mailId: " << mailId
+            << " status: " << static_cast<uint32_t>(status);
+
     uint32_t msg_id;
 
     {
         RS_STACK_MUTEX(gxsOngoingMutex);
-        RsErr() << __PRETTY_FUNCTION__ << " mail delivery "
-                << "mailId: " << mailId
-                << " failed with " << static_cast<uint32_t>(status);
 
         auto it = gxsOngoingMessages.find(mailId);
         if(it == gxsOngoingMessages.end())
@@ -2378,15 +2388,9 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
             {
                 it->second.erase(mit);
 
-                if(it->second.empty())
-                    msgOutgoing.erase(it);
-
                 pEvent->mChangedMsgIds.insert(std::to_string(msg_id));
                 found = true;
             }
-
-            if(it->second.empty())
-                msgOutgoing.erase(it);
 
             break;
         }
@@ -2418,10 +2422,6 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
                 pEvent->mChangedMsgIds.insert(std::to_string(msg_id));
                 found = true;
             }
-
-            if(it->second.empty())
-                msgOutgoing.erase(it);
-
             break;
         }
 
