@@ -448,6 +448,11 @@ int p3MsgService::checkOutgoingMessages()
 
                         continue;
                     }
+                    else
+                    {
+                        ++fit;
+                        continue;
+                    }
                 }
                 else  if( to.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && !(minfo.flags & RS_MSG_FLAGS_ROUTED))
                 {
@@ -462,11 +467,24 @@ int p3MsgService::checkOutgoingMessages()
                     // Use the msg_id of the outgoing message copy.
                     msg_item->msgId = mit->first;
                     locked_sendDistantMsgItem(msg_item,from.toGxsId());
-
                     pEvent->mChangedMsgIds.insert(std::to_string(mit->first));
-                }
 
-                ++fit;
+                    // Check if the msg is sent to ourselves. It happens that GRouter/GxsMail do not
+                    // acknowledge receipt of these messages. If the msg is not routed, then it's received.
+
+                    if(rsIdentity->isOwnId(to.toGxsId()))
+                    {
+                         auto tmp = fit;
+                        ++tmp;
+                        mit->second.erase(fit);
+                        fit = tmp;
+                        continue;
+                    }
+                    else
+                        ++fit;
+                }
+                else
+                    ++fit;
             }
 #ifdef DEBUG_DISTANT_MSG
             else
@@ -2591,7 +2609,7 @@ void p3MsgService::debug_dump()
 
     for(auto msg:msgOutgoing)
     {
-        std::cerr << "    " << msg.first << ":" << std::endl;
+        std::cerr << "    Original message: " << msg.first << ":" << std::endl;
 
         for(auto msg2:msg.second)
             std::cerr << "      " << msg2.first << ": from " << msg2.second.origin.toStdString() << " to " << msg2.second.destination.toStdString() << " flags:" << msg2.second.flags << std::endl;
