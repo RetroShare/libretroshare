@@ -528,6 +528,7 @@ bool p3MsgService::saveList(bool& cleanup, std::list<RsItem*>& itemList)
     for(auto mit:mReceivedMessages) itemList.push_back(new RsMailStorageItem(*mit.second));
     for(auto mit:mSentMessages)     itemList.push_back(new RsMailStorageItem(*mit.second));
     for(auto mit:mTrashMessages)    itemList.push_back(new RsMailStorageItem(*mit.second));
+    for(auto mit:mDraftMessages)    itemList.push_back(new RsMailStorageItem(*mit.second));
 
     RsMsgOutgoingMapStorageItem *out_map_item = new RsMsgOutgoingMapStorageItem ;
     out_map_item->outgoing_map = msgOutgoing;
@@ -960,6 +961,14 @@ bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
     auto mit = mReceivedMessages.find(msgId);
 
     if (mit != mReceivedMessages.end())
+    {
+        initRsMI(*mit->second, mit->second->from,mit->second->to,mit->second->msg.msgFlags,msg);
+        return true;
+    }
+
+    mit = mDraftMessages.find(msgId);
+
+    if (mit != mDraftMessages.end())
     {
         initRsMI(*mit->second, mit->second->from,mit->second->to,mit->second->msg.msgFlags,msg);
         return true;
@@ -1490,25 +1499,21 @@ bool p3MsgService::MessageToDraft(MessageInfo& info, const std::string& msgParen
 
     msg->parentId = atoi(msgParentId.c_str());
 
-    uint32_t msgId = 0;
-    if (!info.msgId.empty())
-        msgId = atoi(info.msgId.c_str());
-
-    if(!msgId)
-        msgId = getNewUniqueMsgId(); /* grabs Mtx as well */
+    uint32_t msgId = getNewUniqueMsgId(); /* grabs Mtx as well */
+    msg->msg.msgId = msgId;
 
     {
         RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
         /* add pending flag */
-        msg->msg.msgFlags |= (RS_MSG_OUTGOING | RS_MSG_FLAGS_DRAFT);
+        msg->msg.msgFlags |= RS_MSG_FLAGS_DRAFT;
 
         /* STORE MsgID */
 
-        if(mSentMessages.find(msgId) != mSentMessages.end())
-            delete mSentMessages[msgId];
+        if(mDraftMessages.find(msgId) != mDraftMessages.end())
+            delete mDraftMessages[msgId];
 
-        mSentMessages[msgId] = msg;
+        mDraftMessages[msgId] = msg;
 
         // return new message id
        info.msgId = std::to_string(msgId);
