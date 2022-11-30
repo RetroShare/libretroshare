@@ -620,52 +620,151 @@ void p3MsgService::initStandardTagTypes()
 	}
 }
 
-#warning TODO
 bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
 {
-    // should also delete the items.
+    if(!load.empty())
+        RsInfo() << "p3MsgService: Loading messages with old format. " ;
 
-    RsMsgTags* mti;
-    RsMsgSrcId* msi;
-    RsMsgParentId* msp;
+    // 1 - load all old-format data pieces
+
+    std::map<uint32_t,RsMailStorageItem*> msg_map;
+    std::list<RsMsgTags *> msg_tags;
+    std::list<RsMsgSrcId *> msg_srcids;
+    std::list<RsMsgParentId *> msg_parentids;
 
     for(auto it:load)
     {
-        RsMsgItem *mitem=nullptr;
+        RsMsgTags* mti;
+        RsMsgSrcId* msi;
+        RsMsgParentId* msp;
+        RsMsgItem *mitem;
 
-#ifdef TODO
-        if (NULL != (mitem = dynamic_cast<RsMsgItem *>(it)))
+        if (nullptr != (mitem = dynamic_cast<RsMsgItem *>(it)))
         {
-            /* STORE MsgID */
-            if (mitem->msgId > max_msg_id)
-                max_msg_id = mitem->msgId ;
-
-            items.push_back(mitem);
+            auto msi = new RsMailStorageItem();
+            msi->msg = *mitem;
+            msg_map[mitem->msgId] = msi;
         }
-        else if(NULL != (mti = dynamic_cast<RsMsgTags *>(*it)))
-        {
-            mMsgTags.insert(std::pair<uint32_t, RsMsgTags* >(mti->msgId, mti));
-        }
-        else if(NULL != (msi = dynamic_cast<RsMsgSrcId *>(*it)))
-        {
-            srcIdMsgMap.insert(std::pair<uint32_t, RsPeerId>(msi->msgId, msi->srcId));
-            mSrcIds.insert(std::pair<uint32_t, RsMsgSrcId*>(msi->msgId, msi)); // does not need to be kept
-        }
-        else if(NULL != (msp = dynamic_cast<RsMsgParentId *>(*it)))
-        {
-            mParentId.insert(std::pair<uint32_t, RsMsgParentId*>(msp->msgId, msp));
-        }
-                srcIt = srcIdMsgMap.find(mitem->msgId);
-        if(srcIt != srcIdMsgMap.end()) {
-            mitem->PeerId(srcIt->second);
-            srcIdMsgMap.erase(srcIt);
-        }
-
-
-#endif
-
-
+        else if(nullptr != (mti = dynamic_cast<RsMsgTags *>(it)))
+            msg_tags.push_back(mti);
+        else if(nullptr != (msi = dynamic_cast<RsMsgSrcId *>(it)))
+            msg_srcids.push_back(msi);
+        else if(nullptr != (msp = dynamic_cast<RsMsgParentId *>(it)))
+            msg_parentids.push_back(msp);
     }
+
+    // 2 - process all tags and set them to the proper message
+
+    for(auto ptag:msg_tags)
+    {
+        auto mit = msg_map.find(ptag->msgId);
+
+        std::string tagstr;
+        for(auto t:ptag->tagIds) tagstr += std::to_string(t) + ",";
+
+        if(!tagstr.empty())
+            tagstr.pop_back();
+
+        if(mit == msg_map.end())
+        {
+            RsErr() << "Found message tag (msg=" << ptag->msgId << ", tag=" << tagstr << ") that belongs to no specific message";
+            continue;
+        }
+        RsInfo() << "  Loading msg tag pair (msg=" << ptag->msgId << ", tag=" << tagstr << ")" ;
+
+        mit->second->tagIds = std::set<uint32_t>(ptag->tagIds.begin(),ptag->tagIds.end());
+    }
+
+    // 3 - process all parent ids and set them to the proper message
+
+    for(auto pparent:msg_parentids)
+    {
+        auto mit = msg_map.find(pparent->msgId);
+
+        if(mit == msg_map.end())
+        {
+            RsErr() << "Found message parent (msg=" << pparent->msgId << ", parent=" << pparent->msgParentId << ") that belongs to no specific message";
+            continue;
+        }
+        auto mit2 = msg_map.find(pparent->msgParentId);
+
+        if(mit2 == msg_map.end())
+        {
+            RsErr() << "Found message parent (msg=" << pparent->msgId << ", parent=" << pparent->msgParentId << ") that refers to an unknown parent message";
+            continue;
+        }
+        RsInfo() << "  Loading parent id pair (msg=" << pparent->msgId << ", parent=" << pparent->msgParentId << ") ";
+
+        mit->second->parentId = pparent->msgParentId;
+    }
+
+    // 3 - process all parent ids and set them to the proper message
+
+    for(auto psrc:msg_srcids)
+    {
+        auto mit = msg_map.find(psrc->msgId);
+
+        if(mit == msg_map.end())
+        {
+            RsErr() << "Found message parent (msg=" << psrc->msgId << ", src_id=" << psrc->srcId << ") that belongs to no specific message";
+            continue;
+        }
+        RsErr() << "  Loaded msg source pair (msg=" << psrc->msgId << ", src_id=" << psrc->srcId << ") that belongs to no specific message";
+
+        if(mit->second->msg.msgFlags & RS_MSG_FLAGS_DISTANT)
+            mit->second->from = Rs::Msgs::MsgAddress(RsGxsId(psrc->srcId),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+        else
+            mit->second->from = Rs::Msgs::MsgAddress(psrc->srcId,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+    }
+    // 4 - store each message in the appropriate map.
+
+    for(auto mit:msg_map)
+    {
+        // Fix up destination. Try to guess it, as it wasn't actually stored originally.
+
+        if(mit.second->msg.msgFlags & RS_MSG_FLAGS_DISTANT)
+        {
+            for(auto d:mit.second->msg.rsgxsid_msgto.ids)
+                if(rsIdentity->isOwnId(d))
+                {
+                    mit.second->to = MsgAddress(d,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+                    break;
+                }
+            for(auto d:mit.second->msg.rsgxsid_msgcc.ids)
+                if(rsIdentity->isOwnId(d))
+                {
+                    mit.second->to = MsgAddress(d,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_CC);
+                    break;
+                }
+            for(auto d:mit.second->msg.rsgxsid_msgbcc.ids)
+                if(rsIdentity->isOwnId(d))
+                {
+                    mit.second->to = MsgAddress(d,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_BCC);
+                    break;
+                }
+        }
+        else
+        {
+            if(mit.second->msg.rspeerid_msgto.ids.find(rsPeers->getOwnId()) != mit.second->msg.rspeerid_msgto.ids.end())
+                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+            else if(mit.second->msg.rspeerid_msgcc.ids.find(rsPeers->getOwnId()) != mit.second->msg.rspeerid_msgcc.ids.end())
+                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_CC);
+            else
+                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_BCC);
+        }
+
+        RsInfo() << "  Storing message " << mit.first << ", possible destination: " << mit.second->to  << ", MsgFlags: " << std::hex << mit.second->msg.msgFlags << std::dec ;
+
+        if(mit.second->msg.msgFlags & RS_MSG_FLAGS_TRASH)
+            mTrashMessages.insert(mit);
+        else if (mit.second->msg.msgFlags & RS_MSG_FLAGS_OUTGOING)
+            mSentMessages.insert(mit);
+        else if (mit.second->msg.msgFlags & RS_MSG_FLAGS_DRAFT)
+            mDraftMessages.insert(mit);
+        else
+            mReceivedMessages.insert(mit);
+    }
+
     return true;
 }
 
@@ -682,25 +781,20 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 		delete *gxsmIt; load.erase(gxsmIt);
 	}
 
-    RsMsgTagType* mtt;
-    RsMsgGRouterMap* grm;
-    RsMsgDistantMessagesHashMap *ghm;
-    RsMailStorageItem *msi;
-    RsMsgOutgoingMapStorageItem *mom;
-
-    std::list<RsMsgItem*> items;
-	std::list<RsItem*>::iterator it;
-    std::map<uint32_t, RsMsgTagType*>::iterator tagIt;
-    std::map<uint32_t, RsPeerId> srcIdMsgMap;
-    std::map<uint32_t, RsPeerId>::iterator srcIt;
-    RsConfigKeyValueSet *vitem = nullptr ;
-
     std::list<RsItem*> unhandled_items;
     uint32_t max_msg_id = 0 ;
     
     // load items and calculate next unique msgId
-	for(it = load.begin(); it != load.end(); ++it)
+    for(auto it = load.begin(); it != load.end(); ++it)
     {
+        RsConfigKeyValueSet *vitem = nullptr ;
+
+        RsMsgTagType* mtt;
+        RsMsgGRouterMap* grm;
+        RsMsgDistantMessagesHashMap *ghm;
+        RsMailStorageItem *msi;
+        RsMsgOutgoingMapStorageItem *mom;
+
         if (NULL != (grm = dynamic_cast<RsMsgGRouterMap *>(*it)))
         {
             typedef std::map<GRouterMsgPropagationId,uint32_t> tT;
@@ -726,6 +820,8 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
         else if(NULL != (mtt = dynamic_cast<RsMsgTagType *>(*it)))
         {
             // delete standard tags as they are now save in config
+            std::map<uint32_t,RsMsgTagType*>::const_iterator tagIt;
+
             if(mTags.end() == (tagIt = mTags.find(mtt->tagId)))
                 mTags.insert(std::pair<uint32_t, RsMsgTagType* >(mtt->tagId, mtt));
             else
@@ -812,34 +908,12 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 
     parseList_backwardCompatibility(unhandled_items);
 
-    load.clear();
+    // clean up
 
-// Do we keep this???
-//
-//    RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
-//
-//    /* remove missing msgId in mSrcIds */
-//    for (srcIt = srcIdMsgMap.begin(); srcIt != srcIdMsgMap.end(); ++srcIt) {
-//	    std::map<uint32_t, RsMsgSrcId*>::iterator it = mSrcIds.find(srcIt->first);
-//	    if (it != mSrcIds.end()) {
-//		    delete(it->second);
-//		    mSrcIds.erase(it);
-//	    }
-//    }
-//
-//    /* remove missing msgId in mParentId */
-//    std::map<uint32_t, RsMsgParentId *>::iterator mit = mParentId.begin();
-//    while (mit != mParentId.end()) {
-//        if (mReceivedMessages.find(mit->first) == mReceivedMessages.end()) {
-//		    if (msgOutgoing.find(mit->first) == msgOutgoing.end()) {
-//			    /* not found */
-//			    mParentId.erase(mit++);
-//			    continue;
-//		    }
-//	    }
-//
-//	    ++mit;
-//    }
+    for(auto m:unhandled_items)
+        delete m;
+
+    load.clear();
 
     return true;
 }
