@@ -143,7 +143,7 @@ struct RsTypeSerializer
 					print_stacktrace();
 					break;
 				}
-				memcpy(&member, ctx.mData + ctx.mOffset, sizeof(INTT));
+                memcpy(&member, ctx.mData + ctx.mOffset, sizeof(INTT));
 				member = rs_endian_fix(member);
 				ctx.mOffset += sizeof(INTT);
 			}
@@ -489,10 +489,19 @@ struct RsTypeSerializer
 		{
 			uint32_t aSize = member.size();
 			RS_SERIAL_PROCESS(aSize);
-			for(auto it = member.begin(); it != member.end(); ++it)
+            for(auto it = member.begin(); it != member.end(); ++it)
 			{
-				if(!ctx.mOk) break;
-				RS_SERIAL_PROCESS(*it);
+                if(!ctx.mOk) break;
+
+                // When el_t is a literal type (e.g. uint32_t), the cast allows to serialize std::set<el_t>
+                // Otherwise the instancing of serial_process<el_t> will require to overwrite the set element
+                // in place, which is not allowed since sets are kept sorted by construction.
+                // In fact when serializing, this is not a problem, since a serialization code will never
+                // call a deserialization code piece, but the compiler still instances it.
+                // A possible alternative would be to split serial_process into subfunctions, so as to avoid
+                // this automated instancing of the code.
+
+                RS_SERIAL_PROCESS(*const_cast<el_t*>(&*it));
 			}
 			break;
 		}
@@ -515,7 +524,7 @@ struct RsTypeSerializer
 				        << " elCount: " << elCount
 				        << " ctx.mSize: " << ctx.mSize
 				        << " ctx.mOffset: " << ctx.mOffset << " "
-				        << std::errc::argument_out_of_domain
+                        << std::errc::argument_out_of_domain
 				        << std::endl;
 				print_stacktrace();
 				break;

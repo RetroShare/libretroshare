@@ -242,6 +242,8 @@ struct MessageInfo : RsSerializable
 	~MessageInfo() override;
 };
 
+typedef std::set<uint32_t> MsgTagInfo  ;
+
 struct MsgInfoSummary : RsSerializable
 {
 	MsgInfoSummary() : msgflags(0), count(0), ts(0) {}
@@ -251,7 +253,7 @@ struct MsgInfoSummary : RsSerializable
     MsgAddress to;						// specific address the message has been sent to (may be used for e.g. reply)
 
 	uint32_t msgflags;
-	std::list<uint32_t> msgtags; /// that leaves 25 bits for user-defined tags.
+    MsgTagInfo msgtags;
 
 	std::string title;
 	int count; /** file count     */
@@ -269,7 +271,7 @@ struct MsgInfoSummary : RsSerializable
         RS_SERIAL_PROCESS(to);
 
 		RS_SERIAL_PROCESS(msgflags);
-		RS_SERIAL_PROCESS(msgtags);
+        RS_SERIAL_PROCESS(msgtags);
 
 		RS_SERIAL_PROCESS(title);
 		RS_SERIAL_PROCESS(count);
@@ -281,19 +283,19 @@ struct MsgInfoSummary : RsSerializable
 	~MsgInfoSummary() override;
 };
 
-struct MsgTagInfo : RsSerializable
-{
-	virtual ~MsgTagInfo() = default;
-
-	std::string msgId;
-	std::list<uint32_t> tagIds;
-
-	// RsSerializable interface
-	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) {
-		RS_SERIAL_PROCESS(msgId);
-		RS_SERIAL_PROCESS(tagIds);
-	}
-};
+//struct MsgTagInfo : RsSerializable
+//{
+//	virtual ~MsgTagInfo() = default;
+//
+//	std::string msgId;
+//	std::set<uint32_t> tagIds;
+//
+//	// RsSerializable interface
+//	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) {
+//		RS_SERIAL_PROCESS(msgId);
+//		RS_SERIAL_PROCESS(tagIds);
+//	}
+//};
 
 struct MsgTagType : RsSerializable
 {

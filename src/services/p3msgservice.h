@@ -158,6 +158,7 @@ public:
 private:
     void locked_sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from);
     bool locked_getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
+    RsMailStorageItem *locked_getMessageData(uint32_t mid) const;
 
 	/** This contains the ongoing tunnel handling contacts.
 	 * The map is indexed by the hash */
@@ -196,8 +197,8 @@ private:
     void    initRsMI (const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to, uint32_t flags, Rs::Msgs::MessageInfo&    mi );
     void 	initRsMIS(const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to,MessageIdentifier mid,Rs::Msgs::MsgInfoSummary& mis);
 
-    // Creates a RsMsgItem from a RsMailStorageItem, a 'from' and a 'to' fields.
-    RsMsgItem *createOutgoingMessageItem(const RsMailStorageItem& msi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to);
+    // Creates a RsMsgItem from a RsMailStorageItem, and a 'to' fields.
+    RsMsgItem *createOutgoingMessageItem(const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& to);
 
     // Creates a RsMailStorageItem from a message info and a 'from' field.
     RsMailStorageItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info);
@@ -240,7 +241,6 @@ private:
     /* maps for tags types and msg tags */
 
     std::map<uint32_t, RsMsgTagType*> mTags;
-    std::map<uint32_t, RsMsgTags*> mMsgTags;
 
 	uint32_t mMsgUniqueId;
 	std::map<Sha1CheckSum, uint32_t> mRecentlyReceivedMessageHashes;

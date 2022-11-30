@@ -160,7 +160,6 @@ p3MsgService::~p3MsgService()
     RS_STACK_MUTEX(mMsgMtx); /********** STACK LOCKED MTX ******/
 
     for(auto tag:mTags)             delete tag.second;
-    for(auto tag:mMsgTags)          delete tag.second;
     for(auto img:mReceivedMessages) delete img.second;
     for(auto img:mSentMessages)     delete img.second;
 
@@ -429,7 +428,7 @@ int p3MsgService::checkOutgoingMessages()
                 {
                     if(to.toRsPeerId() == ownId || mServiceCtrl->isPeerConnected(getServiceInfo().mServiceType, to.toRsPeerId()) )
                     {
-                        auto msg_item = createOutgoingMessageItem(*sit->second,from,to);
+                        auto msg_item = createOutgoingMessageItem(*sit->second,to);
 
                         // Use the msg_id of the outgoing message copy.
                         msg_item->msgId = mit->first;
@@ -462,7 +461,7 @@ int p3MsgService::checkOutgoingMessages()
                     RsDbg() << "Message id " << mit->first << " is distant: kept in outgoing, and marked as ROUTED" << std::endl;
 #endif
                     Dbg3() << __PRETTY_FUNCTION__ << " Sending out message" << std::endl;
-                    auto msg_item = createOutgoingMessageItem(*sit->second,from,to);
+                    auto msg_item = createOutgoingMessageItem(*sit->second,to);
 
                     // Use the msg_id of the outgoing message copy.
                     msg_item->msgId = mit->first;
@@ -773,6 +772,9 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
         {
             RsErr() << "Loaded msg with msg.to=" << msi->to ;
 
+            if(msi->msg.msgId > max_msg_id)
+                max_msg_id = msi->msg.msgId ;
+
             /* STORE MsgID */
             if (msi->msg.msgId != 0)
             {
@@ -806,6 +808,7 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
         else
             unhandled_items.push_back(*it);
     }
+    mMsgUniqueId = max_msg_id+1;
 
     parseList_backwardCompatibility(unhandled_items);
 
@@ -1609,105 +1612,111 @@ bool  	p3MsgService::setMessageTagType(uint32_t tagId, std::string& text, uint32
 
 bool    p3MsgService::removeMessageTagType(uint32_t tagId)
 {
-	if (tagId < RS_MSGTAGTYPE_USER) {
-		std::cerr << "p3MsgService::MessageRemoveTagType: Can't delete standard tag type " << tagId << std::endl;
-		return false;
-	}
+    if (tagId < RS_MSGTAGTYPE_USER) {
+        std::cerr << "p3MsgService::MessageRemoveTagType: Can't delete standard tag type " << tagId << std::endl;
+        return false;
+    }
 
-	auto msgEvent = std::make_shared<RsMailStatusEvent>();
-	msgEvent->mMailStatusEventCode = RsMailStatusEventCode::TAG_CHANGED;
+    auto msgEvent = std::make_shared<RsMailStatusEvent>();
+    msgEvent->mMailStatusEventCode = RsMailStatusEventCode::TAG_CHANGED;
 
-	{
-		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
+    {
+        RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-		std::map<uint32_t, RsMsgTagType*>::iterator mit;
-		mit = mTags.find(tagId);
+        std::map<uint32_t, RsMsgTagType*>::iterator mit;
+        mit = mTags.find(tagId);
 
-		if (mit == mTags.end()) {
-			/* tag id not found */
-			std::cerr << "p3MsgService::MessageRemoveTagType: Tag Id not found " << tagId << std::endl;
-			return false;
-		}
+        if (mit == mTags.end()) {
+            /* tag id not found */
+            std::cerr << "p3MsgService::MessageRemoveTagType: Tag Id not found " << tagId << std::endl;
+            return false;
+        }
 
-		/* search for messages with this tag type */
-		std::map<uint32_t, RsMsgTags*>::iterator mit1;
-                for (mit1 = mMsgTags.begin(); mit1 != mMsgTags.end(); ) {
-			RsMsgTags* tag = mit1->second;
+        /* search for messages with this tag type */
 
-			std::list<uint32_t>::iterator lit;
-			lit = std::find(tag->tagIds.begin(), tag->tagIds.end(), tagId);
-			if (lit != tag->tagIds.end()) {
-				tag->tagIds.erase(lit);
+        std::list<std::map<uint32_t,RsMailStorageItem*> > lst( { mReceivedMessages, mSentMessages, mTrashMessages, mDraftMessages });
 
-				if (tag->tagIds.empty()) {
-					/* remove empty tag */
-					delete(tag);
+        for(auto mit:lst)
+            for(auto msi:mit)
+            {
+                auto tag_it = msi.second->tagIds.find(tagId);
 
-					mMsgTags.erase(mit1++);
-				}
+                if(tag_it != msi.second->tagIds.end())
+                {
+                    msi.second->tagIds.erase(tag_it);
+                    msgEvent->mChangedMsgIds.insert(std::to_string(msi.first));
+                }
+            }
 
-				if (msgEvent->mChangedMsgIds.find(std::to_string(mit1->first)) == msgEvent->mChangedMsgIds.end()) {
-					msgEvent->mChangedMsgIds.insert(std::to_string(mit1->first));
-				}
-			}
-			++mit1;
-		}
+        /* remove tag type */
+        delete(mit->second);
+        mTags.erase(mit);
 
-		/* remove tag type */
-		delete(mit->second);
-		mTags.erase(mit);
+    } /* UNLOCKED */
 
-	} /* UNLOCKED */
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
 
-	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
+    auto ev = std::make_shared<RsMailTagEvent>();
+    ev->mMailTagEventCode = RsMailTagEventCode::TAG_REMOVED;
+    ev->mChangedMsgTagIds.insert(std::to_string(tagId));
+    rsEvents->postEvent(ev);
 
-	auto ev = std::make_shared<RsMailTagEvent>();
-	ev->mMailTagEventCode = RsMailTagEventCode::TAG_REMOVED;
-	ev->mChangedMsgTagIds.insert(std::to_string(tagId));
-	rsEvents->postEvent(ev);
+    if (!msgEvent->mChangedMsgIds.empty()) {
+        rsEvents->postEvent(msgEvent);
+    }
 
-	if (!msgEvent->mChangedMsgIds.empty()) {
-		rsEvents->postEvent(msgEvent);
-	}
+    return true;
+}
 
-	return true;
+RsMailStorageItem *p3MsgService::locked_getMessageData(uint32_t mid) const
+{
+    std::map<uint32_t,RsMailStorageItem*>::const_iterator it;
+
+    if( (it = mReceivedMessages.find(mid)) != mReceivedMessages.end())
+        return it->second;
+
+    if( (it = mSentMessages.find(mid)) != mSentMessages.end())
+        return it->second;
+
+    if( (it = mDraftMessages.find(mid)) != mDraftMessages.end())
+        return it->second;
+
+    RsErr() << "Message with ID " << mid << " is not an actual message. Fix the code!";
+    return nullptr;
 }
 
 bool 	p3MsgService::locked_getMessageTag(const std::string &msgId, MsgTagInfo& info)
 {
-	uint32_t mid = atoi(msgId.c_str());
-	if (mid == 0) {
-		std::cerr << "p3MsgService::MessageGetMsgTag: Unknown msgId " << msgId << std::endl;
-		return false;
-	}
+    uint32_t mid = atoi(msgId.c_str());
 
-	std::map<uint32_t, RsMsgTags*>::iterator mit;
+    if(!mid)
+    {
+        RsErr() << "Wrong message id string received \"" << msgId << "\"" ;
+        return false;
+    }
 
-	if(mMsgTags.end() != (mit = mMsgTags.find(mid))) {
-        info.msgId = std::to_string(mit->second->msgId);
-		info.tagIds = mit->second->tagIds;
+    auto mis = locked_getMessageData(mid);
+    info = mis->tagIds;
 
-		return true;
-	}
-
-	return false;
+    return true;
 }
 
 /* set == false && tagId == 0 --> remove all */
-bool 	p3MsgService::setMessageTag(const std::string &msgId, uint32_t tagId, bool set)
+bool p3MsgService::setMessageTag(const std::string& msgId, uint32_t tagId, bool set)
 {
 	uint32_t mid = atoi(msgId.c_str());
-	if (mid == 0) {
-		std::cerr << "p3MsgService::MessageSetMsgTag: Unknown msgId " << msgId << std::endl;
+    if (mid == 0)
+    {
+        RsErr() << "p3MsgService::MessageSetMsgTag: Unknown msgId " << msgId ;
 		return false;
 	}
 
-	if (tagId == 0) {
-		if (set == true) {
-			std::cerr << "p3MsgService::MessageSetMsgTag: No valid tagId given " << tagId << std::endl;
+    if (tagId == 0)
+        if (set == true)
+        {
+            RsErr() << "p3MsgService::MessageSetMsgTag: No valid tagId given " << tagId ;
 			return false;
 		}
-	}
 	
 	auto ev = std::make_shared<RsMailStatusEvent>();
 	ev->mMailStatusEventCode = RsMailStatusEventCode::TAG_CHANGED;
@@ -1716,65 +1725,25 @@ bool 	p3MsgService::setMessageTag(const std::string &msgId, uint32_t tagId, bool
 		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
 		std::map<uint32_t, RsMsgTags*>::iterator mit;
-		mit = mMsgTags.find(mid);
 
-		if (mit == mMsgTags.end()) {
-			if (set) {
-				/* new msg */
-				RsMsgTags* tag = new RsMsgTags();
-				tag->PeerId (mServiceCtrl->getOwnId());
+        auto msi = locked_getMessageData(mid);
 
-				tag->msgId = mid;
-				tag->tagIds.push_back(tagId);
-
-				mMsgTags.insert(std::pair<uint32_t, RsMsgTags*>(tag->msgId, tag));
-
-				ev->mChangedMsgIds.insert(msgId);
-			}
-		} else {
-			RsMsgTags* tag = mit->second;
-
-			/* search existing tagId */
-			std::list<uint32_t>::iterator lit;
-			if (tagId) {
-				lit = std::find(tag->tagIds.begin(), tag->tagIds.end(), tagId);
-			} else {
-				lit = tag->tagIds.end();
-			}
-
-			if (set) {
-				if (lit == tag->tagIds.end()) {
-					tag->tagIds.push_back(tagId);
-					/* keep the list sorted */
-					tag->tagIds.sort();
-					ev->mChangedMsgIds.insert(msgId);
-				}
-			} else {
-				if (tagId == 0) {
-					/* remove all */
-					delete(tag);
-					mMsgTags.erase(mit);
-					ev->mChangedMsgIds.insert(msgId);
-				} else {
-					if (lit != tag->tagIds.end()) {
-						tag->tagIds.erase(lit);
-						ev->mChangedMsgIds.insert(msgId);
-
-						if (tag->tagIds.empty()) {
-							/* remove empty tag */
-							delete(tag);
-							mMsgTags.erase(mit);
-						}
-					}
-				}
-			}
-		}
+        if(msi)
+        {
+            if(set)
+            {
+                msi->tagIds.insert(tagId);
+                ev->mChangedMsgIds.insert(msgId); // normally we should check whether the tag already exists or not.
+            }
+            else if(0 < msi->tagIds.erase(tagId))
+                ev->mChangedMsgIds.insert(msgId);
+        }
 
 	} /* UNLOCKED */
 
-	if (!ev->mChangedMsgIds.empty()) {
+    if (!ev->mChangedMsgIds.empty())
+    {
 		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
-
 		rsEvents->postEvent(ev);
 
 		return true;
@@ -2041,7 +2010,7 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
 
     MsgTagInfo taginfo;
     locked_getMessageTag(mis.msgId,taginfo);
-    mis.msgtags = taginfo.tagIds ;
+    mis.msgtags = taginfo ;
 
     auto addToDestination_gxsid  = [&mis](const RsTlvGxsIdSet & s,MsgAddress::AddressMode mode) { for(auto m:s.ids) mis.destinations.insert(MsgAddress(m,mode)); };
     auto addToDestination_peerid = [&mis](const RsTlvPeerIdSet& s,MsgAddress::AddressMode mode) { for(auto m:s.ids) mis.destinations.insert(MsgAddress(m,mode)); };
@@ -2572,7 +2541,7 @@ void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& s
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); // save _ongoing_messages
 }
 
-RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to)
+RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,const Rs::Msgs::MsgAddress& to)
 {
     RsMsgItem *item = new RsMsgItem;
 
@@ -2593,6 +2562,7 @@ RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,
 void p3MsgService::debug_dump()
 {
     std::cerr << "Dump of p3MsgService data:" << std::endl;
+    std::cerr << "  mMsgUniqueId: " << mMsgUniqueId << std::endl;
     auto display_box = [=](const std::map<uint32_t,RsMailStorageItem*>& msgs,const std::string& box_name) {
     std::cerr << "  " + box_name + ":" << std::endl;
     for(auto msg:msgs)

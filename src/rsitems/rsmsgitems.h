@@ -233,7 +233,7 @@ class RsMailStorageItem : public RsMessageItem
 
         Rs::Msgs::MsgAddress from;
         Rs::Msgs::MsgAddress to;
-        std::list<uint32_t> tagIds;
+        Rs::Msgs::MsgTagInfo tagIds;
         uint32_t parentId;
         RsMsgItem msg;
 };
