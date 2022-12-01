@@ -653,6 +653,10 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
             msg_parentids.push_back(msp);
     }
 
+    RsInfo() << "  Current Msg map:" ;
+    for(auto m:msg_map)
+        RsInfo() << "    id=" << m.first << "  pointer=" << m.second ;
+
     // 2 - process all tags and set them to the proper message
 
     for(auto ptag:msg_tags)
@@ -709,7 +713,7 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
             RsErr() << "Found message parent (msg=" << psrc->msgId << ", src_id=" << psrc->srcId << ") that belongs to no specific message";
             continue;
         }
-        RsErr() << "  Loaded msg source pair (msg=" << psrc->msgId << ", src_id=" << psrc->srcId << ") that belongs to no specific message";
+        RsErr() << "  Loaded msg source pair (msg=" << psrc->msgId << ", src_id=" << psrc->srcId << ")";
 
         if(mit->second->msg.msgFlags & RS_MSG_FLAGS_DISTANT)
             mit->second->from = Rs::Msgs::MsgAddress(RsGxsId(psrc->srcId),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
@@ -718,8 +722,18 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
     }
     // 4 - store each message in the appropriate map.
 
+    std::list<RsMailStorageItem*> pending_msg;
+
     for(auto mit:msg_map)
     {
+        // Early detect "outgoing" list, and keep them for later.
+
+        if (mit.second->msg.msgFlags & RS_MSG_FLAGS_PENDING)
+        {
+            RsInfo() << "Ignoring pending message " << mit.first << " as the destination of pending msgs is not saved in old format.";
+            continue;
+        }
+
         // Fix up destination. Try to guess it, as it wasn't actually stored originally.
 
         if(mit.second->msg.msgFlags & RS_MSG_FLAGS_DISTANT)
