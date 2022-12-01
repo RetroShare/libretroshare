@@ -644,6 +644,8 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
             auto msi = new RsMailStorageItem();
             msi->msg = *mitem;
             msg_map[mitem->msgId] = msi;
+
+            mMsgUniqueId = std::max(mMsgUniqueId,mitem->msgId+1);
         }
         else if(nullptr != (mti = dynamic_cast<RsMsgTags *>(it)))
             msg_tags.push_back(mti);
@@ -771,10 +773,10 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
 
         if(mit.second->msg.msgFlags & RS_MSG_FLAGS_TRASH)
             mTrashMessages.insert(mit);
-        else if (mit.second->msg.msgFlags & RS_MSG_FLAGS_OUTGOING)
-            mSentMessages.insert(mit);
         else if (mit.second->msg.msgFlags & RS_MSG_FLAGS_DRAFT)
             mDraftMessages.insert(mit);
+        else if (mit.second->msg.msgFlags & RS_MSG_FLAGS_OUTGOING)
+            mSentMessages.insert(mit);
         else
             mReceivedMessages.insert(mit);
     }
@@ -1769,6 +1771,9 @@ RsMailStorageItem *p3MsgService::locked_getMessageData(uint32_t mid) const
     if( (it = mDraftMessages.find(mid)) != mDraftMessages.end())
         return it->second;
 
+    if( (it = mTrashMessages.find(mid)) != mTrashMessages.end())
+        return it->second;
+
     RsErr() << "Message with ID " << mid << " is not an actual message. Fix the code!";
     return nullptr;
 }
@@ -1784,6 +1789,10 @@ bool 	p3MsgService::locked_getMessageTag(const std::string &msgId, MsgTagInfo& i
     }
 
     auto mis = locked_getMessageData(mid);
+
+    if(!mis)
+        return false;
+
     info = mis->tagIds;
 
     return true;
