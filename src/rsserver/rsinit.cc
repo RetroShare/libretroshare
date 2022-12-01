@@ -1352,8 +1352,7 @@ int RsServer::StartupRetroShare()
 	            currGxsDir + "/", "gxsforums_db", RS_SERVICE_GXS_TYPE_FORUMS,
 	            nullptr, rsInitConfig->gxs_passwd );
 
-	p3GxsForums* mGxsForums = new p3GxsForums(
-	            gxsforums_ds, nullptr, mGxsIdService );
+    p3GxsForums* mGxsForums = new p3GxsForums( gxsforums_ds, nullptr, mGxsIdService );
 
 	RsGxsNetTunnelService* gxsForumsTunnelService = nullptr;
 #ifdef RS_DEEP_FORUMS_INDEX
@@ -1546,7 +1545,23 @@ int RsServer::StartupRetroShare()
 	mPluginsManager->registerClientServices(pqih) ;
 	mPluginsManager->registerCacheServices() ;
 
+    // Must Set the GXS pointers before loading configuration and starting threads.
+    rsIdentity   = mGxsIdService;
+    rsGxsCircles = mGxsCircles;
+#if RS_USE_WIKI
+    rsWiki = mWiki;
+#endif
+    rsPosted      = mPosted;
+    rsGxsForums   = mGxsForums;
+    rsGxsChannels = mGxsChannels;
+    rsGxsTrans    = mGxsTrans;
 
+#if RS_USE_PHOTO
+    rsPhoto = mPhoto;
+#endif
+#if RS_USE_WIRE
+    rsWire = mWire;
+#endif
 
 #ifdef RS_RTT
 	p3rtt *mRtt = new p3rtt(serviceCtrl);
@@ -1825,25 +1840,7 @@ int RsServer::StartupRetroShare()
 #endif
 
 #ifdef RS_ENABLE_GXS
-	// Must Set the GXS pointers before starting threads.
-    rsIdentity = mGxsIdService;
-    rsGxsCircles = mGxsCircles;
-#if RS_USE_WIKI
-    rsWiki = mWiki;
-#endif
-    rsPosted = mPosted;
-    rsGxsForums = mGxsForums;
-    rsGxsChannels = mGxsChannels;
-    rsGxsTrans = mGxsTrans;
-
-#if RS_USE_PHOTO
-    rsPhoto = mPhoto;
-#endif
-#if RS_USE_WIRE
-    rsWire = mWire;
-#endif
-
-	/*** start up GXS core runner ***/
+    /*** start up GXS core runner ***/
 
 	startServiceThread(mGxsNetTunnel, "gxs net tunnel");
 	startServiceThread(mGxsIdService, "gxs id");
