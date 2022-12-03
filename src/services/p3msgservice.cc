@@ -1346,16 +1346,18 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
         // then add the new msg id with the correct from/to
 
         info.flags = flags;
-        info.origin = from;
         info.destination = to;
 
         info.flags |= RS_MSG_FLAGS_OUTGOING ;
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
-            info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
-        else
         {
             info.flags |= RS_MSG_FLAGS_DISTANT;
+            info.origin = from;
+        }
+        else
+        {
+            info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
             info.origin = Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
         }
     }
@@ -1779,7 +1781,6 @@ RsMailStorageItem *p3MsgService::locked_getMessageData(uint32_t mid) const
     if( (it = mTrashMessages.find(mid)) != mTrashMessages.end())
         return it->second;
 
-    RsErr() << "Message with ID " << mid << " is not an actual message. Fix the code!";
     return nullptr;
 }
 
