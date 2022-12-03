@@ -147,7 +147,7 @@ class MsgAddress: public RsSerializable
 		typedef enum { MSG_ADDRESS_TYPE_UNKNOWN  = 0x00,
 							MSG_ADDRESS_TYPE_RSPEERID = 0x01, 
 							MSG_ADDRESS_TYPE_RSGXSID  = 0x02, 
-							MSG_ADDRESS_TYPE_EMAIL    = 0x03 } AddressType;
+                            MSG_ADDRESS_TYPE_PLAIN    = 0x03 } AddressType;
 
 		typedef enum { MSG_ADDRESS_MODE_UNKNOWN = 0x00,
 		               MSG_ADDRESS_MODE_TO      = 0x01,
@@ -161,7 +161,7 @@ class MsgAddress: public RsSerializable
 			: _type(MSG_ADDRESS_TYPE_RSPEERID), _mode(mmode), _addr_string(pid.toStdString()){}
 
 		explicit MsgAddress(const std::string& email, MsgAddress::AddressMode mmode)
-			: _type(MSG_ADDRESS_TYPE_EMAIL), _mode(mmode), _addr_string(email){}
+            : _type(MSG_ADDRESS_TYPE_PLAIN), _mode(mmode), _addr_string(email){}
 
         void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx ) override
         {
@@ -175,7 +175,7 @@ class MsgAddress: public RsSerializable
 
         RsGxsId toGxsId()     const { checkType(MSG_ADDRESS_TYPE_RSGXSID);return RsGxsId (_addr_string);}
         RsPeerId toRsPeerId() const { checkType(MSG_ADDRESS_TYPE_RSPEERID);return RsPeerId(_addr_string);}
-        std::string toEmail() const { checkType(MSG_ADDRESS_TYPE_EMAIL   );return          _addr_string ;}
+        std::string toEmail() const { checkType(MSG_ADDRESS_TYPE_PLAIN   );return          _addr_string ;}
         std::string toStdString() const { return _addr_string ;}
 
         void clear() { _addr_string=""; _type=MSG_ADDRESS_TYPE_UNKNOWN; _mode=MSG_ADDRESS_MODE_UNKNOWN;}
