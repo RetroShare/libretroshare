@@ -99,6 +99,8 @@
 
 using namespace Rs::Msgs;
 
+#define DEBUG_DISTANT_MSG
+
 /// keep msg hashes for 2 months to avoid re-sent msgs
 static constexpr uint32_t RS_MSG_DISTANT_MESSAGE_HASH_KEEP_TIME = 2*30*86400;
 
@@ -190,8 +192,9 @@ int p3MsgService::tick()
 		cleanListOfReceivedMessageHashes();
 
 		last_management_time = now;
-
+#ifdef DEBUG_DISTANT_MSG
         debug_dump();
+#endif
 	}
 
 	return 0;
@@ -449,6 +452,9 @@ int p3MsgService::checkOutgoingMessages()
                     }
                     else
                     {
+#ifdef DEBUG_DISTANT_MSG
+                        Dbg3() << __PRETTY_FUNCTION__ << " Delaying until available..." << std::endl;
+#endif
                         ++fit;
                         continue;
                     }
@@ -485,10 +491,6 @@ int p3MsgService::checkOutgoingMessages()
                 else
                     ++fit;
             }
-#ifdef DEBUG_DISTANT_MSG
-            else
-            Dbg3() << __PRETTY_FUNCTION__ << " Delaying until available..." << std::endl;
-#endif
 
             // cleanup.
 
@@ -828,7 +830,7 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 #ifdef DEBUG_DISTANT_MSG
             std::cerr << "  loaded recently received message map: " << std::endl;
 
-            for(std::map<Sha1CheckSum,uint32_t>::const_iterator it(mRecentlyReceivedDistantMessageHashes.begin());it!=mRecentlyReceivedDistantMessageHashes.end();++it)
+            for(std::map<Sha1CheckSum,uint32_t>::const_iterator it(mRecentlyReceivedMessageHashes.begin());it!=mRecentlyReceivedMessageHashes.end();++it)
                 std::cerr << "    " << it->first << " received " << time(NULL)-it->second << " secs ago." << std::endl;
 #endif
             delete *it;
@@ -1350,9 +1352,12 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
         info.flags |= RS_MSG_FLAGS_OUTGOING ;
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
-            info.flags |= RS_MSG_FLAGS_DISTANT;
-        else
             info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
+        else
+        {
+            info.flags |= RS_MSG_FLAGS_DISTANT;
+            info.origin = Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+        }
     }
 
     IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
@@ -2515,7 +2520,7 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
         }
 
         if(!found)
-            RsInfo() << __PRETTY_FUNCTION__ << " " << mailId
+            RsWarn() << __PRETTY_FUNCTION__ << " " << mailId
                      << ", " << static_cast<uint32_t>(status)
                      << " received delivery error for message that is not in "
                      << "outgoing list. " << std::endl;
