@@ -805,11 +805,10 @@ public:
 
 	/**
 	 * @brief setMessageTag
-	 * set == false && tagId == 0 --> remove all
 	 * @jsonapi{development}
 	 * @param[in] msgId
-	 * @param[in] tagId
-	 * @param[in] set
+     * @param[in] tagId	 TagID to set/unset. Use set == false && tagId == 0 remove all tags
+     * @param[in] set
 	 * @return true on success
 	 */
 	virtual bool setMessageTag(const std::string &msgId, uint32_t tagId, bool set) = 0;

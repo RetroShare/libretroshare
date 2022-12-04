@@ -1825,25 +1825,28 @@ bool p3MsgService::setMessageTag(const std::string& msgId, uint32_t tagId, bool 
 	auto ev = std::make_shared<RsMailStatusEvent>();
 	ev->mMailStatusEventCode = RsMailStatusEventCode::TAG_CHANGED;
 
-	{
-		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
-
-		std::map<uint32_t, RsMsgTags*>::iterator mit;
+    {
+        RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
         auto msi = locked_getMessageData(mid);
 
-        if(msi)
-        {
-            if(set)
-            {
-                msi->tagIds.insert(tagId);
-                ev->mChangedMsgIds.insert(msgId); // normally we should check whether the tag already exists or not.
-            }
-            else if(0 < msi->tagIds.erase(tagId))
-                ev->mChangedMsgIds.insert(msgId);
-        }
+        if(!msi)
+            return false;
 
-	} /* UNLOCKED */
+        if(set)
+        {
+            msi->tagIds.insert(tagId);
+            ev->mChangedMsgIds.insert(msgId); // normally we should check whether the tag already exists or not.
+        }
+        else if(tagId==0)		// See rsmsgs.h. tagId=0 => erase all tags.
+        {
+            msi->tagIds.clear();
+            ev->mChangedMsgIds.insert(msgId);
+        }
+        else if(0 < msi->tagIds.erase(tagId))
+            ev->mChangedMsgIds.insert(msgId);
+
+    } /* UNLOCKED */
 
     if (!ev->mChangedMsgIds.empty())
     {
