@@ -156,7 +156,7 @@ public:
 	                                       GxsTransSendStatus status );
 
 private:
-    void locked_sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from);
+    void locked_sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from, uint32_t msgId);
     bool locked_getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
     RsMailStorageItem *locked_getMessageData(uint32_t mid) const;
 

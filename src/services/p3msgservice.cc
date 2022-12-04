@@ -462,6 +462,7 @@ int p3MsgService::checkOutgoingMessages()
                 else  if( to.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && !(minfo.flags & RS_MSG_FLAGS_ROUTED))
                 {
                     minfo.flags |= RS_MSG_FLAGS_ROUTED;
+                    minfo.flags |= RS_MSG_FLAGS_DISTANT;
 
 #ifdef DEBUG_DISTANT_MSG
                     RsDbg() << "Message id " << mit->first << " is distant: kept in outgoing, and marked as ROUTED" << std::endl;
@@ -471,7 +472,7 @@ int p3MsgService::checkOutgoingMessages()
 
                     // Use the msg_id of the outgoing message copy.
                     msg_item->msgId = mit->first;
-                    locked_sendDistantMsgItem(msg_item,from.toGxsId());
+                    locked_sendDistantMsgItem(msg_item,from.toGxsId(),fit->first);
                     pEvent->mChangedMsgIds.insert(std::to_string(mit->first));
 
                     // Check if the msg is sent to ourselves. It happens that GRouter/GxsMail do not
@@ -2590,13 +2591,9 @@ void p3MsgService::receiveGRouterData( const RsGxsId &destination_key,
 		std::cerr << "  Item could not be deserialised. Format error??" << std::endl;
 }
 
-void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& signing_key_id)
+void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& signing_key_id,uint32_t msgId)
 {
 	RsGxsId destination_key_id(msgitem->PeerId());
-
-	/* just in case, but normally we should always have this flag set, when
-	 * ending up here. */
-	msgitem->msgFlags |= RS_MSG_FLAGS_DISTANT;
 
     if(signing_key_id.isNull())
     {
@@ -2638,8 +2635,8 @@ void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& s
 	/* now store the grouter id along with the message id, so that we can keep
 	 * track of received messages */
 
-    _grouter_ongoing_messages[grouter_message_id] = msgitem->msgId;
-    gxsOngoingMessages[gxsMailId] = msgitem->msgId;
+    _grouter_ongoing_messages[grouter_message_id] = msgId;
+    gxsOngoingMessages[gxsMailId] = msgId;
 
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); // save _ongoing_messages
 }
