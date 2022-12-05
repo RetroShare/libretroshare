@@ -1417,9 +1417,9 @@ bool 	p3MsgService::MessageSend(MessageInfo &info)
 
     RsMailStorageItem *msi = initMIRsMsg(info);
 
-    msi->to = *info.destinations.begin();
-    msi->from = info.from;
-
+    msi->to.clear();	    // Most of the time, messages have multiple destinations. There is no need to chose one in particular.
+    msi->from = info.from;	// We should probably do the same here since distant and local msgs have different from fields. However, this
+                            // is bound to not be the case when local messages are made obsolete.
     if(!msi)
         return false;
 
@@ -1815,8 +1815,7 @@ bool p3MsgService::setMessageTag(const std::string& msgId, uint32_t tagId, bool 
 		return false;
 	}
 
-    if (tagId == 0)
-        if (set == true)
+    if (tagId == 0 && set)
         {
             RsErr() << "p3MsgService::MessageSetMsgTag: No valid tagId given " << tagId ;
 			return false;
@@ -2158,11 +2157,10 @@ bool p3MsgService::initMIRsMsg(RsMailStorageItem *msi,const MessageInfo& info)
             else
                 msg->rspeerid_msgcc.ids.insert(m.toRsPeerId());
             break;
-        case MsgAddress::MSG_ADDRESS_MODE_BCC:
-#warning Not sure about this line
-            if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID && rsIdentity->isOwnId(m.toGxsId())) 	 /* We don't fill in bcc (unless to ourselves) */
+        case MsgAddress::MSG_ADDRESS_MODE_BCC:							// BCC destinations will be filtered out just before sending the message.
+            if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
                 msg->rsgxsid_msgbcc.ids.insert(m.toGxsId());
-            else if(msg->PeerId() == mServiceCtrl->getOwnId())
+            else if(m.type()==MsgAddress::MSG_ADDRESS_TYPE_RSPEERID)
                 msg->rspeerid_msgbcc.ids.insert(m.toRsPeerId());
             break;
         default:
@@ -2649,6 +2647,24 @@ RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,
     RsMsgItem *item = new RsMsgItem;
 
     *item = msi.msg;
+
+    // Clear bcc except for own ids
+
+    std::set<RsPeerId> remaining_peers;
+
+    for(auto d:item->rspeerid_msgbcc.ids)
+        if(d == rsPeers->getOwnId())
+            remaining_peers.insert(d);
+
+    item->rspeerid_msgbcc.ids = remaining_peers;
+
+    std::set<RsGxsId> remaining_gpeers;
+
+    for(auto d:item->rsgxsid_msgbcc.ids)
+        if(rsIdentity->isOwnId(d))
+            remaining_gpeers.insert(d);
+
+    item->rsgxsid_msgbcc.ids = remaining_gpeers;
 
     if(to.type()==MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
         item->PeerId(RsPeerId(to.toGxsId()));
