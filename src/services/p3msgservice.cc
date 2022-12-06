@@ -985,41 +985,39 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
 
     RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
-    switch(box)
-    {
-    case BoxName::BOX_SENT:
+    if(box==BoxName::BOX_ALL || box == BoxName::BOX_SENT)
         for(const auto& mit : mSentMessages)
         {
             MsgInfoSummary mis;
             initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
             msgList.push_back(mis);
         }
-        break;
-    case BoxName::BOX_INBOX:
+
+    if(box==BoxName::BOX_ALL || box == BoxName::BOX_INBOX)
         for(const auto& mit : mReceivedMessages)
         {
             MsgInfoSummary mis;
             initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
             msgList.push_back(mis);
         }
-        break;
-    case BoxName::BOX_DRAFTS:
+
+    if(box==BoxName::BOX_ALL || box == BoxName::BOX_DRAFTS)
         for(const auto& mit : mDraftMessages)
         {
             MsgInfoSummary mis;
             initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
             msgList.push_back(mis);
         }
-        break;
-    case BoxName::BOX_TRASH:
+
+    if(box==BoxName::BOX_ALL || box == BoxName::BOX_TRASH)
         for(const auto& mit : mTrashMessages)
         {
             MsgInfoSummary mis;
             initRsMIS(*mit.second, mit.second->from,mit.second->to,mit.first,mis);
             msgList.push_back(mis);
         }
-        break;
-    case BoxName::BOX_OUTBOX:
+
+    if(box==BoxName::BOX_ALL || box == BoxName::BOX_OUTBOX)
         for(const auto& mit:msgOutgoing) // Now special process for outgoing, since it's references with their own Ids
         {
             auto mref = mSentMessages.find(mit.first);
@@ -1040,11 +1038,7 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
                 msgList.push_back(mis);
             }
         }
-        break;
-    default:
-        RsErr() << "Unhandled box name " << (int)box << " in getMessageSummaries()";
-        return false;
-    }
+
     return true;
 }
 

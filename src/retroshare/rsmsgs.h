@@ -136,7 +136,8 @@ enum class BoxName:uint8_t {
         BOX_OUTBOX = 0x02,
         BOX_DRAFTS = 0x03,
         BOX_SENT   = 0x04,
-        BOX_TRASH  = 0x05
+        BOX_TRASH  = 0x05,
+        BOX_ALL    = 0x06
     };
 
 class MsgAddress: public RsSerializable
