@@ -1136,30 +1136,32 @@ void p3MsgService::getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32
 /* remove based on the unique mid (stored in sid) */
 bool    p3MsgService::deleteMessage(const std::string& mid)
 {
-	uint32_t msgId = atoi(mid.c_str());
+    uint32_t msgId = atoi(mid.c_str());
 
-	if (msgId == 0) {
-		std::cerr << "p3MsgService::removeMsgId: Unknown msgId " << msgId << std::endl;
-		return false;
-	}
+    if (msgId == 0) {
+        std::cerr << "p3MsgService::removeMsgId: Unknown msgId " << msgId << std::endl;
+        return false;
+    }
 
-	bool changed = false;
+    bool changed = false;
 
-	auto pEvent = std::make_shared<RsMailStatusEvent>();
-	pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_REMOVED;
+    auto pEvent = std::make_shared<RsMailStatusEvent>();
+    pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_REMOVED;
 
-	{
-		RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
+    {
+        RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
         auto mit = mReceivedMessages.find(msgId);
 
         if (mit != mReceivedMessages.end())
-		{
-			changed = true;
+        {
+            changed = true;
             delete mit->second;
             mReceivedMessages.erase(mit);
-			pEvent->mChangedMsgIds.insert(mid);
-		}
+            pEvent->mChangedMsgIds.insert(mid);
+
+            goto end_deleteMessage;
+        }
         mit = mSentMessages.find(msgId);
 
         if (mit != mSentMessages.end())
@@ -1168,6 +1170,8 @@ bool    p3MsgService::deleteMessage(const std::string& mid)
             delete mit->second;
             mSentMessages.erase(mit);
             pEvent->mChangedMsgIds.insert(mid);
+
+            goto end_deleteMessage;
         }
         mit = mTrashMessages.find(msgId);
 
@@ -1177,20 +1181,37 @@ bool    p3MsgService::deleteMessage(const std::string& mid)
             delete mit->second;
             mTrashMessages.erase(mit);
             pEvent->mChangedMsgIds.insert(mid);
+
+            goto end_deleteMessage;
         }
-	}
 
-	if(changed) {
-		IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
+        for(auto& m:msgOutgoing)
+        {
+            auto msgcopyit = m.second.find(msgId);
 
-		setMessageTag(mid, 0, false);
-		setMsgParentId(msgId, 0);
-	}
+            if(msgcopyit != m.second.end())
+            {
+                m.second.erase(msgcopyit);				// /!\ this works because only one msg is deleted!
+                pEvent->mChangedMsgIds.insert(mid);
+                changed = true;
 
-	if(rsEvents && !pEvent->mChangedMsgIds.empty())
-		rsEvents->postEvent(pEvent);
+                goto end_deleteMessage;
+            }
+        }
 
-	return changed;
+        RsErr() << "Message with ID = " << mid << " could not be found.";
+        return false;
+    }
+
+end_deleteMessage:
+
+    if(changed)
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); /**** INDICATE MSG CONFIG CHANGED! *****/
+
+    if(rsEvents && !pEvent->mChangedMsgIds.empty())
+        rsEvents->postEvent(pEvent);
+
+    return changed;
 }
 
 bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
