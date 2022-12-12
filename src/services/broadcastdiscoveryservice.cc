@@ -246,6 +246,9 @@ BroadcastDiscoveryService::createResult(
 	auto bdp = BroadcastDiscoveryPack::fromSerializedString(uData, ec);
 	if(!bdp) return nullptr;
 
+    if(!bdp)
+        return nullptr;
+
 	auto rbdr = std::make_unique<RsBroadcastDiscoveryResult>();
 	rbdr->mPgpFingerprint = bdp->mPgpFingerprint;
 	rbdr->mSslId = bdp->mSslId;

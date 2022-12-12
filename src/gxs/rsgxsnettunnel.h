@@ -147,7 +147,7 @@ public:
        * \return
        * 			The service id for RsGxsNetTunnel.
        */
-      uint16_t serviceId() const ;
+      uint16_t serviceId() const override ;
 
 	  /*!
 	   * \brief sendData
@@ -219,16 +219,16 @@ public:
 
 	  // Overloads p3Config
 
-	  RsSerialiser *setupSerialiser();
-	  bool saveList(bool& cleanup, std::list<RsItem*>& save);
-	  bool loadList(std::list<RsItem *> &load);
+      RsSerialiser *setupSerialiser()override ;
+      bool saveList(bool& cleanup, std::list<RsItem*>& save)override ;
+      bool loadList(std::list<RsItem *> &load)override ;
 
       // Overloads RsGxsDistSync
 
 	  void getStatistics(std::map<RsGxsGroupId,RsGxsNetTunnelGroupInfo>& groups,             // groups on the client and server side
 	  		std::map<RsGxsNetTunnelVirtualPeerId, RsGxsNetTunnelVirtualPeerInfo>& virtual_peers,     // current virtual peers, which group they provide, and how to talk to them through turtle
             std::map<TurtleVirtualPeerId,RsGxsNetTunnelVirtualPeerId>& turtle_vpid_to_net_tunnel_vpid,
-		    Bias20Bytes& bias) const;
+            Bias20Bytes& bias) const override ;
 
 	RS_DEPRECATED
 	TurtleRequestId turtleSearchRequest(
@@ -238,10 +238,10 @@ public:
 protected:
 	  // interaction with turtle router
 
-	  virtual bool handleTunnelRequest(const RsFileHash &hash,const RsPeerId& peer_id) ;
-	  virtual void receiveTurtleData(const RsTurtleGenericTunnelItem *item,const RsFileHash& hash,const RsPeerId& virtual_peer_id,RsTurtleGenericTunnelItem::Direction direction) ;
-	  void addVirtualPeer(const TurtleFileHash&, const TurtleVirtualPeerId&,RsTurtleGenericTunnelItem::Direction dir) ;
-	  void removeVirtualPeer(const TurtleFileHash&, const TurtleVirtualPeerId&) ;
+      virtual bool handleTunnelRequest(const RsFileHash &hash,const RsPeerId& peer_id) override ;
+      virtual void receiveTurtleData(const RsTurtleGenericTunnelItem *item,const RsFileHash& hash,const RsPeerId& virtual_peer_id,RsTurtleGenericTunnelItem::Direction direction) override ;
+      void addVirtualPeer(const TurtleFileHash&, const TurtleVirtualPeerId&,RsTurtleGenericTunnelItem::Direction dir) override ;
+      void removeVirtualPeer(const TurtleFileHash&, const TurtleVirtualPeerId&) override ;
 	  const Bias20Bytes& locked_randomBias() ;
 
 	  p3turtle 	*mTurtle ;

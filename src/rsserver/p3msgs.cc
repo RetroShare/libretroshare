@@ -266,9 +266,9 @@ ChatLobbyId ChatId::toLobbyId() const
     }
 }
 
-bool p3Msgs::getMessageSummaries(std::list<MsgInfoSummary> &msgList)
+bool p3Msgs::getMessageSummaries(BoxName box,std::list<MsgInfoSummary> &msgList)
 {
-	return mMsgSrv->getMessageSummaries(msgList);
+    return mMsgSrv->getMessageSummaries(box,msgList);
 }
 
 
@@ -344,7 +344,7 @@ bool p3Msgs::MessageDelete(const std::string &mid)
 	//std::cerr << "p3Msgs::MessageDelete() ";
 	//std::cerr << "mid: " << mid << std::endl;
 
-	return mMsgSrv -> removeMsgId(mid);
+    return mMsgSrv -> deleteMessage(mid);
 }
 
 bool p3Msgs::MessageRead(const std::string &mid, bool unreadByUser)

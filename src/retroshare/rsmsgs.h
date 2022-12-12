@@ -44,9 +44,10 @@
 
 /* ORs of above */
 #define RS_MSG_INBOX           0x00     /* Inbox */
-#define RS_MSG_SENTBOX         0x01     /* Sentbox */
-#define RS_MSG_OUTBOX          0x03     /* Outbox */
-#define RS_MSG_DRAFTBOX        0x05     /* Draftbox */
+#define RS_MSG_SENTBOX         0x01     /* Sentbox  = OUTGOING           */
+#define RS_MSG_OUTBOX          0x03     /* Outbox   = OUTGOING + PENDING */
+#define RS_MSG_DRAFTBOX        0x05     /* Draftbox = OUTGOING + DRAFT   */
+#define RS_MSG_TRASHBOX        0x20     /* Trashbox = RS_MSG_TRASH       */
 
 #define RS_MSG_NEW                   0x000010   /* New */
 #define RS_MSG_TRASH                 0x000020   /* Trash */
@@ -99,6 +100,7 @@ typedef uint64_t	ChatLobbyMsgId ;
 typedef std::string ChatLobbyNickName ;
 typedef std::string RsMailMessageId; // TODO: rebase on t_RsGenericIdType
 
+
 /**
  * Used to return a tracker id so the API user can keep track of sent mail
  * status, it contains mail id, and recipient id
@@ -128,13 +130,25 @@ namespace Rs
 namespace Msgs
 {
 
-class MsgAddress
+enum class BoxName:uint8_t {
+        BOX_NONE   = 0x00,
+        BOX_INBOX  = 0x01,
+        BOX_OUTBOX = 0x02,
+        BOX_DRAFTS = 0x03,
+        BOX_SENT   = 0x04,
+        BOX_TRASH  = 0x05,
+        BOX_ALL    = 0x06
+    };
+
+class MsgAddress: public RsSerializable
 {
 	public:
+        MsgAddress() : _type(MSG_ADDRESS_TYPE_UNKNOWN),_mode(MSG_ADDRESS_MODE_UNKNOWN) {}
+
 		typedef enum { MSG_ADDRESS_TYPE_UNKNOWN  = 0x00,
 							MSG_ADDRESS_TYPE_RSPEERID = 0x01, 
 							MSG_ADDRESS_TYPE_RSGXSID  = 0x02, 
-							MSG_ADDRESS_TYPE_EMAIL    = 0x03 } AddressType;
+                            MSG_ADDRESS_TYPE_PLAIN    = 0x03 } AddressType;
 
 		typedef enum { MSG_ADDRESS_MODE_UNKNOWN = 0x00,
 		               MSG_ADDRESS_MODE_TO      = 0x01,
@@ -148,15 +162,30 @@ class MsgAddress
 			: _type(MSG_ADDRESS_TYPE_RSPEERID), _mode(mmode), _addr_string(pid.toStdString()){}
 
 		explicit MsgAddress(const std::string& email, MsgAddress::AddressMode mmode)
-			: _type(MSG_ADDRESS_TYPE_EMAIL), _mode(mmode), _addr_string(email){}
+            : _type(MSG_ADDRESS_TYPE_PLAIN), _mode(mmode), _addr_string(email){}
 
-		MsgAddress::AddressType type() { return _type ;}
-		MsgAddress::AddressMode mode() { return _mode ;}
+        void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx ) override
+        {
+            RS_SERIAL_PROCESS(_type);
+            RS_SERIAL_PROCESS(_mode);
+            RS_SERIAL_PROCESS(_addr_string);
+        }
 
-		RsGxsId toGxsId()     const { assert(_type==MSG_ADDRESS_TYPE_RSGXSID );return RsGxsId (_addr_string);}
-		RsPeerId toRsPeerId() const { assert(_type==MSG_ADDRESS_TYPE_RSPEERID);return RsPeerId(_addr_string);}
-		std::string toEmail() const { assert(_type==MSG_ADDRESS_TYPE_EMAIL   );return          _addr_string ;}
+        MsgAddress::AddressType type() const { return _type ;}
+        MsgAddress::AddressMode mode() const { return _mode ;}
 
+        RsGxsId toGxsId()     const { checkType(MSG_ADDRESS_TYPE_RSGXSID);return RsGxsId (_addr_string);}
+        RsPeerId toRsPeerId() const { checkType(MSG_ADDRESS_TYPE_RSPEERID);return RsPeerId(_addr_string);}
+        std::string toEmail() const { checkType(MSG_ADDRESS_TYPE_PLAIN   );return          _addr_string ;}
+        std::string toStdString() const { return _addr_string ;}
+
+        void clear() { _addr_string=""; _type=MSG_ADDRESS_TYPE_UNKNOWN; _mode=MSG_ADDRESS_MODE_UNKNOWN;}
+        void checkType(MsgAddress::AddressType t) const
+        {
+            if(t != _type)
+                RsErr() << "WRONG TYPE in MsgAddress. This is not a good sign. Something's going wrong." ;
+        }
+        bool operator<(const MsgAddress& m) const { return _addr_string < m._addr_string; }
 	private:
 		AddressType _type ;
 		AddressMode _mode ;
@@ -169,22 +198,12 @@ struct MessageInfo : RsSerializable
 
 	std::string msgId;
 
-    RsPeerId rspeerid_srcId;
-    RsGxsId  rsgxsid_srcId;
+    MsgAddress from;
+    MsgAddress to;
 
     unsigned int msgflags;
 
-	 // friend destinations
-	 //
-    std::set<RsPeerId> rspeerid_msgto;		// RsPeerId is used here for various purposes:
-    std::set<RsPeerId> rspeerid_msgcc;		//    - real peer ids which are actual friend locations
-    std::set<RsPeerId> rspeerid_msgbcc;		//    -
-
-	 // distant peers
-	 //
-    std::set<RsGxsId> rsgxsid_msgto;		// RsPeerId is used here for various purposes:
-    std::set<RsGxsId> rsgxsid_msgcc;		//    - real peer ids which are actual friend locations
-    std::set<RsGxsId> rsgxsid_msgbcc;		//    -
+    std::set<MsgAddress> destinations;
 
     std::string title;
     std::string msg;
@@ -199,24 +218,14 @@ struct MessageInfo : RsSerializable
     int ts;
 
 	// RsSerializable interface
-	void serial_process(
-	        RsGenericSerializer::SerializeJob j,
-	        RsGenericSerializer::SerializeContext &ctx ) override
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx ) override
 	{
 		RS_SERIAL_PROCESS(msgId);
 
-		RS_SERIAL_PROCESS(rspeerid_srcId);
-		RS_SERIAL_PROCESS(rsgxsid_srcId);
-
-		RS_SERIAL_PROCESS(msgflags);
-
-		RS_SERIAL_PROCESS(rspeerid_msgto);
-		RS_SERIAL_PROCESS(rspeerid_msgcc);
-		RS_SERIAL_PROCESS(rspeerid_msgbcc);
-
-		RS_SERIAL_PROCESS(rsgxsid_msgto);
-		RS_SERIAL_PROCESS(rsgxsid_msgcc);
-		RS_SERIAL_PROCESS(rsgxsid_msgcc);
+        RS_SERIAL_PROCESS(from);
+        RS_SERIAL_PROCESS(to);
+        RS_SERIAL_PROCESS(destinations);
+        RS_SERIAL_PROCESS(msgflags);
 
 		RS_SERIAL_PROCESS(title);
 		RS_SERIAL_PROCESS(msg);
@@ -234,20 +243,24 @@ struct MessageInfo : RsSerializable
 	~MessageInfo() override;
 };
 
+typedef std::set<uint32_t> MsgTagInfo  ;
+
 struct MsgInfoSummary : RsSerializable
 {
 	MsgInfoSummary() : msgflags(0), count(0), ts(0) {}
 
 	RsMailMessageId msgId;
-	RsPeerId srcId;
+    MsgAddress from;
+    MsgAddress to;						// specific address the message has been sent to (may be used for e.g. reply)
 
 	uint32_t msgflags;
-	std::list<uint32_t> msgtags; /// that leaves 25 bits for user-defined tags.
+    MsgTagInfo msgtags;
 
 	std::string title;
 	int count; /** file count     */
 	rstime_t ts;
 
+    std::set<MsgAddress> destinations;  // all destinations of the message
 
 	/// @see RsSerializable
 	void serial_process(
@@ -255,32 +268,35 @@ struct MsgInfoSummary : RsSerializable
 	        RsGenericSerializer::SerializeContext &ctx) override
 	{
 		RS_SERIAL_PROCESS(msgId);
-		RS_SERIAL_PROCESS(srcId);
+        RS_SERIAL_PROCESS(from);
+        RS_SERIAL_PROCESS(to);
 
 		RS_SERIAL_PROCESS(msgflags);
-		RS_SERIAL_PROCESS(msgtags);
+        RS_SERIAL_PROCESS(msgtags);
 
 		RS_SERIAL_PROCESS(title);
 		RS_SERIAL_PROCESS(count);
 		RS_SERIAL_PROCESS(ts);
-	}
+
+        RS_SERIAL_PROCESS(destinations);
+    }
 
 	~MsgInfoSummary() override;
 };
 
-struct MsgTagInfo : RsSerializable
-{
-	virtual ~MsgTagInfo() = default;
-
-	std::string msgId;
-	std::list<uint32_t> tagIds;
-
-	// RsSerializable interface
-	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) {
-		RS_SERIAL_PROCESS(msgId);
-		RS_SERIAL_PROCESS(tagIds);
-	}
-};
+//struct MsgTagInfo : RsSerializable
+//{
+//	virtual ~MsgTagInfo() = default;
+//
+//	std::string msgId;
+//	std::set<uint32_t> tagIds;
+//
+//	// RsSerializable interface
+//	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) {
+//		RS_SERIAL_PROCESS(msgId);
+//		RS_SERIAL_PROCESS(tagIds);
+//	}
+//};
 
 struct MsgTagType : RsSerializable
 {
@@ -599,10 +615,11 @@ public:
 	/**
 	 * @brief getMessageSummaries
 	 * @jsonapi{development}
-	 * @param[out] msgList
+     * @param[in]  box
+     * @param[out] msgList
 	 * @return always true
 	 */
-	virtual bool getMessageSummaries(std::list<Rs::Msgs::MsgInfoSummary> &msgList) = 0;
+    virtual bool getMessageSummaries(Rs::Msgs::BoxName box,std::list<Rs::Msgs::MsgInfoSummary> &msgList) = 0;
 
 	/**
 	 * @brief getMessage
@@ -789,11 +806,10 @@ public:
 
 	/**
 	 * @brief setMessageTag
-	 * set == false && tagId == 0 --> remove all
 	 * @jsonapi{development}
 	 * @param[in] msgId
-	 * @param[in] tagId
-	 * @param[in] set
+     * @param[in] tagId	 TagID to set/unset. Use set == false && tagId == 0 remove all tags
+     * @param[in] set
 	 * @return true on success
 	 */
 	virtual bool setMessageTag(const std::string &msgId, uint32_t tagId, bool set) = 0;
