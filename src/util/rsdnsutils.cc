@@ -173,21 +173,23 @@ bool rsGetRecordByNameSpecDNS(const std::string& servername, unsigned short serv
 	struct DNS_HEADER* dns = (struct DNS_HEADER *)&buf;
 	dns->id = static_cast<unsigned short>(htons(getpid())); //Transaction Id
 	//dns flags = 0x0100 Standard Query
-	dns->qr = 0;     //Query/Response: Message is a query
-	dns->opcode = 0; //OpCode: Standard query
-	dns->aa = 0;     //Authoritative: Server is not an authority for domain
-	dns->tc = 0;     //TrunCated: Message is not truncated
-	dns->rd = 1;     //Recursion Desired: Do query recursively
-	dns->ra = 0;     //Recursion Available: Server cannot do recursive queries
+    dns->rd = 1;     //Recursion Desired: Do query recursively
+    dns->tc = 0;     //TrunCated: Message is not truncated
+    dns->aa = 0;     //Authoritative: Server is not an authority for domain
+    dns->opcode = 0; //OpCode: Standard query
+    dns->qr = 0;     //Query/Response: Message is a query
+
+    dns->rcode = 0;  //Response Code: No error
+    dns->cd = 0;     //Checking Disabled: Unacceptable
+    dns->ad = 0;     //Authentic Data: Answer/authority portion was not authenticated by the server
 	dns->z = 0;      //Z: reserved
-	dns->ad = 0;     //Authentic Data: Answer/authority portion was not authenticated by the server
-	dns->cd = 0;     //Checking Disabled: Unacceptable
-	dns->rcode = 0;  //Response Code: No error
+    dns->ra = 0;     //Recursion Available: Server cannot do recursive queries
 
 	dns->q_count = htons(1); //1 Question
 	dns->ans_count = 0;      //0 Answer
 	dns->auth_count = 0;     //0 Authority RRs
 	dns->add_count = 0;      //0 Additional RRs
+
 	size_t curSendSize = sizeof(struct DNS_HEADER);
 
 	//Point to the query server name portion
