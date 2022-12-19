@@ -1226,14 +1226,6 @@ bool RsAccountsDetail::setupAccount(const std::string& accountdir)
 	std::string subdir2 = accountdir + "/";
 	subdir2 += kPathConfigDirectory;
 
-	std::string subdir3 = accountdir + "/";
-	subdir3 += "cache";
-
-	std::string subdir4 = subdir3 + "/";
-	std::string subdir5 = subdir3 + "/";
-	subdir4 += "local";
-	subdir5 += "remote";
-
 	// fatal if cannot find/create.
 	std::cerr << "Checking For Directories" << std::endl;
 	if (!RsDirUtil::checkCreateDirectory(accountdir))
@@ -1251,22 +1243,6 @@ bool RsAccountsDetail::setupAccount(const std::string& accountdir)
 		std::cerr << "Cannot Create Config Directory" << std::endl;
 		return false ;
 	}
-	if (!RsDirUtil::checkCreateDirectory(subdir3))
-	{
-		std::cerr << "Cannot Create Config/Cache Dir" << std::endl;
-		return false ;
-	}
-	if (!RsDirUtil::checkCreateDirectory(subdir4))
-	{
-		std::cerr << "Cannot Create Config/Cache/local Dir" << std::endl;
-		return false ;
-	}
-	if (!RsDirUtil::checkCreateDirectory(subdir5))
-	{
-		std::cerr << "Cannot Create Config/Cache/remote Dir" << std::endl;
-		return false ;
-	}
-
 	return true;
 }
 

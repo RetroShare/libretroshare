@@ -135,18 +135,6 @@ RsServiceInfo ftServer::getServiceInfo()
 void	ftServer::setConfigDirectory(std::string path)
 {
 	mConfigPath = path;
-
-	/* Must update the sub classes ... if they exist
-	 * TODO.
-	 */
-
-	std::string basecachedir = mConfigPath + "/cache";
-	std::string localcachedir = mConfigPath + "/cache/local";
-	std::string remotecachedir = mConfigPath + "/cache/remote";
-
-	RsDirUtil::checkCreateDirectory(basecachedir) ;
-	RsDirUtil::checkCreateDirectory(localcachedir) ;
-	RsDirUtil::checkCreateDirectory(remotecachedir) ;
 }
 
 /* Control Interface */
