@@ -118,6 +118,8 @@ public:
 
 	static const uint32_t GXS_MAX_ITEM_SIZE;
 
+    // The following constants are used to encode changes in group metadata, which are processed by processGrpMask()
+
     static const std::string MSG_META_SERV_STRING;
     static const std::string MSG_META_STATUS;
 
@@ -125,6 +127,7 @@ public:
     static const std::string GRP_META_STATUS;
     static const std::string GRP_META_SERV_STRING;
     static const std::string GRP_META_CUTOFF_LEVEL;
+    static const std::string GRP_META_LAST_POST;
 
 public:
 

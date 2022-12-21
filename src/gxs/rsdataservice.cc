@@ -104,6 +104,7 @@ const std::string RsGeneralDataService::GRP_META_SERV_STRING = KEY_NXS_SERV_STRI
 const std::string RsGeneralDataService::GRP_META_STATUS = KEY_GRP_STATUS;
 const std::string RsGeneralDataService::GRP_META_SUBSCRIBE_FLAG = KEY_GRP_SUBCR_FLAG;
 const std::string RsGeneralDataService::GRP_META_CUTOFF_LEVEL = KEY_GRP_REP_CUTOFF;
+const std::string RsGeneralDataService::GRP_META_LAST_POST = KEY_GRP_LAST_POST;
 
 const std::string RsGeneralDataService::MSG_META_SERV_STRING = KEY_NXS_SERV_STRING;
 const std::string RsGeneralDataService::MSG_META_STATUS = KEY_MSG_STATUS;
