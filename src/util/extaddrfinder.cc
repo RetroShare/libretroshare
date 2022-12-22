@@ -58,7 +58,7 @@ void ExtAddrFinder::run()
 	
 	std::vector<std::string> res ;
 
-	for(auto& it : _ip_servers)
+    for(const auto& it : _ip_servers)
 	{
 		std::string ip = "";
 		rsGetHostByNameSpecDNS(it,"myip.opendns.com",ip,2);

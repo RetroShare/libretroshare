@@ -3134,6 +3134,7 @@ void RsGenExchange::processRecvdMessages()
 
 	    GxsMsgReq msgIds;
         std::list<RsNxsMsg*> msgs_to_store;
+        std::map<RsGxsGroupId,time_t> groups_last_post_update;
 
 #ifdef GEN_EXCH_DEBUG
 	    std::cerr << "  updating received messages:" << std::endl;
@@ -3193,12 +3194,17 @@ void RsGenExchange::processRecvdMessages()
 				msgs_to_store.push_back(msg);
 
                 msgIds[msg->grpId].insert(msg->msgId);
-				// std::vector<RsGxsMessageId> &msgv = msgIds[msg->grpId];
-				// if (std::find(msgv.begin(), msgv.end(), msg->msgId) == msgv.end())
-				// 	msgv.push_back(msg->msgId);
 
 				computeHash(msg->msg, msg->metaData->mHash);
 				msg->metaData->recvTS = time(NULL);
+
+                // update last post for this group.
+
+                auto g = groups_last_post_update.find(msg->grpId);
+                if(g == groups_last_post_update.end())
+                    groups_last_post_update[msg->grpId] = std::max(grpMeta->mLastPost,static_cast<uint32_t>(msg->metaData->mPublishTs));
+                else
+                    g->second = std::max(msg->metaData->mPublishTs,g->second);
 
 #ifdef GEN_EXCH_DEBUG
 				std::cerr << "    new status flags: " << msg->metaData->mMsgStatus << std::endl;
@@ -3262,6 +3268,18 @@ void RsGenExchange::processRecvdMessages()
 
             mDataStore->storeMessage(msgs_to_store);	// All items will be destroyed later on, since msgs_to_store is a temporary map
 	    }
+
+        // Update last post for each group
+
+        for(auto grp_it: groups_last_post_update)
+        {
+            uint32_t token = mDataAccess->generatePublicToken();
+            GrpLocMetaData g;
+            g.grpId = grp_it.first;
+            g.val.put(RsGeneralDataService::GRP_META_LAST_POST, static_cast<int64_t>(grp_it.second));
+
+            mGrpLocMetaMap.insert(std::make_pair(token, g));
+        }
     }
 
     // Done off-mutex to avoid cross deadlocks in the netservice that might call the RsGenExchange as an observer..
