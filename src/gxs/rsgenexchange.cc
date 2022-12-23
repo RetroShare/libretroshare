@@ -2496,14 +2496,40 @@ void RsGenExchange::publishMsgs()
 	// entries are invalid
 	mMsgsToPublish.clear();
 
+    // Get group metas, so as to update the last post time. Theoretically, the currently posted posts are the latest, but
+    // because of some sync magick, it may not be, so we compare to the actual group last post.
+    //
+    std::map<RsGxsGroupId,std::shared_ptr<RsGxsGrpMetaData> > grpMetas;
+
+    for(auto grpit:msgChangeMap)
+        grpMetas.insert(std::make_pair(grpit.first, std::make_shared<RsGxsGrpMetaData>()));
+
+    mDataStore->retrieveGxsGrpMetaData(grpMetas);
+
     for(auto it(msgChangeMap.begin());it!=msgChangeMap.end();++it)
+    {
+        auto grpMetaIt = grpMetas.find(it->first);
+        rstime_t last_time = (grpMetaIt!=grpMetas.end())? (grpMetaIt->second->mLastPost) : 0;
+
         for(auto& msg_item: it->second)
 		{
 			RsGxsMsgChange* ch = new RsGxsMsgChange(RsGxsNotify::TYPE_PUBLISHED,msg_item->meta.mGroupId, msg_item->meta.mMsgId, false);
 			ch->mNewMsgItem = msg_item;
 
 			mNotifications.push_back(ch);
+
+            if(msg_item->meta.mPublishTs > last_time)
+                 last_time = msg_item->meta.mPublishTs;
 		}
+
+        // Update the group last message TS.
+
+        uint32_t token = mDataAccess->generatePublicToken();
+        GrpLocMetaData g;
+        g.grpId = it->first;
+        g.val.put(RsGeneralDataService::GRP_META_LAST_POST, static_cast<int64_t>(last_time));
+        mGrpLocMetaMap.insert(std::make_pair(token, g));
+    }
 
 	if(atLeastOneMessageCreatedSuccessfully) mNetService->requestPull();
 }
