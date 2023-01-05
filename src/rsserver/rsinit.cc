@@ -63,6 +63,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <openssl/rand.h>
+#include <openssl/err.h>
 #include <fcntl.h>
 
 #include "gxstunnel/p3gxstunnel.h"
@@ -595,8 +596,11 @@ int RsInit::LoadCertificates(bool autoLoginNT)
                                               rsInitConfig->passwd.c_str(),
                                               RsAccounts::AccountLocationName()))
 	{
-		std::cerr << "SSL Auth Failed!";
-		return 0 ;
+        std::cerr << "SSL Auth Failed. SSL error stack:" << std::endl;
+        std::cerr << "======================================================" << std::endl;
+        ERR_print_errors_fp(stderr);
+        std::cerr << "======================================================" << std::endl;
+        exit(1);	// use exit because any further loading of SSL certs may require some cleaning of the SSL memory, so better to quit.
 	}
 
 #ifdef RS_AUTOLOGIN

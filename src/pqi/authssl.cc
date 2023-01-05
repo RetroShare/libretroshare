@@ -443,7 +443,7 @@ int AuthSSLimpl::InitAuth(
 	if (ownfp == NULL)
 	{
 		RS_ERR("Couldn't open own certificate: ", cert_file);
-		return -1;
+        return 0;
 	}
 
 	// get xPGP certificate.
@@ -454,7 +454,7 @@ int AuthSSLimpl::InitAuth(
 	if (x509 == NULL)
 	{
 		RS_ERR("PEM_read_X509() Failed");
-		return -1;
+        return 0;
 	}
 
 	int result = SSL_CTX_use_certificate(sslctx, x509);
@@ -485,7 +485,7 @@ int AuthSSLimpl::InitAuth(
 	{
 		RS_ERR( "Cannot use your Retroshare certificate."
 		        "SSL_CTX_use_certificate() report error: ", result);
-		return -1;
+        return 0;
 	}
 
 	mOwnPublicKey = X509_get_pubkey(x509);
@@ -496,7 +496,7 @@ int AuthSSLimpl::InitAuth(
 	{
 		RS_ERR("Failure opening private key file");
 		CloseAuth();
-		return -1;
+        return 0;
 	}
 
         mOwnPrivateKey = PEM_read_PrivateKey(pkfp, NULL, NULL, (void *) passwd);
@@ -505,7 +505,7 @@ int AuthSSLimpl::InitAuth(
 	if(mOwnPrivateKey == NULL)
 	{
 		RS_ERR("PEM_read_PrivateKey() failed");
-		return -1;
+        return 0;
 	}
         SSL_CTX_use_PrivateKey(sslctx, mOwnPrivateKey);
 
@@ -515,7 +515,7 @@ int AuthSSLimpl::InitAuth(
 		        "Check your private key: ", priv_key_file,
 		        " and certificate : ", cert_file );
 		CloseAuth();
-		return -1;
+        return 0;
 	}
 
 	RsPeerId mownidstr ;
@@ -525,7 +525,7 @@ int AuthSSLimpl::InitAuth(
 		/* bad certificate */
 		RS_ERR("getX509id() failed");
 		CloseAuth();
-		return -1;
+        return 0;
 	}
 	mOwnId = mownidstr ;
 
@@ -541,7 +541,7 @@ int AuthSSLimpl::InitAuth(
 		RS_ERR("validateOwnCertificate() failed");
 		CloseAuth();
 		exit(1);
-		return -1;
+        return 0;
 	}
 
 	// enable verification of certificates (PEER)

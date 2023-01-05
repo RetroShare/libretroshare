@@ -68,6 +68,12 @@ public:
 	virtual bool validateOwnCertificate(X509 *x509, EVP_PKEY *pkey) = 0;
 
 	virtual bool active() = 0;
+
+    // Loads the public/private keypair and sets it to be used in TLS handshakes.
+    // Return values:
+    //     1	: ok
+    //     0    : error
+    //
 	virtual int InitAuth(
 	        const char* srvr_cert, const char* priv_key, const char* passwd,
 	        std::string locationName ) = 0;
