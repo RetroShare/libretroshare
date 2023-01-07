@@ -53,10 +53,10 @@ bool SizeExpressionMB::eval(const ExpFileEntry& file)
 
 bool SizeExpression::eval(const ExpFileEntry& file)
 {
-    // Maximum size that we can compare to the stored value (which is a signed int)
+    // Maximum size that we can compare to the stored value (which is a signed int, so (2^32-1) / 2)
     // Not taking care of this would cast file.file_size() to int, with unpredictable consequences (sign switch, etc)
 
-    int caped_size = (int)std::min( 0x8fffffffUL, file.file_size() );
+    int caped_size = (int)std::min( (uint64_t)(~(uint32_t)0 >> 1), file.file_size() );
 
     return evalRel(caped_size);
 }
