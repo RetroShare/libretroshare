@@ -48,12 +48,17 @@ bool DateExpression::eval(const ExpFileEntry& file)
 
 bool SizeExpressionMB::eval(const ExpFileEntry& file)
 {
-    return evalRel((int)(file.file_size()/(uint64_t)(1024*1024)));
+    return evalRel((int)(file.file_size() >> 20));	// MAX_INT is 2^31-1, so the max value that this check can handle is (2^31-1)*2^20, which is 2.147TB
 }
 
 bool SizeExpression::eval(const ExpFileEntry& file)
 {
-    return evalRel(file.file_size());
+    // Maximum size that we can compare to the stored value (which is a signed int)
+    // Not taking care of this would cast file.file_size() to int, with unpredictable consequences (sign switch, etc)
+
+    int caped_size = (int)std::min( 0x8fffffffUL, file.file_size() );
+
+    return evalRel(caped_size);
 }
 
 bool PopExpression::eval(const ExpFileEntry& file)
