@@ -1103,7 +1103,7 @@ void p3turtle::performLocalSearch_files(
 			res_item = new RsTurtleFTSearchResultItem ;
 			item_size = 0 ;
 
-            result.push_back(res_item) ;
+		result.push_back(res_item) ;
 		}
 		res_item->result.push_back(*it);
 
@@ -1115,10 +1115,15 @@ void p3turtle::performLocalSearch_files(
 
 		if(item_size > RSTURTLE_MAX_SEARCH_RESPONSE_SIZE)
 		{
-#ifdef P3TURTLE_DEBUG
-			std::cerr << "  Sending back chunk of size " << item_size << ", for " << res_item->result.size() << " elements." << std::endl ;
-#endif
 			res_item = NULL ;	// forces creation of a new item.
+		}
+
+		if(req_result_count >= max_allowed_hits)
+		{
+#ifdef P3TURTLE_DEBUG
+			std::cerr << " Sending back chunk of size " << item_size << ", for " << res_item->result.size() << " elements." << std::endl ;
+#endif
+			break; // stop when we reached the maximum total response size
 		}
 	}
 
