@@ -473,7 +473,7 @@ int AuthSSLimpl::InitAuth(
 		result = SSL_CTX_use_certificate(sslctx, x509);
 
 		if(result == 1)
-			RS_WARN( "Your Retroshare certificate uses low security settings "
+            RS_WARN( "Your Retroshare certificate uses low security settings (probably a SHA1 signature) "
 			         "that are incompatible with current security level ",
 			         save_sec, " of the OpenSSL library. RetroShare will still "
 			         "start with security level set to 1), but you should "
