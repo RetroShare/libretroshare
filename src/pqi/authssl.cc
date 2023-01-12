@@ -476,7 +476,11 @@ int AuthSSLimpl::InitAuth(
 
         while( (err=ERR_get_error()) > X509_V_OK)
         {
-            RS_ERR("SSL Error codes callstack: ",err);
+            char err_str[256];
+            ERR_error_string(err,err_str);
+
+            RsErr() << "SSL Error codes callstack: " << err_str;
+
             if(err == X509_V_ERR_EE_KEY_TOO_SMALL || err == X509_V_ERR_CA_KEY_TOO_SMALL || err == X509_V_ERR_CA_MD_TOO_WEAK)
                 security_level_problem = true;
         }
