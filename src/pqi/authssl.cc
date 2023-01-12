@@ -484,9 +484,8 @@ int AuthSSLimpl::InitAuth(
         if(security_level_problem)
             RS_ERR( "Your Retroshare certificate uses low security settings (probably a SHA1 signature) "
 			         "that are incompatible with current security level ",
-                     SSL_CTX_get_security_level(sslctx), " of the OpenSSL library. RetroShare will still "
-			         "start with security level set to 1), but you should "
-                     "probably create a new location." );
+                     SSL_CTX_get_security_level(sslctx), " of the OpenSSL library.",
+                    "You need to create a new location, possibly using the same profile." );
 
         return 0;
 	}
