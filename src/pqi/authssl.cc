@@ -29,6 +29,8 @@
 #include "util/rswin.h"
 #endif // WINDOWS_SYS
 
+#include <openssl/err.h>
+
 #include "authssl.h"
 #include "sslfns.h"
 
@@ -459,7 +461,6 @@ int AuthSSLimpl::InitAuth(
 
 	int result = SSL_CTX_use_certificate(sslctx, x509);
 
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
 	if(result != 1)
 	{
 		/* In debian Buster, openssl security level is set to 2 which preclude
@@ -468,23 +469,25 @@ int AuthSSLimpl::InitAuth(
 		 * previously to Jan.2020 will not start unless we revert the security
 		 * level to a value of 1. */
 
-		int save_sec = SSL_CTX_get_security_level(sslctx);
-		SSL_CTX_set_security_level(sslctx,1);
-		result = SSL_CTX_use_certificate(sslctx, x509);
+        RS_ERR( "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() report error: ", result);
 
-		if(result == 1)
-            RS_WARN( "Your Retroshare certificate uses low security settings (probably a SHA1 signature) "
+        unsigned long int err;
+        bool security_level_problem = false;
+
+        while( (err=ERR_get_error()) > X509_V_OK)
+        {
+            RS_ERR("SSL Error codes callstack: ",err);
+            if(err == X509_V_ERR_EE_KEY_TOO_SMALL || err == X509_V_ERR_CA_KEY_TOO_SMALL || err == X509_V_ERR_CA_MD_TOO_WEAK)
+                security_level_problem = true;
+        }
+
+        if(security_level_problem)
+            RS_ERR( "Your Retroshare certificate uses low security settings (probably a SHA1 signature) "
 			         "that are incompatible with current security level ",
-			         save_sec, " of the OpenSSL library. RetroShare will still "
+                     SSL_CTX_get_security_level(sslctx), " of the OpenSSL library. RetroShare will still "
 			         "start with security level set to 1), but you should "
-			         "probably create a new location." );
-	}
-#endif
+                     "probably create a new location." );
 
-	if(result != 1)
-	{
-		RS_ERR( "Cannot use your Retroshare certificate."
-		        "SSL_CTX_use_certificate() report error: ", result);
         return 0;
 	}
 
