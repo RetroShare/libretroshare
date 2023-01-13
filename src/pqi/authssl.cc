@@ -320,8 +320,6 @@ AuthSSLimpl::~AuthSSLimpl()
 
 bool AuthSSLimpl::active() { return init; }
 
-static int cert_verify_error = X509_V_OK;
-
 int AuthSSLimpl::InitAuth(
         const char* cert_file, const char* priv_key_file, const char* passwd,
         std::string locationName )
@@ -459,27 +457,11 @@ int AuthSSLimpl::InitAuth(
 	{
 		RS_ERR("PEM_read_X509() Failed");
         return 0;
-	}
+    }
 
-    auto tmp_cert_verify_cb = [](int ok,X509_STORE_CTX *store)->int
-    {
-        int error = X509_STORE_CTX_get_error(store);
-        cert_verify_error = error;	// not possible to capture this locally, otherwise the callback type won't fit, so I made it static.
+    int result = SSL_CTX_use_certificate(sslctx, x509);
 
-        RsErr() << "X509 verify callback called. Error code caught: " << error ;
-
-        return ok;
-    };
-
-    // Hijack the verify callback so as to grab the possible verify errors when parsing the cert.
-    X509_STORE_set_verify_cb(SSL_CTX_get_cert_store(sslctx),tmp_cert_verify_cb);
-
-	int result = SSL_CTX_use_certificate(sslctx, x509);
-
-    // restore the default behavior
-    X509_STORE_set_verify_cb(SSL_CTX_get_cert_store(sslctx),NULL);
-
-	if(result != 1)
+    if(result != 1)
 	{
         /* In recent distributions openssl security level precludes
 		 * the use of SHA1, originally used to sign RS certificates.
@@ -498,12 +480,10 @@ int AuthSSLimpl::InitAuth(
 
             RsErr() << "SSL Error codes callstack: " << err_str;
 
-            // unsigned long reason = ERR_GET_REASON(err);
-            // X509_STORE *store_ctx = SSL_CTX_get_cert_store(sslctx);
-            // int cert_error = X509_STORE_CTX_get_error(store);
+            unsigned long reason = ERR_GET_REASON(err);
 
-            if(cert_verify_error == X509_V_ERR_CA_MD_TOO_WEAK || cert_verify_error == X509_V_ERR_EE_KEY_TOO_SMALL || cert_verify_error == X509_V_ERR_CA_KEY_TOO_SMALL)				// 01/2023 -- hack to capture the MD too weak event.
-                security_level_problem = true;  // Is there a way to convert this into ?
+            if(reason == SSL_R_CA_MD_TOO_WEAK || reason == SSL_R_CA_KEY_TOO_SMALL)
+                security_level_problem = true;
         }
 
         if(security_level_problem)
