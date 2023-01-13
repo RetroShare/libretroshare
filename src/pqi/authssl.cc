@@ -320,6 +320,8 @@ AuthSSLimpl::~AuthSSLimpl()
 
 bool AuthSSLimpl::active() { return init; }
 
+static int cert_verify_error = X509_V_OK;
+
 int AuthSSLimpl::InitAuth(
         const char* cert_file, const char* priv_key_file, const char* passwd,
         std::string locationName )
@@ -459,28 +461,23 @@ int AuthSSLimpl::InitAuth(
         return 0;
 	}
 
-    int cert_verify_error = X509_V_OK;
-
-    auto tmp_cert_verify_cb = [](X509_STORE_CTX *store,void *arg)->int
+    auto tmp_cert_verify_cb = [](int ok,X509_STORE_CTX *store)->int
     {
         int error = X509_STORE_CTX_get_error(store);
-        *(int*)arg = error;
+        cert_verify_error = error;	// not possible to capture this locally, otherwise the callback type won't fit, so I made it static.
 
-        RsErr() << "X509 verify callback called. Error caught: " << error ;
+        RsErr() << "X509 verify callback called. Error code caught: " << error ;
 
-        if(error == X509_V_OK)
-            return 1;
-        else
-            return 0;
+        return ok;
     };
 
     // Hijack the verify callback so as to grab the possible verify errors when parsing the cert.
-    SSL_CTX_set_cert_verify_callback(sslctx, tmp_cert_verify_cb,&cert_verify_error);
+    X509_STORE_set_verify_cb(SSL_CTX_get_cert_store(sslctx),tmp_cert_verify_cb);
 
 	int result = SSL_CTX_use_certificate(sslctx, x509);
 
     // restore the default behavior
-    SSL_CTX_set_cert_verify_callback(sslctx, NULL,NULL);
+    X509_STORE_set_verify_cb(SSL_CTX_get_cert_store(sslctx),NULL);
 
 	if(result != 1)
 	{
