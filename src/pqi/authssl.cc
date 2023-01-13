@@ -473,7 +473,7 @@ int AuthSSLimpl::InitAuth(
         unsigned long int err;
         bool security_level_problem = false;
 
-        while( (err=ERR_get_error()) > X509_V_OK)
+        while( (err=ERR_get_error()) > 0)
         {
             char err_str[256];
             ERR_error_string(err,err_str);
