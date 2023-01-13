@@ -463,13 +463,12 @@ int AuthSSLimpl::InitAuth(
 
 	if(result != 1)
 	{
-		/* In debian Buster, openssl security level is set to 2 which preclude
+        /* In recent distributions openssl security level precludes
 		 * the use of SHA1, originally used to sign RS certificates.
 		 * As a consequence, on these systems, locations created with RS
-		 * previously to Jan.2020 will not start unless we revert the security
-		 * level to a value of 1. */
+         * previously to Jan.2020 will not start. */
 
-        RS_ERR( "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() report error: ", result);
+        RS_ERR( "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() reports error: ", result);
 
         unsigned long int err;
         bool security_level_problem = false;
@@ -481,8 +480,10 @@ int AuthSSLimpl::InitAuth(
 
             RsErr() << "SSL Error codes callstack: " << err_str;
 
-            if(err == X509_V_ERR_EE_KEY_TOO_SMALL || err == X509_V_ERR_CA_KEY_TOO_SMALL || err == X509_V_ERR_CA_MD_TOO_WEAK)
-                security_level_problem = true;
+            unsigned long reason = ERR_GET_REASON(err);
+
+            if(reason == X509_V_ERR_CA_MD_TOO_WEAK || reason == X509_V_ERR_EE_KEY_TOO_SMALL || reason == X509_V_ERR_CA_KEY_TOO_SMALL)				// 01/2023 -- hack to capture the MD too weak event.
+                security_level_problem = true;  // Is there a way to convert this into ?
         }
 
         if(security_level_problem)
