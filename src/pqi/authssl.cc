@@ -459,7 +459,28 @@ int AuthSSLimpl::InitAuth(
         return 0;
 	}
 
+    int cert_verify_error = X509_V_OK;
+
+    auto tmp_cert_verify_cb = [](X509_STORE_CTX *store,void *arg)->int
+    {
+        int error = X509_STORE_CTX_get_error(store);
+        *(int*)arg = error;
+
+        RsErr() << "X509 verify callback called. Error caught: " << error ;
+
+        if(error == X509_V_OK)
+            return 1;
+        else
+            return 0;
+    };
+
+    // Hijack the verify callback so as to grab the possible verify errors when parsing the cert.
+    SSL_CTX_set_cert_verify_callback(sslctx, tmp_cert_verify_cb,&cert_verify_error);
+
 	int result = SSL_CTX_use_certificate(sslctx, x509);
+
+    // restore the default behavior
+    SSL_CTX_set_cert_verify_callback(sslctx, NULL,NULL);
 
 	if(result != 1)
 	{
@@ -480,9 +501,11 @@ int AuthSSLimpl::InitAuth(
 
             RsErr() << "SSL Error codes callstack: " << err_str;
 
-            unsigned long reason = ERR_GET_REASON(err);
+            // unsigned long reason = ERR_GET_REASON(err);
+            // X509_STORE *store_ctx = SSL_CTX_get_cert_store(sslctx);
+            // int cert_error = X509_STORE_CTX_get_error(store);
 
-            if(reason == X509_V_ERR_CA_MD_TOO_WEAK || reason == X509_V_ERR_EE_KEY_TOO_SMALL || reason == X509_V_ERR_CA_KEY_TOO_SMALL)				// 01/2023 -- hack to capture the MD too weak event.
+            if(cert_verify_error == X509_V_ERR_CA_MD_TOO_WEAK || cert_verify_error == X509_V_ERR_EE_KEY_TOO_SMALL || cert_verify_error == X509_V_ERR_CA_KEY_TOO_SMALL)				// 01/2023 -- hack to capture the MD too weak event.
                 security_level_problem = true;  // Is there a way to convert this into ?
         }
 
