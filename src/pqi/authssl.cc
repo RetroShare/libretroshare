@@ -320,18 +320,22 @@ AuthSSLimpl::~AuthSSLimpl()
 
 bool AuthSSLimpl::active() { return init; }
 
-int AuthSSLimpl::InitAuth(
+bool AuthSSLimpl::InitAuth(
         const char* cert_file, const char* priv_key_file, const char* passwd,
-        std::string locationName )
+        std::string locationName,RsInit::LoadCertificateStatus& error_code )
 {
+    error_code = RsInit::OK;
+
 	/* single call here si don't need to invoke mutex yet */
 	static int initLib = 0;
 	if (!initLib)
 	{
 		initLib = 1;
 
-		if (!tls_init()) {
-			return 0;
+        if (!tls_init())
+        {
+            error_code = RsInit::ERR_CANNOT_INIT_TLS_LIB;
+            return false;
 		}
 
 		SSL_load_error_strings();
@@ -353,7 +357,8 @@ int AuthSSLimpl::InitAuth(
 		        "cert_file: ", static_cast<const void*>(cert_file),
 		        " priv_key_file: ", static_cast<const void*>(priv_key_file),
 		        " passwd: ", static_cast<const void*>(passwd) );
-		return 0;
+        error_code = RsInit::ERR_MISSING_PARAMETERS;
+        return false;
 	}
 
 
@@ -445,7 +450,8 @@ int AuthSSLimpl::InitAuth(
 	if (ownfp == NULL)
 	{
 		RS_ERR("Couldn't open own certificate: ", cert_file);
-        return 0;
+        error_code = RsInit::ERR_MISSING_CERT_FILE;
+        return false;
 	}
 
 	// get xPGP certificate.
@@ -456,7 +462,8 @@ int AuthSSLimpl::InitAuth(
 	if (x509 == NULL)
 	{
 		RS_ERR("PEM_read_X509() Failed");
-        return 0;
+        error_code = RsInit::ERR_CORRUPTED_CERT_FILE;
+        return false;
     }
 
     int result = SSL_CTX_use_certificate(sslctx, x509);
@@ -468,7 +475,7 @@ int AuthSSLimpl::InitAuth(
 		 * As a consequence, on these systems, locations created with RS
          * previously to Jan.2020 will not start. */
 
-        RS_ERR( "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() reports error: ", result);
+        RsErr() << "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() reports error: " << result;
 
         unsigned long int err;
         bool security_level_problem = false;
@@ -487,12 +494,16 @@ int AuthSSLimpl::InitAuth(
         }
 
         if(security_level_problem)
-            RS_ERR( "Your Retroshare certificate uses low security settings (probably a SHA1 signature) "
-			         "that are incompatible with current security level ",
-                     SSL_CTX_get_security_level(sslctx), " of the OpenSSL library.",
-                    "You need to create a new location, possibly using the same profile." );
+        {
+            RsErr() << "Your Retroshare certificate uses low security settings (probably a SHA1 signature)";
+            RsErr() << "that are incompatible with current security level " << SSL_CTX_get_security_level(sslctx) << " of the OpenSSL library.";
+            RsErr() << "You need to create a new location, possibly using the same profile." ;
+            error_code = RsInit::ERR_CERT_CRYPTO_IS_TOO_WEAK;
+        }
+        else
+            error_code = RsInit::ERR_CERT_REJECTED_BY_SSL;
 
-        return 0;
+        return false;
 	}
 
 	mOwnPublicKey = X509_get_pubkey(x509);
@@ -503,7 +514,8 @@ int AuthSSLimpl::InitAuth(
 	{
 		RS_ERR("Failure opening private key file");
 		CloseAuth();
-        return 0;
+        error_code = RsInit::ERR_MISSING_PKEY_FILE;
+        return false;
 	}
 
         mOwnPrivateKey = PEM_read_PrivateKey(pkfp, NULL, NULL, (void *) passwd);
@@ -512,9 +524,10 @@ int AuthSSLimpl::InitAuth(
 	if(mOwnPrivateKey == NULL)
 	{
 		RS_ERR("PEM_read_PrivateKey() failed");
-        return 0;
+        error_code = RsInit::ERR_CORRUPTED_PKEY_FILE;
+        return false;
 	}
-        SSL_CTX_use_PrivateKey(sslctx, mOwnPrivateKey);
+    SSL_CTX_use_PrivateKey(sslctx, mOwnPrivateKey);
 
 	if (1 != SSL_CTX_check_private_key(sslctx))
 	{
@@ -522,7 +535,8 @@ int AuthSSLimpl::InitAuth(
 		        "Check your private key: ", priv_key_file,
 		        " and certificate : ", cert_file );
 		CloseAuth();
-        return 0;
+        error_code = RsInit::ERR_PUBLIC_PKEY_MISMATCH;
+        return false;
 	}
 
 	RsPeerId mownidstr ;
@@ -532,7 +546,8 @@ int AuthSSLimpl::InitAuth(
 		/* bad certificate */
 		RS_ERR("getX509id() failed");
 		CloseAuth();
-        return 0;
+        error_code = RsInit::ERR_WRONG_CERT_FORMAT;
+        return false;
 	}
 	mOwnId = mownidstr ;
 
@@ -547,8 +562,8 @@ int AuthSSLimpl::InitAuth(
 		/* bad certificate */
 		RS_ERR("validateOwnCertificate() failed");
 		CloseAuth();
-		exit(1);
-        return 0;
+        error_code = RsInit::ERR_CERT_VALIDATION_FAILED;
+        return false;
 	}
 
 	// enable verification of certificates (PEER)
@@ -580,7 +595,7 @@ int AuthSSLimpl::InitAuth(
 	mOwnLocationName = locationName;
 
 	init = 1;
-	return 1;
+    return true;
 }
 
 /* Dummy function to be overloaded by real implementation */

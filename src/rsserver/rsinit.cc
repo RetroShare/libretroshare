@@ -526,10 +526,12 @@ RsInit::LoadCertificateStatus RsInit::LockAndLoadCertificates(
 		if(retVal > 0)
             throw retVal ;
 
-		if(LoadCertificates(autoLoginNT) != 1)
+        LoadCertificateStatus err_code;
+
+        if(!LoadCertificates(autoLoginNT,err_code))
         {
 			UnlockConfigDirectory();
-			throw RsInit::ERR_UNKNOWN;
+            throw err_code;
         }
 
 		return RsInit::OK;
@@ -548,29 +550,31 @@ RsInit::LoadCertificateStatus RsInit::LockAndLoadCertificates(
  *     CertId to be selected (Password Required).
  *
  * Return value:
- * 0 : unexpected error
- * 1 : success
+ * false : unexpected error
+ * true : success
  */
-int RsInit::LoadCertificates(bool autoLoginNT)
+bool RsInit::LoadCertificates(bool autoLoginNT,LoadCertificateStatus& error_code)
 {
 	RsPeerId preferredId;
 	if (!RsAccounts::GetPreferredAccountId(preferredId))
 	{
 		std::cerr << "No Account Selected" << std::endl;
-		return 0;
+        error_code = ERR_NO_ACCOUNT_SELECTED;
+        return false;
 	}
 		
 	
 	if (RsAccounts::AccountPathCertFile() == "")
 	{
 	  std::cerr << "RetroShare needs a certificate" << std::endl;
-	  return 0;
+      error_code = ERR_MISSING_ACCOUNT_PATH;
+      return false;
 	}
 
 	if (RsAccounts::AccountPathKeyFile() == "")
 	{
 	  std::cerr << "RetroShare needs a key" << std::endl;
-	  return 0;
+      return false;
 	}
 
 	//check if password is already in memory
@@ -580,27 +584,27 @@ int RsInit::LoadCertificates(bool autoLoginNT)
 #ifdef DEBUG_RSINIT
 			std::cerr << "RsLoginHandler::getSSLPassword() Failed!";
 #endif
-			return 0 ;
+            error_code = ERR_MISSING_PASSPHRASE;
+            return false ;
 		}
 	} else {
 		if (RsLoginHandler::checkAndStoreSSLPasswdIntoGPGFile(preferredId,rsInitConfig->passwd) == false) {
 			std::cerr << "RsLoginHandler::checkAndStoreSSLPasswdIntoGPGFile() Failed!";
-			return 0;
+            error_code = ERR_UNKNOWN;
+            return false;
 		}
 	}
 
 	std::cerr << "rsAccounts->PathKeyFile() : " << RsAccounts::AccountPathKeyFile() << std::endl;
+    LoadCertificateStatus err_code;
 
-    if(0 == AuthSSL::instance().InitAuth(RsAccounts::AccountPathCertFile().c_str(),
+    if(!AuthSSL::instance().InitAuth(RsAccounts::AccountPathCertFile().c_str(),
                                               RsAccounts::AccountPathKeyFile().c_str(),
                                               rsInitConfig->passwd.c_str(),
-                                              RsAccounts::AccountLocationName()))
+                                              RsAccounts::AccountLocationName(),err_code))
 	{
-        std::cerr << "SSL Auth Failed. SSL error stack:" << std::endl;
-        std::cerr << "======================================================" << std::endl;
-        ERR_print_errors_fp(stderr);
-        std::cerr << "======================================================" << std::endl;
-        exit(1);	// use exit because any further loading of SSL certs may require some cleaning of the SSL memory, so better to quit.
+        error_code = err_code;
+        return false;
 	}
 
 #ifdef RS_AUTOLOGIN
@@ -623,7 +627,7 @@ int RsInit::LoadCertificates(bool autoLoginNT)
 	rsInitConfig->passwd = "";
 	
 	RsAccounts::storeSelectedAccount();
-	return 1;
+    return true;
 }
 
 #ifdef RS_AUTOLOGIN
