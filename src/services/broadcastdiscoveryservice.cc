@@ -37,7 +37,6 @@
 #	include "rs_android/retroshareserviceandroid.hpp"
 #endif // def __ANDROID__
 
-
 /*extern*/ RsBroadcastDiscovery* rsBroadcastDiscovery = nullptr;
 
 struct BroadcastDiscoveryPack : RsSerializable
@@ -75,18 +74,11 @@ struct BroadcastDiscoveryPack : RsSerializable
 	*/
 	static std::unique_ptr<BroadcastDiscoveryPack> fromSerializedString(
 	        const std::string& st,
-	        rs_view_ptr<std::error_condition> ec )
+	        rs_view_ptr<std::error_condition> ec = nullptr)
 	{
 		if(st.empty())
 		{
-			if(!ec)
-			{
-				RS_FATAL("Attempteted from empty string ", std::errc::no_message);
-				print_stacktrace();
-				exit(static_cast<int>(std::errc::no_message));
-			}
-
-			*ec = std::errc::no_message;
+			rs_error_bubble_or_exit(std::errc::no_message_available, ec);
 			return nullptr;
 		}
 
@@ -98,15 +90,7 @@ struct BroadcastDiscoveryPack : RsSerializable
 		bdp->serial_process(RsGenericSerializer::DESERIALIZE, ctx);
 		if(ctx.mOk) return bdp;
 
-		if(!ec)
-		{
-			RS_FATAL( "Attempteted from invalid string ",
-			          std::errc::invalid_argument );
-			print_stacktrace();
-			exit(static_cast<int>(std::errc::invalid_argument));
-		}
-
-		*ec =  std::errc::invalid_argument;
+		rs_error_bubble_or_exit(std::errc::invalid_argument, ec);
 		return nullptr;
 	}
 
@@ -124,7 +108,6 @@ struct BroadcastDiscoveryPack : RsSerializable
 	BroadcastDiscoveryPack(const BroadcastDiscoveryPack&) = default;
 	~BroadcastDiscoveryPack() override;
 };
-
 
 BroadcastDiscoveryService::BroadcastDiscoveryService(
         RsPeers& pRsPeers ) :
@@ -203,9 +186,8 @@ void BroadcastDiscoveryService::threadTick()
 
 			currentMap[dEndpoint.ip_port()] = dEndpoint.user_data();
 			auto findIt = mDiscoveredData.find(dEndpoint.ip_port());
-			if( !dEndpoint.user_data().empty() && (
-			            findIt == mDiscoveredData.end() ||
-			            findIt->second != dEndpoint.user_data() ) )
+			if( findIt == mDiscoveredData.end() ||
+			    findIt->second != dEndpoint.user_data() )
 				updateMap[dEndpoint.ip_port()] = dEndpoint.user_data();
 		}
 		mDiscoveredData = currentMap;
@@ -258,9 +240,11 @@ BroadcastDiscoveryService::createResult(
         const UDC::IpPort& ipp, const std::string& uData,
         rs_view_ptr<std::error_condition> ec )
 {
-	/* if ec is nullptr the error is treathed downstream otherwise upstream in
-	 * any case should not be treated here */
+	/* On error we just return nullptr without handling it here because, it will
+	 * either bubble up via ec or handled downstream if ec is nullptr.
+	 * In any case it should not be treated here. */
 	auto bdp = BroadcastDiscoveryPack::fromSerializedString(uData, ec);
+	if(!bdp) return nullptr;
 
     if(!bdp)
         return nullptr;

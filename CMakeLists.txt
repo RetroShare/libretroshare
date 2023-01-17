@@ -150,6 +150,15 @@ cmake_dependent_option(
 	"RS_JSON_API"
 	OFF )
 
+# Enable DWARF split debugging symbols generation also in Release mode this
+# doesn't make the library fat as the debugging symbols are stored
+# separately, enable us to symbolicate crash reports produced by release builds
+# @see https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
+option(
+	RS_SPLIT_DEBUG
+	"Generate split debug symbols, useful for debugabble release builds"
+	OFF )
+
 set(
 	RS_MAJOR_VERSION
 	""
@@ -206,7 +215,7 @@ endif(RS_LIBRETROSHARE_SHARED)
 if(RS_ANDROID)
 	# As of today Android NDK libc++ doesn't support std::filesystem properly,
 	# in a very confusing manner the headers have the function declarations but
-	# then the shared object file doesn't have the implementetion.
+	# then the shared object file doesn't have the implementation.
 	# This fools the compiler which doesn't report any error but then at runtime
 	# we get a crash with this error:
 	# java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol
@@ -242,6 +251,11 @@ foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
 		FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
 		DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
 endforeach()
+
+if(RS_SPLIT_DEBUG)
+	target_compile_options(${PROJECT_NAME} PRIVATE "-g")
+	target_compile_options(${PROJECT_NAME} PRIVATE "-gsplit-dwarf")
+endif(RS_SPLIT_DEBUG)
 
 if(RS_DEVELOPMENT_BUILD)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")

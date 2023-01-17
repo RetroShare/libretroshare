@@ -2,8 +2,8 @@
  * RetroShare debugging utilities                                              *
  *                                                                             *
  * Copyright (C) 2004-2008  Robert Fernie <retroshare@lunamutt.com>            *
- * Copyright (C) 2019-2021  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020-2021  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2020-2022  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -35,6 +35,7 @@
 
 
 #include "util/rsjson.h"
+#include "util/rsmacrosugar.hpp"
 
 
 #ifdef __ANDROID__
@@ -70,7 +71,6 @@ std::string rsErrorNotInCategory(int errNum, const std::string& categoryName);
  * `socket` etc to let errors bubble up comprensibly to upper layers C++11 code
  */
 std::error_condition rs_errno_to_condition(int errno_code);
-
 
 template <RsLoggerCategories CATEGORY>
 struct t_RsLogger : std::ostringstream
@@ -254,9 +254,31 @@ struct hexDump {
 	}
 };
 
-
-
-
+/**
+ * @def rs_error_bubble_or_exit
+ * Bubbling up an error condition to be handled upstream if possible or dealing
+ * it fatally here, is a very common pattern, @see rs_malloc as an example, so
+ * instead of rewriting the same snippet over and over, increasing the
+ * possibility of introducing bugs, use this macro to properly deal with that
+ * situation.
+ * @param p_error_condition expect something convertible to an
+ *	std::error_condition to be dealt with
+ * @param p_bubble_storage pointer to a location to store the
+ *	std::error_condition to be bubbled up upstream, if it is nullptr the error
+ *	will be handled with a fatal report end then exiting here
+ * @param ... optional additional information you want to be printed toghether
+ *	with the error report when is fatal (aka not bubbled up) */
+#define rs_error_bubble_or_exit(p_error_condition, p_bubble_storage, ... ) \
+	if(p_bubble_storage) \
+    { \
+	    *p_bubble_storage = p_error_condition; \
+	} \
+	else \
+    { \
+	    RS_FATAL(p_error_condition, " " RS_OPT_VA_ARGS(__VA_ARGS__)); \
+	    print_stacktrace(); \
+	    exit(std::error_condition(p_error_condition).value()); \
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -265,15 +287,6 @@ struct hexDump {
 /// All the following lines are DEPRECATED!!
 
 #include "util/rsdeprecate.h"
-
-/**
- * Concatenate preprocessor tokens A and B without expanding macro definitions
- * (however, if invoked from a macro, macro arguments are expanded).
- */
-#define RS_CONCAT_MACRO_NX(A, B) A ## B
-
-/// Concatenate preprocessor tokens A and B after macro-expanding them.
-#define RS_CONCAT_MACRO(A, B) RS_CONCAT_MACRO_NX(A, B)
 
 /**
  * Set local context debug level.

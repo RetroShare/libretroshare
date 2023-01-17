@@ -140,6 +140,11 @@ ext.getArtifactBaseName =
 	return project.name + "-MinApiLevel" + getAndroidMinApiLevel()
 }
 
+ext.getRsId =
+{ ->
+	return "org.retroshare.service"
+}
+
 ext.copyChecked =
 {
 	sourceFile,
@@ -237,7 +242,7 @@ ext.buildLibretroshareNativeLib =
 	}
 
 	def currJniLibsDir = getjniLibsDir(pBuildType)
-	mkdir currJniLibsDir 
+	mkdir currJniLibsDir
 
 	def currAbiLibDir = "$currJniLibsDir/$pAbi/"
 	mkdir currAbiLibDir
@@ -255,9 +260,16 @@ ext.buildLibretroshareNativeLib =
 
 	/* Work around Android gradle stripping bug read more information near
 	 * android.buildTypes.debug packagingOptions.jniLibs.keepDebugSymbols
-	 * section of this file */
+	 * section of this file.
+	 * First save a release debuggable copy, then strip release */
 	if(pBuildType.equalsIgnoreCase("Release"))
 	{
+		copy
+		{
+			from currJniLibsDir
+			into getjniLibsDir("releaseWithDebuggingSymbols")
+		}
+
 		stripLib(currToolchainPath, currAbiLibDir, "libretroshare.so", "--strip-unneeded")
 		stripLib(currToolchainPath, currAbiLibDir, "libc++_shared.so", "--strip-debug")
 		stripLib(currToolchainPath, currAbiLibDir, "liblog.so", "--strip-debug")
@@ -291,6 +303,10 @@ android
 
 	buildTypes
 	{
+		/* To avoid Android Gradle plugin buggy behaviours with native libraries
+		 * debugging symbols, we disable stripping completely on it's side and
+		 * deal with them completely on our own. */
+
 		debug
 		{
 			debuggable true
@@ -323,12 +339,32 @@ android
 			 */
 			//ndk.debugSymbolLevel 'FULL'
 		}
+
+		releaseWithDebuggingSymbols
+		{
+			/* Distribute the library compiled with release optimization plus
+			 * debugging symbols, this is not intended for direct usage
+			 * (altought possible), but to be able to symbolicate reports
+			 * from stripped releases build. To achieve this the release build
+			 * save a copy of libraries before stripping, so they are product of
+			 * same build ( => same code addressess ) but keeping the symbols
+			 * tables sections */
+		}
 	}
 
 	buildTypes.all
 	{
 		buildTypeObj ->
 
+		if(buildTypeObj.name == "releaseWithDebuggingSymbols")
+		{
+			/* To be useful to symbolicate reports from stripped releases,
+			 * release with debug symbols must be generated from the very same
+			 * release binaries just before stripping.
+			 * Make sure to not register extra build tasks for it. */
+			return;
+		}
+		
 		def buildTypeName = buildTypeObj.name.capitalize()
 		def preTaskName = "pre${buildTypeName}Build"
 		def buildNativeTaskName = "build${buildTypeName}RetroshareNativeLibs"
@@ -338,6 +374,15 @@ android
 			doLast
 			{
 				delete getjniLibsDir(buildTypeName)
+
+				if(buildTypeName == "Release")
+				{
+					/* To be useful to symbolicate reports from stripped
+					 * releases, release with debug symbols must be generated
+					 * from the very same release binaries just before
+					 * stripping so make sure to delete those artifacts too */
+					delete getjniLibsDir("releaseWithDebuggingSymbols")
+				}
 
 				def pNdkPath = android.getNdkDirectory().getAbsolutePath()
 				getJniNativeLibsArchs().each
@@ -374,13 +419,18 @@ android
 			manifest.srcFile 'src/rs_android/AndroidManifest.xml'
 			assets.srcDirs = [ getAssetsDir() ]
 		}
-		
+
 		debug
 		{
 			jniLibs.srcDirs = [ getjniLibsDir(name) ] // name == "debug"
 		}
-		
+
 		release
+		{
+			jniLibs.srcDirs = [ getjniLibsDir(name) ]
+		}
+
+		releaseWithDebuggingSymbols
 		{
 			jniLibs.srcDirs = [ getjniLibsDir(name) ]
 		}
@@ -409,17 +459,24 @@ afterEvaluate
 		{
 			debug(MavenPublication)
 			{
-				groupId = 'org.retroshare.service'
-				artifactId "${getArtifactBaseName()}-debug"
+				groupId = getRsId()
+				artifactId "${getArtifactBaseName()}-$name" // name == "debug"
 				version getLibretroshareSourceVersion()
 				artifact bundleDebugAar
 			}
 			release(MavenPublication)
 			{
-				groupId = 'org.retroshare.service'
-				artifactId "${getArtifactBaseName()}-release"
+				groupId = getRsId()
+				artifactId "${getArtifactBaseName()}-$name"
 				version getLibretroshareSourceVersion()
 				artifact bundleReleaseAar
+			}
+			releaseWithDebuggingSymbols(MavenPublication)
+			{
+				groupId = getRsId()
+				artifactId "${getArtifactBaseName()}-$name"
+				version getLibretroshareSourceVersion()
+				artifact bundleReleaseWithDebuggingSymbolsAar
 			}
 		}
 		repositories
