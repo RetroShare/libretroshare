@@ -475,17 +475,17 @@ bool AuthSSLimpl::InitAuth(
 		 * As a consequence, on these systems, locations created with RS
          * previously to Jan.2020 will not start. */
 
-        RsErr() << "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() reports error: " << result;
-
         unsigned long int err;
         bool security_level_problem = false;
+        int ssl_security_level = SSL_CTX_get_security_level(sslctx);
+        std::string error_str;
 
         while( (err=ERR_get_error()) > 0)
         {
             char err_str[256];
             ERR_error_string(err,err_str);
 
-            RsErr() << "SSL Error codes callstack: " << err_str;
+            error_str += "SSL Error codes callstack: " + std::string(err_str) + "\n";
 
             unsigned long reason = ERR_GET_REASON(err);
 
@@ -497,13 +497,29 @@ bool AuthSSLimpl::InitAuth(
         {
             RsErr() << "Your Retroshare certificate uses low security settings (probably a SHA1 signature)";
             RsErr() << "that are incompatible with current security level " << SSL_CTX_get_security_level(sslctx) << " of the OpenSSL library.";
-            RsErr() << "You need to create a new location, possibly using the same profile." ;
+            RsErr() << "You need to create a new node, possibly using the same profile." ;
             error_code = RsInit::ERR_CERT_CRYPTO_IS_TOO_WEAK;
         }
         else
+        {
+            RsErr() << "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() reports error: " << result;
             error_code = RsInit::ERR_CERT_REJECTED_BY_SSL;
+            std::cerr << error_str ;
+            return false;
+        }
 
-        return false;
+        RsErr() << "Trying with securoty level 1:" ;
+        // Try with security level 1, to keep compatibility with old certificates.
+        SSL_CTX_set_security_level(sslctx,1);
+        result = SSL_CTX_use_certificate(sslctx, x509);
+        SSL_CTX_set_security_level(sslctx,ssl_security_level);	// restore right away
+
+        if(result != 1)
+        {
+            RsErr() << "Failed." ;
+            return false;
+        }
+        RsErr() << "Passed. But still, create a new node!";
 	}
 
 	mOwnPublicKey = X509_get_pubkey(x509);
