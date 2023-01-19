@@ -957,8 +957,9 @@ bool p3PostBase::service_checkIfGroupIsStillUsed(const RsGxsGrpMetaData& meta)
         bool used_by_friends = (now < it->second + POSTED_UNUSED_BY_FRIENDS_DELAY);
         bool subscribed = static_cast<bool>(meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED);
 
+#ifdef POSTBASE_DEBUG
         std::cerr << ". subscribed: " << subscribed << ", used_by_friends: " << used_by_friends << " last TS: " << now - it->second << " secs ago (" << (now-it->second)/86400 << " days)";
-
+#endif
         if(!subscribed && !used_by_friends)
         {
 #ifdef POSTBASE_DEBUG
