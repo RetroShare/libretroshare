@@ -922,7 +922,7 @@ public:
 
 bool p3PostBase::service_checkIfGroupIsStillUsed(const RsGxsGrpMetaData& meta)
 {
-#ifdef GXSFORUMS_CHANNELS
+#ifdef POSTBASE_DEBUG
     std::cerr << "p3gxsChannels: Checking unused board: called by GxsCleaning." << std::endl;
 #endif
 
@@ -935,7 +935,7 @@ bool p3PostBase::service_checkIfGroupIsStillUsed(const RsGxsGrpMetaData& meta)
     auto it = mKnownPosted.find(meta.mGroupId);
     bool unknown_posted = (it == mKnownPosted.end());
 
-#ifdef GXSFORUMS_CHANNELS
+#ifdef POSTBASE_DEBUG
     std::cerr << "  Board " << meta.mGroupId ;
 #endif
 
@@ -944,7 +944,7 @@ bool p3PostBase::service_checkIfGroupIsStillUsed(const RsGxsGrpMetaData& meta)
         // This case should normally not happen. It does because this board was never registered since it may
         // arrived before this code was here
 
-#ifdef GXSFORUMS_CHANNELS
+#ifdef POSTBASE_DEBUG
         std::cerr << ". Not known yet. Adding current time as new TS." << std::endl;
 #endif
         mKnownPosted[meta.mGroupId] = now;
@@ -961,14 +961,14 @@ bool p3PostBase::service_checkIfGroupIsStillUsed(const RsGxsGrpMetaData& meta)
 
         if(!subscribed && !used_by_friends)
         {
-#ifdef GXSFORUMS_CHANNELS
+#ifdef POSTBASE_DEBUG
             std::cerr << ". Scheduling for deletion" << std::endl;
 #endif
             return false;
         }
         else
         {
-#ifdef GXSFORUMS_CHANNELS
+#ifdef POSTBASE_DEBUG
             std::cerr << ". Keeping!" << std::endl;
 #endif
             return true;
