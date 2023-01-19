@@ -99,7 +99,7 @@
 
 using namespace Rs::Msgs;
 
-#define DEBUG_DISTANT_MSG
+//#define DEBUG_DISTANT_MSG
 
 /// keep msg hashes for 2 months to avoid re-sent msgs
 static constexpr uint32_t RS_MSG_DISTANT_MESSAGE_HASH_KEEP_TIME = 2*30*86400;

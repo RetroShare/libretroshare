@@ -59,7 +59,7 @@ enum class RsInitErrorNum : int32_t
 	PGP_KEY_CREATION_FAILED   = 6004,
 	SSL_KEY_CREATION_FAILED   = 6005,
 	INVALID_SSL_ID            = 6006,
-	LOGIN_FAILED              = 6007
+    LOGIN_FAILED              = 6007
 };
 
 struct RsInitErrorCategory: std::error_category
@@ -154,14 +154,32 @@ struct RsConfigOptions
 class RsInit
 {
 public:
-	enum RS_DEPRECATED_FOR(RsInitErrorNum) LoadCertificateStatus : uint8_t
+    enum LoadCertificateStatus : uint8_t
 	{
-        OK,                      	/// Everything go as expected, no error occurred
-        ERR_ALREADY_RUNNING,     	/// Another istance is running already
-        ERR_CANT_ACQUIRE_LOCK,   	/// Another istance is already running?
-        ERR_NO_AVAILABLE_ACCOUNT,	/// Used in retroshare-service -U list when no account is available
-        ERR_CANNOT_CONFIGURE_TOR,	/// cannot start/configure Tor for an auto-tor node
-        ERR_UNKNOWN              	/// Unkown error, maybe password is wrong?
+        OK                          = 0x00,	/// Everything go as expected, no error occurred
+        ERR_ALREADY_RUNNING         = 0x01,	/// Another istance is running already
+        ERR_CANT_ACQUIRE_LOCK       = 0x02,	/// Another istance is already running?
+        ERR_NO_AVAILABLE_ACCOUNT    = 0x03,	/// Used in retroshare-service -U list when no account is available
+        ERR_CANNOT_CONFIGURE_TOR    = 0x04,	/// cannot start/configure Tor for an auto-tor node
+        ERR_NO_ACCOUNT_SELECTED     = 0x05,	/// cannot start/configure Tor for an auto-tor node
+        ERR_MISSING_ACCOUNT_PATH    = 0x06,	/// cannot start/configure Tor for an auto-tor node
+        ERR_MISSING_PASSPHRASE      = 0x07,	/// cannot start/configure Tor for an auto-tor node
+
+        // Errors directly reported by AuthSSL::InitImpl()
+
+        ERR_CERT_CRYPTO_IS_TOO_WEAK = 0x08,	/// Certificate is based on some weak settings.
+        ERR_CANNOT_INIT_TLS_LIB     = 0x09, /// TLS initialization failed.
+        ERR_MISSING_PARAMETERS      = 0x0a, /// Some params are null, including public/private cert filenames, and login passwd.
+        ERR_MISSING_CERT_FILE       = 0x0b, /// Missing public key file (user_cert.pem)
+        ERR_MISSING_PKEY_FILE       = 0x0c, /// Missing private key file (user_pk.pem)
+        ERR_CORRUPTED_CERT_FILE     = 0x0d, /// Public node key file is corrupted
+        ERR_CORRUPTED_PKEY_FILE     = 0x0e, /// Private node key file is corrupted
+        ERR_PUBLIC_PKEY_MISMATCH    = 0x0f, /// Public key doesn't match private key. May be due to file corruption between user_pk.pem and user_cert.pem.
+        ERR_CERT_VALIDATION_FAILED  = 0x10, /// Profile signature validation failed on node certificate
+        ERR_WRONG_CERT_FORMAT       = 0x11, /// Certificate format is not recognised (e.g. signature missing, etc)
+        ERR_CERT_REJECTED_BY_SSL    = 0x12,	/// Certificate doesn't pass OpenSSL internal checks.
+
+        ERR_UNKNOWN                 = 0xff, /// Unkown error, maybe password is wrong?
 	};
 
 	/* reorganised RsInit system */
@@ -233,7 +251,7 @@ private:
 	/// @brief Unlock profile directory
 	static void UnlockConfigDirectory();
 
-	static int LoadCertificates(bool autoLoginNT);
+    static bool LoadCertificates(bool autoLoginNT,LoadCertificateStatus& error_code);
 };
 
 

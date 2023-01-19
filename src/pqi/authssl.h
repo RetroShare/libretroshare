@@ -35,6 +35,7 @@
 #include "pqi/p3cfgmgr.h"
 #include "util/rsmemory.h"
 #include "retroshare/rsevents.h"
+#include "retroshare/rsinit.h"
 
 /**
  * Functions to interact elegantly with X509 certificates, using this functions
@@ -71,12 +72,12 @@ public:
 
     // Loads the public/private keypair and sets it to be used in TLS handshakes.
     // Return values:
-    //     1	: ok
-    //     0    : error
+    //     true    	: ok
+    //     false    : error
     //
-	virtual int InitAuth(
+    virtual bool InitAuth(
 	        const char* srvr_cert, const char* priv_key, const char* passwd,
-	        std::string locationName ) = 0;
+            std::string locationName,RsInit::LoadCertificateStatus& error_code ) = 0;
 	virtual bool CloseAuth() = 0;
 
 	/*********** Overloaded Functions from p3AuthMgr **********/
@@ -172,9 +173,9 @@ public:
 	bool validateOwnCertificate(X509 *x509, EVP_PKEY *pkey) override;
 
 	bool active() override;
-	int InitAuth( const char *srvr_cert, const char *priv_key,
-	              const char *passwd, std::string locationName )
-	override;
+    virtual bool InitAuth(
+            const char* srvr_cert, const char* priv_key, const char* passwd,
+            std::string locationName,RsInit::LoadCertificateStatus& error_code ) override;
 
 	bool CloseAuth() override;
 

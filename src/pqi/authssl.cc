@@ -29,6 +29,8 @@
 #include "util/rswin.h"
 #endif // WINDOWS_SYS
 
+#include <openssl/err.h>
+
 #include "authssl.h"
 #include "sslfns.h"
 
@@ -318,18 +320,22 @@ AuthSSLimpl::~AuthSSLimpl()
 
 bool AuthSSLimpl::active() { return init; }
 
-int AuthSSLimpl::InitAuth(
+bool AuthSSLimpl::InitAuth(
         const char* cert_file, const char* priv_key_file, const char* passwd,
-        std::string locationName )
+        std::string locationName,RsInit::LoadCertificateStatus& error_code )
 {
+    error_code = RsInit::OK;
+
 	/* single call here si don't need to invoke mutex yet */
 	static int initLib = 0;
 	if (!initLib)
 	{
 		initLib = 1;
 
-		if (!tls_init()) {
-			return 0;
+        if (!tls_init())
+        {
+            error_code = RsInit::ERR_CANNOT_INIT_TLS_LIB;
+            return false;
 		}
 
 		SSL_load_error_strings();
@@ -351,7 +357,8 @@ int AuthSSLimpl::InitAuth(
 		        "cert_file: ", static_cast<const void*>(cert_file),
 		        " priv_key_file: ", static_cast<const void*>(priv_key_file),
 		        " passwd: ", static_cast<const void*>(passwd) );
-		return 0;
+        error_code = RsInit::ERR_MISSING_PARAMETERS;
+        return false;
 	}
 
 
@@ -443,7 +450,8 @@ int AuthSSLimpl::InitAuth(
 	if (ownfp == NULL)
 	{
 		RS_ERR("Couldn't open own certificate: ", cert_file);
-        return 0;
+        error_code = RsInit::ERR_MISSING_CERT_FILE;
+        return false;
 	}
 
 	// get xPGP certificate.
@@ -454,38 +462,64 @@ int AuthSSLimpl::InitAuth(
 	if (x509 == NULL)
 	{
 		RS_ERR("PEM_read_X509() Failed");
-        return 0;
-	}
+        error_code = RsInit::ERR_CORRUPTED_CERT_FILE;
+        return false;
+    }
 
-	int result = SSL_CTX_use_certificate(sslctx, x509);
+    int result = SSL_CTX_use_certificate(sslctx, x509);
 
-#if OPENSSL_VERSION_NUMBER >= 0x10101000L
-	if(result != 1)
+    if(result != 1)
 	{
-		/* In debian Buster, openssl security level is set to 2 which preclude
+        /* In recent distributions openssl security level precludes
 		 * the use of SHA1, originally used to sign RS certificates.
 		 * As a consequence, on these systems, locations created with RS
-		 * previously to Jan.2020 will not start unless we revert the security
-		 * level to a value of 1. */
+         * previously to Jan.2020 will not start. */
 
-		int save_sec = SSL_CTX_get_security_level(sslctx);
-		SSL_CTX_set_security_level(sslctx,1);
-		result = SSL_CTX_use_certificate(sslctx, x509);
+        unsigned long int err;
+        bool security_level_problem = false;
+        int ssl_security_level = SSL_CTX_get_security_level(sslctx);
+        std::string error_str;
 
-		if(result == 1)
-			RS_WARN( "Your Retroshare certificate uses low security settings "
-			         "that are incompatible with current security level ",
-			         save_sec, " of the OpenSSL library. RetroShare will still "
-			         "start with security level set to 1), but you should "
-			         "probably create a new location." );
-	}
-#endif
+        while( (err=ERR_get_error()) > 0)
+        {
+            char err_str[256];
+            ERR_error_string(err,err_str);
 
-	if(result != 1)
-	{
-		RS_ERR( "Cannot use your Retroshare certificate."
-		        "SSL_CTX_use_certificate() report error: ", result);
-        return 0;
+            error_str += "SSL Error codes callstack: " + std::string(err_str) + "\n";
+
+            unsigned long reason = ERR_GET_REASON(err);
+
+            if(reason == SSL_R_CA_MD_TOO_WEAK || reason == SSL_R_CA_KEY_TOO_SMALL)
+                security_level_problem = true;
+        }
+
+        if(security_level_problem)
+        {
+            RsErr() << "Your Retroshare certificate uses low security settings (probably a SHA1 signature)";
+            RsErr() << "that are incompatible with current security level " << SSL_CTX_get_security_level(sslctx) << " of the OpenSSL library.";
+            RsErr() << "You need to create a new node, possibly using the same profile." ;
+            error_code = RsInit::ERR_CERT_CRYPTO_IS_TOO_WEAK;
+        }
+        else
+        {
+            RsErr() << "Cannot use your Retroshare certificate. SSL_CTX_use_certificate() reports error: " << result;
+            error_code = RsInit::ERR_CERT_REJECTED_BY_SSL;
+            std::cerr << error_str ;
+            return false;
+        }
+
+        RsErr() << "Trying with securoty level 1:" ;
+        // Try with security level 1, to keep compatibility with old certificates.
+        SSL_CTX_set_security_level(sslctx,1);
+        result = SSL_CTX_use_certificate(sslctx, x509);
+        SSL_CTX_set_security_level(sslctx,ssl_security_level);	// restore right away
+
+        if(result != 1)
+        {
+            RsErr() << "Failed." ;
+            return false;
+        }
+        RsErr() << "Passed. But still, create a new node!";
 	}
 
 	mOwnPublicKey = X509_get_pubkey(x509);
@@ -496,7 +530,8 @@ int AuthSSLimpl::InitAuth(
 	{
 		RS_ERR("Failure opening private key file");
 		CloseAuth();
-        return 0;
+        error_code = RsInit::ERR_MISSING_PKEY_FILE;
+        return false;
 	}
 
         mOwnPrivateKey = PEM_read_PrivateKey(pkfp, NULL, NULL, (void *) passwd);
@@ -505,9 +540,10 @@ int AuthSSLimpl::InitAuth(
 	if(mOwnPrivateKey == NULL)
 	{
 		RS_ERR("PEM_read_PrivateKey() failed");
-        return 0;
+        error_code = RsInit::ERR_CORRUPTED_PKEY_FILE;
+        return false;
 	}
-        SSL_CTX_use_PrivateKey(sslctx, mOwnPrivateKey);
+    SSL_CTX_use_PrivateKey(sslctx, mOwnPrivateKey);
 
 	if (1 != SSL_CTX_check_private_key(sslctx))
 	{
@@ -515,7 +551,8 @@ int AuthSSLimpl::InitAuth(
 		        "Check your private key: ", priv_key_file,
 		        " and certificate : ", cert_file );
 		CloseAuth();
-        return 0;
+        error_code = RsInit::ERR_PUBLIC_PKEY_MISMATCH;
+        return false;
 	}
 
 	RsPeerId mownidstr ;
@@ -525,7 +562,8 @@ int AuthSSLimpl::InitAuth(
 		/* bad certificate */
 		RS_ERR("getX509id() failed");
 		CloseAuth();
-        return 0;
+        error_code = RsInit::ERR_WRONG_CERT_FORMAT;
+        return false;
 	}
 	mOwnId = mownidstr ;
 
@@ -540,8 +578,8 @@ int AuthSSLimpl::InitAuth(
 		/* bad certificate */
 		RS_ERR("validateOwnCertificate() failed");
 		CloseAuth();
-		exit(1);
-        return 0;
+        error_code = RsInit::ERR_CERT_VALIDATION_FAILED;
+        return false;
 	}
 
 	// enable verification of certificates (PEER)
@@ -573,7 +611,7 @@ int AuthSSLimpl::InitAuth(
 	mOwnLocationName = locationName;
 
 	init = 1;
-	return 1;
+    return true;
 }
 
 /* Dummy function to be overloaded by real implementation */
