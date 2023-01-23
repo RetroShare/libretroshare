@@ -3230,7 +3230,7 @@ void RsGenExchange::processRecvdMessages()
                 if(g == groups_last_post_update.end())
                     groups_last_post_update[msg->grpId] = std::max(grpMeta->mLastPost,static_cast<uint32_t>(msg->metaData->mPublishTs));
                 else
-                    g->second = std::max(msg->metaData->mPublishTs,g->second);
+                    g->second = std::max(msg->metaData->mPublishTs,(rstime_t)g->second);
 
 #ifdef GEN_EXCH_DEBUG
 				std::cerr << "    new status flags: " << msg->metaData->mMsgStatus << std::endl;
