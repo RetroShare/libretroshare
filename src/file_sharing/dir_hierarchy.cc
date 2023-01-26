@@ -728,7 +728,7 @@ rstime_t InternalFileHierarchyStorage::recursUpdateLastModfTime(const DirectoryS
     d.dir_most_recent_time = largest_modf_time ;
     d.dir_content_hash = local_hash;
 
-    std::cerr << "Computed dir content hash for path: << " << d.dir_parent_path + "/" + d.dir_name << std::hex << local_hash << std::dec << std::endl;
+    std::cerr << "Computed dir content hash for path: " << std::hex << local_hash << std::dec << "  " << d.dir_parent_path + "/" + d.dir_name << std::endl;
     return largest_modf_time ;
 }
 
