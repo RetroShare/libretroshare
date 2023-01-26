@@ -299,7 +299,7 @@ bool InternalFileHierarchyStorage::checkIndex(DirectoryStorage::EntryIndex indx,
 bool InternalFileHierarchyStorage::updateSubFilesList(
         const DirectoryStorage::EntryIndex& indx,
         const std::map<std::string,DirectoryStorage::FileTS>& subfiles,
-        std::map<std::string,DirectoryStorage::FileTS>& new_files )
+        std::map<std::string,DirectoryStorage::FileTS>& new_files,uint64_t content_hash )
 {
 	if(!checkIndex(indx, FileStorageNode::TYPE_DIR))
 	{
@@ -309,6 +309,10 @@ bool InternalFileHierarchyStorage::updateSubFilesList(
 	}
 
     DirEntry& d(*static_cast<DirEntry*>(mNodes[indx])) ;
+
+    if(content_hash == d.dir_content_hash)	// early check to make it faster
+        return true;
+
     new_files = subfiles ;
 
     // remove from new_files the ones that already exist and have a modf time that is not older.
@@ -691,6 +695,7 @@ uint64_t InternalFileHierarchyStorage::recursUpdateCumulatedSize(const Directory
 rstime_t InternalFileHierarchyStorage::recursUpdateLastModfTime(const DirectoryStorage::EntryIndex& dir_index,bool& unfinished_files_present)
 {
     DirEntry& d(*static_cast<DirEntry*>(mNodes[dir_index])) ;
+    uint64_t local_hash = 0;
 
     rstime_t largest_modf_time = d.dir_modtime ;
     unfinished_files_present = false ;
@@ -703,6 +708,8 @@ rstime_t InternalFileHierarchyStorage::recursUpdateLastModfTime(const DirectoryS
             largest_modf_time = std::max(largest_modf_time, f->file_modtime) ;	// only account for hashed files, since we never send unhashed files to friends.
         else
             unfinished_files_present = true ;
+
+        local_hash = local_hash ^ (f->file_size*0x66de3467ea + f->file_modtime*0x0f0f0fb3cc88);
     }
 
     for(uint32_t i=0;i<d.subdirs.size();++i)
@@ -719,7 +726,9 @@ rstime_t InternalFileHierarchyStorage::recursUpdateLastModfTime(const DirectoryS
         largest_modf_time-- ;
 
     d.dir_most_recent_time = largest_modf_time ;
+    d.dir_content_hash = local_hash;
 
+    std::cerr << "Computed dir content hash for path: << " << d.dir_parent_path + "/" + d.dir_name << std::hex << local_hash << std::dec << std::endl;
     return largest_modf_time ;
 }
 

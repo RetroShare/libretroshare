@@ -130,7 +130,7 @@ class DirectoryStorage
         // just a name and need to be updated later on. New files are returned in a list so that they can be sent to hash cache.
         //
         bool updateSubDirectoryList(const EntryIndex& indx, const std::set<std::string>& subdirs, const RsFileHash &random_hash_salt) ;
-        bool updateSubFilesList(const EntryIndex& indx, const std::map<std::string, FileTS> &subfiles, std::map<std::string, FileTS> &new_files) ;
+        bool updateSubFilesList(const EntryIndex& indx, const std::map<std::string, FileTS> &subfiles, std::map<std::string, FileTS> &new_files, uint64_t content_hash) ;
         bool removeDirectory(const EntryIndex& indx) ;
 
         // Returns the hash of the directory at the given index and reverse. This hash is set as random the first time it is used (when updating directories). It will be

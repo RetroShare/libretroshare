@@ -147,10 +147,10 @@ bool DirectoryStorage::updateSubDirectoryList(const EntryIndex& indx, const std:
 }
 bool DirectoryStorage::updateSubFilesList(
         const EntryIndex& indx, const std::map<std::string,FileTS>& subfiles,
-        std::map<std::string,FileTS>& new_files )
+        std::map<std::string,FileTS>& new_files,uint64_t content_hash )
 {
     RS_STACK_MUTEX(mDirStorageMtx) ;
-    bool res = mFileHierarchy->updateSubFilesList(indx,subfiles,new_files) ;
+    bool res = mFileHierarchy->updateSubFilesList(indx,subfiles,new_files,content_hash) ;
     mChanged = true ;
     return res ;
 }

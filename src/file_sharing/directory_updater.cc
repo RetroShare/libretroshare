@@ -82,7 +82,7 @@ void LocalDirectoryUpdater::threadTick()
                 }
 				else
                 {
-					mNeedsFullRecheck = false ;
+                    mNeedsFullRecheck = false ;
 					mLastSweepTime = now ;
                 }
 
@@ -170,7 +170,7 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 
 				singleFilesMap[fPath].modtime = lastWrite;
 				singleFilesMap[fPath].size = fSize;
-			}
+            }
 			else
 			{
 				some_files_not_ready = true;
@@ -185,8 +185,7 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 	{
 		const auto tRoot = mSharedDirectories->root();
 		std::map<std::string, DirectoryStorage::FileTS> needsUpdate;
-		mSharedDirectories->updateSubFilesList(
-		            tRoot, singleFilesMap, needsUpdate);
+        mSharedDirectories->updateSubFilesList(tRoot, singleFilesMap, needsUpdate,~(uint64_t)0);
 
 		for( DirectoryStorage::FileIterator storedSingleFilesIt(
 		         mSharedDirectories, mSharedDirectories->root() );
@@ -254,11 +253,14 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 	/* the > is because we may have changed the virtual name, and therefore the
 	 * TS wont match. We only want to detect when the directory has changed on
 	 * the disk */
+    std::cerr << "Needs full recheck = " << mNeedsFullRecheck << std::endl;
+
 	if(mNeedsFullRecheck || dirIt.dir_modtime() > dir_local_mod_time)
 	{
 		// collect subdirs and subfiles
 		std::map<std::string, DirectoryStorage::FileTS> subfiles;
 		std::set<std::string> subdirs;
+        uint64_t dir_content_hash = 0;
 
 		for( ; dirIt.isValid(); dirIt.next() )
 			if(filterFile(dirIt.file_name()))
@@ -269,10 +271,15 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 				case librs::util::FolderIterator::TYPE_FILE:
 					if(now >= dirIt.file_modtime() + MIN_TIME_AFTER_LAST_MODIFICATION)
 					{
-						subfiles[dirIt.file_name()].modtime = dirIt.file_modtime();
-						subfiles[dirIt.file_name()].size = dirIt.file_size();
+                        uint64_t file_mtime = dirIt.file_modtime();
+                        uint64_t file_size  = dirIt.file_size();
+
+                        subfiles[dirIt.file_name()].modtime = file_mtime;
+                        subfiles[dirIt.file_name()].size = file_size;
 						RS_DBG4("adding sub-file \"", dirIt.file_name(), "\"");
-					}
+
+                        dir_content_hash = dir_content_hash ^ (file_size*0x66de3467ea + file_mtime*0x0f0f0fb3cc88);
+                    }
 					else
 					{
 						some_files_not_ready = true;
@@ -330,7 +337,7 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 		mSharedDirectories->updateSubDirectoryList(indx,subdirs,mHashSalt);
 
 		std::map<std::string, DirectoryStorage::FileTS> new_files;
-		mSharedDirectories->updateSubFilesList(indx, subfiles, new_files);
+        mSharedDirectories->updateSubFilesList(indx, subfiles, new_files,dir_content_hash);
 
 		// now go through list of subfiles and request the hash to hashcache
 		for( DirectoryStorage::FileIterator dit(mSharedDirectories,indx);

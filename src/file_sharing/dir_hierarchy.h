@@ -73,6 +73,7 @@ public:
         std::string dir_parent_path ;
         RsFileHash  dir_hash ;
         uint64_t    dir_cumulated_size;
+        uint64_t    dir_content_hash;
 
         std::vector<DirectoryStorage::EntryIndex> subdirs ;
         std::vector<DirectoryStorage::EntryIndex> subfiles ;
@@ -94,7 +95,7 @@ public:
     bool updateSubDirectoryList(const DirectoryStorage::EntryIndex& indx, const std::set<std::string>& subdirs, const RsFileHash &random_hash_seed);
     bool removeDirectory(DirectoryStorage::EntryIndex indx)	;
     bool checkIndex(DirectoryStorage::EntryIndex indx,uint8_t type) const;
-    bool updateSubFilesList(const DirectoryStorage::EntryIndex& indx,const std::map<std::string,DirectoryStorage::FileTS>& subfiles,std::map<std::string,DirectoryStorage::FileTS>& new_files);
+    bool updateSubFilesList(const DirectoryStorage::EntryIndex& indx,const std::map<std::string,DirectoryStorage::FileTS>& subfiles,std::map<std::string,DirectoryStorage::FileTS>& new_files,uint64_t content_hash);
     bool updateHash(const DirectoryStorage::EntryIndex& file_index,const RsFileHash& hash);
     bool updateFile(const DirectoryStorage::EntryIndex& file_index,const RsFileHash& hash, const std::string& fname,uint64_t size, const rstime_t modf_time);
     bool updateDirEntry(const DirectoryStorage::EntryIndex& indx, const std::string& dir_name, rstime_t most_recent_time, rstime_t dir_modtime, const std::vector<RsFileHash> &subdirs_hash, const std::vector<FileEntry> &subfiles_array);
