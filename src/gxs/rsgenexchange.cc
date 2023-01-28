@@ -43,6 +43,9 @@
 #include "util/radix64.h"
 #include "util/cxx17retrocompat.h"
 
+#include <iostream>
+#include <sstream>
+
 #define PUB_GRP_MASK     0x000f
 #define RESTR_GRP_MASK   0x00f0
 #define PRIV_GRP_MASK    0x0f00
@@ -323,8 +326,9 @@ void RsGenExchange::tick()
 			{
 				mIntegrityCheck = new RsGxsIntegrityCheck( mDataStore, this,
 				                                           *mSerialiser, mGixs);
-				std::string thisName = typeid(*this).name();
-				mChecking = mIntegrityCheck->start("gxs IC4 "+thisName);
+				std::stringstream ss;
+				ss << std::hex << mServType;
+				mChecking = mIntegrityCheck->start("gxs int chk "+ss.str());
 			}
 		}
 

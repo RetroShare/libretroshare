@@ -500,7 +500,7 @@ void p3GxsTrans::service_tick()
             std::cerr << "Starting GxsIntegrity cleanup thread." << std::endl;
 #endif
 
-			mCleanupThread->start() ;
+	    mCleanupThread->start("gxs trans clean") ;
             mLastMsgCleanup = now ;
         }
 
