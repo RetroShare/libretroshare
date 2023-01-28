@@ -114,6 +114,7 @@ void LocalDirectoryUpdater::threadTick()
 void LocalDirectoryUpdater::forceUpdate(bool add_safe_delay)
 {
     mForceUpdate = true ;
+    mNeedsFullRecheck = true;
 	mLastSweepTime = rstime_t(time(NULL)) - rstime_t(mDelayBetweenDirectoryUpdates) ;
 
     if(add_safe_delay)
