@@ -41,7 +41,7 @@ LocalDirectoryUpdater::LocalDirectoryUpdater(HashStorage *hc,LocalDirectoryStora
     : mHashCache(hc), mSharedDirectories(lds)
     , mLastSweepTime(0), mLastTSUpdateTime(0)
     , mDelayBetweenDirectoryUpdates(DELAY_BETWEEN_DIRECTORY_UPDATES)
-    , mIsEnabled(false), mFollowSymLinks(FOLLOW_SYMLINKS_DEFAULT)
+    , mIsEnabled(true), mFollowSymLinks(FOLLOW_SYMLINKS_DEFAULT)
     , mIgnoreDuplicates(true)
     /* Can be left to false, but setting it to true will force to re-hash any file that has been left unhashed in the last session.*/
     , mNeedsFullRecheck(true)
@@ -114,6 +114,7 @@ void LocalDirectoryUpdater::threadTick()
 void LocalDirectoryUpdater::forceUpdate(bool add_safe_delay)
 {
     mForceUpdate = true ;
+    mNeedsFullRecheck = true;
 	mLastSweepTime = rstime_t(time(NULL)) - rstime_t(mDelayBetweenDirectoryUpdates) ;
 
     if(add_safe_delay)
