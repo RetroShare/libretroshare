@@ -33,6 +33,20 @@
 #include <netdb.h>
 #endif
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+static size_t strnlen(const char *s, size_t maxlength) {
+  size_t l = 0;
+  while (l < maxlength && *s) {
+    l++;
+    s++;
+  }
+  return l;
+}
+#endif
+#endif
+
 //https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-2
 constexpr uint16_t DNSC_IN    = 1; //Internet (IN)
 
