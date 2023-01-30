@@ -30,10 +30,10 @@
 
 /**
  * @brief Print a backtrace to FILE* out.
- * @param[in] demangle true to demangle C++ symbols requires malloc working, in
- *	some patological cases like a SIGSEGV received during a malloc this would
- *	cause deadlock so pass false if you may be in such situation (like in a
- *	SIGSEGV handler )
+ * @param[in] demangle true to demangle C++ symbols requires malloc working,
+ *	in some patological cases like a SIGSEGV received during a malloc this
+ *	would cause deadlock so pass false if you may be in such situation
+ *	(like in a SIGSEGV handler)
  * @param[in] out output file
  * @param[in] maxFrames maximum number of stack frames you want to bu printed
  */
@@ -90,8 +90,8 @@ static void print_stacktrace(
 	size_t funcnamesize = 256;
 	char* funcname = (char*)malloc(funcnamesize);
 
-	// iterate over the returned symbol lines. skip the first, it is the
-	// address of this function.
+	// iterate over the returned symbol lines. skip the first, it is
+	// the address of this function.
 	for (int i = 1; i < addrlen; i++)
 	{
 		char *begin_name = 0, *begin_offset = 0, *end_offset = 0;
@@ -131,8 +131,8 @@ static void print_stacktrace(
 			}
 			else
 			{
-				// demangling failed. Output function name as a C function with
-				// no arguments.
+				// demangling failed. Output function name as a C function
+				// with no arguments.
 				fprintf( out, "  %s : %s()+%s\n",
 				         symbollist[i], begin_name, begin_offset );
 			}
@@ -149,7 +149,7 @@ static void print_stacktrace(
 }
 #elif defined(__ANDROID__) // defined(__linux__) && defined(__GLIBC__)
 
-/* Inspired by the solution proposed by Louis Semprini  on this thread
+/* Inspired by the solution proposed by Louis Semprini on this thread
  * https://stackoverflow.com/questions/8115192/android-ndk-getting-the-backtrace/35586148
  */
 
@@ -200,8 +200,8 @@ static void print_stacktrace(
 
 		/* Ignore null addresses.
 		 * They sometimes happen when using _Unwind_Backtrace()
-		 * with compiler optimizations, when the Link Register is overwritten by
-		 * the inner stack frames. */
+		 * with compiler optimizations, when the Link Register is overwritten
+		 * by the inner stack frames. */
 		if(!addr) continue;
 
 		/* Ignore duplicate addresses.
@@ -249,8 +249,8 @@ static void print_stacktrace(
 	/** Notify the user which signal was caught. We use printf, because this
 	 * is the most basic output function. Once you get a crash, it is
 	 * possible that more complex output systems like streams and the like
-	 * may be corrupted. So we make the most basic call possible to the
-	 * lowest level, most standard print function. */
+	 * may be corrupted. So we make the most basic call possible
+	 * to the lowest level, most standard print function. */
 	fprintf(out, "print_stacktrace Not implemented yet for this platform\n");
 }
 #endif // defined(__linux__) && defined(__GLIBC__)
@@ -292,8 +292,8 @@ struct CrashStackTrace
 		/** Notify the user which signal was caught. We use printf, because this
 		 * is the most basic output function. Once you get a crash, it is
 		 * possible that more complex output systems like streams and the like
-		 * may be corrupted. So we make the most basic call possible to the
-		 * lowest level, most standard print function. */
+		 * may be corrupted. So we make the most basic call possible
+		 * to the lowest level, most standard print function. */
 		if(name)
 			fprintf(stderr, "Caught signal %d (%s)\n", signum, name);
 		else
@@ -309,4 +309,3 @@ struct CrashStackTrace
 		exit(-signum);
 	}
 };
-

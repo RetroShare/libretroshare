@@ -20,11 +20,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #pragma once
 
 #include <utility>
 
-#if ! defined(__cpp_lib_to_underlying)
+#if !defined(__cpp_lib_to_underlying)
 #	include <type_traits>
 namespace std
 {
@@ -32,4 +33,4 @@ template <class Enum>
 constexpr underlying_type_t<Enum> to_underlying(Enum e) noexcept
 { return static_cast<std::underlying_type_t<Enum>>(e); }
 }
-#endif // ! defined(__cpp_lib_to_underlying)
+#endif // !defined(__cpp_lib_to_underlying)

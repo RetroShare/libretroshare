@@ -19,6 +19,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #pragma once
 
 #include <stdlib.h>
@@ -112,5 +113,3 @@ namespace RsMemoryManagement
 
 	extern void printStatistics() ;
 }
-
-

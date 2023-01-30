@@ -487,6 +487,4 @@ template<class Key, class Value> void RsMemCache<Key, Value>::clearStats()
 }
 
 
-
-
 #endif // RS_UTIL_MEM_CACHE

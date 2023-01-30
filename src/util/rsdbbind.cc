@@ -19,6 +19,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #include "rsdbbind.h"
 
 RsDoubleBind::RsDoubleBind(double value, int index)
@@ -68,4 +69,3 @@ bool RsBlobBind::bind(sqlite3_stmt* const stm) const
 {
 	return (SQLITE_OK == sqlite3_bind_blob(stm, getIndex(), mData, mDataLen, SQLITE_TRANSIENT));
 }
-

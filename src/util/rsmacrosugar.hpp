@@ -19,13 +19,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
-#pragma once
 
+#pragma once
 
 /** Comfortable optional variadic macro arguments
  * @see https://www.appsloveworld.com/cplus/100/16/variadic-macros-with-zero-arguments
- * C/C++ variadic macros gives error on expansion if no argument is passed, the
- * result is that at least one argument must be passed or compilation fails.
+ * C/C++ variadic macros gives error on expansion if no argument is passed,
+ * the result is that at least one argument must be passed or compilation fails.
  * Wrapping __VA_ARGS__ in RS_OPT_VA_ARGS at expansion place omitting the comma
  * before solves this issue rendering the variadic arguments effectively
  * optionals.
@@ -40,4 +40,3 @@
 
 /// Concatenate preprocessor tokens A and B after macro-expanding them.
 #define RS_CONCAT_MACRO(A, B) RS_CONCAT_MACRO_NX(A, B)
-
