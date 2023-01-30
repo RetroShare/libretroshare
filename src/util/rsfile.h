@@ -24,6 +24,11 @@
 
 #include <stdio.h>
 
+#ifndef WINDOWS_SYS
+#include <sys/types.h>
+#include <sys/socket.h>
+#endif
+
 namespace RsFileUtil {
 
 int set_fd_nonblock(int fd);
