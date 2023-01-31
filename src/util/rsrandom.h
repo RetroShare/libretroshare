@@ -19,8 +19,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
-#pragma once
 
+#pragma once
 
 #include <vector>
 #include <cstdint>
@@ -30,7 +30,7 @@
 
 /**
  * RsRandom provide a random number generator that is
- * - thread safe
+ * - thread-safe
  * - platform independent
  * - fast
  * - CRYPTOGRAPHICALLY SAFE, because it is based on openssl random number
@@ -46,12 +46,12 @@ public:
 
 	static bool     seed(uint32_t s);
 
-	static void        random_bytes(uint8_t* data, uint32_t length);
+	static void     random_bytes(uint8_t* data, uint32_t length);
 
-	/// Return a random alphanumeric *[0-9,A-Z,a-z] string of the given lenght
+	/// Return a random alphanumeric *[0-9,A-Z,a-z] string of the given length
 	static std::string alphaNumeric(uint32_t length);
 
-	/** Return a random printable string of the given lenght */
+	/** Return a random printable string of the given length */
 	static std::string printable(uint32_t length);
 
 	/** This return a printable string not an alphanumeric one @deprecated */

@@ -19,11 +19,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #include "dnsresolver.h"
 
 #include "pqi/pqinetwork.h"
 #include "util/rsnet.h"
-
 
 #ifndef WIN32
 #include <netdb.h>
@@ -199,4 +199,3 @@ DNSResolver::DNSResolver() : _rdnsMtx("DNSResolver")
 	_thread_running = new bool ;
 	*_thread_running = false ;
 }
-

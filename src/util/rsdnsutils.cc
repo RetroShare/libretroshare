@@ -33,10 +33,24 @@
 #include <netdb.h>
 #endif
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+static size_t strnlen(const char *s, size_t maxlength) {
+  size_t l = 0;
+  while (l < maxlength && *s) {
+    l++;
+    s++;
+  }
+  return l;
+}
+#endif
+#endif
+
 //https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-2
 constexpr uint16_t DNSC_IN    = 1; //Internet (IN)
 
-///Need to pack as we use sizeof them. (avoid padding)
+//Need to pack as we use sizeof them (avoid padding)
 #pragma pack(1)
 //DNS header structure
 struct DNS_HEADER
@@ -91,7 +105,7 @@ struct RR_DATA
 {
     unsigned short rtype;   //https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4
     unsigned short rclass;  //https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-2
-    unsigned int rttl;      //Time To Live is the number of seconds left before the information expires. (32bits integer, so maximum 140 years)
+    unsigned int rttl;      //Time To Live is the number of seconds left before the information expires (32-bits integer, so maximum 140 years)
     unsigned short data_len;//Lenght of following data
 };
 #pragma pack()

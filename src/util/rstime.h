@@ -20,14 +20,17 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #pragma once
 
 #include <string>
+
 #ifdef WINDOWS_SYS
 #include <stdint.h>
 #else
 #include <cstdint>
 #endif
+
 #include <ctime> // Added for comfort of users of this util header
 #include "util/rsdeprecate.h"
 
@@ -37,7 +40,7 @@
  * is not guaranted to be the same but we found it being number of seconds since
  * the epoch for time points in all platforms we could test, or plain seconds
  * for intervals.
- * Still in some platforms it's 32bit long and in other 64bit long.
+ * Still in some platforms it's 32-bit long and in other 64-bit long.
  * To avoid uncompatibility due to different serialzation format use this
  * reasonably safe alternative instead.
  */
@@ -50,7 +53,7 @@ namespace rstime {
  * @deprecated { std::this_thread::sleep_for or
  * std::this_thread::sleep_until instead }
  * @brief This is a cross-system definition of usleep, which accepts any
- * 32 bits number of micro-seconds.
+ * 32-bit number of micro-seconds.
  */
 RS_DEPRECATED_FOR("std::this_thread::sleep_for")
 int rs_usleep(uint32_t micro_seconds);

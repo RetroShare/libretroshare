@@ -19,6 +19,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #ifndef RSDBBIND_H_
 #define RSDBBIND_H_
 
@@ -96,6 +97,5 @@ public:
 	char* mData;
 	uint32_t mDataLen;
 };
-
 
 #endif /* RSDBBIND_H_ */

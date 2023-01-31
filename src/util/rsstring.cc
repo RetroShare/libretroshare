@@ -19,6 +19,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+
 #include "rsstring.h"
 
 #ifdef WINDOWS_SYS
@@ -320,8 +321,6 @@ void stringToLowerCase(const std::string& s, std::string &lower)
 			lower[i] += 97-65 ;
 }
 
-
-
 bool isHexaString(const std::string& s)
 {
 	for(uint32_t i=0;i<s.length();++i)
@@ -330,5 +329,3 @@ bool isHexaString(const std::string& s)
 
 	return true ;
 }
-
-

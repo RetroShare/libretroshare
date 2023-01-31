@@ -49,7 +49,7 @@ public:
      * makes a deep copy of raw data
      * @param from ContentValue instance to copy key value set from
      */
-    ContentValue(const ContentValue& from);//const damit die äußere klasse einen konstruktor com compielr bekommt
+    ContentValue(const ContentValue& from); //const damit die äußere klasse einen konstruktor com compielr bekommt
 
     /*!
      *
@@ -63,7 +63,7 @@ public:
      * @param key  the name of the value to put
      * @param value  the data for the value to put
      * @warning cast string literals explicitly as string, observed string literal \n
-     *          being casted to bool instead e.g. string("hello") rather than "hello"
+     *          being casted to bool instead, e.g. string("hello") rather than "hello"
      */
     void put(const std::string& key, const std::string& value);
 
@@ -105,13 +105,13 @@ public:
 
 
     /*!
-     * get value as 32 bit signed integer
+     * get value as 32-bit signed integer
      * @param key the value to get
      */
     bool getAsInt32(const std::string& key, int32_t& value) const;
 
     /*!
-     * get value as 64 bit signed integer
+     * get value as 64-bit signed integer
      * @param key the value to get
      */
     bool getAsInt64(const std::string& key, int64_t& value) const;

@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <cstdio>
 #include <algorithm>
 #include <iostream>
@@ -301,4 +300,3 @@ void RsUrl::serial_process( RsGenericSerializer::SerializeJob j,
 /*static*/ const std::string RsUrl::queryAssign("=");
 /*static*/ const std::string RsUrl::queryFieldSep("&");
 /*static*/ const std::string RsUrl::fragmentSeparator("#");
-
