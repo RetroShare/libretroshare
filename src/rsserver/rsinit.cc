@@ -1295,7 +1295,8 @@ int RsServer::StartupRetroShare()
                         RS_SERVICE_GXS_TYPE_GXSID, gxsid_ds, nxsMgr,
 			mGxsIdService, mGxsIdService->getServiceInfo(),
 			mReputations, mGxsCircles,mGxsIdService,
-			pgpAuxUtils,mGxsNetTunnel,
+            pgpAuxUtils,mGxsNetTunnel,
+                    true,	// sync old versions of msgs. Not really useful here because msgs are not sync-ed anyway, but this is the default.
             false,false,true); // don't synchronise group automatic (need explicit group request)
                         // don't sync messages at all.
 						// allow distsync, so that we can grab GXS id requests for other services
@@ -1386,7 +1387,11 @@ int RsServer::StartupRetroShare()
 		            RS_SERVICE_GXS_TYPE_CHANNELS, gxschannels_ds, nxsMgr,
 		            mGxsChannels, mGxsChannels->getServiceInfo(),
 		            mReputations, mGxsCircles,mGxsIdService,
-		    		pgpAuxUtils,mGxsNetTunnel,true,true,true);
+                    pgpAuxUtils,mGxsNetTunnel,
+                    false,			// don't sync old versions of messages
+                    true,			// auto-sync groups
+                    true,			// auto-sync messages
+                    true);			// distant sync (default=false)
 
     mGxsChannels->setNetworkExchangeService(gxschannels_ns) ;
 
@@ -1449,7 +1454,7 @@ int RsServer::StartupRetroShare()
 	RsGxsNetService* gxstrans_ns = new RsGxsNetService(
 	            RS_SERVICE_TYPE_GXS_TRANS, gxstrans_ds, nxsMgr, mGxsTrans,
 	            mGxsTrans->getServiceInfo(), mReputations, mGxsCircles,
-	            mGxsIdService, pgpAuxUtils,NULL,true,true,false,p3GxsTrans::GXS_STORAGE_PERIOD,p3GxsTrans::GXS_SYNC_PERIOD);
+                mGxsIdService, pgpAuxUtils,NULL,true,true,true,false,p3GxsTrans::GXS_STORAGE_PERIOD,p3GxsTrans::GXS_SYNC_PERIOD);
 
 	mGxsTrans->setNetworkExchangeService(gxstrans_ns);
 	pqih->addService(gxstrans_ns, true);
