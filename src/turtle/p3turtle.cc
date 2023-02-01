@@ -1606,34 +1606,6 @@ void p3turtle::handleTunnelRequest(RsTurtleOpenTunnelItem *item)
 	if(TS_request_bounces.find(item->request_id) != TS_request_bounces.end())
 		TS_request_bounces[item->request_id].push_back(time(NULL)) ;
 #endif
-	// TR forwarding. We must pay attention not to flood the network. The policy is to force a statistical behavior
-	// according to the followin grules:
-	// 	- below a number of tunnel request forwards per second MAX_TR_FORWARD_PER_SEC, we keep the traffic
-	// 	- if we get close to that limit, we drop long tunnels first with a probability that is larger for long tunnels
-	//
-	// Variables involved:
-	// 	distance_to_maximum		: in [0,inf] is the proportion of the current up TR speed with respect to the maximum allowed speed. This is estimated
-	// 										as an average between the average number of TR over the 60 last seconds and the current TR up speed.
-	// 	corrected_distance 		: in [0,inf] is a squeezed version of distance: small values become very small and large values become very large.
-	// 	depth_peer_probability	: basic probability of forwarding when the speed limit is reached.
-	// 	forward_probability		: final probability of forwarding the packet, per peer.
-	//
-	// When the number of peers increases, the speed limit is reached faster, but the behavior per peer is the same.
-	//
-
-	float forward_probability ;
-
-	{
-		RsStackMutex stack(mTurtleMtx); /********** STACK LOCKED MTX ******/
-		_traffic_info_buffer.tr_dn_Bps += RsTurtleSerialiser().size(item);
-
-		float distance_to_maximum	= std::min(100.0f,_traffic_info.tr_up_Bps/(float)(TUNNEL_REQUEST_PACKET_SIZE*_max_tr_up_rate)) ;
-		float corrected_distance 	= pow(distance_to_maximum,DISTANCE_SQUEEZING_POWER) ;
-		forward_probability	= pow(depth_peer_probability[std::min((uint16_t)6,item->depth)],corrected_distance) ;
-#ifdef P3TURTLE_DEBUG
-		std::cerr << "Forwarding probability: depth=" << item->depth << ", distance to max speed=" << distance_to_maximum << ", corrected=" << corrected_distance << ", prob.=" << forward_probability << std::endl;
-#endif
-	}
 
 	// If the item contains an already handled tunnel request, give up.  This
 	// happens when the same tunnel request gets relayed by different peers.  We
@@ -1761,6 +1733,35 @@ void p3turtle::handleTunnelRequest(RsTurtleOpenTunnelItem *item)
 #ifdef P3TURTLE_DEBUG
 	std::cerr << " new=" << item->partial_tunnel_id << std::dec << std::endl;
 #endif
+
+	// TR forwarding. We must pay attention not to flood the network. The policy is to force a statistical behavior
+	// according to the followin grules:
+	// 	- below a number of tunnel request forwards per second MAX_TR_FORWARD_PER_SEC, we keep the traffic
+	// 	- if we get close to that limit, we drop long tunnels first with a probability that is larger for long tunnels
+	//
+	// Variables involved:
+	// 	distance_to_maximum	: in [0,inf] is the proportion of the current up TR speed with respect to the maximum allowed speed. This is estimated
+	// 				  as an average between the average number of TR over the 60 last seconds and the current TR up speed.
+	// 	corrected_distance 	: in [0,inf] is a squeezed version of distance: small values become very small and large values become very large.
+	// 	depth_peer_probability	: basic probability of forwarding when the speed limit is reached.
+	// 	forward_probability	: final probability of forwarding the packet, per peer.
+	//
+	// When the number of peers increases, the speed limit is reached faster, but the behavior per peer is the same.
+	//
+
+	float forward_probability ;
+
+	{
+		RsStackMutex stack(mTurtleMtx); /********** STACK LOCKED MTX ******/
+		_traffic_info_buffer.tr_dn_Bps += RsTurtleSerialiser().size(item);
+
+		float distance_to_maximum	= std::min(100.0f,_traffic_info.tr_up_Bps/(float)(TUNNEL_REQUEST_PACKET_SIZE*_max_tr_up_rate)) ;
+		float corrected_distance 	= pow(distance_to_maximum,DISTANCE_SQUEEZING_POWER) ;
+		forward_probability	= pow(depth_peer_probability[std::min((uint16_t)6,item->depth)],corrected_distance) ;
+#ifdef P3TURTLE_DEBUG
+		std::cerr << "Forwarding probability: depth=" << item->depth << ", distance to max speed=" << distance_to_maximum << ", corrected=" << corrected_distance << ", prob.=" << forward_probability << std::endl;
+#endif
+	}
 
 	if(item->depth < TURTLE_MAX_SEARCH_DEPTH || random_bypass)
 	{
