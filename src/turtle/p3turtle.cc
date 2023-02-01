@@ -1594,6 +1594,11 @@ void p3turtle::handleTunnelRequest(RsTurtleOpenTunnelItem *item)
  item->print(std::cerr,0) ;
 #endif
 
+        {
+                RsStackMutex stack(mTurtleMtx); /********** STACK LOCKED MTX ******/
+                _traffic_info_buffer.tr_dn_Bps += RsTurtleSerialiser().size(item);
+	}
+
  	// check first if the hash is in the ban list. If so, drop the request.
 
  	if(rsFiles->isHashBanned(item->file_hash))
@@ -1753,7 +1758,6 @@ void p3turtle::handleTunnelRequest(RsTurtleOpenTunnelItem *item)
 
 	{
 		RsStackMutex stack(mTurtleMtx); /********** STACK LOCKED MTX ******/
-		_traffic_info_buffer.tr_dn_Bps += RsTurtleSerialiser().size(item);
 
 		float distance_to_maximum	= std::min(100.0f,_traffic_info.tr_up_Bps/(float)(TUNNEL_REQUEST_PACKET_SIZE*_max_tr_up_rate)) ;
 		float corrected_distance 	= pow(distance_to_maximum,DISTANCE_SQUEEZING_POWER) ;
