@@ -962,12 +962,28 @@ void RsGxsNetService::handleRecvSyncGrpStatistics(RsNxsSyncGrpStatsItem *grs)
 #endif
         mDataStore->retrieveGxsMsgMetaData(reqIds, result);
 
-        const auto& vec(result[grs->grpId]) ;
+        auto& vec(result[grs->grpId]) ;
 
 	    if(vec.empty())	// that means we don't have any, or there isn't any, but since the default is always 0, no need to send.
 		    return ;
 
-	    RsNxsSyncGrpStatsItem *grs_resp = new RsNxsSyncGrpStatsItem(mServType) ;
+        if(!mSyncOldMsgVersions)	// if the service doesn't sync old msg versions, get rid of them asap
+        {
+            std::set<RsGxsMessageId> old_versions;
+            for(auto msgMeta:vec)
+                if(!msgMeta->mOrigMsgId.isNull() && msgMeta->mMsgId != msgMeta->mOrigMsgId)
+                    old_versions.insert(msgMeta->mOrigMsgId);
+
+            for(uint32_t i=0;i<vec.size();)
+                if(old_versions.find(vec[i]->mMsgId)!= old_versions.end())
+                {
+                    vec[i] = vec[vec.size()-1];
+                    vec.pop_back();
+                }
+                else
+                    ++i;
+        }
+        RsNxsSyncGrpStatsItem *grs_resp = new RsNxsSyncGrpStatsItem(mServType) ;
 	    grs_resp->request_type = RsNxsSyncGrpStatsItem::GROUP_INFO_TYPE_RESPONSE ;
 	    grs_resp->number_of_posts = vec.size();
 	    grs_resp->grpId = grs->grpId;
