@@ -496,7 +496,7 @@ bool AuthSSLimpl::InitAuth(
         if(security_level_problem)
         {
             RsErr() << "Your Retroshare certificate uses low security settings (probably a SHA1 signature)";
-            RsErr() << "that are incompatible with current security level " << SSL_CTX_get_security_level(sslctx) << " of the OpenSSL library.";
+            RsErr() << "that are incompatible with current security level " << ssl_security_level << " of the OpenSSL library.";
             RsErr() << "You need to create a new node, possibly using the same profile." ;
             error_code = RsInit::ERR_CERT_CRYPTO_IS_TOO_WEAK;
         }
@@ -512,7 +512,9 @@ bool AuthSSLimpl::InitAuth(
         // Try with security level 1, to keep compatibility with old certificates.
         SSL_CTX_set_security_level(sslctx,1);
         result = SSL_CTX_use_certificate(sslctx, x509);
-        SSL_CTX_set_security_level(sslctx,ssl_security_level);	// restore right away
+
+        // If not commented out, this line will prevent RS from connecting to friends when the cert signature is SHA1.
+        // SSL_CTX_set_security_level(sslctx,ssl_security_level);	// restore right away
 
         if(result != 1)
         {
