@@ -508,7 +508,7 @@ bool AuthSSLimpl::InitAuth(
             return false;
         }
 
-        RsErr() << "Trying with securoty level 1:" ;
+        RsErr() << "Trying with security level 1:" ;
         // Try with security level 1, to keep compatibility with old certificates.
         SSL_CTX_set_security_level(sslctx,1);
         result = SSL_CTX_use_certificate(sslctx, x509);
