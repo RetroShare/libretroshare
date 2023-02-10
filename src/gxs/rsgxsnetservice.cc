@@ -306,7 +306,6 @@ static const uint32_t SECURITY_DELAY_TO_FORCE_CLIENT_REUPDATE =         3600; //
 static const uint32_t REJECTED_MESSAGE_RETRY_DELAY            =      24*3600; // re-try rejected messages every 24hrs. Most of the time this is because the peer's reputation has changed.
 static const uint32_t GROUP_STATS_UPDATE_DELAY                =          240; // update unsubscribed group statistics every 3 mins
 static const uint32_t GROUP_STATS_UPDATE_NB_PEERS             =            2; // number of peers to which the group stats are asked
-static const uint32_t MAX_ALLOWED_GXS_MESSAGE_SIZE            =       199000; // 200,000 bytes including signature and headers
 static const uint32_t MIN_DELAY_BETWEEN_GROUP_SEARCH          =           40; // dont search same group more than every 40 secs.
 static const uint32_t SAFETY_DELAY_FOR_UNSUCCESSFUL_UPDATE    =            0; // avoid re-sending the same msg list to a peer who asks twice for the same update in less than this time
 

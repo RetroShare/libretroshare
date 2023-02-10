@@ -28,6 +28,8 @@
 #include "rsgxsifacetypes.h"
 #include "serialiser/rsserializable.h"
 
+static const uint32_t MAX_ALLOWED_GXS_MESSAGE_SIZE = 220000; // 200,000 bytes plus signature and headers
+
 struct RsGxsFile : RsSerializable
 {
 	RsGxsFile();
