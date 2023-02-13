@@ -618,6 +618,10 @@ private:
 
 	// keep a list of regular contacts. This is useful to sort IDs, and allow some services to priviledged ids only.
 	std::set<RsGxsId> mContacts;
+
+    // temporary list of identities which authentication failed, so that we do not ask for them again in the same session.
+    std::set<RsGxsId> mRejectedIdentities;
+
 	RsNetworkExchangeService* mNes;
 
 	/**************************

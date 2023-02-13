@@ -3418,6 +3418,13 @@ void RsGenExchange::processRecvdGroups()
 #ifdef GEN_EXCH_DEBUG
 			std::cerr << "  failed to validate incoming meta, grpId: " << grp->grpId << ": wrong signature" << std::endl;
 #endif
+            RsGxsGroupChange* c = new RsGxsGroupChange(RsGxsNotify::TYPE_GROUP_AUTH_REJECTED, grp->grpId, false);
+
+            // No need to bring the internal data for now, since this is only used to keep a list of faulty groups so as not to re-ask them again.
+            // c->mNewGroupItem = dynamic_cast<RsGxsGrpItem*>(mSerialiser->deserialise(Grp->grp.bin_data,&Grp->grp.bin_len));
+
+            mNotifications.push_back(c);
+
 			delete grp;
 		}
 		else  if(ret == VALIDATE_FAIL_TRY_LATER)
@@ -3536,7 +3543,16 @@ void RsGenExchange::performUpdateValidation()
 			grps.push_back(gu.newGrp);
 		}
 		else
-		{
+        {
+            RsWarn() << "Received a faulty update for group " << gu.newGrp->metaData->mGroupId << ": notifying the client." ;
+
+            RsGxsGroupChange* c = new RsGxsGroupChange(RsGxsNotify::TYPE_GROUP_AUTH_REJECTED, gu.newGrp->metaData->mGroupId, false);
+
+            // No need to bring the internal data for now, since this is only used to keep a list of faulty groups so as not to re-ask them again.
+            // c->mNewGroupItem = dynamic_cast<RsGxsGrpItem*>(mSerialiser->deserialise(Grp->grp.bin_data,&Grp->grp.bin_len));
+
+            mNotifications.push_back(c);
+
 			delete gu.newGrp;    // delete here because mDataStore will not take care of this one.  no need to delete mit->second, as it will be deleted automatically in the temporary map
 			gu.newGrp = NULL ;
 		}

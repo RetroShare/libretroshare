@@ -654,6 +654,10 @@ void p3IdService::notifyChanges(std::vector<RsGxsNotify *> &changes)
 					case RsGxsNotify::TYPE_PROCESSED:	break ; // Happens when the group is subscribed. This is triggered by RsGenExchange::subscribeToGroup, so better not
                         										// call it again from here!!
 
+                    case RsGxsNotify::TYPE_GROUP_AUTH_REJECTED:
+                        mRejectedIdentities.insert(RsGxsId(groupChange->mGroupId));
+                        break;
+
                     case RsGxsNotify::TYPE_UPDATED:
                     case RsGxsNotify::TYPE_PUBLISHED:
                     {
@@ -3057,17 +3061,20 @@ void p3IdService::requestIdsFromNet()
 	 * that have empty peer list */
 
 	for(cit = mIdsNotPresent.begin(); cit != mIdsNotPresent.end();)
-	{
+    {
 #ifdef DEBUG_IDS
 		Dbg2() << __PRETTY_FUNCTION__ << " Processing missing key RsGxsId: " << cit->first << std::endl;
 #endif
         RsGxsIdCache data;
 
-		if(mKeyCache.fetch(cit->first,data))
+        if(mKeyCache.fetch(cit->first,data)
+                || rsReputations->isIdentityBanned(cit->first)
+                || mRejectedIdentities.find(cit->first)!=mRejectedIdentities.end())
         {
 #ifdef DEBUG_IDS
 			std::cerr << __PRETTY_FUNCTION__ << ". Dropping request for ID " << cit->first << " at last minute, because it was found in cache"<< std::endl;
 #endif
+            std::cerr << __PRETTY_FUNCTION__ << ". Dropping request for ID " << cit->first << " at last minute, because it was found in cache"<< std::endl;
             auto tmp(cit);
             ++tmp;
             mIdsNotPresent.erase(cit);

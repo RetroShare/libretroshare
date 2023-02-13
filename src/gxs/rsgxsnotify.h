@@ -49,6 +49,7 @@ public:
         TYPE_MESSAGE_DELETED                   = 0x08,
         TYPE_GROUP_DELETED                     = 0x09,
         TYPE_GROUP_SYNC_PARAMETERS_UPDATED     = 0x0a,
+        TYPE_GROUP_AUTH_REJECTED               = 0x0b,
     };
 
 	virtual NotifyType getType() = 0;
