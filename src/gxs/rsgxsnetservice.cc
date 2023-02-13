@@ -275,12 +275,12 @@
  	NXS_NET_DEBUG_9		gxs distant search
 
  ***/
-//#define NXS_NET_DEBUG_0 	1
-//#define NXS_NET_DEBUG_1 	1
+#define NXS_NET_DEBUG_0 	1
+#define NXS_NET_DEBUG_1 	1
 //#define NXS_NET_DEBUG_2 	1
 //#define NXS_NET_DEBUG_3 	1
 //#define NXS_NET_DEBUG_4 	1
-//#define NXS_NET_DEBUG_5 	1
+#define NXS_NET_DEBUG_5 	1
 //#define NXS_NET_DEBUG_6 	1
 //#define NXS_NET_DEBUG_7 	1
 //#define NXS_NET_DEBUG_8 	1
@@ -322,9 +322,9 @@ static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_GXS_KEY_MISSING     = 0x05 ;
  || defined(NXS_NET_DEBUG_4) || defined(NXS_NET_DEBUG_5) || defined(NXS_NET_DEBUG_6)  || defined(NXS_NET_DEBUG_7) \
  || defined(NXS_NET_DEBUG_8) || defined(NXS_NET_DEBUG_9)
 
-static const RsPeerId     peer_to_print     = RsPeerId();//std::string("a97fef0e2dc82ddb19200fb30f9ac575"))   ;
+static const RsPeerId     peer_to_print     ( std::string("9efb37ae349c7712bc0e981738557266"))   ;
 static const RsGxsGroupId group_id_to_print = RsGxsGroupId();//std::string("66052380f5d1d0c5992e2b55dc402ce6")) ;	// use this to allow to this group id only, or "" for all IDs
-static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_CHANNELS;                       	// use this to allow to this service id only, or 0 for all services
+static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_GXSID;                       	// use this to allow to this service id only, or 0 for all services
 										// warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
 
 class nullstream: public std::ostream {};
