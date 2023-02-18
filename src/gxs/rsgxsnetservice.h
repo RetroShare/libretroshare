@@ -97,6 +97,7 @@ public:
       			  const RsServiceInfo serviceInfo,
       			  RsGixsReputation* reputations = NULL, RsGcxs* circles = NULL, RsGixs *gixs=NULL,
       			  PgpAuxUtils *pgpUtils = NULL, RsGxsNetTunnelService *mGxsNT = NULL,
+                    bool sendOldMsgVersions = true,
       			  bool grpAutoSync = true, bool msgAutoSync = true,bool distSync=false,
 	                uint32_t default_store_period = RS_GXS_DEFAULT_MSG_STORE_PERIOD,
 	                uint32_t default_sync_period = RS_GXS_DEFAULT_MSG_REQ_PERIOD);
@@ -626,6 +627,7 @@ private:
     PgpAuxUtils *mPgpUtils;
 	RsGxsNetTunnelService *mGxsNetTunnel;
 
+    bool mSyncOldMsgVersions;
     bool mGrpAutoSync;
     bool mAllowMsgSync;
     bool mAllowDistSync;

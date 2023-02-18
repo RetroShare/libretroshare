@@ -344,6 +344,15 @@ struct RsGxsIface
     virtual uint32_t getStoragePeriod(const RsGxsGroupId& grpId) = 0;
     virtual void     setStoragePeriod(const RsGxsGroupId& grpId,uint32_t age_in_secs) = 0;
 
+    /*!
+     * \brief keepOldMsgVersions
+     * 			Overload this in order to force the deletion of old versions of messages.
+     * \return
+     * 			true  = keep old message versions (e.g. forums)
+     * 			false = delete old message versions (e.g. channels)
+     */
+    virtual bool     keepOldMsgVersions() const { return true ; }
+
     virtual uint32_t getDefaultSyncPeriod() = 0;
     virtual uint32_t getSyncPeriod(const RsGxsGroupId& grpId) = 0;
     virtual void     setSyncPeriod(const RsGxsGroupId& grpId,uint32_t age_in_secs) = 0;

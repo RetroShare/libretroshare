@@ -99,7 +99,7 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
             GxsMsgMetaResult::iterator mit = result.begin();
 
 #ifdef DEBUG_GXSUTIL
-            GXSUTIL_DEBUG() << "  Cleaning up group message for group ID " << grpId << std::endl;
+            GXSUTIL_DEBUG() << "  Cleaning up messages for group ID " << grpId << std::endl;
 #endif
             uint32_t store_period = mGenExchangeClient->getStoragePeriod(grpId) ;
 
@@ -112,10 +112,15 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
                 // end the message tree will be deleted slice after slice, which should still be reasonnably fast.
                 //
                 std::set<RsGxsMessageId> messages_with_kids ;
+                std::set<RsGxsMessageId> messages_old_versions ;
 
                 for( uint32_t i=0;i<metaV.size();++i)
                     if(!metaV[i]->mParentId.isNull())
                         messages_with_kids.insert(metaV[i]->mParentId) ;
+
+                for( uint32_t i=0;i<metaV.size();++i)
+                    if(!metaV[i]->mOrigMsgId.isNull() && metaV[i]->mOrigMsgId != metaV[i]->mMsgId)	// in some situations, mOrigMsgId is initialized, but equal to the sgId itself
+                        messages_old_versions.insert(metaV[i]->mOrigMsgId) ;
 
                 for( uint32_t i=0;i<metaV.size();++i)
                 {
@@ -123,13 +128,13 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
 
                     bool have_kids = (messages_with_kids.find(meta->mMsgId)!=messages_with_kids.end());
 
-                    // check if expired
+                    // Check if expired
                     bool remove = store_period > 0 && ((meta->mPublishTs + store_period) < now) && !have_kids;
 
-                    // check client does not want the message kept regardless of age
-                    remove &= !(meta->mMsgStatus & GXS_SERV::GXS_MSG_STATUS_KEEP_FOREVER);
+                    // Check client does not want the message kept regardless of age
+                    remove = remove && !(meta->mMsgStatus & GXS_SERV::GXS_MSG_STATUS_KEEP_FOREVER);
 
-                    // if not subscribed remove messages (can optimise this really)
+                    // If not subscribed remove messages (can optimise this really)
                     remove = remove ||  (grpMeta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_NOT_SUBSCRIBED);
                     remove = remove || !(grpMeta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED);
 
@@ -138,6 +143,10 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
                                     << " subscribed: " << bool(grpMeta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED) << " store_period: " << store_period
                                     << " kids: " << have_kids << " now - meta->mPublishTs: " << now - meta->mPublishTs ;
 #endif
+                    // Only keep old messages if the client service asks for it.
+
+                    if(!mGenExchangeClient->keepOldMsgVersions() && messages_old_versions.find(meta->mMsgId)!=messages_old_versions.end())
+                        remove = true;
 
                     if( remove )
                     {
@@ -150,7 +159,6 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
                     else
                         std::cerr << std::endl;
 #endif
-                    //delete meta;
                 }
             }
         }

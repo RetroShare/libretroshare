@@ -96,8 +96,7 @@ typedef std::map<RsGxsGrpMsgIdPair, std::vector<RsGxsMsgItem*> > GxsMsgRelatedDa
 
 class RsGixs;
 
-class RsGenExchange : public RsNxsObserver, public RsTickingThread,
-        public RsGxsIface
+class RsGenExchange : public RsNxsObserver, public RsTickingThread, public RsGxsIface
 {
 public:
 

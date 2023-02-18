@@ -79,6 +79,7 @@ protected:
     virtual RsGenExchange::ServiceCreate_Return service_CreateGroup(RsGxsGrpItem* grpItem, RsTlvSecurityKeySet& keySet) override;
 
     virtual void notifyChanges(std::vector<RsGxsNotify*>& changes) override;
+    virtual bool keepOldMsgVersions() const override { return false ; }
 
     // Overloaded from RsTickEvent.
     virtual void handle_event(uint32_t event_type, const std::string &elabel) override;
