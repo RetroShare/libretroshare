@@ -37,6 +37,19 @@
 #include "pqi/p3cfgmgr.h"
 #include "rsgixs.h"
 
+enum class RsGxsNetServiceSyncFlags:uint32_t {
+    NONE                    = 0x0000,
+    AUTO_SYNC_MESSAGES      = 0x0001,
+    AUTO_SYNC_GROUPS        = 0x0002,
+    SYNC_OLD_MSG_VERSIONS   = 0x0004,
+    DISTANT_SYNC            = 0x0008,
+};
+RS_REGISTER_ENUM_FLAGS_TYPE(RsGxsNetServiceSyncFlags)
+
+static const RsGxsNetServiceSyncFlags RS_GXS_NET_SERVICE_DEFAULT_SYNC_FLAGS = RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS
+                                                                            | RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES
+                                                                            | RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS;
+
 /// keep track of transaction number
 typedef std::map<uint32_t, NxsTransaction*> TransactionIdMap;
 
@@ -97,8 +110,7 @@ public:
       			  const RsServiceInfo serviceInfo,
       			  RsGixsReputation* reputations = NULL, RsGcxs* circles = NULL, RsGixs *gixs=NULL,
       			  PgpAuxUtils *pgpUtils = NULL, RsGxsNetTunnelService *mGxsNT = NULL,
-                    bool sendOldMsgVersions = true,
-      			  bool grpAutoSync = true, bool msgAutoSync = true,bool distSync=false,
+                  RsGxsNetServiceSyncFlags sync_flags = RS_GXS_NET_SERVICE_DEFAULT_SYNC_FLAGS,
 	                uint32_t default_store_period = RS_GXS_DEFAULT_MSG_STORE_PERIOD,
 	                uint32_t default_sync_period = RS_GXS_DEFAULT_MSG_REQ_PERIOD);
 
@@ -129,8 +141,8 @@ public:
     virtual void setDefaultKeepAge(uint32_t t) override { mDefaultMsgStorePeriod = t ; }
     virtual void setDefaultSyncAge(uint32_t t) override { mDefaultMsgSyncPeriod = t ; }
 
-    virtual bool msgAutoSync() const override { return mAllowMsgSync; }
-    virtual bool grpAutoSync() const override { return mGrpAutoSync; }
+    virtual bool msgAutoSync() const override { return !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES); }
+    virtual bool grpAutoSync() const override { return !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS); }
 
 	/// @see RsNetworkExchangeService
 	std::error_condition distantSearchRequest(
@@ -627,10 +639,7 @@ private:
     PgpAuxUtils *mPgpUtils;
 	RsGxsNetTunnelService *mGxsNetTunnel;
 
-    bool mSyncOldMsgVersions;
-    bool mGrpAutoSync;
-    bool mAllowMsgSync;
-    bool mAllowDistSync;
+    RsGxsNetServiceSyncFlags mSyncFlags;
 
     // need to be verfied
     std::vector<AuthorPending*> mPendingResp;

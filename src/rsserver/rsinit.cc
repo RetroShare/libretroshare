@@ -1296,10 +1296,11 @@ int RsServer::StartupRetroShare()
 			mGxsIdService, mGxsIdService->getServiceInfo(),
 			mReputations, mGxsCircles,mGxsIdService,
             pgpAuxUtils,mGxsNetTunnel,
-                    true,	// sync old versions of msgs. Not really useful here because msgs are not sync-ed anyway, but this is the default.
-            false,false,true); // don't synchronise group automatic (need explicit group request)
-                        // don't sync messages at all.
-						// allow distsync, so that we can grab GXS id requests for other services
+            // sync old versions of msgs. Not really useful here because msgs are not sync-ed anyway, but this is the default.
+            // don't synchronise group automatic (need explicit group request)
+            // don't sync messages at all.
+            // allow distsync, so that we can grab GXS id requests for other services
+            RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS | RsGxsNetServiceSyncFlags::DISTANT_SYNC);
 
         // Normally we wouldn't need this (we do in other service):
         //	mGxsIdService->setNetworkExchangeService(gxsid_ns) ;
@@ -1388,10 +1389,9 @@ int RsServer::StartupRetroShare()
 		            mGxsChannels, mGxsChannels->getServiceInfo(),
 		            mReputations, mGxsCircles,mGxsIdService,
                     pgpAuxUtils,mGxsNetTunnel,
-                    false,			// don't sync old versions of messages
-                    true,			// auto-sync groups
-                    true,			// auto-sync messages
-                    true);			// distant sync (default=false)
+                    RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS |
+                    RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES |
+                    RsGxsNetServiceSyncFlags::DISTANT_SYNC);			// distant sync (default=false), and don't sync old versions of messages
 
     mGxsChannels->setNetworkExchangeService(gxschannels_ns) ;
 
@@ -1454,7 +1454,9 @@ int RsServer::StartupRetroShare()
 	RsGxsNetService* gxstrans_ns = new RsGxsNetService(
 	            RS_SERVICE_TYPE_GXS_TRANS, gxstrans_ds, nxsMgr, mGxsTrans,
 	            mGxsTrans->getServiceInfo(), mReputations, mGxsCircles,
-                mGxsIdService, pgpAuxUtils,NULL,true,true,true,false,p3GxsTrans::GXS_STORAGE_PERIOD,p3GxsTrans::GXS_SYNC_PERIOD);
+                mGxsIdService, pgpAuxUtils,NULL,
+                RS_GXS_NET_SERVICE_DEFAULT_SYNC_FLAGS,
+                p3GxsTrans::GXS_STORAGE_PERIOD,p3GxsTrans::GXS_SYNC_PERIOD);
 
 	mGxsTrans->setNetworkExchangeService(gxstrans_ns);
 	pqih->addService(gxstrans_ns, true);
