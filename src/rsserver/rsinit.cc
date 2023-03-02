@@ -1383,7 +1383,9 @@ int RsServer::StartupRetroShare()
 
         p3GxsChannels *mGxsChannels = new p3GxsChannels(gxschannels_ds, NULL, mGxsIdService);
 
-        // create GXS photo service
+        // Create GXS photo service. For now, keep sync-ing old versions of posts. When the new usage of mOrigMsgId will be
+        // used on channels, removing the last flag will save lots of memory/network traffic.
+
         RsGxsNetService* gxschannels_ns = new RsGxsNetService(
 		            RS_SERVICE_GXS_TYPE_CHANNELS, gxschannels_ds, nxsMgr,
 		            mGxsChannels, mGxsChannels->getServiceInfo(),
@@ -1391,7 +1393,8 @@ int RsServer::StartupRetroShare()
                     pgpAuxUtils,mGxsNetTunnel,
                     RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS |
                     RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES |
-                    RsGxsNetServiceSyncFlags::DISTANT_SYNC);			// distant sync (default=false), and don't sync old versions of messages
+                    RsGxsNetServiceSyncFlags::DISTANT_SYNC |
+                    RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS);
 
     mGxsChannels->setNetworkExchangeService(gxschannels_ns) ;
 
