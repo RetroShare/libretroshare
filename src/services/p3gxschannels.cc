@@ -1525,6 +1525,7 @@ bool p3GxsChannels::createPostV2(
 	post.mMeta.mGroupId = channelId;
     post.mMeta.mOrigMsgId = top_level_parent;
 	post.mMeta.mMsgName = title;
+    post.mMeta.mAuthorId.clear();
     post.mMeta.mParentId.clear(); // very important because otherwise createMessageSignatures() will identify the post as a comment,and therefore require signature.
 
 	post.mMsg = body;

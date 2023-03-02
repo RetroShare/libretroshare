@@ -754,47 +754,45 @@ int RsGenExchange::createMsgSignatures(RsTlvKeySignatureSet& signSet, RsTlvBinar
 
     if (needIdentitySign)
     {
-        if(mGixs)
+        if(!mGixs)
+            return SIGN_FAIL;
+
+        if(msgMeta.mAuthorId.isNull())
         {
-            bool haveKey = mGixs->havePrivateKey(msgMeta.mAuthorId);
+            RsErr() << " Trying to sign a GXS message with a null author ID. The message will be dropped!" ;
+            return SIGN_FAIL;
+        }
 
-            if(haveKey)
-	    {
-		    RsTlvPrivateRSAKey authorKey;
-		    mGixs->getPrivateKey(msgMeta.mAuthorId, authorKey);
-		    RsTlvKeySignature sign;
+        bool haveKey = mGixs->havePrivateKey(msgMeta.mAuthorId);
 
-		    if(GxsSecurity::getSignature((char*)msgData.bin_data, msgData.bin_len, authorKey, sign))
-		    {
-			    id_ret = SIGN_SUCCESS;
-			    mGixs->timeStampKey(msgMeta.mAuthorId,RsIdentityUsage(RsServiceType(mServType),RsIdentityUsage::MESSAGE_AUTHOR_SIGNATURE_CREATION,msgMeta.mGroupId,msgMeta.mMsgId,msgMeta.mParentId,msgMeta.mThreadId)) ;
-			    signSet.keySignSet[INDEX_AUTHEN_IDENTITY] = sign;
-		    }
-		    else
-			    id_ret = SIGN_FAIL;
-	    }
-            else
+        if(haveKey)
+        {
+            RsTlvPrivateRSAKey authorKey;
+            mGixs->getPrivateKey(msgMeta.mAuthorId, authorKey);
+            RsTlvKeySignature sign;
+
+            if(GxsSecurity::getSignature((char*)msgData.bin_data, msgData.bin_len, authorKey, sign))
             {
-            	mGixs->requestPrivateKey(msgMeta.mAuthorId);
-
-#ifdef GEN_EXCH_DEBUG
-                std::cerr << "RsGenExchange::createMsgSignatures(): ";
-                std::cerr << " ERROR AUTHOR KEY: " <<  msgMeta.mAuthorId
-                		  << " is not Cached / available for Message Signing\n";
-                std::cerr << "RsGenExchange::createMsgSignatures():  Requestiong AUTHOR KEY";
-                std::cerr << std::endl;
-#endif
-
-                id_ret = SIGN_FAIL_TRY_LATER;
+                id_ret = SIGN_SUCCESS;
+                mGixs->timeStampKey(msgMeta.mAuthorId,RsIdentityUsage(RsServiceType(mServType),RsIdentityUsage::MESSAGE_AUTHOR_SIGNATURE_CREATION,msgMeta.mGroupId,msgMeta.mMsgId,msgMeta.mParentId,msgMeta.mThreadId)) ;
+                signSet.keySignSet[INDEX_AUTHEN_IDENTITY] = sign;
             }
+            else
+                id_ret = SIGN_FAIL;
         }
         else
         {
+            mGixs->requestPrivateKey(msgMeta.mAuthorId);
+
 #ifdef GEN_EXCH_DEBUG
-            std::cerr << "RsGenExchange::createMsgSignatures()";
-            std::cerr << "Gixs not enabled while request identity signature validation!" << std::endl;
+            std::cerr << "RsGenExchange::createMsgSignatures(): ";
+            std::cerr << " ERROR AUTHOR KEY: " <<  msgMeta.mAuthorId
+                      << " is not Cached / available for Message Signing\n";
+            std::cerr << "RsGenExchange::createMsgSignatures():  Requestiong AUTHOR KEY";
+            std::cerr << std::endl;
 #endif
-            id_ret = SIGN_FAIL;
+
+            id_ret = SIGN_FAIL_TRY_LATER;
         }
     }
     else
