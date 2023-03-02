@@ -692,8 +692,9 @@ public:
 	 * @return false on error, true otherwise
 	 */
 	RS_DEPRECATED_FOR(createCommentV2)
-	virtual bool createComment(RsGxsComment& comment) = 0;
+    virtual bool createComment(RsGxsComment& comment) override = 0;
 
+#ifdef TO_REMOVE
 	/**
 	 * @brief Create channel post. Blocking API.
 	 * @jsonapi{development}
@@ -716,6 +717,7 @@ public:
 	 */
 	RS_DEPRECATED_FOR(createPostV2)
 	virtual bool createPost(uint32_t& token, RsGxsChannelPost& post) = 0;
+#endif
 
 	/**
 	 * @brief Request channel change.

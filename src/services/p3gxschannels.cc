@@ -1499,6 +1499,8 @@ bool p3GxsChannels::createPostV2(
 		return false;
 	}
 
+    RsGxsMessageId top_level_parent ;	// left blank intentionaly
+
 	if(!origPostId.isNull())
 	{
 		std::set<RsGxsMessageId> s({origPostId});
@@ -1506,21 +1508,24 @@ bool p3GxsChannels::createPostV2(
 		std::vector<RsGxsComment> comments;
 		std::vector<RsGxsVote> votes;
 
-		if(!getChannelContent(channelId,s,posts,comments,votes))
+        if(!getChannelContent(channelId,s,posts,comments,votes) || posts.size()!=1)
 		{
 			errorMessage = "You cannot edit post " + origPostId.toStdString()
 			        + " of channel with Id " + channelId.toStdString()
 			        + ": this post does not exist locally!";
 			return false;
 		}
+
+        top_level_parent = posts[0].mMeta.mOrigMsgId;
 	}
 
 	// Create the post
 	RsGxsChannelPost post;
 
 	post.mMeta.mGroupId = channelId;
-	post.mMeta.mOrigMsgId = origPostId;
+    post.mMeta.mOrigMsgId = top_level_parent;
 	post.mMeta.mMsgName = title;
+    post.mMeta.mParentId.clear(); // very important because otherwise createMessageSignatures() will identify the post as a comment,and therefore require signature.
 
 	post.mMsg = body;
 	post.mFiles = files;
@@ -1543,7 +1548,7 @@ bool p3GxsChannels::createPostV2(
 		return true;
 	}
 
-	errorMessage = "Failed to retrive created post metadata";
+    errorMessage = "Failed to retrieve created post metadata";
 	return false;
 }
 
@@ -1929,6 +1934,7 @@ bool p3GxsChannels::updateGroup(uint32_t &token, RsGxsChannelGroup &group)
 	return true;
 }
 
+#ifdef TO_REMOVE
 /// @deprecated use createPostV2 instead
 bool p3GxsChannels::createPost(RsGxsChannelPost& post)
 {
@@ -1947,6 +1953,7 @@ bool p3GxsChannels::createPost(RsGxsChannelPost& post)
 
 	return false;
 }
+#endif
 
 
 bool p3GxsChannels::createPost(uint32_t &token, RsGxsChannelPost &msg)
