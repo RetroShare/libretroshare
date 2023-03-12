@@ -39,14 +39,14 @@
 
 enum class RsGxsNetServiceSyncFlags:uint32_t {
     NONE                    = 0x0000,
-    AUTO_SYNC_MESSAGES      = 0x0001,
-    AUTO_SYNC_GROUPS        = 0x0002,
-    SYNC_OLD_MSG_VERSIONS   = 0x0004,
-    DISTANT_SYNC            = 0x0008,
+    AUTO_SYNC_MESSAGES      = 0x0001,		// Automatically get new messages available at friends' nodes
+    DISCOVER_NEW_GROUPS     = 0x0002,		// Automatically get new groups available at friends' nodes. Doesn't impact group updates.
+    SYNC_OLD_MSG_VERSIONS   = 0x0004,		// Allow to sync old message versions (i.e. msgs that another msg which mOrigMsg points to)
+    DISTANT_SYNC            = 0x0008,		// Allow to sync through GXS tunnels. This only works for channels currently.
 };
 RS_REGISTER_ENUM_FLAGS_TYPE(RsGxsNetServiceSyncFlags)
 
-static const RsGxsNetServiceSyncFlags RS_GXS_NET_SERVICE_DEFAULT_SYNC_FLAGS = RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS
+static const RsGxsNetServiceSyncFlags RS_GXS_NET_SERVICE_DEFAULT_SYNC_FLAGS = RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS
                                                                             | RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES
                                                                             | RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS;
 
@@ -142,7 +142,7 @@ public:
     virtual void setDefaultSyncAge(uint32_t t) override { mDefaultMsgSyncPeriod = t ; }
 
     virtual bool msgAutoSync() const override { return !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES); }
-    virtual bool grpAutoSync() const override { return !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS); }
+    virtual bool grpAutoSync() const override { return !!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS); }
 
 	/// @see RsNetworkExchangeService
 	std::error_condition distantSearchRequest(

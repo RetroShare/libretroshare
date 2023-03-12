@@ -626,7 +626,8 @@ std::error_condition RsGxsNetService::checkUpdatesFromPeers(
 		generic_sendItem(grp);
 	}
 
-    if(!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES)) return std::error_condition();
+    if(!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES))
+        return std::error_condition();	// Not really an error, since we decide to stop here.
 
 #ifndef GXS_DISABLE_SYNC_MSGS
 
@@ -780,7 +781,7 @@ void RsGxsNetService::generic_sendItem(rs_owner_ptr<RsItem> si)
 
 void RsGxsNetService::checkDistantSyncState()
 {
-    if((!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) || mGxsNetTunnel==NULL || !(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS))
+    if((!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) || mGxsNetTunnel==NULL || !(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS))
 		return ;
 
 	RsGxsGrpMetaTemporaryMap grpMeta;
@@ -2540,7 +2541,7 @@ bool RsGxsNetService::getGroupNetworkStats(const RsGxsGroupId& gid,RsGroupNetwor
     stats.mSuppliers = it->second.suppliers.ids.size();
     stats.mMaxVisibleCount = it->second.max_visible_count ;
     stats.mAllowMsgSync = !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES) ;
-    stats.mGrpAutoSync = !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS) ;
+    stats.mGrpAutoSync = !!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS) ;
     stats.mLastGroupModificationTS = it->second.last_group_modification_TS ;
 
     return true ;
@@ -3275,10 +3276,10 @@ void RsGxsNetService::locked_genReqGrpTransaction(NxsTransaction* tr)
 			continue ;
 		}
 
-        if( (!!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS) && !haveItem) || latestVersion)
+        if( (!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS) && !haveItem) || latestVersion)
         {
 #ifdef NXS_NET_DEBUG_0
-            GXSNETDEBUG_PG(tr->mTransaction->PeerId(),grpId) << "  Identity " << grpId << " will be sync-ed using GXS. mGrpAutoSync:" << !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS) << " haveItem:" << haveItem << " latest_version: " << latestVersion << std::endl;
+            GXSNETDEBUG_PG(tr->mTransaction->PeerId(),grpId) << "  Identity " << grpId << " will be sync-ed using GXS. mGrpAutoSync:" << !!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS) << " haveItem:" << haveItem << " latest_version: " << latestVersion << std::endl;
 #endif
 			addGroupItemToList(tr, grpId, transN, reqList);
         }

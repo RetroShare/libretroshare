@@ -1391,7 +1391,7 @@ int RsServer::StartupRetroShare()
 		            mGxsChannels, mGxsChannels->getServiceInfo(),
 		            mReputations, mGxsCircles,mGxsIdService,
                     pgpAuxUtils,mGxsNetTunnel,
-                    RsGxsNetServiceSyncFlags::AUTO_SYNC_GROUPS |
+                    RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
                     RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES |
                     RsGxsNetServiceSyncFlags::DISTANT_SYNC |
                     RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS);
