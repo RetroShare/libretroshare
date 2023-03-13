@@ -1516,8 +1516,15 @@ bool p3GxsChannels::createPostV2(
 			return false;
 		}
 
+        // All post versions should have the same mOrigMsgId, so we copy that of the post we're editing.
+        // The edited post may not have an original post ID if it is itself the first version. In this case, the
+        // mOrigId is set to be the ID of the edited post.
+
         top_level_parent = posts[0].mMeta.mOrigMsgId;
-	}
+
+        if(top_level_parent.isNull())
+            top_level_parent = origPostId;
+    }
 
 	// Create the post
 	RsGxsChannelPost post;
