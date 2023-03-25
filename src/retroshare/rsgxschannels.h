@@ -73,7 +73,7 @@ struct RsGxsChannelPost : RsSerializable, RsGxsGenericMsgData
 {
     RsGxsChannelPost() : mAttachmentCount(0), mCommentCount(0), mUnreadCommentCount(0), mSize(0) {}
 
-	std::set<RsGxsMessageId> mOlderVersions;
+    std::set<RsGxsMessageId> mOlderVersions; // older versions of this post *including* the post itself.
 	std::string mMsg;  // UTF8 encoded.
 
 	std::list<RsGxsFile> mFiles;
@@ -129,8 +129,9 @@ struct RsGxsChannelEvent: RsEvent
 
 	RsChannelEventCode mChannelEventCode;
 	RsGxsGroupId mChannelGroupId;
-	RsGxsMessageId mChannelMsgId;
-    RsGxsMessageId mChannelThreadId;
+    RsGxsMessageId mChannelMsgId;			// Id of the message/comment/vote
+    RsGxsMessageId mChannelThreadId;		// for votes/comments, Id of the relevant message
+    RsGxsMessageId mChannelParentId;		// for comments, Id of the parent comment
 
 	///* @see RsEvent @see RsSerializable
 	void serial_process( RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
@@ -140,7 +141,9 @@ struct RsGxsChannelEvent: RsEvent
 		RS_SERIAL_PROCESS(mChannelEventCode);
 		RS_SERIAL_PROCESS(mChannelGroupId);
 		RS_SERIAL_PROCESS(mChannelMsgId);
-	}
+        RS_SERIAL_PROCESS(mChannelThreadId);
+        RS_SERIAL_PROCESS(mChannelParentId);
+    }
 };
 
 // This event is used to factor multiple search results notifications in a single event.
