@@ -1902,8 +1902,8 @@ void p3GxsChannels::setMessageReadStatus_deprecated(uint32_t &token, const RsGxs
 
 		ev->mChannelMsgId = msgId.second;
 		ev->mChannelGroupId = msgId.first;
-		ev->mChannelEventCode = RsChannelEventCode::READ_STATUS_CHANGED;
-		rsEvents->postEvent(ev);
+        ev->mChannelEventCode = RsChannelEventCode::READ_STATUS_CHANGED;
+        rsEvents->postEvent(ev);
 	}
 }
 
