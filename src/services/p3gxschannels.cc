@@ -263,10 +263,18 @@ void p3GxsChannels::notifyChanges(std::vector<RsGxsNotify *> &changes)
 					ev->mChannelGroupId = msgChange->mGroupId;
 
                     if(nullptr != dynamic_cast<RsGxsCommentItem*>(msgChange->mNewMsgItem))
+                    {
                         ev->mChannelEventCode = RsChannelEventCode::NEW_COMMENT;
+                        ev->mChannelThreadId = msgChange->mNewMsgItem->meta.mThreadId;
+
+                    }
                     else
                         if(nullptr != dynamic_cast<RsGxsVoteItem*>(msgChange->mNewMsgItem))
+                        {
                             ev->mChannelEventCode = RsChannelEventCode::NEW_VOTE;
+                            ev->mChannelThreadId = msgChange->mNewMsgItem->meta.mThreadId;
+                            ev->mChannelParentId = msgChange->mNewMsgItem->meta.mParentId;
+                        }
                         else
                             ev->mChannelEventCode = RsChannelEventCode::NEW_MESSAGE;
 
@@ -1894,8 +1902,8 @@ void p3GxsChannels::setMessageReadStatus_deprecated(uint32_t &token, const RsGxs
 
 		ev->mChannelMsgId = msgId.second;
 		ev->mChannelGroupId = msgId.first;
-		ev->mChannelEventCode = RsChannelEventCode::READ_STATUS_CHANGED;
-		rsEvents->postEvent(ev);
+        ev->mChannelEventCode = RsChannelEventCode::READ_STATUS_CHANGED;
+        rsEvents->postEvent(ev);
 	}
 }
 
