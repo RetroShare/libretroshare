@@ -44,6 +44,8 @@ struct RsGxsFile : RsSerializable
 		RS_SERIAL_PROCESS(mSize);
 	}
 
+    bool operator<(const RsGxsFile& f) const { return mHash < f.mHash; }
+
 	void clear()
 	{
 		mName.clear();
