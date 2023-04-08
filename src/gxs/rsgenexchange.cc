@@ -682,8 +682,12 @@ int RsGenExchange::createMsgSignatures(RsTlvKeySignatureSet& signSet, RsTlvBinar
         auto mit = keys.private_keys.begin(), mit_end = keys.private_keys.end();
         bool publish_key_found = false;
         
-        for(; (mit != mit_end) && !publish_key_found; ++mit)
-            publish_key_found = (mit->second.keyFlags == (RSTLV_KEY_DISTRIB_PUBLISH | RSTLV_KEY_TYPE_FULL));
+        for(; (mit != mit_end); ++mit)
+            if(mit->second.keyFlags == (RSTLV_KEY_DISTRIB_PUBLISH | RSTLV_KEY_TYPE_FULL))
+            {
+                publish_key_found = true;
+                break;
+            }
 
         if (publish_key_found)
         {
