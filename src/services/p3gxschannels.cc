@@ -27,7 +27,7 @@
 
 #include <retroshare/rsidentity.h>
 #include <retroshare/rsfiles.h>
-
+#include <retroshare/rsconfig.h>
 
 #include "retroshare/rsgxsflags.h"
 #include "retroshare/rsfiles.h"
@@ -67,7 +67,6 @@
 #define DUMMYDATA_PERIOD		60	// Long enough for some RsIdentities to be generated.
 
 #define CHANNEL_DOWNLOAD_PERIOD 	                        (3600 * 24 * 7)
-#define CHANNEL_MAX_AUTO_DL		                            (8 * 1024 * 1024 * 1024ull)	// 8 GB. Just a security ;-)
 #define	CHANNEL_UNUSED_BY_FRIENDS_DELAY                     (3600*24*60)                // Two months. Will be used to delete a channel if too old
 #define CHANNEL_DELAY_FOR_CHECKING_AND_DELETING_OLD_GROUPS   300                       // check for old channels every 30 mins. Far too often than above delay by RS needs to run it at least once per session
 
@@ -191,6 +190,15 @@ bool p3GxsChannels::saveList(bool &cleanup, std::list<RsItem *>&saveList)
 	}
 
 	saveList.push_back(item) ;
+
+    // Saving the maximum auto download size to the configuration
+    RsConfigKeyValueSet *vitem = new RsConfigKeyValueSet ;
+    RsTlvKeyValue kv;
+    kv.key = "MAX_AUTO_DOWNLOAD_SIZE" ;
+    kv.value = RsUtil::NumberToString(mMaxAutoDownloadSize) ;
+    vitem->tlvkvs.pairs.push_back(kv) ;
+    saveList.push_back(vitem);
+
 	return true;
 }
 
@@ -215,6 +223,16 @@ bool p3GxsChannels::loadList(std::list<RsItem *>& loadList)
 					mKnownChannels.insert(*it) ;
 		}
 
+        // Loading the maximum auto download size from the configuration
+        RsConfigKeyValueSet *vitem = dynamic_cast<RsConfigKeyValueSet*>(item);
+
+        if(vitem && vitem->tlvkvs.pairs.size() > 0 && vitem->tlvkvs.pairs.front().key == "MAX_AUTO_DOWNLOAD_SIZE")
+        {
+            uint64_t temp;
+            temp=stoull(vitem->tlvkvs.pairs.front().value);
+            setMaxAutoDownloadSizeLimit(temp);
+        }
+
 		delete item ;
 	}
 	return true;
@@ -224,6 +242,9 @@ RsSerialiser* p3GxsChannels::setupSerialiser()
 {
 	RsSerialiser* rss = new RsSerialiser;
 	rss->addSerialType(new GxsChannelsConfigSerializer());
+
+    // Used by the auto download size variable in channels
+    rss->addSerialType(new RsGeneralConfigSerialiser());
 
 	return rss;
 }
@@ -1113,7 +1134,8 @@ void p3GxsChannels::handleUnprocessedPost(const RsGxsChannelPost &msg)
             std::string localpath = "";
             TransferRequestFlags flags = RS_FILE_REQ_BACKGROUND | RS_FILE_REQ_ANONYMOUS_ROUTING;
 
-            if (size < CHANNEL_MAX_AUTO_DL)
+            // Checking that the current file's size is less than the maximum auto download size chosen by user
+            if (size < mMaxAutoDownloadSize)
             {
                 std::string directory ;
                 if(getChannelDownloadDirectory(msg.mMeta.mGroupId,directory))
@@ -1124,7 +1146,7 @@ void p3GxsChannels::handleUnprocessedPost(const RsGxsChannelPost &msg)
 			else
 				std::cerr << __PRETTY_FUNCTION__ << "Channel file is not auto-"
 				          << "downloaded because its size exceeds the threshold"
-				          << " of " << CHANNEL_MAX_AUTO_DL << " bytes."
+                          << " of " << mMaxAutoDownloadSize << " bytes."
 				          << std::endl;
         }
     }
@@ -2715,5 +2737,18 @@ bool p3GxsChannels::vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::strin
         return false;
     }
 
+    return true;
+}
+
+// Function to retrieve the maximum size allowed for auto download in channels
+bool p3GxsChannels::getMaxAutoDownloadSizeLimit(uint64_t& store){
+    store=mMaxAutoDownloadSize;
+    return true;
+}
+
+// Function to update the maximum size allowed for auto download in channels
+bool p3GxsChannels::setMaxAutoDownloadSizeLimit(uint64_t size){
+    mMaxAutoDownloadSize=size;
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_WHEN_CLOSING);
     return true;
 }
