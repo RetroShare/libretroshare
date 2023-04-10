@@ -553,7 +553,7 @@ public:
      *          data request ongoing and data available
      */
     virtual DistantSearchGroupStatus getDistantSearchStatus(const RsGxsGroupId& group_id) =0;
-
+    
     /**
 	 * @brief Clear accumulated search results
 	 * @jsonapi{development}
@@ -561,6 +561,21 @@ public:
 	 * @return false on error, true otherwise
 	 */
 	virtual bool clearDistantSearchResults(TurtleRequestId reqId) = 0;
+
+    /**
+     * @brief getMaxAutoDownloadSizeLimit
+     * 			retrieves the maximum size allowed for auto download in channels
+     */
+    virtual bool getMaxAutoDownloadSizeLimit(uint64_t& store)=0;
+
+    /**
+     * @brief setMaxAutoDownloadSizeLimit
+     * 			updates the maximum size allowed for
+     *
+     *  auto download in channels
+     */
+    virtual bool setMaxAutoDownloadSizeLimit(uint64_t size)=0;
+
 
 	~RsGxsChannels() override;
 
