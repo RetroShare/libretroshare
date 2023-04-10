@@ -25,9 +25,9 @@
 #include "util/radix64.h"
 #include "util/rsmemory.h"
 
-#include <retroshare/rsidentity.h>
-#include <retroshare/rsfiles.h>
-#include <retroshare/rsconfig.h>
+#include "retroshare/rsidentity.h"
+#include "retroshare/rsfiles.h"
+#include "retroshare/rsconfig.h"
 
 #include "retroshare/rsgxsflags.h"
 #include "retroshare/rsfiles.h"
