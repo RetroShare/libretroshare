@@ -71,6 +71,7 @@ class RsGxsIdExchange;
 class RsGcxs;
 class PgpAuxUtils;
 class p3Config;
+class RsPosted;
 
 namespace resource_api
 {
@@ -125,6 +126,7 @@ public:
     RsUtil::inited_ptr<RsGxsChannels>   mGxsChannels;
     RsUtil::inited_ptr<RsGxsTunnelService>    mGxsTunnels;
     RsUtil::inited_ptr<RsReputations>   mReputations;
+    RsUtil::inited_ptr<RsPosted>        mPosted;
 };
 
 class RsPlugin
