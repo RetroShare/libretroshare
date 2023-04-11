@@ -24,9 +24,12 @@
 
 
 #include "retroshare/rsgxschannels.h"
+
 #include "services/p3gxscommon.h"
+
 #include "gxs/rsgenexchange.h"
 #include "gxs/gxstokenqueue.h"
+
 #include "util/rsmemory.h"
 #include "util/rsdebug.h"
 #include "util/rstickevent.h"
@@ -34,6 +37,8 @@
 #include <map>
 #include <string>
 
+// This macro defines 8gb as the default value for auto download in channels
+#define CHANNEL_MAX_AUTO_DL		                            (8 * 1024 * 1024 * 1024ull)	// 8 GB. Just a security ;-)
 
 // This class is only a helper to parse the channel group service string.
 
@@ -395,6 +400,18 @@ private:
     rstime_t mLastDistantSearchNotificationTS;
 
     std::map<TurtleRequestId,std::set<RsGxsGroupId> > mSearchResultsToNotify;
+
+    // Variable for storing the size allowed for auto download in channels (initialized with 8 gb)
+    uint64_t mMaxAutoDownloadSize = CHANNEL_MAX_AUTO_DL;
+
+    public:
+
+        // Function to retrieve the maximum size allowed for auto download in channels
+        virtual bool getMaxAutoDownloadSizeLimit(uint64_t& store) override;
+
+        // Function to update the maximum size allowed for auto download in channels
+        virtual bool setMaxAutoDownloadSizeLimit(uint64_t size) override;
+
 #ifdef TO_REMOVE
     /** Store search callbacks with timeout*/
     std::map<
