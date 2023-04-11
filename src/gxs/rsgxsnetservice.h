@@ -135,6 +135,8 @@ public:
     virtual uint32_t getSyncAge(const RsGxsGroupId& id)override ;
     virtual uint32_t getKeepAge(const RsGxsGroupId& id)override ;
 
+    virtual bool syncOldMsgVersions() override { return !!(mSyncFlags & RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS) ; }
+
     virtual uint32_t getDefaultSyncAge() override { return mDefaultMsgSyncPeriod ; }
     virtual uint32_t getDefaultKeepAge() override { return mDefaultMsgStorePeriod ; }
 
