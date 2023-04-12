@@ -246,6 +246,26 @@ win32-g++|win32-clang-g++ {
     libretroshare_shared {
         # Exclude exported symbols from libraries to avoid linker error "export ordinal too large"
         QMAKE_LFLAGS *= -Wl,--exclude-libs,libops.a
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libbitdht.a
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,librestbed.a
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libudp-discovery.a
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libz
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libbz2
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,librestbed
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libsam3
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libwsock32
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libsqlcipher
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,liblssl
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libcrypto
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libpthread
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libminiupnpc
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libws2_32
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libgdi32
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libuuid
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libiphlpapi
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libcrypt32
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libole32
+        QMAKE_LFLAGS *= -Wl,--exclude-libs,libwinmm
     } else {
         DEFINES *= STATICLIB
     }
