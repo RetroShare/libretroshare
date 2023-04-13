@@ -1281,7 +1281,7 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
-	if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token) != RsTokenService::COMPLETE )
+    if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
 		return false;
 
 	return getPostData(token, posts, comments,votes);
