@@ -367,8 +367,9 @@ RsGxsNetService::RsGxsNetService(uint16_t servType, RsGeneralDataService *gds,
                                  RsNxsNetMgr *netMgr, RsNxsObserver *nxsObs,
                                  const RsServiceInfo serviceInfo,
                                  RsGixsReputation* reputations, RsGcxs* circles, RsGixs *gixs,
-                                 PgpAuxUtils *pgpUtils, RsGxsNetTunnelService *mGxsNT, bool syncOldMsgVersions,
-                                 bool grpAutoSync, bool msgAutoSync, bool distSync, uint32_t default_store_period, uint32_t default_sync_period)
+                                 PgpAuxUtils *pgpUtils, RsGxsNetTunnelService *mGxsNT,
+                                 RsGxsNetServiceSyncFlags sync_flags,
+                                 uint32_t default_store_period, uint32_t default_sync_period)
                                  : p3ThreadedService(), p3Config(), mTransactionN(0),
                                    mObserver(nxsObs), mDataStore(gds),
                                    mServType(servType), mTransactionTimeOut(TRANSAC_TIMEOUT),
@@ -377,8 +378,7 @@ RsGxsNetService::RsGxsNetService(uint16_t servType, RsGeneralDataService *gds,
                                    mLastCleanRejectedMessages(0), mSYNC_PERIOD(SYNC_PERIOD),
                                    mCircles(circles), mGixs(gixs),
                                    mReputations(reputations), mPgpUtils(pgpUtils), mGxsNetTunnel(mGxsNT),
-                                   mSyncOldMsgVersions(syncOldMsgVersions),
-                                   mGrpAutoSync(grpAutoSync), mAllowMsgSync(msgAutoSync),mAllowDistSync(distSync),
+                                   mSyncFlags(sync_flags),
                                    mServiceInfo(serviceInfo), mDefaultMsgStorePeriod(default_store_period),
                                    mDefaultMsgSyncPeriod(default_sync_period)
 {
@@ -583,7 +583,7 @@ std::error_condition RsGxsNetService::checkUpdatesFromPeers(
 	{
 		mNetMgr->getOnlineList(mServiceInfo.mServiceType, peers);
 
-		if(mAllowDistSync && mGxsNetTunnel != nullptr)
+        if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != nullptr)
 		{
 			/* Grab all online virtual peers of distant tunnels for the current
 			 * service. */
@@ -626,7 +626,8 @@ std::error_condition RsGxsNetService::checkUpdatesFromPeers(
 		generic_sendItem(grp);
 	}
 
-	if(!mAllowMsgSync) return std::error_condition();
+    if(!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES))
+        return std::error_condition();	// Not really an error, since we decide to stop here.
 
 #ifndef GXS_DISABLE_SYNC_MSGS
 
@@ -755,7 +756,7 @@ void RsGxsNetService::generic_sendItem(rs_owner_ptr<RsItem> si)
 
 	RsGxsGroupId tmp_grpId;
 
-	if(mAllowDistSync && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer( static_cast<RsGxsNetTunnelVirtualPeerId>(si->PeerId()),tmp_grpId))
+    if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer( static_cast<RsGxsNetTunnelVirtualPeerId>(si->PeerId()),tmp_grpId))
 	{
 		RsNxsSerialiser ser(mServType);
 
@@ -780,7 +781,7 @@ void RsGxsNetService::generic_sendItem(rs_owner_ptr<RsItem> si)
 
 void RsGxsNetService::checkDistantSyncState()
 {
-	if(!mAllowDistSync || mGxsNetTunnel==NULL || !mGrpAutoSync)
+    if((!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) || mGxsNetTunnel==NULL || !(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS))
 		return ;
 
 	RsGxsGrpMetaTemporaryMap grpMeta;
@@ -849,7 +850,7 @@ void RsGxsNetService::syncGrpStatistics()
     std::set<RsPeerId> online_peers;
     mNetMgr->getOnlineList(mServiceInfo.mServiceType, online_peers);
 
-	if(mAllowDistSync && mGxsNetTunnel != NULL)
+    if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != NULL)
 	{
 		// Grab all online virtual peers of distant tunnels for the current service.
 
@@ -967,7 +968,7 @@ void RsGxsNetService::handleRecvSyncGrpStatistics(RsNxsSyncGrpStatsItem *grs)
 	    if(vec.empty())	// that means we don't have any, or there isn't any, but since the default is always 0, no need to send.
 		    return ;
 
-        if(!mSyncOldMsgVersions)	// if the service doesn't sync old msg versions, get rid of them asap
+        if(!(mSyncFlags & RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS))	// if the service doesn't sync old msg versions, get rid of them asap
         {
             std::set<RsGxsMessageId> old_versions;
             for(auto msgMeta:vec)
@@ -1715,7 +1716,7 @@ RsItem *RsGxsNetService::generic_recvItem()
 	uint32_t size = 0 ;
 	RsGxsNetTunnelVirtualPeerId virtual_peer_id ;
 
-	while(mAllowDistSync && mGxsNetTunnel!=NULL && mGxsNetTunnel->receiveTunnelData(mServType,data,size,virtual_peer_id))
+    while((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel!=NULL && mGxsNetTunnel->receiveTunnelData(mServType,data,size,virtual_peer_id))
 	{
 		RsNxsItem *item = dynamic_cast<RsNxsItem*>(RsNxsSerialiser(mServType).deserialise(data,&size)) ;
 		item->PeerId(virtual_peer_id) ;
@@ -2539,8 +2540,8 @@ bool RsGxsNetService::getGroupNetworkStats(const RsGxsGroupId& gid,RsGroupNetwor
 
     stats.mSuppliers = it->second.suppliers.ids.size();
     stats.mMaxVisibleCount = it->second.max_visible_count ;
-    stats.mAllowMsgSync = mAllowMsgSync ;
-    stats.mGrpAutoSync = mGrpAutoSync ;
+    stats.mAllowMsgSync = !!(mSyncFlags & RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES) ;
+    stats.mGrpAutoSync = !!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS) ;
     stats.mLastGroupModificationTS = it->second.last_group_modification_TS ;
 
     return true ;
@@ -3275,10 +3276,10 @@ void RsGxsNetService::locked_genReqGrpTransaction(NxsTransaction* tr)
 			continue ;
 		}
 
-        if( (mGrpAutoSync && !haveItem) || latestVersion)
+        if( (!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS) && !haveItem) || latestVersion)
         {
 #ifdef NXS_NET_DEBUG_0
-			GXSNETDEBUG_PG(tr->mTransaction->PeerId(),grpId) << "  Identity " << grpId << " will be sync-ed using GXS. mGrpAutoSync:" << mGrpAutoSync << " haveItem:" << haveItem << " latest_version: " << latestVersion << std::endl;
+            GXSNETDEBUG_PG(tr->mTransaction->PeerId(),grpId) << "  Identity " << grpId << " will be sync-ed using GXS. mGrpAutoSync:" << !!(mSyncFlags & RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS) << " haveItem:" << haveItem << " latest_version: " << latestVersion << std::endl;
 #endif
 			addGroupItemToList(tr, grpId, transN, reqList);
         }
@@ -4164,7 +4165,7 @@ bool RsGxsNetService::canSendGrpId(const RsPeerId& sslId, const RsGxsGrpMetaData
 	// check if that peer is a virtual peer id, in which case we only send/recv data to/from it items for the group it's requested for
 
 	RsGxsGroupId peer_grp ;
-	if(mAllowDistSync && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer(RsGxsNetTunnelVirtualPeerId(sslId),peer_grp) && peer_grp != grpMeta.mGroupId)
+    if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer(RsGxsNetTunnelVirtualPeerId(sslId),peer_grp) && peer_grp != grpMeta.mGroupId)
 	{
 #warning (cyril) make sure that this is not a problem for cross-service sending of items
 #ifdef NXS_NET_DEBUG_4
@@ -4229,7 +4230,7 @@ bool RsGxsNetService::checkCanRecvMsgFromPeer(const RsPeerId& sslId, const RsGxs
 	// check if that peer is a virtual peer id, in which case we only send/recv data to/from it items for the group it's requested for
 
 	RsGxsGroupId peer_grp ;
-	if(mAllowDistSync && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer(RsGxsNetTunnelVirtualPeerId(sslId),peer_grp) && peer_grp != grpMeta.mGroupId)
+    if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer(RsGxsNetTunnelVirtualPeerId(sslId),peer_grp) && peer_grp != grpMeta.mGroupId)
 	{
 #ifdef NXS_NET_DEBUG_4
         GXSNETDEBUG_PG(sslId,grpMeta.mGroupId) << "  Distant peer designed for group " << peer_grp << ": cannot request sync for different group." << std::endl;
@@ -4626,7 +4627,7 @@ bool RsGxsNetService::canSendMsgIds(std::vector<std::shared_ptr<RsGxsMsgMetaData
 	// check if that peer is a virtual peer id, in which case we only send/recv data to/from it items for the group it's requested for
 
 	RsGxsGroupId peer_grp ;
-	if(mAllowDistSync && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer(RsGxsNetTunnelVirtualPeerId(sslId),peer_grp) && peer_grp != grpMeta.mGroupId)
+    if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != NULL && mGxsNetTunnel->isDistantPeer(RsGxsNetTunnelVirtualPeerId(sslId),peer_grp) && peer_grp != grpMeta.mGroupId)
 	{
 #ifdef NXS_NET_DEBUG_4
         GXSNETDEBUG_PG(sslId,grpMeta.mGroupId) << "  Distant peer designed for group " << peer_grp << ": cannot request sync for different group." << std::endl;
@@ -4637,7 +4638,7 @@ bool RsGxsNetService::canSendMsgIds(std::vector<std::shared_ptr<RsGxsMsgMetaData
     // If the service prevents sending old versions of messages, remove them from the list
     std::set<RsGxsMessageId> messages_old_versions;
 
-    if(!mSyncOldMsgVersions)
+    if(!(mSyncFlags & RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS))
     {
         for(const auto& pmsg:msgMetas)
             if(!pmsg->mOrigMsgId.isNull() && pmsg->mOrigMsgId != pmsg->mMsgId)
@@ -5141,7 +5142,7 @@ std::error_condition RsGxsNetService::requestPull(std::set<RsPeerId> peers)
 	{
 		mNetMgr->getOnlineList(mServiceInfo.mServiceType, peers);
 
-		if(mAllowDistSync && mGxsNetTunnel != nullptr)
+        if((!!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC)) && mGxsNetTunnel != nullptr)
 		{
 			/* Grab all online virtual peers of distant tunnels for the current
 			 * service. */
@@ -5232,7 +5233,7 @@ bool RsGxsNetService::isDistantPeer(const RsPeerId& pid)
 {
     RS_STACK_MUTEX(mNxsMutex) ;
 
-	if(!mAllowDistSync || mGxsNetTunnel == NULL)
+    if(!(mSyncFlags & RsGxsNetServiceSyncFlags::DISTANT_SYNC) || mGxsNetTunnel == NULL)
 		return false ;
 
 	RsGxsGroupId group_id ;

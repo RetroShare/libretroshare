@@ -84,7 +84,7 @@ protected:
     virtual RsGenExchange::ServiceCreate_Return service_CreateGroup(RsGxsGrpItem* grpItem, RsTlvSecurityKeySet& keySet) override;
 
     virtual void notifyChanges(std::vector<RsGxsNotify*>& changes) override;
-    virtual bool keepOldMsgVersions() const override { return false ; }
+    virtual bool keepOldMsgVersions() const override { return netService()->syncOldMsgVersions(); }
 
     // Overloaded from RsTickEvent.
     virtual void handle_event(uint32_t event_type, const std::string &elabel) override;
@@ -240,10 +240,10 @@ protected:	// made protected because it's all deprecated
     //virtual bool setGroupSubscribeFlags(const std::string &groupId, uint32_t subscribeFlags, uint32_t subscribeMask);
 
     //virtual bool groupRestoreKeys(const std::string &groupId);
-    virtual bool createGroup(uint32_t &token, RsGxsChannelGroup &group) override;
-    virtual bool createPost(uint32_t &token, RsGxsChannelPost &post) override;
 
+    virtual bool createGroup(uint32_t &token, RsGxsChannelGroup &group) override;
     virtual bool updateGroup(uint32_t &token, RsGxsChannelGroup &group) override;
+    virtual bool createPost(uint32_t &token, RsGxsChannelPost &post);
 
 #ifdef TO_REMOVE
     /// @see RsGxsChannels::turtleSearchRequest
@@ -312,9 +312,11 @@ protected:	// made protected because it's all deprecated
     RS_DEPRECATED_FOR(createChannelV2)
     bool createChannel(RsGxsChannelGroup& channel) override;
 
+#ifdef TO_REMOVE
     /// @deprecated Implementation of @see RsGxsChannels::createPost
     RS_DEPRECATED_FOR(createPostV2)
     bool createPost(RsGxsChannelPost& post) override;
+#endif
 
     /// @deprecated Implementation of @see RsGxsChannels::createComment
     RS_DEPRECATED_FOR(createCommentV2)

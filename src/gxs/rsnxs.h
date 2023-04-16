@@ -75,6 +75,8 @@ public:
     virtual uint32_t getSyncAge(const RsGxsGroupId& id) =0;
     virtual uint32_t getKeepAge(const RsGxsGroupId& id) =0;
 
+    virtual bool syncOldMsgVersions() =0;
+
 	virtual void setDefaultKeepAge(uint32_t t) =0;
 	virtual void setDefaultSyncAge(uint32_t t) =0;
 

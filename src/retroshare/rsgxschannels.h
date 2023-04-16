@@ -579,10 +579,6 @@ public:
 
 	~RsGxsChannels() override;
 
-	////////////////////////////////////////////////////////////////////////////
-	/* Following functions are deprecated and should not be considered a safe to
-	 * use API */
-
 	/**
 	 * @brief Get auto-download option value for given channel
 	 * @jsonapi{development}
@@ -592,9 +588,7 @@ public:
 	 * @param[out] enabled storage for the auto-download option value
 	 * @return false if something failed, true otherwhise
 	 */
-	RS_DEPRECATED
-	virtual bool getChannelAutoDownload(
-	        const RsGxsGroupId& channelId, bool& enabled ) = 0;
+    virtual bool getChannelAutoDownload(const RsGxsGroupId& channelId, bool& enabled ) = 0;
 
 	/**
 	 * @brief Enable or disable auto-download for given channel. Blocking API
@@ -609,9 +603,7 @@ public:
 	 * @param[in] enable true to enable, false to disable
 	 * @return false if something failed, true otherwhise
 	 */
-	RS_DEPRECATED
-	virtual bool setChannelAutoDownload(
-	        const RsGxsGroupId& channelId, bool enable ) = 0;
+    virtual bool setChannelAutoDownload(const RsGxsGroupId& channelId, bool enable ) = 0;
 
 	/**
 	 * @brief Get download directory for the given channel
@@ -621,9 +613,7 @@ public:
 	 * @param[out] directory reference to string where to store the path
 	 * @return false on error, true otherwise
 	 */
-	RS_DEPRECATED
-	virtual bool getChannelDownloadDirectory( const RsGxsGroupId& channelId,
-	                                          std::string& directory ) = 0;
+    virtual bool getChannelDownloadDirectory( const RsGxsGroupId& channelId, std::string& directory ) = 0;
 
 	/**
 	 * @brief Set download directory for the given channel. Blocking API.
@@ -633,11 +623,13 @@ public:
 	 * @param[in] directory path
 	 * @return false on error, true otherwise
 	 */
-	RS_DEPRECATED
-	virtual bool setChannelDownloadDirectory(
-	        const RsGxsGroupId& channelId, const std::string& directory) = 0;
+    virtual bool setChannelDownloadDirectory( const RsGxsGroupId& channelId, const std::string& directory) = 0;
 
-	/**
+    ////////////////////////////////////////////////////////////////////////////
+    /* Following functions are deprecated and should not be considered a safe to
+     * use API */
+
+    /**
 	 * @brief Create channel. Blocking API.
 	 * @jsonapi{development}
 	 * @deprecated { substituted by createChannelV2 }
@@ -718,8 +710,9 @@ public:
 	 * @return false on error, true otherwise
 	 */
 	RS_DEPRECATED_FOR(createCommentV2)
-	virtual bool createComment(RsGxsComment& comment) = 0;
+    virtual bool createComment(RsGxsComment& comment) override = 0;
 
+#ifdef TO_REMOVE
 	/**
 	 * @brief Create channel post. Blocking API.
 	 * @jsonapi{development}
@@ -742,6 +735,7 @@ public:
 	 */
 	RS_DEPRECATED_FOR(createPostV2)
 	virtual bool createPost(uint32_t& token, RsGxsChannelPost& post) = 0;
+#endif
 
 	/**
 	 * @brief Request channel change.
