@@ -418,7 +418,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 					            *const_cast<RsEvent*>(event.get()), "event" );
 
 					std::stringstream message;
-					message << "data: " << compactJSON << ctx.mJson << "\n\n";
+                    message << "data: " << compactJSON << ctx.mJson << "\n\n";
 
 					session->yield(message.str());
 				} );
@@ -435,7 +435,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 
 			// return them to the API caller
 			std::stringstream message;
-			message << "data: " << compactJSON << cAns.mJson << "\n\n";
+            message << "data: " << compactJSON << cAns.mJson << "\n\n";
 			session->yield(message.str());
 		} );
 	}, true);

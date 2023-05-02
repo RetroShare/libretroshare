@@ -1985,7 +1985,7 @@ void ftServer::ftReceiveSearchResult(RsTurtleFTSearchResultItem *item)
 			for(auto& res: std::as_const(item->result))
 				cRes.push_back(TurtleFileInfoV2(res));
 
-			cbpt->second.first(cRes);
+            cbpt->second.first(item->request_id,cRes);
 		}
 	} // end RS_STACK_MUTEX(mSearchCallbacksMapMutex);
 
@@ -2087,7 +2087,7 @@ void ftServer::receiveSearchResult(
 			return;
 		}
 
-		cbpt->second.first(resItPtr->mResults);
+        cbpt->second.first(requestId,resItPtr->mResults);
 	}
 }
 
@@ -2111,9 +2111,8 @@ static std::vector<std::string> xapianQueryKeywords =
 };
 #endif
 
-bool ftServer::turtleSearchRequest(
-        const std::string& matchString,
-        const std::function<void (const std::vector<TurtleFileInfoV2>& results)>& multiCallback,
+TurtleSearchRequestId ftServer::turtleSearchRequest(const std::string& matchString,
+        const std::function<void (TurtleSearchRequestId, const std::vector<TurtleFileInfoV2> &)> &multiCallback,
         rstime_t maxWait )
 {
 	if(matchString.empty())
@@ -2172,7 +2171,7 @@ bool ftServer::turtleSearchRequest(
 		                std::chrono::seconds(maxWait) ) );
 	}
 
-	return true;
+    return sId;
 }
 
 void ftServer::cleanTimedOutSearches()

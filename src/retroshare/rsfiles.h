@@ -646,11 +646,11 @@ public:
 	 * @param multiCallback function that will be called each time a search
 	 * result is received
 	 * @param[in] maxWait maximum wait time in seconds for search results
-	 * @return false on error, true otherwise
+     * @return ID of the search request, used to match incoming search results
 	 */
-	virtual bool turtleSearchRequest(
+    virtual TurtleRequestId turtleSearchRequest(
 	        const std::string& matchString,
-	        const std::function<void (const std::vector<TurtleFileInfoV2>& results)>& multiCallback,
+            const std::function<void (TurtleRequestId sId,const std::vector<TurtleFileInfoV2>& results)>& multiCallback,
 	        rstime_t maxWait = 300 ) = 0;
 
 	virtual TurtleRequestId turtleSearch(const std::string& string_to_match) = 0;

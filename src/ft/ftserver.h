@@ -43,6 +43,7 @@
 #include <chrono>
 
 #include "ft/ftdata.h"
+#include "turtle/turtletypes.h"
 #include "turtle/turtleclientservice.h"
 #include "services/p3service.h"
 #include "retroshare/rsfiles.h"
@@ -215,13 +216,12 @@ public:
 	        ) override;
 
 	/// @see RsFiles
-	bool turtleSearchRequest(
-	        const std::string& matchString,
-	        const std::function<void (const std::vector<TurtleFileInfoV2>& results)>& multiCallback,
-	        rstime_t maxWait = 300 ) override;
+    virtual TurtleSearchRequestId turtleSearchRequest(const std::string& matchString,
+            const std::function<void (TurtleSearchRequestId, const std::vector<TurtleFileInfoV2> &)> &multiCallback,
+            rstime_t maxWait = 300 ) override;
 
-	virtual TurtleSearchRequestId turtleSearch(const std::string& string_to_match) ;
-	virtual TurtleSearchRequestId turtleSearch(const RsRegularExpression::LinearizedExpression& expr) ;
+    virtual TurtleSearchRequestId turtleSearch(const std::string& string_to_match) override ;
+    virtual TurtleSearchRequestId turtleSearch(const RsRegularExpression::LinearizedExpression& expr) override ;
 
 	/// @see RsFiles
 	std::error_condition exportCollectionLink(
@@ -423,7 +423,7 @@ private:
 	std::map<
 	    TurtleRequestId,
 	    std::pair<
-	        std::function<void (const std::vector<TurtleFileInfoV2>& results)>,
+            std::function<void (TurtleRequestId sId,const std::vector<TurtleFileInfoV2>& results)>,
 	        std::chrono::system_clock::time_point >
 	 > mSearchCallbacksMap;
 	RsMutex mSearchCallbacksMapMutex;
