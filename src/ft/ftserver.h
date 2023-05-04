@@ -420,6 +420,7 @@ private:
     std::map<RsPeerId,std::map<RsFileHash,rstime_t> > mUploadLimitMap ;
 
 	/** Store search callbacks with timeout*/
+    RS_DEPRECATED
 	std::map<
 	    TurtleRequestId,
 	    std::pair<

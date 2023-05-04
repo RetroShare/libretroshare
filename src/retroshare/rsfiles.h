@@ -666,7 +666,9 @@ public:
 	 * @param[in] maxWait maximum wait time in seconds for search results
 	 * @return false on error, true otherwise
 	 */
-	virtual bool turtleSearchRequest(
+    RS_DEPRECATED_FOR(turtleSearch)
+
+    virtual bool turtleSearchRequest(
 	        const std::string& matchString,
 	        const std::function<void (const std::vector<TurtleFileInfoV2>& results)>& multiCallback,
 	        rstime_t maxWait = 300 ) = 0;
@@ -695,7 +697,7 @@ public:
 	 * @brief Get incoming files list
 	 * @jsonapi{development}
 	 * @param[out] hashs storage for files identifiers list
-	 */
+     */
 	virtual void FileDownloads(std::list<RsFileHash>& hashs) = 0;
 
 	/**
