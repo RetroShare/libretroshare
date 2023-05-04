@@ -40,6 +40,7 @@
 #include "util/rsdebug.h"
 
 class RsFiles;
+struct TurtleFileInfoV2;
 
 /**
  * Pointer to global instance of RsFiles service implementation
@@ -192,6 +193,7 @@ enum class RsFileTransferEventCode: uint8_t {
     UNKNOWN                     = 0x00,
     DOWNLOAD_COMPLETE           = 0x01,	// mHash: hash of the complete file
     COMPLETED_FILES_REMOVED     = 0x02,	//
+    NEW_DISTANT_SEARCH_RESULTS  = 0x03
 };
 
 struct RS_DEPRECATED_FOR("Packing arbitrary data into an std::string is bad idea")
@@ -250,11 +252,27 @@ struct RsFileTransferEvent: RsEvent
 
 		RS_SERIAL_PROCESS(mFileTransferEventCode);
 		RS_SERIAL_PROCESS(mHash);
-	}
+        RS_SERIAL_PROCESS(mRequestId);
+        RS_SERIAL_PROCESS(mResults);
+    }
 
-    RsFileTransferEventCode mFileTransferEventCode;
-    RsFileHash              mHash;
+    // The following table indicates which members are populated for the different event codes:
+    //
+    //     +----------------------------+-------+------------+----------+
+    //     | mFileTransferEventCode     | mHash | mRequestId | mResults |
+    //     +----------------------------+-------+------------+----------+
+    //     | UNKNOWN                    |   -   |     -      |    -     |
+    //     | DOWNLOAD_COMPLETE          |   X   |     -      |    -     |
+    //     | COMPLETED_FILES_REMOVED    |   -   |     -      |    -     |
+    //     | NEW_DISTANT_SEARCH_RESULTS |   -   |     X      |    X     |
+    //     +----------------------------+-------+------------+----------+
+
+    RsFileTransferEventCode 		mFileTransferEventCode;
+    RsFileHash              		mHash;
+    TurtleRequestId					mRequestId;
+    std::vector<TurtleFileInfoV2> 	mResults;
 };
+
 struct SharedDirInfo : RsSerializable
 {
 	static bool sameLists(const std::list<RsNodeGroupId>& l1,const std::list<RsNodeGroupId>& l2)
@@ -467,7 +485,7 @@ struct TurtleFileInfoV2 : RsSerializable
 		RS_SERIAL_PROCESS(fSnippet);
 	}
 
-	~TurtleFileInfoV2() override;
+    virtual ~TurtleFileInfoV2() override = default;
 };
 
 class RsFiles
@@ -653,9 +671,15 @@ public:
 	        const std::function<void (const std::vector<TurtleFileInfoV2>& results)>& multiCallback,
 	        rstime_t maxWait = 300 ) = 0;
 
-	virtual TurtleRequestId turtleSearch(const std::string& string_to_match) = 0;
-	virtual TurtleRequestId turtleSearch(
-	        const RsRegularExpression::LinearizedExpression& expr) = 0;
+    /**
+     * @brief Request remote files search, response being sent as RsFileTransferEvents
+     * @jsonapi{development}
+     * @param[in] matchString
+     * @return false on error, true otherwise
+     */
+    virtual TurtleRequestId turtleSearch(const std::string& matchString) = 0;
+
+    virtual TurtleRequestId turtleSearch(const RsRegularExpression::LinearizedExpression& expr) = 0;
 
 		/***
 		 * Control of Downloads Priority.
