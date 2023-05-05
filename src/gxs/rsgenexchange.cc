@@ -644,15 +644,11 @@ int RsGenExchange::createGroupSignatures(RsTlvKeySignatureSet& signSet, RsTlvBin
 int RsGenExchange::createMsgSignatures(RsTlvKeySignatureSet& signSet, RsTlvBinaryData& msgData,
                                         const RsGxsMsgMetaData& msgMeta, const RsGxsGrpMetaData& grpMeta)
 {
-    bool needPublishSign = false, needIdentitySign = false;
     uint32_t grpFlag = grpMeta.mGroupFlags;
-
-    bool publishSignSuccess = false;
 
 #ifdef GEN_EXCH_DEBUG
     GXSGENEXCHANGEDEBUG << "RsGenExchange::createMsgSignatures() for Msg.mMsgName: " << msgMeta.mMsgName<< std::endl;
 #endif
-
 
     // publish signature is determined by whether group is public or not
     // for private group signature is not needed as it needs decrypting with
@@ -661,155 +657,113 @@ int RsGenExchange::createMsgSignatures(RsTlvKeySignatureSet& signSet, RsTlvBinar
     // restricted is a special case which heeds whether publish sign needs to be checked or not
     // one may or may not want
 
-    uint8_t author_flag = GXS_SERV::MSG_AUTHEN_ROOT_AUTHOR_SIGN;
+    uint8_t author_flag  = GXS_SERV::MSG_AUTHEN_ROOT_AUTHOR_SIGN;
     uint8_t publish_flag = GXS_SERV::MSG_AUTHEN_ROOT_PUBLISH_SIGN;
 
     if(!msgMeta.mParentId.isNull())
     {
         // Child Message.
-        author_flag = GXS_SERV::MSG_AUTHEN_CHILD_AUTHOR_SIGN;
+        author_flag  = GXS_SERV::MSG_AUTHEN_CHILD_AUTHOR_SIGN;
         publish_flag = GXS_SERV::MSG_AUTHEN_CHILD_PUBLISH_SIGN;
     }
 
     PrivacyBitPos pos = PUBLIC_GRP_BITS;
+
     if (grpFlag & GXS_SERV::FLAG_PRIVACY_RESTRICTED)
-    {
         pos = RESTRICTED_GRP_BITS;
-    }
     else if (grpFlag & GXS_SERV::FLAG_PRIVACY_PRIVATE)
-    {
         pos = PRIVATE_GRP_BITS;
-    }
     
-    needIdentitySign = false;
-    needPublishSign = false;
-    if (checkAuthenFlag(pos, publish_flag))
-    {
-        needPublishSign = true;
-#ifdef GEN_EXCH_DEBUG
-        GXSGENEXCHANGEDEBUG << "Needs Publish sign! (Service Flags)"<< std::endl;
-#endif
-    }
-
-    // Check required permissions, and allow them to sign it - if they want too - as well!
-    if (checkAuthenFlag(pos, author_flag))
-    {
-        needIdentitySign = true;
-#ifdef GEN_EXCH_DEBUG
-        GXSGENEXCHANGEDEBUG << "Needs Identity sign! (Service Flags)"<< std::endl;
-#endif
-    }
-
-    if (!msgMeta.mAuthorId.isNull())
-    {
-        needIdentitySign = true;
-#ifdef GEN_EXCH_DEBUG
-        GXSGENEXCHANGEDEBUG << "Needs Identity sign! (AuthorId Exists)"<< std::endl;
-#endif
-    }
-
-    if(needPublishSign)
+    if (checkAuthenFlag(pos, publish_flag))	// do we need publish signature?
     {
         // public and shared is publish key
         const RsTlvSecurityKeySet& keys = grpMeta.keys;
-        const RsTlvPrivateRSAKey  *publishKey;
 
-        std::map<RsGxsId, RsTlvPrivateRSAKey>::const_iterator mit = keys.private_keys.begin(), mit_end = keys.private_keys.end();
+        auto mit = keys.private_keys.begin(), mit_end = keys.private_keys.end();
         bool publish_key_found = false;
         
-        for(; mit != mit_end; ++mit)
-        {
-
-                publish_key_found = mit->second.keyFlags == (RSTLV_KEY_DISTRIB_PUBLISH | RSTLV_KEY_TYPE_FULL);
-                if(publish_key_found)
-                        break;
-        }
+        for(; (mit != mit_end); ++mit)
+            if(mit->second.keyFlags == (RSTLV_KEY_DISTRIB_PUBLISH | RSTLV_KEY_TYPE_FULL))
+            {
+                publish_key_found = true;
+                break;
+            }
 
         if (publish_key_found)
         {
             // private publish key
-            publishKey = &(mit->second);
+            const RsTlvPrivateRSAKey  *publishKey = &(mit->second);
 
             RsTlvKeySignature publishSign = signSet.keySignSet[INDEX_AUTHEN_PUBLISH];
 
-            publishSignSuccess = GxsSecurity::getSignature((char*)msgData.bin_data, msgData.bin_len, *publishKey, publishSign);
-
-            //place signature in msg meta
-            signSet.keySignSet[INDEX_AUTHEN_PUBLISH] = publishSign;
-        }else
+            if(GxsSecurity::getSignature((char*)msgData.bin_data, msgData.bin_len, *publishKey, publishSign))
+                signSet.keySignSet[INDEX_AUTHEN_PUBLISH] = publishSign; //place signature in msg meta
+            else
+                return SIGN_FAIL;
+        }
+        else
         {
         	std::cerr << "RsGenExchange::createMsgSignatures()";
 			std::cerr << " ERROR Cannot find PUBLISH KEY for Message Signing!";
 			std::cerr << " ERROR Publish Sign failed!";
 			std::cerr << std::endl;
+            return SIGN_FAIL;
+        }
+    }
+
+    // Two situations require author sign: (1) when the group requires it, (2) when the msg contains an author.
+
+    if (checkAuthenFlag(pos, author_flag) || !msgMeta.mAuthorId.isNull())
+    {
+        if(!mGixs)
+        {
+            RsErr() << " Trying to sign a GXS message with an author ID, but no RsIdentity service is available." ;
+            return SIGN_FAIL;
         }
 
-    }
-    else // publish sign not needed so set as successful
-    {
-    	publishSignSuccess = true;
-    }
-
-    int id_ret;
-
-    if (needIdentitySign)
-    {
-        if(mGixs)
+        if(msgMeta.mAuthorId.isNull())
         {
-            bool haveKey = mGixs->havePrivateKey(msgMeta.mAuthorId);
+            RsErr() << " Trying to sign a GXS message with a null author ID. The message will be dropped!" ;
+            return SIGN_FAIL;
+        }
 
-            if(haveKey)
-	    {
-		    RsTlvPrivateRSAKey authorKey;
-		    mGixs->getPrivateKey(msgMeta.mAuthorId, authorKey);
-		    RsTlvKeySignature sign;
+        if(mGixs->havePrivateKey(msgMeta.mAuthorId))
+        {
+            RsTlvPrivateRSAKey authorKey;
 
-		    if(GxsSecurity::getSignature((char*)msgData.bin_data, msgData.bin_len, authorKey, sign))
-		    {
-			    id_ret = SIGN_SUCCESS;
-			    mGixs->timeStampKey(msgMeta.mAuthorId,RsIdentityUsage(RsServiceType(mServType),RsIdentityUsage::MESSAGE_AUTHOR_SIGNATURE_CREATION,msgMeta.mGroupId,msgMeta.mMsgId,msgMeta.mParentId,msgMeta.mThreadId)) ;
-			    signSet.keySignSet[INDEX_AUTHEN_IDENTITY] = sign;
-		    }
-		    else
-			    id_ret = SIGN_FAIL;
-	    }
-            else
+            if(!mGixs->getPrivateKey(msgMeta.mAuthorId, authorKey))
             {
-            	mGixs->requestPrivateKey(msgMeta.mAuthorId);
-
-#ifdef GEN_EXCH_DEBUG
-                std::cerr << "RsGenExchange::createMsgSignatures(): ";
-                std::cerr << " ERROR AUTHOR KEY: " <<  msgMeta.mAuthorId
-                		  << " is not Cached / available for Message Signing\n";
-                std::cerr << "RsGenExchange::createMsgSignatures():  Requestiong AUTHOR KEY";
-                std::cerr << std::endl;
-#endif
-
-                id_ret = SIGN_FAIL_TRY_LATER;
+                RsErr() << " Cannot retrieve existing private author key for ID " << msgMeta.mAuthorId << ". This shouldn't happen" ;
+                return SIGN_FAIL;
             }
+
+            RsTlvKeySignature authorSign;
+
+            if(GxsSecurity::getSignature((char*)msgData.bin_data, msgData.bin_len, authorKey, authorSign))
+            {
+                mGixs->timeStampKey(msgMeta.mAuthorId,RsIdentityUsage(RsServiceType(mServType),RsIdentityUsage::MESSAGE_AUTHOR_SIGNATURE_CREATION,msgMeta.mGroupId,msgMeta.mMsgId,msgMeta.mParentId,msgMeta.mThreadId)) ;
+                signSet.keySignSet[INDEX_AUTHEN_IDENTITY] = authorSign;
+            }
+            else
+                return SIGN_FAIL;
         }
         else
         {
+            mGixs->requestPrivateKey(msgMeta.mAuthorId);
+
 #ifdef GEN_EXCH_DEBUG
-            std::cerr << "RsGenExchange::createMsgSignatures()";
-            std::cerr << "Gixs not enabled while request identity signature validation!" << std::endl;
+            std::cerr << "RsGenExchange::createMsgSignatures(): ";
+            std::cerr << " ERROR AUTHOR KEY: " <<  msgMeta.mAuthorId
+                      << " is not Cached / available for Message Signing\n";
+            std::cerr << "RsGenExchange::createMsgSignatures():  Requestiong AUTHOR KEY";
+            std::cerr << std::endl;
 #endif
-            id_ret = SIGN_FAIL;
+
+            return SIGN_FAIL_TRY_LATER;
         }
     }
-    else
-    {
-    	id_ret = SIGN_SUCCESS;
-    }
 
-    if(publishSignSuccess)
-    {
-    	return id_ret;
-    }
-    else
-    {
-    	return SIGN_FAIL;
-    }
+    return SIGN_SUCCESS;
 }
 
 int RsGenExchange::createMessage(RsNxsMsg* msg)

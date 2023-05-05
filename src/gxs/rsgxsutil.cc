@@ -146,7 +146,10 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
                     // Only keep old messages if the client service asks for it.
 
                     if(!mGenExchangeClient->keepOldMsgVersions() && messages_old_versions.find(meta->mMsgId)!=messages_old_versions.end())
+                    {
+                        std::cerr << "*********  Removing old messsage version " << meta->mMsgId << " because the service allows it." << std::endl;
                         remove = true;
+                    }
 
                     if( remove )
                     {
