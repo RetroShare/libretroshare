@@ -99,8 +99,6 @@ TurtleFileInfoV2::TurtleFileInfoV2(const DeepFilesSearchResult& dRes) :
 }
 #endif // def  RS_DEEP_FILES_INDEX
 
-TurtleFileInfoV2::~TurtleFileInfoV2() = default;
-
 /* Setup */
 ftServer::ftServer(p3PeerMgr *pm, p3ServiceControl *sc):
     p3Service(),
@@ -1974,24 +1972,41 @@ void ftServer::ftReceiveSearchResult(RsTurtleFTSearchResultItem *item)
 {
 	bool hasCallback = false;
 
-	{
-		RS_STACK_MUTEX(mSearchCallbacksMapMutex);
-		auto cbpt = mSearchCallbacksMap.find(item->request_id);
-		if(cbpt != mSearchCallbacksMap.end())
-		{
-			hasCallback = true;
+    std::vector<TurtleFileInfoV2> cRes;
 
-			std::vector<TurtleFileInfoV2> cRes;
-			for(auto& res: std::as_const(item->result))
-				cRes.push_back(TurtleFileInfoV2(res));
+    for(auto& res: std::as_const(item->result))
+        cRes.push_back(TurtleFileInfoV2(res));
 
-			cbpt->second.first(cRes);
-		}
-	} // end RS_STACK_MUTEX(mSearchCallbacksMapMutex);
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsFileTransferEvent>();
 
-	if(!hasCallback)
-		RsServer::notify()->notifyTurtleSearchResult(
-		            item->PeerId(), item->request_id, item->result );
+        ev->mFileTransferEventCode = RsFileTransferEventCode::NEW_DISTANT_SEARCH_RESULTS;
+        ev->mResults = cRes;
+        ev->mRequestId = item->request_id;
+        rsEvents->postEvent(ev);
+    }
+
+    // [BEGIN DEPRECATED CODE]
+    {
+        RS_STACK_MUTEX(mSearchCallbacksMapMutex);
+
+        auto cbpt = mSearchCallbacksMap.find(item->request_id);
+        if(cbpt != mSearchCallbacksMap.end())
+        {
+            hasCallback = true;
+
+            cbpt->second.first(cRes);
+        }
+    }
+
+    // Removed since we now use RsEvent in the Qt GUI.
+    //
+    // if(!hasCallback)
+    // 	 RsServer::notify()->notifyTurtleSearchResult(
+    //	             item->PeerId(), item->request_id, item->result );
+
+    // [END DEPRECATED CODE]
 }
 
 bool ftServer::receiveSearchRequest(
