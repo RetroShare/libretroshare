@@ -21,7 +21,6 @@
  *******************************************************************************/
 #include "services/p3wire.h"
 #include "rsitems/rswireitems.h"
-#include "rsitems/rswireitems.h"
 
 #include "util/rsrandom.h"
 
@@ -206,19 +205,19 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 {
                 case RsGxsNotify::TYPE_PUBLISHED:	// happens when the group is subscribed
                 {
-//                    auto ev = std::make_shared<RsWireEvent>();
-//                    ev->mWireGroupId = grpChange->mGroupId;
-//                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
-//                    rsEvents->postEvent(ev);
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+                    rsEvents->postEvent(ev);
 
-//                    unprocessedGroups.insert(grpChange->mGroupId);
+                    unprocessedGroups.insert(grpChange->mGroupId);
                 }
                     break;
                 case RsGxsNotify::TYPE_PROCESSED:	// happens when the group is subscribed
                 {
                     auto ev = std::make_shared<RsWireEvent>();
                     ev->mWireGroupId = grpChange->mGroupId;
-                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+                    ev->mWireEventCode = RsWireEventCode::POST_UPDATED;
                     rsEvents->postEvent(ev);
 
                     unprocessedGroups.insert(grpChange->mGroupId);

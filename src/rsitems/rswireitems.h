@@ -28,7 +28,6 @@
 #include "rsitems/rsserviceids.h"
 #include "serialiser/rsserial.h"
 //#include "serialiser/rstlvtypes.h"
-#include "rsitems/rsgxscommentitems.h"
 
 #include "rsgxsitems.h"
 #include "retroshare/rswire.h"

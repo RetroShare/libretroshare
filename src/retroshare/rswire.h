@@ -254,13 +254,14 @@ enum class RsWireEventCode: uint8_t
 //    UPDATED_MESSAGE                 = 0x04, // existing message has been updated in a particular channel
 //    RECEIVED_PUBLISH_KEY            = 0x05, // publish key for this channel has been received
     FOLLOW_STATUS_CHANGED        = 0x03, // subscription for channel mChannelGroupId changed.
+    POST_UPDATED                 = 0x04, // subscription for channel mChannelGroupId changed.
 //    READ_STATUS_CHANGED             = 0x07, // existing message has been read or set to unread
 //    RECEIVED_DISTANT_SEARCH_RESULT  = 0x08, // result for the given group id available for the given turtle request id
 //    STATISTICS_CHANGED              = 0x09, // stats (nb of supplier friends, how many msgs they have etc) has changed
 //    SYNC_PARAMETERS_UPDATED         = 0x0a, // sync and storage times have changed
-    NEW_REPLY                     = 0x04, // new comment arrived/published. mChannelThreadId gives the ID of the commented message
-    NEW_LIKE                       = 0x05, // new vote arrived/published. mChannelThreadId gives the ID of the votes message comment
-    NEW_REPUBLISH                 = 0x06, // channel was deleted by auto-cleaning system
+    NEW_REPLY                     = 0x05, // new comment arrived/published. mChannelThreadId gives the ID of the commented message
+    NEW_LIKE                       = 0x06, // new vote arrived/published. mChannelThreadId gives the ID of the votes message comment
+    NEW_REPUBLISH                 = 0x07, // channel was deleted by auto-cleaning system
 };
 
 struct RsWireEvent: RsEvent
