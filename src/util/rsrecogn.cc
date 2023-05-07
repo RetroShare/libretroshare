@@ -164,7 +164,7 @@ bool	RsRecogn::loadSigningKeys(std::map<RsGxsId, RsGxsRecognSignerItem *> &signM
 			item->sign = signature;
 			signature.TlvShallowClear();
 
-			if (signOk)
+            if (signOk==1)
 			{
 #ifdef DEBUG_RECOGN
 				std::cerr << "RsRecogn::loadSigningKeys() signature ok";
@@ -175,7 +175,7 @@ bool	RsRecogn::loadSigningKeys(std::map<RsGxsId, RsGxsRecognSignerItem *> &signM
 			}
 		}
 		
-		if (!signOk)
+        if (signOk != 1)
 		{
 #ifdef DEBUG_RECOGN
 			std::cerr << "RsRecogn::loadSigningKeys() signature failed";

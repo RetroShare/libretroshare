@@ -398,7 +398,10 @@ bool GxsSecurity::validateSignature(const char *data, uint32_t data_len, const R
 	EVP_PKEY_free(signKey);
 	EVP_MD_CTX_destroy(mdctx);
 
-	return signOk;
+    if(signOk==1)
+        return true;
+    else
+        return false;
 }
 
 bool GxsSecurity::validateNxsMsg(const RsNxsMsg& msg, const RsTlvKeySignature& sign, const RsTlvPublicRSAKey& key)

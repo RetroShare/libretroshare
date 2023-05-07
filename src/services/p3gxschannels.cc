@@ -1281,7 +1281,7 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
-	if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token) != RsTokenService::COMPLETE )
+    if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
 		return false;
 
 	return getPostData(token, posts, comments,votes);
@@ -1529,6 +1529,8 @@ bool p3GxsChannels::createPostV2(
 		return false;
 	}
 
+    RsGxsMessageId top_level_parent ;	// left blank intentionaly
+
 	if(!origPostId.isNull())
 	{
 		std::set<RsGxsMessageId> s({origPostId});
@@ -1536,21 +1538,32 @@ bool p3GxsChannels::createPostV2(
 		std::vector<RsGxsComment> comments;
 		std::vector<RsGxsVote> votes;
 
-		if(!getChannelContent(channelId,s,posts,comments,votes))
+        if(!getChannelContent(channelId,s,posts,comments,votes) || posts.size()!=1)
 		{
 			errorMessage = "You cannot edit post " + origPostId.toStdString()
 			        + " of channel with Id " + channelId.toStdString()
 			        + ": this post does not exist locally!";
 			return false;
 		}
-	}
+
+        // All post versions should have the same mOrigMsgId, so we copy that of the post we're editing.
+        // The edited post may not have an original post ID if it is itself the first version. In this case, the
+        // mOrigId is set to be the ID of the edited post.
+
+        top_level_parent = posts[0].mMeta.mOrigMsgId;
+
+        if(top_level_parent.isNull())
+            top_level_parent = origPostId;
+    }
 
 	// Create the post
 	RsGxsChannelPost post;
 
 	post.mMeta.mGroupId = channelId;
-	post.mMeta.mOrigMsgId = origPostId;
+    post.mMeta.mOrigMsgId = top_level_parent;
 	post.mMeta.mMsgName = title;
+    post.mMeta.mAuthorId.clear();
+    post.mMeta.mParentId.clear(); // very important because otherwise createMessageSignatures() will identify the post as a comment,and therefore require signature.
 
 	post.mMsg = body;
 	post.mFiles = files;
@@ -1573,7 +1586,7 @@ bool p3GxsChannels::createPostV2(
 		return true;
 	}
 
-	errorMessage = "Failed to retrive created post metadata";
+    errorMessage = "Failed to retrieve created post metadata";
 	return false;
 }
 
@@ -1959,6 +1972,7 @@ bool p3GxsChannels::updateGroup(uint32_t &token, RsGxsChannelGroup &group)
 	return true;
 }
 
+#ifdef TO_REMOVE
 /// @deprecated use createPostV2 instead
 bool p3GxsChannels::createPost(RsGxsChannelPost& post)
 {
@@ -1977,6 +1991,7 @@ bool p3GxsChannels::createPost(RsGxsChannelPost& post)
 
 	return false;
 }
+#endif
 
 
 bool p3GxsChannels::createPost(uint32_t &token, RsGxsChannelPost &msg)

@@ -406,7 +406,7 @@ bool SSL_SignDataBin(const void *data, const uint32_t len,
 		return false;
 	}
 
-        if (0 == EVP_SignFinal(mdctx, sign, signlen, pkey))
+    if (0 == EVP_SignFinal(mdctx, sign, signlen, pkey))
 	{
 		std::cerr << "EVP_SignFinal Failure!" << std::endl;
 
@@ -473,16 +473,20 @@ bool SSL_VerifySignBin(const void *data, const uint32_t len,
 		return false ;
 	}
 
-	if (0 == EVP_VerifyFinal(mdctx, sign, signlen, peerkey))
-	{
-		std::cerr << "EVP_VerifyFinal Failure!" << std::endl;
+    // WARNING: EVP_SignFinal() may return -1 for some errors (instead of 0 when verification fails),
+    //          so successful signature verification only occurs when it returns 1.
 
+    if (1 == EVP_VerifyFinal(mdctx, sign, signlen, peerkey))
+    {
 		EVP_MD_CTX_destroy(mdctx);
-		return false;
-	}
-
-	EVP_MD_CTX_destroy(mdctx);
-	return true;
+        return true;
+    }
+    else
+    {
+        std::cerr << "EVP_VerifyFinal Failure!" << std::endl;
+        EVP_MD_CTX_destroy(mdctx);
+        return false;
+    }
 }
 
 /********************************************************************************/
