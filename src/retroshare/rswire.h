@@ -247,21 +247,13 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
 
 enum class RsWireEventCode: uint8_t
 {
-    UNKNOWN                         = 0x00,
-    NEW_WIRE                     = 0x01, // emitted when new channel is received
-//    UPDATED_CHANNEL                 = 0x02, // emitted when existing channel is updated
-    NEW_POST                     = 0x02, // new message reeived in a particular channel (group and msg id)
-//    UPDATED_MESSAGE                 = 0x04, // existing message has been updated in a particular channel
-//    RECEIVED_PUBLISH_KEY            = 0x05, // publish key for this channel has been received
-    FOLLOW_STATUS_CHANGED        = 0x03, // subscription for channel mChannelGroupId changed.
-    POST_UPDATED                 = 0x04, // subscription for channel mChannelGroupId changed.
-//    READ_STATUS_CHANGED             = 0x07, // existing message has been read or set to unread
-//    RECEIVED_DISTANT_SEARCH_RESULT  = 0x08, // result for the given group id available for the given turtle request id
-//    STATISTICS_CHANGED              = 0x09, // stats (nb of supplier friends, how many msgs they have etc) has changed
-//    SYNC_PARAMETERS_UPDATED         = 0x0a, // sync and storage times have changed
-    NEW_REPLY                     = 0x05, // new comment arrived/published. mChannelThreadId gives the ID of the commented message
-    NEW_LIKE                       = 0x06, // new vote arrived/published. mChannelThreadId gives the ID of the votes message comment
-    NEW_REPUBLISH                 = 0x07, // channel was deleted by auto-cleaning system
+    UNKNOWN                         = 0x00, // event not recognized
+    NEW_POST                        = 0x01, // this event happens when there is a new post
+    FOLLOW_STATUS_CHANGED           = 0x02, // this event happens when we follow someone or a new wire account is created
+    POST_UPDATED                    = 0x03, // this event happens when there is any change to a post (creation, like, republish, reply)
+    NEW_REPLY                       = 0x04, // this event happens when there is a new reply to a post
+    NEW_LIKE                        = 0x05, // this event happens when there is a new like to a post
+    NEW_REPUBLISH                   = 0x06, // this event happens when there is a new republish of a post
 };
 
 struct RsWireEvent: RsEvent
@@ -273,9 +265,9 @@ struct RsWireEvent: RsEvent
 
     RsWireEventCode mWireEventCode;
     RsGxsGroupId mWireGroupId;
-    RsGxsMessageId mWireMsgId;          // Id of the message/comment/like
-    RsGxsMessageId mWireThreadId;		// for likes/comments, Id of the relevant message
-    RsGxsMessageId mWireParentId;		// for comments, Id of the parent comment
+    RsGxsMessageId mWireMsgId;          // Id of the message/reply/like
+    RsGxsMessageId mWireThreadId;		// for likes/reply, Id of the relevant message
+    RsGxsMessageId mWireParentId;		// for reply, Id of the parent comment
 
 
     ///* @see RsEvent @see RsSerializable

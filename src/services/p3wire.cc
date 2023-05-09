@@ -117,18 +117,19 @@ RsTokenService* p3Wire::getTokenService() {
 
 void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
 {
-	std::cerr << "p3Wire::notifyChanges() New stuff";
-	std::cerr << std::endl;
+    std::cerr << "p3Wire::notifyChanges() New stuff";
+    std::cerr << std::endl;
 
-//    #ifdef GXSCHANNEL_DEBUG
-//        RsDbg() << " Processing " << changes.size() << " channel changes..." << std::endl;
-//    #endif
+    #ifdef GXSWIRE_DEBUG
+        RsDbg() << " Processing " << changes.size() << " wire changes..." << std::endl;
+    #endif
         /* iterate through and grab any new messages */
         std::set<RsGxsGroupId> unprocessedGroups;
 
         std::vector<RsGxsNotify *>::iterator it;
         for(it = changes.begin(); it != changes.end(); ++it)
         {
+            // here the changes are for the message
             RsGxsMsgChange *msgChange = dynamic_cast<RsGxsMsgChange *>(*it);
 
             if (msgChange)
@@ -145,12 +146,14 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                         auto temp =dynamic_cast<RsGxsWirePulseItem*>(msgChange->mNewMsgItem);
                         if(nullptr != temp)
                         {
+                            // this condition checks for any new comments/replies (comment and reply are same)
                             if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_REPLY)
                             {
                                 ev->mWireEventCode = RsWireEventCode::NEW_REPLY;
                                 ev->mWireThreadId = msgChange->mNewMsgItem->meta.mThreadId;
                             }
                             else
+                                // this condition checks for any new likes
                                 if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_LIKE)
                                 {
                                     ev->mWireEventCode = RsWireEventCode::NEW_LIKE;
@@ -159,6 +162,7 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                                 }
 
                             else
+                                // this condition checks for any new posts and republishes
                                 if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_ORIGINAL||(temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_REPUBLISH)
                                 {
                                     ev->mWireEventCode = RsWireEventCode::NEW_POST;
@@ -170,40 +174,25 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
 
                 if (!msgChange->metaChange())
                 {
-//    #ifdef GXSCHANNELS_DEBUG
-//                    std::cerr << "p3GxsWire::notifyChanges() Found Message Change Notification";
-//                    std::cerr << std::endl;
-//    #endif
-
-//    #ifdef GXSCHANNELS_DEBUG
-//                    std::cerr << "p3GxsWire::notifyChanges() Msgs for Group: " << mit->first;
-//                    std::cerr << std::endl;
-//    #endif
-//                    {
-//    #ifdef GXSCHANNELS_DEBUG
-//                        std::cerr << "p3GxsWire::notifyChanges() AutoDownload for Group: " << mit->first;
-//                        std::cerr << std::endl;
-//    #endif
-
-                        /* problem is most of these will be comments and votes, should make it occasional - every 5mins / 10minutes TODO */
-                        // We do not call if(autoDownLoadEnabled()) here, because it would be too costly when
-                        // many msgs are received from the same group. We back the groupIds and then request one by one.
-
-                        unprocessedGroups.insert(msgChange->mGroupId);
-//                    }
+#ifdef GXSWIRE_DEBUG
+                    std::cerr << "p3GxsWire::notifyChanges() Found Message Change Notification";
+                    std::cerr << std::endl;
+#endif
+                    unprocessedGroups.insert(msgChange->mGroupId);
                 }
             }
 
+            // here the changes are for the group
             RsGxsGroupChange *grpChange = dynamic_cast<RsGxsGroupChange*>(*it);
 
             if (grpChange && rsEvents)
             {
-//////    #ifdef GXSCHANNEL_DEBUG
-//////                RsDbg() << " Grp Change Event or type " << grpChange->getType() << ":" << std::endl;
-//////    #endif
+#ifdef GXSWIRE_DEBUG
+                RsDbg() << " Grp Change Event or type " << grpChange->getType() << ":" << std::endl;
+#endif
                 switch (grpChange->getType())
                 {
-                case RsGxsNotify::TYPE_PUBLISHED:	// happens when the group is subscribed
+                case RsGxsNotify::TYPE_PUBLISHED:	// happens when a new wire account is subscribed or created
                 {
                     auto ev = std::make_shared<RsWireEvent>();
                     ev->mWireGroupId = grpChange->mGroupId;
@@ -213,7 +202,7 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                     unprocessedGroups.insert(grpChange->mGroupId);
                 }
                     break;
-                case RsGxsNotify::TYPE_PROCESSED:	// happens when the group is subscribed
+                case RsGxsNotify::TYPE_PROCESSED:	// happens when the post is updated
                 {
                     auto ev = std::make_shared<RsWireEvent>();
                     ev->mWireGroupId = grpChange->mGroupId;
@@ -229,7 +218,6 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 }
             }
 
-            /* shouldn't need to worry about groups - as they need to be subscribed to */
             delete *it;
         }
 }
