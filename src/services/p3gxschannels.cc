@@ -692,6 +692,8 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		}
 	}
 
+    sortPosts(msgs);	// stores old versions in the right place.
+
 	return true;
 }
 
@@ -1233,24 +1235,6 @@ bool p3GxsChannels::getChannelsInfo( const std::list<RsGxsGroupId>& chanIds, std
 	return getGroupData(token, channelsInfo) && !channelsInfo.empty();
 }
 
-bool p3GxsChannels::getChannelStatistics(const RsGxsGroupId& channelId,GxsGroupStatistic& stat)
-{
-    uint32_t token;
-	if(!RsGxsIfaceHelper::requestGroupStatistic(token, channelId) || waitToken(token) != RsTokenService::COMPLETE)
-        return false;
-
-    return RsGenExchange::getGroupStatistic(token,stat);
-}
-
-bool p3GxsChannels::getChannelServiceStatistics(GxsServiceStatistic& stat)
-{
-    uint32_t token;
-	if(!RsGxsIfaceHelper::requestServiceStatistic(token) || waitToken(token) != RsTokenService::COMPLETE)
-        return false;
-
-    return RsGenExchange::getServiceStatistic(token,stat);
-}
-
 bool p3GxsChannels::getContentSummaries(
         const RsGxsGroupId& channelId, std::vector<RsMsgMetaData>& summaries )
 {
@@ -1272,19 +1256,176 @@ bool p3GxsChannels::getContentSummaries(
 	return res;
 }
 
+template<class T> void sortPostMetas(std::vector<T>& posts,
+                                     const std::function< RsMsgMetaData& (T&) > get_meta,
+                                     std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > >& original_versions)
+{
+    // The hierarchy of posts may contain edited posts. In the new model (03/2023), mOrigMsgId points to the original
+    // top-level post in the hierarchy of edited posts. However, in the old model, mOrigMsgId points to the edited post.
+    // Therefore the algorithm below is made to cope with both models at once.
+    //
+    // In the future, using the new model, it will be possible to delete old versions from the db, and detect new versions
+    // because they all share the same mOrigMsgId.
+    //
+    // We proceed as follows:
+    //
+    //	1 - create a search map to convert post IDs into their index in the posts tab
+    //  2 - recursively climb up the post mOrigMsgId until no parent is found. At top level, create the original post, and add all previous elements as newer versions.
+    //	3 - go through the list of original posts, select among them the most recent version, and set all others as older versions.
+    //
+    // The algorithm handles the case where some parent has been deleted.
+
+#ifdef DEBUG_CHANNEL_MODEL
+    std::cerr << "Inserting channel posts" << std::endl;
+#endif
+
+    //	1 - create a search map to convert post IDs into their index in the posts tab
+
+#ifdef DEBUG_CHANNEL_MODEL
+    std::cerr << "  Given list: " << std::endl;
+#endif
+    std::map<RsGxsMessageId,uint32_t> search_map ;
+
+    for (uint32_t i=0;i<posts.size();++i)
+    {
+#ifdef DEBUG_CHANNEL_MODEL
+        std::cerr << "    " << i << ": " << get_meta(posts[i]).mMsgId << " orig=" << get_meta(posts[i]).mOrigMsgId << " publish TS =" << get_meta(posts[i]).mPublishTs << std::endl;
+#endif
+        search_map[get_meta(posts[i]).mMsgId] = i ;
+    }
+
+    //  2 - recursively climb up the post mOrigMsgId until no parent is found. At top level, create the original post, and add all previous elements as newer versions.
+
+#ifdef DEBUG_CHANNEL_MODEL
+    std::cerr << "  Searching for top-level posts..." << std::endl;
+#endif
+
+    for (uint32_t i=0;i<posts.size();++i)
+    {
+#ifdef DEBUG_CHANNEL_MODEL
+        std::cerr << "    Post " << i;
+#endif
+
+        // We use a recursive function here, so as to collect versions when climbing up to the top level post, and
+        // set the top level as the orig for all visited posts on the way back.
+
+        std::function<RsGxsMessageId (uint32_t,std::set<RsGxsMessageId>& versions,rstime_t newest_time,uint32_t newest_index,int depth)> recurs_find_top_level
+                = [&posts,&search_map,&recurs_find_top_level,&original_versions,&get_meta](uint32_t index,
+                                                                                std::set<RsGxsMessageId>& collected_versions,
+                                                                                rstime_t newest_time,
+                                                                                uint32_t newest_index,
+                                                                                int depth)
+                -> RsGxsMessageId
+        {
+            const auto& m(get_meta(posts[index]));
+
+            if(m.mPublishTs > newest_time)
+            {
+                newest_index = index;
+                newest_time = m.mPublishTs;
+            }
+            collected_versions.insert(m.mMsgId);
+
+            RsGxsMessageId top_level_id;
+            std::map<RsGxsMessageId,uint32_t>::const_iterator it;
+
+            if(m.mOrigMsgId.isNull() || m.mOrigMsgId==m.mMsgId)	// we have a top-level post.
+                top_level_id = m.mMsgId;
+            else if( (it = search_map.find(m.mOrigMsgId)) == search_map.end())	// we don't have the post. Never mind, we store the
+            {
+                top_level_id = m.mOrigMsgId;
+                collected_versions.insert(m.mOrigMsgId);	// this one will never be added to the set by the previous call
+            }
+            else
+            {
+                top_level_id = recurs_find_top_level(it->second,collected_versions,newest_time,newest_index,depth+1);
+                get_meta(posts[index]).mOrigMsgId = top_level_id;	// this fastens calculation because it will skip already seen posts.
+
+                return top_level_id;
+            }
+
+#ifdef DEBUG_CHANNEL_MODEL
+            std::cerr << std::string(2*depth,' ') << "  top level = " << top_level_id ;
+#endif
+            auto vit = original_versions.find(top_level_id);
+
+            if(vit != original_versions.end())
+            {
+                if(get_meta(posts[vit->second.first]).mPublishTs < newest_time)
+                    vit->second.first = newest_index;
+
+#ifdef DEBUG_CHANNEL_MODEL
+                std::cerr << "  already existing. " << std::endl;
+#endif
+            }
+            else
+            {
+                original_versions[top_level_id].first = newest_index;
+#ifdef DEBUG_CHANNEL_MODEL
+                std::cerr << "  new. " << std::endl;
+#endif
+            }
+            original_versions[top_level_id].second.insert(collected_versions.begin(),collected_versions.end());
+
+            return top_level_id;
+        };
+
+        auto versions_set = std::set<RsGxsMessageId>();
+        recurs_find_top_level(i,versions_set,get_meta(posts[i]).mPublishTs,i,0);
+    }
+}
+
+void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts) const
+{
+    std::vector<RsGxsChannelPost> mPosts;
+    std::function< RsMsgMetaData& (RsGxsChannelPost&) > get_meta = [](RsGxsChannelPost& p)->RsMsgMetaData& { return p.mMeta; };
+    std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > > original_versions;
+
+    sortPostMetas(posts, get_meta, original_versions);
+
+#ifdef DEBUG_CHANNEL_MODEL
+    std::cerr << "  Total top_level posts: " << original_versions.size() << std::endl;
+
+    for(auto it:original_versions)
+    {
+        std::cerr << "    Post " << it.first << ". Total versions = " << it.second.second.size() << " latest: " << posts[it.second.first].mMeta.mMsgId << std::endl;
+
+        for(auto m:it.second.second)
+            if(m != it.first)
+                std::cerr << "      other (newer version): " << m << std::endl;
+    }
+#endif
+    // make sure the posts are delivered in the same order they appears in the posts[] tab.
+
+    std::vector<uint32_t> ids;
+
+    for(auto id:original_versions)
+        ids.push_back(id.second.first);
+
+    std::sort(ids.begin(),ids.end());
+
+    for(uint32_t i=0;i<ids.size();++i)
+    {
+        mPosts.push_back(posts[ids[i]]);
+        mPosts.back().mOlderVersions = original_versions[posts[ids[i]].mMeta.mMsgId].second;
+    }
+
+    posts = mPosts;
+}
+
 bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
                                         std::vector<RsGxsChannelPost>& posts,
                                         std::vector<RsGxsComment>& comments,
                                         std::vector<RsGxsVote>& votes )
 {
-	uint32_t token;
-	RsTokReqOptions opts;
-	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+    uint32_t token;
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
     if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
-		return false;
+        return false;
 
-	return getPostData(token, posts, comments,votes);
+    return getPostData(token, posts, comments,votes);
 }
 
 bool p3GxsChannels::getChannelContent( const RsGxsGroupId& channelId,
@@ -1305,6 +1446,70 @@ bool p3GxsChannels::getChannelContent( const RsGxsGroupId& channelId,
 
 	return getPostData(token, posts, comments, votes);
 }
+
+bool p3GxsChannels::getChannelStatistics(const RsGxsGroupId& channelId,RsGxsChannelStatistics& stat)
+{
+    std::vector<RsMsgMetaData> metas;
+
+    if(!getContentSummaries(channelId,metas))
+        return false;
+
+    std::vector<RsMsgMetaData> post_metas;
+
+    stat.mNumberOfCommentsAndVotes = 0;
+    stat.mNumberOfPosts = 0;
+    stat.mNumberOfNewPosts = 0;
+    stat.mNumberOfUnreadPosts = 0;
+
+    for(uint32_t i=0;i<metas.size();++i)
+        if(metas[i].mThreadId.isNull() && metas[i].mParentId.isNull())	// make sure we have a post and not a comment or vote
+            post_metas.push_back(metas[i]);
+        else
+            ++stat.mNumberOfCommentsAndVotes;
+
+        // now, remove old posts,
+
+    std::vector<RsGxsChannelPost> mPosts;
+    std::function< RsMsgMetaData& (RsMsgMetaData&) > get_meta = [](RsMsgMetaData& p)->RsMsgMetaData& { return p; };
+    std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > > original_versions;
+
+    sortPostMetas(post_metas, get_meta, original_versions);
+
+    for(const auto& ov_entry:original_versions)
+    {
+        auto& m( post_metas[ov_entry.second.first] );
+
+        ++stat.mNumberOfPosts;
+
+        if(m.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_GUI_NEW)
+            ++stat.mNumberOfNewPosts;
+
+        if(m.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD)
+            ++stat.mNumberOfUnreadPosts;
+    }
+
+    return true;
+}
+
+bool p3GxsChannels::getChannelGroupStatistics(const RsGxsGroupId& channelId,GxsGroupStatistic& stat)
+{
+    // We shortcircuit the default service group statistic calculation, since we only want to display information for latest versions of posts.
+    uint32_t token;
+    if(!RsGxsIfaceHelper::requestGroupStatistic(token, channelId) || waitToken(token) != RsTokenService::COMPLETE)
+        return false;
+
+    return RsGenExchange::getGroupStatistic(token,stat);
+}
+
+bool p3GxsChannels::getChannelServiceStatistics(GxsServiceStatistic& stat)
+{
+    uint32_t token;
+    if(!RsGxsIfaceHelper::requestServiceStatistic(token) || waitToken(token) != RsTokenService::COMPLETE)
+        return false;
+
+    return RsGenExchange::getServiceStatistic(token,stat);
+}
+
 
 bool p3GxsChannels::createChannelV2(
         const std::string& name, const std::string& description,
