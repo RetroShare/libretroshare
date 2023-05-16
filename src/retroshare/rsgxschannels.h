@@ -45,12 +45,23 @@ class RsGxsChannels;
  */
 extern RsGxsChannels* rsGxsChannels;
 
-struct RsGxsChannelStatistics
+struct RsGxsChannelStatistics: RsSerializable
 {
     uint32_t mNumberOfPosts;
     uint32_t mNumberOfCommentsAndVotes;
     uint32_t mNumberOfUnreadPosts;
     uint32_t mNumberOfNewPosts;
+
+    /// @see RsSerializable
+    virtual void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RS_SERIAL_PROCESS(mNumberOfPosts);
+        RS_SERIAL_PROCESS(mNumberOfCommentsAndVotes);
+        RS_SERIAL_PROCESS(mNumberOfUnreadPosts);
+        RS_SERIAL_PROCESS(mNumberOfNewPosts);
+    }
 };
 
 struct RsGxsChannelGroup : RsSerializable, RsGxsGenericGroupData
