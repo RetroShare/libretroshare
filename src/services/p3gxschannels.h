@@ -235,7 +235,7 @@ protected:	// made protected because it's all deprecated
     virtual bool getPostData(const uint32_t &token, std::vector<RsGxsChannelPost> &posts) override;
 
     // helper function that moved old post versions in the mOldVersions of new posts.
-    void sortPosts(std::vector<RsGxsChannelPost>& posts) const;
+    void sortPosts(std::vector<RsGxsChannelPost>& posts, const std::vector<RsGxsComment> &comments) const;
 
     //Not currently used
     //virtual bool getRelatedPosts(const uint32_t &token, std::vector<RsGxsChannelPost> &posts);

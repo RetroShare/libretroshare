@@ -692,7 +692,7 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		}
 	}
 
-    sortPosts(msgs);	// stores old versions in the right place.
+    sortPosts(msgs,cmts);	// stores old versions in the right place.
 
 	return true;
 }
@@ -1375,7 +1375,7 @@ template<class T> void sortPostMetas(std::vector<T>& posts,
     }
 }
 
-void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts) const
+void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::vector<RsGxsComment>& comments) const
 {
     std::vector<RsGxsChannelPost> mPosts;
     std::function< RsMsgMetaData& (RsGxsChannelPost&) > get_meta = [](RsGxsChannelPost& p)->RsMsgMetaData& { return p.mMeta; };
@@ -1395,6 +1395,40 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts) const
                 std::cerr << "      other (newer version): " << m << std::endl;
     }
 #endif
+    // Store posts IDs in a std::map to avoid a quadratic cost
+
+    std::map<RsGxsMessageId,uint32_t> post_indices;
+
+    for(uint32_t i=0;i<posts.size();++i)
+    {
+        post_indices[posts[i].mMeta.mMsgId] = i;
+        posts[i].mCommentCount = 0;	// should be 0 already, but we secure that value.
+        posts[i].mUnreadCommentCount = 0;
+    }
+
+    // now update comment count: look into comments and increase the count
+
+    for(uint32_t i=0;i<comments.size();++i)
+    {
+        auto it = post_indices.find(comments[i].mMeta.mThreadId);
+
+        // This happens when because of sync periods, we receive
+        // the comments for a post, but not the post itself.
+        // In this case, the post the comment refers to is just not here.
+        // it->second>=posts.size() is impossible by construction, since post_indices
+        // is previously filled using posts ids.
+
+        if(it == post_indices.end())
+            continue;
+
+        auto& p(posts[it->second]);
+
+        ++p.mCommentCount;
+
+        if(IS_MSG_NEW(comments[i].mMeta.mMsgStatus))
+            ++p.mUnreadCommentCount;
+    }
+
     // make sure the posts are delivered in the same order they appears in the posts[] tab.
 
     std::vector<uint32_t> ids;
