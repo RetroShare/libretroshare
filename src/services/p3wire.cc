@@ -192,11 +192,11 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
 #endif
                 switch (grpChange->getType())
                 {
-                case RsGxsNotify::TYPE_PUBLISHED:	// happens when a new wire account is subscribed or created
+                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
                 {
                     auto ev = std::make_shared<RsWireEvent>();
                     ev->mWireGroupId = grpChange->mGroupId;
-                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+                    ev->mWireEventCode = RsWireEventCode::NEW_WIRE;
                     rsEvents->postEvent(ev);
 
                     unprocessedGroups.insert(grpChange->mGroupId);
