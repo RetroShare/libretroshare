@@ -136,11 +136,9 @@ class RsWirePulse;
 typedef std::shared_ptr<RsWirePulse> RsWirePulseSPtr;
 typedef std::shared_ptr<const RsWirePulse> RsWirePulseConstSPtr;
 
-class RsWirePulse
+struct RsWirePulse : RsGxsGenericMsgData
 {
-	public:
-
-	RsMsgMetaData mMeta;
+    public:
 
 	// Store actual Pulse here.
 	std::string mPulseText;
@@ -245,6 +243,48 @@ virtual bool getPulsesForGroups(const std::list<RsGxsGroupId> &groupIds,
 virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId,
 				int type, RsWirePulseSPtr &pPulse) = 0;
 
+};
+
+enum class RsWireEventCode: uint8_t
+{
+    UNKNOWN                         = 0x00, // event not recognized
+    NEW_WIRE                        = 0x01, // emitted when new wire is received
+    NEW_POST                        = 0x02, // this event happens when there is a new post
+    FOLLOW_STATUS_CHANGED           = 0x03, // this event happens when we follow someone
+    POST_UPDATED                    = 0x04, // this event happens when there is any change to a post (creation, like, republish, reply)
+    NEW_REPLY                       = 0x05, // this event happens when there is a new reply to a post
+    NEW_LIKE                        = 0x06, // this event happens when there is a new like to a post
+    NEW_REPUBLISH                   = 0x07, // this event happens when there is a new republish of a post
+};
+
+struct RsWireEvent: RsEvent
+{
+    RsWireEvent()
+        : RsEvent(RsEventType::WIRE),
+          mWireEventCode(RsWireEventCode::UNKNOWN) {}
+
+
+    RsWireEventCode mWireEventCode;
+    RsGxsGroupId mWireGroupId;
+    RsGxsMessageId mWireMsgId;          // Id of the message/reply/like
+    RsGxsMessageId mWireThreadId;		// for likes/reply, Id of the relevant message
+    RsGxsMessageId mWireParentId;		// for reply, Id of the parent comment
+
+
+    ///* @see RsEvent @see RsSerializable
+    void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mWireEventCode);
+        RS_SERIAL_PROCESS(mWireGroupId);
+        RS_SERIAL_PROCESS(mWireMsgId);
+        RS_SERIAL_PROCESS(mWireThreadId);
+        RS_SERIAL_PROCESS(mWireParentId);
+    }
+
+    virtual ~RsWireEvent() {}
 };
 
 #endif

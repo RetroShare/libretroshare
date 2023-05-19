@@ -115,10 +115,111 @@ RsTokenService* p3Wire::getTokenService() {
 	return RsGenExchange::getTokenService();
 }
 
-void p3Wire::notifyChanges(std::vector<RsGxsNotify*>& /*changes*/)
+void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
 {
-	std::cerr << "p3Wire::notifyChanges() New stuff";
-	std::cerr << std::endl;
+    std::cerr << "p3Wire::notifyChanges() New stuff";
+    std::cerr << std::endl;
+
+    #ifdef GXSWIRE_DEBUG
+        RsDbg() << " Processing " << changes.size() << " wire changes..." << std::endl;
+    #endif
+        /* iterate through and grab any new messages */
+        std::set<RsGxsGroupId> unprocessedGroups;
+
+        std::vector<RsGxsNotify *>::iterator it;
+        for(it = changes.begin(); it != changes.end(); ++it)
+        {
+            // here the changes are for the message
+            RsGxsMsgChange *msgChange = dynamic_cast<RsGxsMsgChange *>(*it);
+
+            if (msgChange)
+            {
+                if (msgChange->getType() == RsGxsNotify::TYPE_RECEIVED_NEW|| msgChange->getType() == RsGxsNotify::TYPE_PUBLISHED)
+                {
+                    /* message received */
+                    if (rsEvents)
+                    {
+                        auto ev = std::make_shared<RsWireEvent>();
+                        ev->mWireMsgId = msgChange->mMsgId;
+                        ev->mWireGroupId = msgChange->mGroupId;
+
+                        auto temp =dynamic_cast<RsGxsWirePulseItem*>(msgChange->mNewMsgItem);
+                        if(nullptr != temp)
+                        {
+                            // this condition checks for any new comments/replies (comment and reply are same)
+                            if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_REPLY)
+                            {
+                                ev->mWireEventCode = RsWireEventCode::NEW_REPLY;
+                                ev->mWireThreadId = msgChange->mNewMsgItem->meta.mThreadId;
+                            }
+                            else
+                                // this condition checks for any new likes
+                                if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_LIKE)
+                                {
+                                    ev->mWireEventCode = RsWireEventCode::NEW_LIKE;
+                                    ev->mWireThreadId = msgChange->mNewMsgItem->meta.mThreadId;
+                                    ev->mWireParentId = msgChange->mNewMsgItem->meta.mParentId;
+                                }
+
+                            else
+                                // this condition checks for any new posts and republishes
+                                if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_ORIGINAL||(temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_REPUBLISH)
+                                {
+                                    ev->mWireEventCode = RsWireEventCode::NEW_POST;
+                                }
+                        }
+                        rsEvents->postEvent(ev);
+                    }
+                }
+
+                if (!msgChange->metaChange())
+                {
+#ifdef GXSWIRE_DEBUG
+                    std::cerr << "p3GxsWire::notifyChanges() Found Message Change Notification";
+                    std::cerr << std::endl;
+#endif
+                    unprocessedGroups.insert(msgChange->mGroupId);
+                }
+            }
+
+            // here the changes are for the group
+            RsGxsGroupChange *grpChange = dynamic_cast<RsGxsGroupChange*>(*it);
+
+            if (grpChange && rsEvents)
+            {
+#ifdef GXSWIRE_DEBUG
+                RsDbg() << " Grp Change Event or type " << grpChange->getType() << ":" << std::endl;
+#endif
+                switch (grpChange->getType())
+                {
+                case RsGxsNotify::TYPE_PUBLISHED:	// happens when a new wire account is subscribed or created
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+                    rsEvents->postEvent(ev);
+
+                    unprocessedGroups.insert(grpChange->mGroupId);
+                }
+                    break;
+                case RsGxsNotify::TYPE_PROCESSED:	// happens when the post is updated
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::POST_UPDATED;
+                    rsEvents->postEvent(ev);
+
+                    unprocessedGroups.insert(grpChange->mGroupId);
+                }
+                    break;
+                default:
+                    RsErr() << " Got a GXS event of type " << grpChange->getType() << " Currently not handled." << std::endl;
+                    break;
+                }
+            }
+
+            delete *it;
+        }
 }
 
 		/* Specific Service Data */
@@ -722,64 +823,64 @@ bool p3Wire::createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGro
 	}
 
 	// create ReplyTo Ref Msg.
-	std::cerr << "PulseAddDialog::postRefPulse() create Reference!";
+    std::cerr << "PulseAddDialog::postRefPulse() create Reference!";
 	std::cerr << std::endl;
 
 	// Reference Pulse. posted on Parent's Group.
-	RsWirePulse refPulse;
+    RsWirePulse refPulse;
 
-	refPulse.mMeta.mGroupId  = replyToPulse->mMeta.mGroupId;
-	refPulse.mMeta.mAuthorId = replyWithGroup.mMeta.mAuthorId; // own author Id.
-	refPulse.mMeta.mThreadId = replyToPulse->mMeta.mOrigMsgId;
-	refPulse.mMeta.mParentId = replyToPulse->mMeta.mOrigMsgId;
-	refPulse.mMeta.mOrigMsgId.clear();
+    refPulse.mMeta.mGroupId  = replyToPulse->mMeta.mGroupId;
+    refPulse.mMeta.mAuthorId = replyWithGroup.mMeta.mAuthorId; // own author Id.
+    refPulse.mMeta.mThreadId = replyToPulse->mMeta.mOrigMsgId;
+    refPulse.mMeta.mParentId = replyToPulse->mMeta.mOrigMsgId;
+    refPulse.mMeta.mOrigMsgId.clear();
 
-	refPulse.mPulseType = WIRE_PULSE_TYPE_REFERENCE | reply_type;
-	refPulse.mSentiment = 0; // should this be =? createdResponsePulse->mSentiment;
+    refPulse.mPulseType = WIRE_PULSE_TYPE_REFERENCE | reply_type;
+    refPulse.mSentiment = 0; // should this be =? createdResponsePulse->mSentiment;
 
-	// Dont put parent PulseText into refPulse - it is available on Thread Msg.
-	// otherwise gives impression it is correctly setup Parent / Reply...
-	// when in fact the parent PublishTS, and AuthorId are wrong.
-	refPulse.mPulseText = "";
+    // Dont put parent PulseText into refPulse - it is available on Thread Msg.
+    // otherwise gives impression it is correctly setup Parent / Reply...
+    // when in fact the parent PublishTS, and AuthorId are wrong.
+    refPulse.mPulseText = "";
 
-	// refs refer back to own Post.
-	refPulse.mRefGroupId   = replyWithGroup.mMeta.mGroupId;
-	refPulse.mRefGroupName = replyWithGroup.mMeta.mGroupName;
-	refPulse.mRefOrigMsgId = createdResponsePulse->mMeta.mOrigMsgId;
-	refPulse.mRefAuthorId  = replyWithGroup.mMeta.mAuthorId;
-	refPulse.mRefPublishTs = createdResponsePulse->mMeta.mPublishTs;
-	refPulse.mRefPulseText = createdResponsePulse->mPulseText;
-	refPulse.mRefImageCount = createdResponsePulse->ImageCount();
+    // refs refer back to own Post.
+    refPulse.mRefGroupId   = replyWithGroup.mMeta.mGroupId;
+    refPulse.mRefGroupName = replyWithGroup.mMeta.mGroupName;
+    refPulse.mRefOrigMsgId = createdResponsePulse->mMeta.mOrigMsgId;
+    refPulse.mRefAuthorId  = replyWithGroup.mMeta.mAuthorId;
+    refPulse.mRefPublishTs = createdResponsePulse->mMeta.mPublishTs;
+    refPulse.mRefPulseText = createdResponsePulse->mPulseText;
+    refPulse.mRefImageCount = createdResponsePulse->ImageCount();
 
-	// publish Ref Msg.
-	if (!createPulse(token, refPulse))
-	{
-		std::cerr << "p3Wire::createReplyPulse() FAILED to create Ref Pulse";
-		std::cerr << std::endl;
-		return false;
-	}
+    // publish Ref Msg.
+    if (!createPulse(token, refPulse))
+    {
+        std::cerr << "p3Wire::createReplyPulse() FAILED to create Ref Pulse";
+        std::cerr << std::endl;
+        return false;
+    }
 
-	result = waitToken(token);
-	if (result != RsTokenService::COMPLETE)
-	{
-		std::cerr << "p3Wire::createReplyPulse() FAILED(2) to create Ref Pulse";
-		std::cerr << std::endl;
-		return false;
-	}
+    result = waitToken(token);
+    if (result != RsTokenService::COMPLETE)
+    {
+        std::cerr << "p3Wire::createReplyPulse() FAILED(2) to create Ref Pulse";
+        std::cerr << std::endl;
+        return false;
+    }
 
-	// get MsgId.
-	std::pair<RsGxsGroupId, RsGxsMessageId> refPair;
-	if (!acknowledgeMsg(token, refPair))
-	{
-		std::cerr << "p3Wire::createReplyPulse() FAILED acknowledgeMsg for Ref Pulse";
-		std::cerr << std::endl;
-		return false;
-	}
+    // get MsgId.
+    std::pair<RsGxsGroupId, RsGxsMessageId> refPair;
+    if (!acknowledgeMsg(token, refPair))
+    {
+        std::cerr << "p3Wire::createReplyPulse() FAILED acknowledgeMsg for Ref Pulse";
+        std::cerr << std::endl;
+        return false;
+    }
 
-	std::cerr << "p3Wire::createReplyPulse() Success: Ref Pulse ID: (";
-	std::cerr << refPair.first.toStdString() << ", ";
-	std::cerr << refPair.second.toStdString() << ")";
-	std::cerr << std::endl;
+    std::cerr << "p3Wire::createReplyPulse() Success: Ref Pulse ID: (";
+    std::cerr << refPair.first.toStdString() << ", ";
+    std::cerr << refPair.second.toStdString() << ")";
+    std::cerr << std::endl;
 
 	return true;
 }
