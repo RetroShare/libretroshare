@@ -196,7 +196,7 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 {
                     auto ev = std::make_shared<RsWireEvent>();
                     ev->mWireGroupId = grpChange->mGroupId;
-                    ev->mWireEventCode = RsWireEventCode::NEW_WIRE;
+                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
                     rsEvents->postEvent(ev);
 
                     unprocessedGroups.insert(grpChange->mGroupId);

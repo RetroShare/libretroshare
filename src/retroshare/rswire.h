@@ -245,15 +245,17 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
 
 };
 
+
 enum class RsWireEventCode: uint8_t
 {
     UNKNOWN                         = 0x00, // event not recognized
-    NEW_POST                        = 0x01, // this event happens when there is a new post
-    NEW_WIRE                        = 0x02, // this event happens when we follow someone or a new wire account is created
-    POST_UPDATED                    = 0x03, // this event happens when there is any change to a post (creation, like, republish, reply)
-    NEW_REPLY                       = 0x04, // this event happens when there is a new reply to a post
-    NEW_LIKE                        = 0x05, // this event happens when there is a new like to a post
-    NEW_REPUBLISH                   = 0x06, // this event happens when there is a new republish of a post
+    NEW_WIRE                        = 0x01, // emitted when new wire is received
+    NEW_POST                        = 0x02, // this event happens when there is a new post
+    FOLLOW_STATUS_CHANGED           = 0x03, // this event happens when we follow someone
+    POST_UPDATED                    = 0x04, // this event happens when there is any change to a post (creation, like, republish, reply)
+    NEW_REPLY                       = 0x05, // this event happens when there is a new reply to a post
+    NEW_LIKE                        = 0x06, // this event happens when there is a new like to a post
+    NEW_REPUBLISH                   = 0x07, // this event happens when there is a new republish of a post
 };
 
 struct RsWireEvent: RsEvent
