@@ -549,8 +549,7 @@ bool RsAccountsDetail::getAvailableAccounts(std::map<RsPeerId, AccountDetails> &
 	std::list<std::string> directories;
 	std::list<std::string>::iterator it;
 
-	std::cerr << "RsAccounts::getAvailableAccounts()";
-	std::cerr << std::endl;
+    RsInfo() << "RsAccounts: parsing existing accounts.";
 
 	/* now iterate through the directory...
 	 * directories - flags as old,
@@ -562,7 +561,7 @@ bool RsAccountsDetail::getAvailableAccounts(std::map<RsPeerId, AccountDetails> &
 
 	if (!dirIt.isValid())
 	{
-		std::cerr << "Cannot Open Base Dir - No Available Accounts" << std::endl;
+        RsErr() << "  Cannot Open Base Dir - No Available Accounts" ;
 		return false ;
 	}
 
@@ -621,7 +620,7 @@ bool RsAccountsDetail::getAvailableAccounts(std::map<RsPeerId, AccountDetails> &
 
 		if (it->length() != 32 + 6)
 		{
-			std::cerr << "getAvailableAccounts() Skipping Invalid sized dir: " << *it << std::endl;
+            RsErr() << "  getAvailableAccounts() Skipping Invalid sized dir: " << *it ;
 			continue;
 		}
 
@@ -645,7 +644,7 @@ bool RsAccountsDetail::getAvailableAccounts(std::map<RsPeerId, AccountDetails> &
 		}
 		else
 		{
-			std::cerr << "getAvailableAccounts() Skipping Invalid Prefix dir: " << *it << std::endl;
+            RsErr() << "  Skipping Invalid Prefix dir: " << *it ;
 			continue;
 		}
 
@@ -674,13 +673,9 @@ bool RsAccountsDetail::getAvailableAccounts(std::map<RsPeerId, AccountDetails> &
 				ait = accounts.find(tmpId.mSslId);
 				if (ait != accounts.end())
 				{
-					std::cerr << "getAvailableAccounts() ERROR Duplicate SSLIDs";
-					std::cerr << " - only one will be available";
-					std::cerr << std::endl;
-					std::cerr << " ID1 (overridden) : " << ait->first << " Directory: " << ait->second.mAccountDir;
-					std::cerr << std::endl;
-					std::cerr << " ID2 (available)  : " << tmpId.mSslId << " Directory: " << tmpId.mAccountDir;
-					std::cerr << std::endl;
+                    RsErr() << "  getAvailableAccounts() ERROR Duplicate SSLIDs - only one will be available";
+                    RsErr() << "    ID1 (overridden) : " << ait->first << " Directory: " << ait->second.mAccountDir;
+                    RsErr() << "    ID2 (available)  : " << tmpId.mSslId << " Directory: " << tmpId.mAccountDir;
 
 				}
 

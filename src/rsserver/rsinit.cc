@@ -406,8 +406,7 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 
 #ifdef RS_JSONAPI
 	// We create the JsonApiServer this early, because it is needed *before* login
-	RsDbg() << __PRETTY_FUNCTION__
-	        << " Allocating JSON API server (not launched yet)" << std::endl;
+    RsInfo() << "Allocating JSON API server (not launched yet)" ;
 	JsonApiServer* jas = new JsonApiServer();
 	jas->setListeningPort(conf.jsonApiPort);
 	jas->setBindingAddress(conf.jsonApiBindAddress);

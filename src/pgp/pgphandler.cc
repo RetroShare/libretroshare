@@ -310,7 +310,7 @@ void PGPHandler::locked_readPrivateTrustDatabase()
 
 	fclose(fdb) ;
 
-    RsErr() << "PGPHandler: Successfully read " << std::hex << n_packets << std::dec << " trust packets." ;
+    RsErr() << "PGPHandler: Successfully read " << n_packets << " trust packets." ;
 }
 
 bool PGPHandler::locked_writePrivateTrustDatabase()

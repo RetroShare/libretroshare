@@ -53,7 +53,7 @@ using namespace Tor;
 static const int INTERVAL_BETWEEN_CONTROL_PORT_READ_TRIES = 5; // try every 5 secs.
 
 TorProcess::TorProcess(TorProcessClient *client)
-    : m_client(client),  mState(TorProcess::NotStarted), mControlPort(0), mLastTryReadControlPort(0)
+    : m_client(client),  mState(TorProcess::NotStarted), mControlPort(0), mLastTryReadControlPort(0),mVerbose(false)
 {
     mControlPortReadNbTries=0;
 
@@ -65,6 +65,10 @@ TorProcess::~TorProcess()
         stop();
 }
 
+void TorProcess::setVerbose(bool v)
+{
+    mVerbose = v;
+}
 std::string TorProcess::executable() const
 {
     return mExecutable;
@@ -120,7 +124,7 @@ std::string TorProcess::errorMessage() const
 
 int popen3(int fd[3],const std::vector<std::string>& args,TorProcessHandle& pid)
 {
-    RsErr() << "Launching Tor in background..." ;
+    RsInfo() << "  Launching Tor in background..." ;
 
     int i, e;
     int p[3][2];
@@ -227,7 +231,7 @@ int popen3(int fd[3],const std::vector<std::string>& args,TorProcessHandle& pid)
         }
         else
         {
-            RsErr() << "Launching sub-process..." ;
+            RsInfo() << "  Launching sub-process..." ;
             // child
             dup2(p[STDIN_FILENO][0],STDIN_FILENO);
             close(p[STDIN_FILENO][1]);
@@ -291,7 +295,7 @@ void TorProcess::start()
         if(m_client) m_client->processErrorChanged(mErrorMessage);// emit errorMessageChanged(d->errorMessage);
         if(m_client) m_client->processStateChanged(mState); // emit stateChanged(d->state);
     }
-    else
+    else if(mVerbose)
         RsDbg() << "Using ControlPasswd=\"" << password.toString() << "\", hashed version=\"" << hashedPassword.toString() << "\"" ;
 
     mState = Starting;
@@ -481,7 +485,7 @@ std::string TorProcess::controlPortFilePath() const
 bool TorProcess::tryReadControlPort()
 {
     FILE *file = RsDirUtil::rs_fopen(controlPortFilePath().c_str(),"r");
-    RsDbg() << "Trying to read control port" ;
+    RsInfo() << "  Trying to read control port" ;
 
     if(file)
     {
@@ -501,7 +505,7 @@ bool TorProcess::tryReadControlPort()
 
             if (!mControlHost.empty() && mControlPort > 0)
             {
-                RsDbg() << "Got control host/port = " << mControlHost << ":" << mControlPort ;
+                RsInfo() << "  Got control host/port = " << mControlHost << ":" << mControlPort ;
                 return true;
             }
         }
