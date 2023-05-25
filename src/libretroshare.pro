@@ -123,7 +123,7 @@ SOURCES +=	tcponudp/udppeer.cc \
 
 
 PUBLIC_HEADERS =	retroshare/rsdisc.h \
-    retroshare/rsgossipdiscovery \
+    retroshare/rsgossipdiscovery.h \
     retroshare/rsevents.h \
 					retroshare/rsexpr.h \
 					retroshare/rsfiles.h \
@@ -132,7 +132,6 @@ PUBLIC_HEADERS =	retroshare/rsdisc.h \
 					retroshare/rsiface.h \
 					retroshare/rsinit.h \
 					retroshare/rsplugin.h \
-					retroshare/rsloginhandler.h \
 					retroshare/rsmsgs.h \
 					retroshare/rsnotify.h \
 					retroshare/rspeers.h \
@@ -412,6 +411,7 @@ HEADERS +=	rsserver/p3face.h \
 			rsserver/p3peers.h \
 			rsserver/p3status.h \
 			rsserver/rsaccounts.h \
+			rsserver/rsloginhandler.h \
 			rsserver/p3serverconfig.h
 
 HEADERS +=  grouter/groutercache.h \
