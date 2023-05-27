@@ -139,7 +139,7 @@ bool HiddenService::loadPrivateKey()
             m_hostname = s;
             m_service_id = s.substr(0,s.length() - std::string(".onion").length());
 
-            RsDbg() << "Using existing hostname: " << m_hostname;
+            RsInfo() << "  Using existing hostname: " << m_hostname;
         }
         i.close();
     }
