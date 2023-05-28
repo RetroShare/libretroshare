@@ -374,7 +374,7 @@ public:
      */
     virtual bool getForumPostsHierarchy(const RsGxsForumGroup& group,
                                         std::vector<ForumPostEntry>& vect,
-                                        std::map<RsGxsMessageId,std::vector<std::pair<time_t, RsGxsMessageId> > >& post_versions) =0;
+                                        std::map<RsGxsMessageId,std::vector<std::pair<rstime_t, RsGxsMessageId> > >& post_versions) =0;
 
     /**
 	 * @brief Get message metadatas for a specific forum. Blocking API

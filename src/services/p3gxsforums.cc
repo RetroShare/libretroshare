@@ -1072,7 +1072,7 @@ bool p3GxsForums::getForumStatistics(const RsGxsGroupId& forumId,RsGxsForumStati
 
     // 2 - sort messages into a proper hierarchy, discarding old versions
 
-    std::map<RsGxsMessageId,std::vector<std::pair<time_t, RsGxsMessageId> > > post_versions;
+    std::map<RsGxsMessageId,std::vector<std::pair<rstime_t, RsGxsMessageId> > > post_versions;
     std::vector<ForumPostEntry> vect ;
 
     if(!getForumPostsHierarchy(groups[0],vect,post_versions))
@@ -1103,7 +1103,7 @@ bool p3GxsForums::getForumStatistics(const RsGxsGroupId& forumId,RsGxsForumStati
 
 bool p3GxsForums::getForumPostsHierarchy(const RsGxsForumGroup& group,
                                          std::vector<ForumPostEntry>& vect,
-                                         std::map<RsGxsMessageId,std::vector<std::pair<time_t, RsGxsMessageId> > >& post_versions)
+                                         std::map<RsGxsMessageId,std::vector<std::pair<rstime_t, RsGxsMessageId> > >& post_versions)
 {
     post_versions.clear();
     vect.clear();
@@ -1149,7 +1149,7 @@ void p3GxsForums::updateReputationLevel(uint32_t forum_sign_flags,ForumPostEntry
 void p3GxsForums::computeMessagesHierarchy(const RsGxsForumGroup& forum_group,
                                                const std::vector<RsMsgMetaData>& msgs_metas_array,
                                                std::vector<ForumPostEntry>& posts,
-                                               std::map<RsGxsMessageId,std::vector<std::pair<time_t,RsGxsMessageId> > >& mPostVersions )
+                                               std::map<RsGxsMessageId,std::vector<std::pair<rstime_t,RsGxsMessageId> > >& mPostVersions )
 {
     std::cerr << "updating messages data with " << msgs_metas_array.size() << " messages" << std::endl;
 
@@ -1317,7 +1317,7 @@ void p3GxsForums::computeMessagesHierarchy(const RsGxsForumGroup& forum_group,
 #ifdef DEBUG_FORUMS
     std::cerr << "Final post versions: " << std::endl;
 #endif
-    std::map<RsGxsMessageId,std::vector<std::pair<time_t,RsGxsMessageId> > > mTmp;
+    std::map<RsGxsMessageId,std::vector<std::pair<rstime_t,RsGxsMessageId> > > mTmp;
     std::map<RsGxsMessageId,RsGxsMessageId> most_recent_versions ;
 
     for(auto it(mPostVersions.begin());it!=mPostVersions.end();++it)
