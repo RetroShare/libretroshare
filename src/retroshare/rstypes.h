@@ -347,7 +347,7 @@ class FileDetail
         RsFileHash hash;
 		std::string path;
 		uint64_t size;
-		uint32_t age;
+        uint32_t mtime;
 		uint32_t rank;
 };
 

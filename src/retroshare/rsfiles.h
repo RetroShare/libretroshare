@@ -855,6 +855,21 @@ public:
 		 ***/
 		virtual bool ConvertSharedFilePath(std::string path, std::string &fullpath) = 0;
 
+    /**
+     * @brief trustFriendNodesWithBannedFiles sets weither retroshare accounts for friends banned files
+     *     in order to decide which files to ignore.  Generally speaking it is safer to let this to true.
+     * @param b  set to true when friends banning decisions should be trusted.
+     * @return
+     */
+    virtual void setTrustFriendNodesWithBannedFiles(bool b) = 0;
+
+    /**
+     * @brief trustFriendNodesWithBannedFiles returns weither retroshare accounts for friends banned files
+     *     in order to decide which files to ignore.  Generally speaking it is safer to let this to true.
+     * @return the internal flag state.
+     */
+    virtual bool trustFriendNodesWithBannedFiles() = 0;
+
 	/**
 	 * @brief Force shared directories check
 	 * @param[in] add_safe_delay Schedule the check 20 seconds from now, to ensure to capture files written just now.
