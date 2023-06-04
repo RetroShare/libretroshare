@@ -115,6 +115,9 @@ enum class RsEventType : uint32_t
     /// @see rsfriendserver.h
     FRIEND_SERVER                                           = 22,
 
+    /// @see RsWireEvent
+    WIRE                                                    = 23,
+
     __MAX /// Used internally, keep last
 };
 

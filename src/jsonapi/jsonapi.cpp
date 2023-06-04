@@ -500,19 +500,16 @@ void JsonApiServer::registerHandler(
 		                const std::shared_ptr<rb::Session> session,
 		                const std::function<void (const std::shared_ptr<rb::Session>)>& callback )
 		{
-			/* Declare outside the lambda to avoid returning a dangling
-			 * reference */
-			RsWarn tWarn;
 			const auto authFail =
-			        [&](int status) -> std::ostream&
+			        [&](int status, auto&&... errinfo) -> void
 			{
 				/* Capture session by reference as it is cheaper then copying
 				 * shared_ptr by value which is not needed in this case */
 
 				session->close(status, corsOptionsHeaders);
-				return tWarn << "JsonApiServer authentication handler "
-				                "blocked an attempt to call JSON API "
-				                "authenticated method: " << path;
+				RsWarn( "JsonApiServer authentication handler "
+				        "blocked an attempt to call JSON API "
+				        "authenticated method: ", path, " ", errinfo... );
 			};
 
 			if(session->get_request()->get_method() == "OPTIONS")
@@ -523,8 +520,7 @@ void JsonApiServer::registerHandler(
 
 			if(!rsLoginHelper->isLoggedIn())
 			{
-				authFail(rb::CONFLICT) << " before RetroShare login"
-				                       << std::endl;
+				authFail(rb::CONFLICT, "before RetroShare login");
 				return;
 			}
 
@@ -536,9 +532,9 @@ void JsonApiServer::registerHandler(
 
 			if(authToken != "Basic")
 			{
-				authFail(rb::UNAUTHORIZED)
-				        << " with wrong Authorization header: "
-				        << authHeader.str() << std::endl;
+				authFail( rb::UNAUTHORIZED,
+				          "with wrong Authorization header: ",
+				          authHeader.str() );
 				return;
 			}
 
@@ -551,8 +547,7 @@ void JsonApiServer::registerHandler(
 			{
 				std::string tUser;
 				parseToken(authToken, tUser, RS_DEFAULT_STORAGE_PARAM(std::string));
-				authFail(rb::UNAUTHORIZED)
-				        << " user: " << tUser << ec << std::endl;
+				authFail(rb::UNAUTHORIZED, "user: ", tUser, " ", ec);
 			}
 		} );
 

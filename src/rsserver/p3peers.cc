@@ -1079,7 +1079,7 @@ bool p3Peers::setProxyServer(const uint32_t type, const std::string &addr_str, c
             return false ;
         }
 
-        std::cerr << "Settign proxy server address to " << addr_str << ":" << port << std::endl;
+        std::cerr << "Setting proxy server address to " << addr_str << ":" << port << std::endl;
 
 	struct sockaddr_storage addr;
 	struct sockaddr_in *addrv4p = (struct sockaddr_in *) &addr;

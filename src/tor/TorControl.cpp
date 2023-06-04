@@ -237,7 +237,7 @@ void TorControl::authenticateReply(TorControlCommand *sender)
         return;
     }
 
-    RsDbg() << "torctrl: Authentication successful" ;
+    RsDbg() << "  Authentication successful" ;
     setStatus(TorControl::Authenticated);
 
     TorControlCommand *clientEvents = new TorControlCommand;
@@ -260,7 +260,7 @@ void TorControl::authenticate()
     assert(mStatus == TorControl::SocketConnected);
 
     setStatus(TorControl::Authenticating);
-    RsDbg() << "torctrl: Connected socket; querying information for authentication" ;
+    RsInfo() << "  Connected socket; querying information for authentication" ;
 
     ProtocolInfoCommand *command = new ProtocolInfoCommand(this);
 
@@ -306,14 +306,14 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
 
         if(methods & ProtocolInfoCommand::AuthNull)
         {
-            RsDbg() << "torctrl: Using null authentication" ;
+            RsInfo() << "  Using null authentication" ;
             data = auth->build();
         }
         else if ((methods & ProtocolInfoCommand::AuthCookie) && !info->cookieFile().empty())
         {
             std::string cookieFile = info->cookieFile();
             std::string cookieError;
-            RsDbg() << "torctrl: Using cookie authentication with file" << cookieFile ;
+            RsInfo() << "  Using cookie authentication with file" << cookieFile ;
 
             FILE *f = fopen(cookieFile.c_str(),"r");
 
@@ -342,7 +342,7 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
                  * but it has happened. */
                 if ((methods & ProtocolInfoCommand::AuthHashedPassword) && !mAuthPassword.empty())
                 {
-                    RsDbg() << "torctrl: Unable to read authentication cookie file:" << cookieError ;
+                    RsWarn() << "  Unable to read authentication cookie file:" << cookieError ;
                     goto usePasswordAuth;
                 }
 
@@ -354,7 +354,7 @@ void TorControl::protocolInfoReply(TorControlCommand *sender)
         else if ((methods & ProtocolInfoCommand::AuthHashedPassword) && !mAuthPassword.empty())
         {
             usePasswordAuth:
-            RsDbg() << "torctrl: Using hashed password authentication with AuthPasswd=\"" << mAuthPassword.toString() << "\"" ;
+            RsInfo() << "  Using hashed password authentication" ;
             data = auth->build(mAuthPassword);
         }
         else
@@ -416,7 +416,7 @@ void TorControl::getTorInfoReply(TorControlCommand *sender)
      * listener yet. To handle that situation, we'll try to read the socks address again when TorReady state
      * is reached. */
     if (!mSocksAddress.empty()) {
-        RsDbg() << "torctrl: SOCKS address is " << mSocksAddress << ":" << mSocksPort ;
+        RsInfo() << "  SOCKS address is " << mSocksAddress << ":" << mSocksPort ;
 
         if(rsEvents)
         {
@@ -431,7 +431,7 @@ void TorControl::getTorInfoReply(TorControlCommand *sender)
 
     if (ByteArray(command->get("status/circuit-established").front()).toInt() == 1)
     {
-        RsDbg() << "torctrl: Tor indicates that circuits have been established; state is TorReady" ;
+        RsInfo() << "  Tor indicates that circuits have been established; state is TorReady" ;
         setTorStatus(TorControl::TorReady);
     }
 //    else
@@ -452,12 +452,12 @@ void TorControl::addHiddenService(HiddenService *service)
 
 void TorControl::publishServices()
 {
-    RsDbg() << "Publish Services... " ;
+    RsInfo() << "Publishing Services... " ;
 
     assert(isConnected());
     if (mServices.empty())
 	{
-        RsErr() << "No service registered!" ;
+        RsErr() << "  No service registered!" ;
         return;
 	}
 
@@ -465,16 +465,16 @@ void TorControl::publishServices()
         for(HiddenService *service: mServices)
         {
             if (service->hostname().empty())
-                RsDbg() << "torctrl: Creating a new hidden service" ;
+                RsInfo() << "  Creating a new hidden service" ;
             else
-                RsDbg() << "torctrl: Publishing hidden service: " << service->hostname() ;
+                RsInfo() << "  Publishing hidden service: " << service->hostname() ;
             AddOnionCommand *onionCommand = new AddOnionCommand(service);
             //protocolInfoReplyQObject::connect(onionCommand, &AddOnionCommand::succeeded, service, &HiddenService::servicePublished);
             onionCommand->set_succeeded_callback( [this,service]() { checkHiddenService(service) ; });
             mSocket->sendCommand(onionCommand, onionCommand->build());
         }
     } else {
-        RsDbg() << "torctrl: Using legacy SETCONF hidden service configuration for tor" << mTorVersion ;
+        RsInfo() << "  Using legacy SETCONF hidden service configuration for tor" << mTorVersion ;
         SetConfCommand *command = new SetConfCommand;
         std::list<std::pair<std::string,std::string> > torConfig;
 
@@ -485,11 +485,11 @@ void TorControl::publishServices()
 
             if (service->privateKey().isLoaded() && !RsDirUtil::fileExists(service->dataPath() + "/private_key")) {
                 // This case can happen if tor is downgraded after the profile is created
-                RsWarn() << "Cannot publish ephemeral hidden services with this version of tor; skipping";
+                RsWarn() << "  Cannot publish ephemeral hidden services with this version of tor; skipping";
                 continue;
             }
 
-            RsDbg() << "torctrl: Configuring hidden service at" << service->dataPath() ;
+            RsInfo() << "  Configuring hidden service at" << service->dataPath() ;
 
             torConfig.push_back(std::make_pair("HiddenServiceDir", service->dataPath()));
 
@@ -554,7 +554,9 @@ void TorControl::statusEvent(int /* code */, const ByteArray &data)
         return;
 
     const ByteArray& tok2 = *(++(++tokens.begin()));
-    RsDbg() << "torctrl: status event:" << data.trimmed().toString() << " tok2=\"" << tok2.toString() << "\"" ;
+
+    if(mSocket && mSocket->mVerbose)
+        RsInfo() << "  status event:" << data.trimmed().toString() << " tok2=\"" << tok2.toString() << "\"" ;
 
     if (tok2 == "CIRCUIT_ESTABLISHED")
         setTorStatus(TorControl::TorReady);
@@ -698,7 +700,7 @@ public:
 
         file.close();
 
-        RsDbg() << "torctrl: Wrote torrc file" ;
+        RsInfo() << "  Wrote torrc file" ;
         finishWithSuccess();
     }
 

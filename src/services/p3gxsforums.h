@@ -114,7 +114,7 @@ public:
     /// @see RsGxsForums::getForumPostsHierarchy
     virtual bool getForumPostsHierarchy(const RsGxsForumGroup& group,
                                         std::vector<ForumPostEntry>& vect,
-                                        std::map<RsGxsMessageId,std::vector<std::pair<time_t, RsGxsMessageId> > >& post_versions) override;
+                                        std::map<RsGxsMessageId,std::vector<std::pair<rstime_t, RsGxsMessageId> > >& post_versions) override;
 
 	/// @see RsGxsForums::getForumContent
 	virtual bool getForumContent(
@@ -215,7 +215,7 @@ private:
     void computeMessagesHierarchy(const RsGxsForumGroup& forum_group,
                                   const std::vector<RsMsgMetaData>& msgs_metas_array,
                                   std::vector<ForumPostEntry>& posts,
-                                  std::map<RsGxsMessageId,std::vector<std::pair<time_t,RsGxsMessageId> > >& mPostVersions );
+                                  std::map<RsGxsMessageId,std::vector<std::pair<rstime_t,RsGxsMessageId> > >& mPostVersions );
 
     virtual bool generateDummyData();
 
