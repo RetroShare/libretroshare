@@ -55,10 +55,10 @@ public:
 
 	virtual bool createGroup(uint32_t &token, RsWireGroup &group) override;
 	virtual bool createPulse(uint32_t &token, RsWirePulse &pulse) override;
-
+    virtual bool editWire(RsWireGroup& wire) override;
 	// Blocking Interfaces.
 	virtual bool createGroup(RsWireGroup &group) override;
-	virtual bool updateGroup(const RsWireGroup &group) override;
+    virtual bool updateGroup(uint32_t &token, RsWireGroup &group) override;
 	virtual bool getGroups(const std::list<RsGxsGroupId> grpIds, std::vector<RsWireGroup> &groups) override;
 
 	// New Interfaces.

@@ -215,10 +215,11 @@ virtual bool getPulseData(const uint32_t &token, std::vector<RsWirePulse> &pulse
 
 virtual bool createGroup(uint32_t &token, RsWireGroup &group) = 0;
 virtual bool createPulse(uint32_t &token, RsWirePulse &pulse) = 0;
+virtual bool editWire(RsWireGroup& wire) = 0;
 
 	// Blocking Interfaces.
 virtual bool createGroup(RsWireGroup &group) = 0;
-virtual bool updateGroup(const RsWireGroup &group) = 0;
+virtual bool updateGroup(uint32_t &token, RsWireGroup& group) = 0;
 virtual bool getGroups(const std::list<RsGxsGroupId> grpIds,
 				std::vector<RsWireGroup> &groups) = 0;
 
@@ -256,6 +257,7 @@ enum class RsWireEventCode: uint8_t
     NEW_REPLY                       = 0x05, // this event happens when there is a new reply to a post
     NEW_LIKE                        = 0x06, // this event happens when there is a new like to a post
     NEW_REPUBLISH                   = 0x07, // this event happens when there is a new republish of a post
+    WIRE_UPDATED                    = 0x08, // this event happens when there is any change to the wire account
 };
 
 struct RsWireEvent: RsEvent

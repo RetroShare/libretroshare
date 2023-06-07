@@ -212,6 +212,16 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                     unprocessedGroups.insert(grpChange->mGroupId);
                 }
                     break;
+                case RsGxsNotify::TYPE_UPDATED:	// happens when the wire is updated
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::WIRE_UPDATED;
+                    rsEvents->postEvent(ev);
+
+                    unprocessedGroups.insert(grpChange->mGroupId);
+                }
+                    break;
                 default:
                     RsErr() << " Got a GXS event of type " << grpChange->getType() << " Currently not handled." << std::endl;
                     break;
@@ -439,6 +449,36 @@ bool p3Wire::createGroup(uint32_t &token, RsWireGroup &group)
 	return true;
 }
 
+bool p3Wire::editWire(RsWireGroup& wire)
+{
+    uint32_t token;
+    if(!updateGroup(token, wire))
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! Failed updating group."
+                  << std::endl;
+        return false;
+    }
+
+    if(waitToken(token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! GXS operation failed."
+                  << std::endl;
+        return false;
+    }
+
+    if(!RsGenExchange::getPublishedGroupMeta(token, wire.mMeta))
+    {
+        std::cerr << __PRETTY_FUNCTION__ << " Error! Failure getting updated "
+                  << " group data." << std::endl;
+        return false;
+    }
+
+//#ifdef RS_DEEP_Wire_INDEX
+//	DeepWiresIndex::indexChannelGroup(channel);
+//#endif //  RS_DEEP_CHANNEL_INDEX
+
+    return true;
+}
 
 bool p3Wire::createPulse(uint32_t &token, RsWirePulse &pulse)
 {
@@ -460,10 +500,17 @@ bool p3Wire::createGroup(RsWireGroup &group)
 	return createGroup(token, group) && waitToken(token) == RsTokenService::COMPLETE;
 }
 
-bool p3Wire::updateGroup(const RsWireGroup & /*group*/)
+bool p3Wire::updateGroup(uint32_t &token, RsWireGroup & group)
 {
-	// TODO
-	return false;
+#ifdef GXSWIRE_DEBUG
+    std::cerr << "p3wire::updateGroup()" << std::endl;
+#endif
+
+    RsGxsWireGroupItem* grpItem = new RsGxsWireGroupItem();
+    grpItem->fromWireGroup(group, true);
+
+    RsGenExchange::updateGroup(token, grpItem);
+    return true;
 }
 
 bool p3Wire::getGroups(const std::list<RsGxsGroupId> groupIds, std::vector<RsWireGroup> &groups)
