@@ -793,7 +793,25 @@ public:
 	virtual bool setVisState( const RsPeerId& sslId,
 	                          uint16_t vsDisc, uint16_t vsDht ) = 0;
 
+	/**
+	 * @brief getProxyServer get the proxy details of TOR/I2P
+	 * @jsonapi{development}
+	 * @param[in] type one of RS_HIDDEN_TYPE_*
+	 * @param[out] addr string containing proxy address
+	 * @param[out] port port number of type uint16_t
+	 * @param[out] status_flags flags which tells the status of the proxy
+	 * @return always true
+	 */
 	virtual bool getProxyServer(const uint32_t type, std::string &addr, uint16_t &port,uint32_t& status_flags) = 0;
+
+	/**
+	 * @brief setProxyServer set the proxy details of TOR/I2P
+	 * @jsonapi{development}
+	 * @param[in] type one of RS_HIDDEN_TYPE_*
+	 * @param[in] addr string containing proxy address to be set
+	 * @param[in] port port number of type uint16_t to be set
+	 * @return false if error occured, true otherwise
+	 */
 	virtual bool setProxyServer(const uint32_t type, const std::string &addr, const uint16_t port) = 0;
 
 	virtual void getIPServersList(std::list<std::string>& ip_servers) = 0;

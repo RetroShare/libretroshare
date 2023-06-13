@@ -2221,6 +2221,15 @@ bool ftServer::isHashBanned(const RsFileHash& hash)
     return mFileDatabase->isFileBanned(hash);
 }
 
+bool ftServer::trustFriendNodesWithBannedFiles()
+{
+    return mFileDatabase->trustFriendNodesForBannedFiles();
+}
+void ftServer::setTrustFriendNodesWithBannedFiles(bool b)
+{
+    mFileDatabase->setTrustFriendNodesForBannedFiles(b);
+}
+
 RsFileItem::~RsFileItem() = default;
 
 RsFileItem::RsFileItem(RsFileItemType subtype) :

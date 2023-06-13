@@ -45,6 +45,24 @@ class RsGxsChannels;
  */
 extern RsGxsChannels* rsGxsChannels;
 
+struct RsGxsChannelStatistics: RsSerializable
+{
+    uint32_t mNumberOfPosts;
+    uint32_t mNumberOfCommentsAndVotes;
+    uint32_t mNumberOfUnreadPosts;
+    uint32_t mNumberOfNewPosts;
+
+    /// @see RsSerializable
+    virtual void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RS_SERIAL_PROCESS(mNumberOfPosts);
+        RS_SERIAL_PROCESS(mNumberOfCommentsAndVotes);
+        RS_SERIAL_PROCESS(mNumberOfUnreadPosts);
+        RS_SERIAL_PROCESS(mNumberOfNewPosts);
+    }
+};
 
 struct RsGxsChannelGroup : RsSerializable, RsGxsGenericGroupData
 {
@@ -443,13 +461,23 @@ public:
     virtual bool getChannelServiceStatistics(GxsServiceStatistic& stat) =0;
 
     /**
-     * \brief Retrieve statistics about the given channel
+     * \brief Retrieve statistics about the given channel group. This is a low-level information,
+     *        oblivious to Channel Posts, Votes or Comments.
 	 * @jsonapi{development}
      * \param[in]  channelId  Id of the channel group
      * \param[out] stat       Statistics structure
      * \return
      */
-    virtual bool getChannelStatistics(const RsGxsGroupId& channelId,GxsGroupStatistic& stat) =0;
+    virtual bool getChannelGroupStatistics(const RsGxsGroupId& channelId,GxsGroupStatistic& stat) =0;
+
+     /**
+     * \brief Retrieve statistics about the given channel
+     * @jsonapi{development}
+     * \param[in]  channelId  Id of the channel group
+     * \param[out] stat       Statistics structure
+     * \return
+     */
+    virtual bool getChannelStatistics(const RsGxsGroupId& channelId,RsGxsChannelStatistics& stat) =0;
 
 	/// default base URL used for channels links @see exportChannelLink
 	static const std::string DEFAULT_CHANNEL_BASE_URL;

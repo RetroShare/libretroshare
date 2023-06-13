@@ -38,7 +38,7 @@
 using namespace Tor;
 
 TorControlSocket::TorControlSocket(TorControlSocketClient *client)
-    : RsThreadedTcpSocket(),currentCommand(0), inDataReply(false),mClient(client)
+    : RsThreadedTcpSocket(),currentCommand(0), inDataReply(false),mClient(client),mVerbose(false)
 {
 }
 
@@ -72,7 +72,8 @@ void TorControlSocket::sendCommand(TorControlCommand *command, const ByteArray& 
     commandQueue.push_back(command);
     senddata((void*)data.data(),data.size());
 
-    RsInfo() << "[TOR CTRL] Sent: \"" << data.trimmed().toString() << "\"" ;
+    if(mVerbose)
+        RsInfo() << "[TOR CTRL] Sent: \"" << data.trimmed().toString() << "\"" ;
 }
 
 void TorControlSocket::registerEvent(const ByteArray &event, TorControlCommand *command)

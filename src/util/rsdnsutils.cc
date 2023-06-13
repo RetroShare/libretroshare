@@ -265,7 +265,11 @@ bool rsGetRecordByNameSpecDNS(const std::string& servername, unsigned short serv
 	if( send_size < 0)
 	{
 		RS_ERR("Send Failed with size = ", send_size);
+		#ifndef WINDOWS_SYS
 		close(s);
+		#else
+		closesocket(s);
+		#endif
 		return false;
 	}
 
@@ -282,7 +286,11 @@ bool rsGetRecordByNameSpecDNS(const std::string& servername, unsigned short serv
 	                         , (struct sockaddr*)&serverAddr
 	                         , &sa_size
 	                         );
+	#ifndef WINDOWS_SYS
 	close(s); // No more need of this socket, close it.
+	#else
+	closesocket(s);
+	#endif
 	if(rec_size <= 0)
 	{
 		RS_ERR("Receive Failed");

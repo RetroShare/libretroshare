@@ -157,7 +157,9 @@ int RsFdBinInterface::read_pending()
         RsDbg() << "Socket: " << mCLintConnt << ". Total read: " << mTotalReadBytes << ". Buffer size: " << mTotalInBufferBytes ;
 #endif
     }
+#ifdef DEBUG_FS_BIN
     RsDbg() << "End of read_pending: mTotalInBufferBytes = " << mTotalInBufferBytes;
+#endif
     return mTotalInBufferBytes;
 }
 
@@ -167,7 +169,9 @@ int RsFdBinInterface::write_pending()
         return mTotalOutBufferBytes;
 
     auto& p = out_buffer.front();
+#ifdef DEBUG_FS_BIN
     std::cerr << "RsFdBinInterface -- SENDING --- len=" << p.second << " data=" << RsUtil::BinToHex((uint8_t*)p.first,p.second)<< std::endl;
+#endif
 
     int written;
 #if WINDOWS_SYS

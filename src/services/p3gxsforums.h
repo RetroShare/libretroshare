@@ -102,13 +102,19 @@ public:
             std::vector<RsGxsForumGroup>& forumsInfo ) override;
 
     /// Implementation of @see RsGxsForums::getForumStatistics
-    bool getForumStatistics(const RsGxsGroupId& ForumId,GxsGroupStatistic& stat) override;
+    bool getForumStatistics(const RsGxsGroupId& ForumId,RsGxsForumStatistics& stat) override;
+    bool getForumGroupStatistics(const RsGxsGroupId& ForumId,GxsGroupStatistic& stat) override;
 
     /// Implementation of @see RsGxsForums::getForumServiceStatistics
 	bool getForumServiceStatistics(GxsServiceStatistic& stat) override;
 
 	/// @see RsGxsForums::getForumMsgMetaData
     virtual bool getForumMsgMetaData(const RsGxsGroupId& forumId, std::vector<RsMsgMetaData>& msg_metas)  override;
+
+    /// @see RsGxsForums::getForumPostsHierarchy
+    virtual bool getForumPostsHierarchy(const RsGxsForumGroup& group,
+                                        std::vector<ForumPostEntry>& vect,
+                                        std::map<RsGxsMessageId,std::vector<std::pair<rstime_t, RsGxsMessageId> > >& post_versions) override;
 
 	/// @see RsGxsForums::getForumContent
 	virtual bool getForumContent(
@@ -119,7 +125,10 @@ public:
 	/// @see RsGxsForums::markRead
     virtual bool markRead(const RsGxsGrpMsgIdPair& messageId, bool read) override;
 
-	/// @see RsGxsForums::subscribeToForum
+    /// @see RsGxsForums::updateReputationLevel
+    virtual void updateReputationLevel(uint32_t forum_group_sign_flags,ForumPostEntry& e) const override;
+
+    /// @see RsGxsForums::subscribeToForum
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
                                    bool subscribe ) override;
 
@@ -201,17 +210,23 @@ protected:
 
 private:
 
-static uint32_t forumsAuthenPolicy();
+    static uint32_t forumsAuthenPolicy();
 
-virtual bool generateDummyData();
+    void computeMessagesHierarchy(const RsGxsForumGroup& forum_group,
+                                  const std::vector<RsMsgMetaData>& msgs_metas_array,
+                                  std::vector<ForumPostEntry>& posts,
+                                  std::map<RsGxsMessageId,std::vector<std::pair<rstime_t,RsGxsMessageId> > >& mPostVersions );
 
-std::string genRandomId();
+    virtual bool generateDummyData();
 
-void 	dummy_tick();
+    std::string genRandomId();
 
-bool generateMessage(uint32_t &token, const RsGxsGroupId &grpId, 
-		const RsGxsMessageId &parentId, const RsGxsMessageId &threadId);
-bool generateGroup(uint32_t &token, std::string groupName);
+    void 	dummy_tick();
+
+    bool generateMessage(uint32_t &token, const RsGxsGroupId &grpId,
+                         const RsGxsMessageId &parentId, const RsGxsMessageId &threadId);
+
+    bool generateGroup(uint32_t &token, std::string groupName);
 
 	class ForumDummyRef
 	{
