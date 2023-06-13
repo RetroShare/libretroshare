@@ -339,18 +339,6 @@ struct DirDetails : RsSerializable
 	~DirDetails() override = default;
 };
 
-class FileDetail
-{
-	public:
-        RsPeerId id;
-		std::string name;
-        RsFileHash hash;
-		std::string path;
-		uint64_t size;
-		uint32_t age;
-		uint32_t rank;
-};
-
 class CompressedChunkMap ;
 
 struct FileChunksInfo : RsSerializable
