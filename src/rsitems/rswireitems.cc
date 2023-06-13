@@ -95,6 +95,7 @@ void RsGxsWirePulseItem::serial_process(RsGenericSerializer::SerializeJob j,RsGe
 	pulse.mImage4.serial_process(j, ctx);
 }
 
+// Function which will edit the information in the wire group
 bool RsGxsWireGroupItem::fromWireGroup(RsWireGroup &group, bool moveImage)
 {
     clear();

@@ -449,6 +449,7 @@ bool p3Wire::createGroup(uint32_t &token, RsWireGroup &group)
 	return true;
 }
 
+// Function which will edit the information in the wire group
 bool p3Wire::editWire(RsWireGroup& wire)
 {
     uint32_t token;
@@ -473,10 +474,6 @@ bool p3Wire::editWire(RsWireGroup& wire)
         return false;
     }
 
-//#ifdef RS_DEEP_Wire_INDEX
-//	DeepWiresIndex::indexChannelGroup(channel);
-//#endif //  RS_DEEP_CHANNEL_INDEX
-
     return true;
 }
 
@@ -500,6 +497,7 @@ bool p3Wire::createGroup(RsWireGroup &group)
 	return createGroup(token, group) && waitToken(token) == RsTokenService::COMPLETE;
 }
 
+// Function which will update the edited information in the wire group
 bool p3Wire::updateGroup(uint32_t &token, RsWireGroup & group)
 {
 #ifdef GXSWIRE_DEBUG
