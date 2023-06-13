@@ -648,11 +648,46 @@ public:
 	 */
 	virtual bool FileClearCompleted() = 0;
 
+    /**
+     * @brief Set Default Encryption Policy
+     * @jsonapi{development}
+     * @param[in] policy for default encryption
+     */
 		virtual void setDefaultEncryptionPolicy(uint32_t policy)=0;	// RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT/PERMISSIVE
+                                                                //
+    /**
+     * @brief Get Default Encryption Policy
+     * @jsonapi{development}
+     * @return mDefaultEncryptionPolicy 
+     */
 		virtual uint32_t defaultEncryptionPolicy()=0;
+
+    /**
+     * @brief Set Number of Maximum Uploads per friend
+     * @jsonapi{development}
+     * @param[in] n maximum number of uploads per friend
+     */
 		virtual void setMaxUploadSlotsPerFriend(uint32_t n)=0;
+
+    /**
+     * @brief Get Number of Maximum Uploads per friend
+     * @jsonapi{development}
+     * @return _max_uploads_per_friend
+     */
 		virtual uint32_t getMaxUploadSlotsPerFriend()=0;
+
+    /**
+     * @brief Set Direct Download File Permission
+     * @jsonapi{development}
+     * @param[in] perm for direct download
+     */
 		virtual void setFilePermDirectDL(uint32_t perm)=0;
+
+    /**
+     * @brief Get Direct Download File Permission
+     * @jsonapi{development}
+     * @return mFilePermDirectDLPolicy direct download permission
+     */
 		virtual uint32_t filePermDirectDL()=0;
 
 	/**
@@ -854,6 +889,21 @@ public:
 		 * Utility Functions.
 		 ***/
 		virtual bool ConvertSharedFilePath(std::string path, std::string &fullpath) = 0;
+
+    /**
+     * @brief trustFriendNodesWithBannedFiles sets weither retroshare accounts for friends banned files
+     *     in order to decide which files to ignore.  Generally speaking it is safer to let this to true.
+     * @param b  set to true when friends banning decisions should be trusted.
+     * @return
+     */
+    virtual void setTrustFriendNodesWithBannedFiles(bool b) = 0;
+
+    /**
+     * @brief trustFriendNodesWithBannedFiles returns weither retroshare accounts for friends banned files
+     *     in order to decide which files to ignore.  Generally speaking it is safer to let this to true.
+     * @return the internal flag state.
+     */
+    virtual bool trustFriendNodesWithBannedFiles() = 0;
 
 	/**
 	 * @brief Force shared directories check

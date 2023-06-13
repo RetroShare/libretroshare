@@ -280,66 +280,68 @@ public:
 	/// @see RsFiles::RequestDirDetails
 	virtual bool requestDirDetails(
 	        DirDetails &details, uint64_t handle = 0,
-	        FileSearchFlags flags = RS_FILE_HINTS_LOCAL );
+            FileSearchFlags flags = RS_FILE_HINTS_LOCAL ) override;
 
-    virtual bool findChildPointer(void *ref, int row, void *& result, FileSearchFlags flags) ;
-    virtual uint32_t getType(void *ref,FileSearchFlags flags) ;
+    virtual bool findChildPointer(void *ref, int row, void *& result, FileSearchFlags flags)  override;
+    virtual uint32_t getType(void *ref,FileSearchFlags flags)  override;
 
-    virtual int SearchKeywords(std::list<std::string> keywords, std::list<DirDetails> &results,FileSearchFlags flags);
-    virtual int SearchKeywords(std::list<std::string> keywords, std::list<DirDetails> &results,FileSearchFlags flags,const RsPeerId& peer_id);
-    virtual int SearchBoolExp(RsRegularExpression::Expression * exp, std::list<DirDetails> &results,FileSearchFlags flags);
-    virtual int SearchBoolExp(RsRegularExpression::Expression * exp, std::list<DirDetails> &results,FileSearchFlags flags,const RsPeerId& peer_id);
-	virtual int getSharedDirStatistics(const RsPeerId& pid, SharedDirStats& stats) ;
+    virtual int SearchKeywords(std::list<std::string> keywords, std::list<DirDetails> &results,FileSearchFlags flags) override;
+    virtual int SearchKeywords(std::list<std::string> keywords, std::list<DirDetails> &results,FileSearchFlags flags,const RsPeerId& peer_id) override;
+    virtual int SearchBoolExp(RsRegularExpression::Expression * exp, std::list<DirDetails> &results,FileSearchFlags flags) override;
+    virtual int SearchBoolExp(RsRegularExpression::Expression * exp, std::list<DirDetails> &results,FileSearchFlags flags,const RsPeerId& peer_id) override;
+    virtual int getSharedDirStatistics(const RsPeerId& pid, SharedDirStats& stats)  override;
 
-    virtual int banFile(const RsFileHash& real_file_hash, const std::string& filename, uint64_t file_size) ;
-    virtual int unbanFile(const RsFileHash& real_file_hash);
-    virtual bool getPrimaryBannedFilesList(std::map<RsFileHash,BannedFileEntry>& banned_files) ;
-	virtual bool isHashBanned(const RsFileHash& hash);
+    virtual int banFile(const RsFileHash& real_file_hash, const std::string& filename, uint64_t file_size)  override;
+    virtual int unbanFile(const RsFileHash& real_file_hash) override;
+    virtual bool getPrimaryBannedFilesList(std::map<RsFileHash,BannedFileEntry>& banned_files)  override;
+    virtual bool isHashBanned(const RsFileHash& hash) override;
+    virtual bool trustFriendNodesWithBannedFiles() override;
+    virtual void setTrustFriendNodesWithBannedFiles(bool b) override;
 
     /***
          * Utility Functions
          ***/
-    virtual bool ConvertSharedFilePath(std::string path, std::string &fullpath);
-    virtual void ForceDirectoryCheck(bool add_safe_delay);
-    virtual void updateSinceGroupPermissionsChanged() ;
-    virtual bool InDirectoryCheck();
-    virtual bool copyFile(const std::string& source, const std::string& dest);
+    virtual bool ConvertSharedFilePath(std::string path, std::string &fullpath) override;
+    virtual void ForceDirectoryCheck(bool add_safe_delay) override;
+    virtual void updateSinceGroupPermissionsChanged()  override;
+    virtual bool InDirectoryCheck() override;
+    virtual bool copyFile(const std::string& source, const std::string& dest) override;
 
     /***
          * Directory Handling
          ***/
-    virtual void requestDirUpdate(void *ref) ;			// triggers the update of the given reference. Used when browsing.
-	virtual bool setDownloadDirectory(const std::string& path);
-	virtual bool setPartialsDirectory(const std::string& path);
-    virtual std::string getDownloadDirectory();
-    virtual std::string getPartialsDirectory();
+    virtual void requestDirUpdate(void *ref)  override;			// triggers the update of the given reference. Used when browsing.
+    virtual bool setDownloadDirectory(const std::string& path) override;
+    virtual bool setPartialsDirectory(const std::string& path) override;
+    virtual std::string getDownloadDirectory() override;
+    virtual std::string getPartialsDirectory() override;
 
-    virtual bool	getSharedDirectories(std::list<SharedDirInfo> &dirs);
-    virtual bool	setSharedDirectories(const std::list<SharedDirInfo> &dirs);
-    virtual bool 	addSharedDirectory(const SharedDirInfo& dir);
-    virtual bool   updateShareFlags(const SharedDirInfo& dir); 	// updates the flags. The directory should already exist !
-    virtual bool 	removeSharedDirectory(std::string dir);
+    virtual bool	getSharedDirectories(std::list<SharedDirInfo> &dirs) override;
+    virtual bool	setSharedDirectories(const std::list<SharedDirInfo> &dirs) override;
+    virtual bool 	addSharedDirectory(const SharedDirInfo& dir) override;
+    virtual bool   updateShareFlags(const SharedDirInfo& dir) override; 	// updates the flags. The directory should already exist !
+    virtual bool 	removeSharedDirectory(std::string dir) override;
 
-	virtual bool getIgnoreLists(std::list<std::string>& ignored_prefixes, std::list<std::string>& ignored_suffixes, uint32_t& ignore_flags) ;
-	virtual void setIgnoreLists(const std::list<std::string>& ignored_prefixes, const std::list<std::string>& ignored_suffixes,uint32_t ignore_flags) ;
+    virtual bool getIgnoreLists(std::list<std::string>& ignored_prefixes, std::list<std::string>& ignored_suffixes, uint32_t& ignore_flags)  override;
+    virtual void setIgnoreLists(const std::list<std::string>& ignored_prefixes, const std::list<std::string>& ignored_suffixes,uint32_t ignore_flags)  override;
 
-    virtual bool	getShareDownloadDirectory();
-    virtual bool 	shareDownloadDirectory(bool share);
+    virtual bool	getShareDownloadDirectory() override;
+    virtual bool 	shareDownloadDirectory(bool share) override;
 
-    virtual void setWatchPeriod(int minutes) ;
-    virtual int watchPeriod() const ;
-    virtual void setWatchEnabled(bool b) ;
-    virtual bool watchEnabled() ;
-	virtual bool followSymLinks() const;
-	virtual void setFollowSymLinks(bool b);
-	virtual void togglePauseHashingProcess();
-	virtual bool hashingProcessPaused();
+    virtual void setWatchPeriod(int minutes)  override;
+    virtual int watchPeriod() const  override;
+    virtual void setWatchEnabled(bool b)  override;
+    virtual bool watchEnabled()  override;
+    virtual bool followSymLinks() const override;
+    virtual void setFollowSymLinks(bool b) override;
+    virtual void togglePauseHashingProcess() override;
+    virtual bool hashingProcessPaused() override;
 
-	virtual void setMaxShareDepth(int depth) ;
-	virtual int  maxShareDepth() const;
+    virtual void setMaxShareDepth(int depth)  override;
+    virtual int  maxShareDepth() const override;
 
-	virtual bool ignoreDuplicates() ;
-	virtual void setIgnoreDuplicates(bool ignore) ;
+    virtual bool ignoreDuplicates()  override;
+    virtual void setIgnoreDuplicates(bool ignore)  override;
 
     static bool encryptHash(const RsFileHash& hash, RsFileHash& hash_of_hash);
 

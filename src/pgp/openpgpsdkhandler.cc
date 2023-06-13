@@ -120,7 +120,9 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-	// Allocate public and secret keyrings.
+    RsInfo() << "PGPHandler: Initing pgp keyrings";
+
+    // Allocate public and secret keyrings.
 	// 
 	_pubring = allocateOPSKeyring() ;
 	_secring = allocateOPSKeyring() ;
@@ -145,7 +147,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
             throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read pubring. File corrupted.") ;
 	}
 	else
-		RS_INFO("pubring file: ", pubring, " not found. Creating an empty one");
+        RsInfo() << "  pubring file: " << pubring << " not found. Creating an empty one";
 
 	const ops_keydata_t *keydata ;
 	int i=0 ;
@@ -165,7 +167,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 	}
 	_pubring_last_update_time = time(NULL) ;
 
-	RS_INFO("Pubring read successfully");
+    RsInfo() << "  Pubring read successfully";
 
 	if(secring_exist)
 	{
@@ -179,7 +181,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 		}
 	}
 	else
-		RS_INFO("secring file: ", pubring, " not found. Creating an empty one");
+        RsInfo() << "  Secring file: " << pubring << " not found. Creating an empty one";
 
 	i=0 ;
 	while( (keydata = ops_keyring_get_key_by_index(_secring,i)) != NULL )
@@ -189,7 +191,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 	}
 	_secring_last_update_time = time(NULL) ;
 
-	RS_INFO("Secring read successfully");
+    RsInfo() << "  Secring read successfully";
 
 	locked_readPrivateTrustDatabase() ;
 	_trustdb_last_update_time = time(NULL) ;

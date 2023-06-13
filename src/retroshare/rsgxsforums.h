@@ -103,6 +103,70 @@ struct RsGxsForumMsg : RsSerializable
 	~RsGxsForumMsg() override;
 };
 
+// This class is used to represents the hierarchy of posts in a forum.
+// The posts are delivered by rsGxsForums as an array, and members mChildren,
+// and mParent point to the relevant posts in this array. The array will always
+// contain at index 0 a top level sentinel post that shouldn't be displayed, but that is the
+// parent of all top-level posts.
+
+struct ForumPostEntry: RsSerializable
+{
+    ForumPostEntry() : mPublishTs(0),mPostFlags(0),mReputationWarningLevel(0),mMsgStatus(0) {}
+
+    /// @see RsSerializable
+    virtual void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RS_SERIAL_PROCESS(mTitle);
+        RS_SERIAL_PROCESS(mAuthorId);
+        RS_SERIAL_PROCESS(mMsgId);
+        RS_SERIAL_PROCESS(mPublishTs);
+        RS_SERIAL_PROCESS(mPostFlags);
+        RS_SERIAL_PROCESS(mReputationWarningLevel);
+        RS_SERIAL_PROCESS(mMsgStatus);
+        RS_SERIAL_PROCESS(mChildren);
+        RS_SERIAL_PROCESS(mParent);
+    }
+    enum {					// flags for display of posts. To be used in mPostFlags
+        FLAG_POST_IS_PINNED              = 0x0001,
+        FLAG_POST_IS_MISSING             = 0x0002,
+        FLAG_POST_IS_REDACTED            = 0x0004,
+        FLAG_POST_HAS_UNREAD_CHILDREN    = 0x0008,
+        FLAG_POST_HAS_READ_CHILDREN      = 0x0010,
+        FLAG_POST_PASSES_FILTER          = 0x0020,
+        FLAG_POST_CHILDREN_PASSES_FILTER = 0x0040,
+    };
+
+    std::string        mTitle ;
+    RsGxsId            mAuthorId ;
+    RsGxsMessageId     mMsgId;
+    uint32_t           mPublishTs;
+    uint32_t           mPostFlags;
+    int                mReputationWarningLevel;
+    uint32_t           mMsgStatus;				// can be read using IS_MSG_NEW(), IS_MSG_UNREAD(), etc.
+
+    std::vector<uint32_t> mChildren;
+    uint32_t mParent;
+};
+
+
+struct RsGxsForumStatistics: RsSerializable
+{
+    uint32_t mNumberOfMessages;
+    uint32_t mNumberOfUnreadMessages;
+    uint32_t mNumberOfNewMessages;
+
+    /// @see RsSerializable
+    virtual void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RS_SERIAL_PROCESS(mNumberOfMessages);
+        RS_SERIAL_PROCESS(mNumberOfUnreadMessages);
+        RS_SERIAL_PROCESS(mNumberOfNewMessages);
+    }
+};
+
+
 
 enum class RsForumEventCode: uint8_t
 {
@@ -266,14 +330,22 @@ public:
 	virtual bool getForumServiceStatistics(GxsServiceStatistic& stat) =0;
 
     /**
-     * @brief returns statistics about a particular forum
+     * @brief returns statistics about a particular forum group.
 	 * @jsonapi{development}
      * @param[in]  forumId  Id of the forum
      * @param[out] stat     statistics struct
      * @return              false when the object doesn't exist or when the timeout is reached requesting the data
      */
-	virtual bool getForumStatistics(const RsGxsGroupId& forumId,GxsGroupStatistic& stat)=0;
+    virtual bool getForumGroupStatistics(const RsGxsGroupId& forumId,GxsGroupStatistic& stat)=0;
 
+    /**
+     * @brief returns statistics about a particular forum, accounting for old message versions.
+     * @jsonapi{development}
+     * @param[in]  forumId  Id of the forum
+     * @param[out] stat     statistics struct
+     * @return              false when the object doesn't exist or when the timeout is reached requesting the data
+     */
+    virtual bool getForumStatistics(const RsGxsGroupId& forumId,RsGxsForumStatistics& stat)=0;
 
 	/**
 	 * @brief Get forums information (description, thumbnail...).
@@ -287,7 +359,24 @@ public:
 	        const std::list<RsGxsGroupId>& forumIds,
 	        std::vector<RsGxsForumGroup>& forumsInfo ) = 0;
 
-	/**
+    /**
+     * @brief getForumPostsHierarchy
+     * Blocking API. Retrieves the hierarchy of posts in a given forum.
+     * Posts are delivered as an array, and element members mChildren,
+     * and mParent point to the relevant posts in this array. The array will always
+     * contain at index 0 a top level sentinel post that shouldn't be displayed, but that is the
+     * parent of all top-level posts.
+     * @jsonapi{development}
+     * @param[in]  group
+     * @param[out] vect
+     * @param[out] post_versions
+     * @return false is something failed, true otherwise
+     */
+    virtual bool getForumPostsHierarchy(const RsGxsForumGroup& group,
+                                        std::vector<ForumPostEntry>& vect,
+                                        std::map<RsGxsMessageId,std::vector<std::pair<rstime_t, RsGxsMessageId> > >& post_versions) =0;
+
+    /**
 	 * @brief Get message metadatas for a specific forum. Blocking API
 	 * @jsonapi{development}
 	 * @param[in] forumId id of the forum of which the content is requested
@@ -461,6 +550,17 @@ public:
 	 * @return Success or error details
 	 */
 	virtual std::error_condition requestSynchronization() = 0;
+
+    /**
+     * @brief updateReputationLevel
+     * Updates the reputation level in the passed ForumPostEntry. This is normally
+     * not necessary to call this function, except when the post's author reputation
+     * is manually changed.
+     * @jsonapi{development}
+     * @param[in]    forum_group_sign_flags	Signature flags from the forum group metadata.
+     * @param[inout] e						ForumPostEntry to update.
+     */
+    virtual void updateReputationLevel(uint32_t forum_group_sign_flags,ForumPostEntry& e) const =0;
 
 	////////////////////////////////////////////////////////////////////////////
 	/* Following functions are deprecated and should not be considered a stable

@@ -82,6 +82,9 @@ private:
     TorControlSocketClient *mClient;
 
     void setError(const std::string& message);
+
+public:
+    bool mVerbose;
 };
 
 }

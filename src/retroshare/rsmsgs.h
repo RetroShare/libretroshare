@@ -826,8 +826,18 @@ public:
 	/*        Private distant messages      */
 	/****************************************/
 
-    virtual uint32_t getDistantMessagingPermissionFlags()=0 ;
-    virtual void setDistantMessagingPermissionFlags(uint32_t flags)=0 ;
+	/**
+	 * @brief getDistantMessagingPermissionFlags get the distant messaging permission flags
+	 * @jsonapi{development}
+	 * @return distant messaging permission flags as a uint32_t.
+	 */
+  virtual uint32_t getDistantMessagingPermissionFlags() = 0 ;
+	/**
+	 * @brief setDistantMessagingPermissionFlags set the distant messaging permission flags
+	 * @jsonapi{development}
+	 * @param[in] flags
+	 */
+  virtual void setDistantMessagingPermissionFlags(uint32_t flags) = 0 ;
     
 	/****************************************/
 	/*                 Chat                 */
@@ -846,7 +856,7 @@ public:
 	virtual bool sendChat(ChatId id, std::string msg) = 0;
 
 	/**
-	 * @brief getMaxMessageSecuritySize get the maximum size of a chta message
+	 * @brief getMaxMessageSecuritySize get the maximum size of a chat message
 	 * @jsonapi{development}
 	 * @param[in] type chat type
 	 * @return maximum size or zero for infinite

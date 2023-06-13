@@ -76,6 +76,8 @@ public:
     bool hasError() const;
     std::string errorMessage() const;
 
+    void setVerbose(bool v);
+
     bool getHiddenServiceInfo(std::string& service_id,std::string& service_onion_address,uint16_t& service_port, std::string& service_target_address,uint16_t& target_port);
     bool getProxyServerInfo(std::string &proxy_server_adress, uint16_t& proxy_server_port);
 

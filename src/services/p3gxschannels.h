@@ -150,8 +150,11 @@ protected:
                     const RsGxsGroupId& channelId,
                     std::vector<RsMsgMetaData>& summaries ) override;
 
+    /// Implementation of @see RsGxsChannels::getChannelGroupStatistics
+    bool getChannelGroupStatistics(const RsGxsGroupId& channelId,GxsGroupStatistic& stat) override;
+
     /// Implementation of @see RsGxsChannels::getChannelStatistics
-    bool getChannelStatistics(const RsGxsGroupId& channelId,GxsGroupStatistic& stat) override;
+    bool getChannelStatistics(const RsGxsGroupId& channelId,RsGxsChannelStatistics& stat) override;
 
     /// Iplementation of @see RsGxsChannels::getChannelServiceStatistics
     bool getChannelServiceStatistics(GxsServiceStatistic& stat) override;
@@ -230,6 +233,9 @@ protected:	// made protected because it's all deprecated
     virtual bool getPostData(const uint32_t &token, std::vector<RsGxsChannelPost> &posts, std::vector<RsGxsComment> &cmts, std::vector<RsGxsVote> &vots) override;
     virtual bool getPostData(const uint32_t &token, std::vector<RsGxsChannelPost> &posts, std::vector<RsGxsComment> &cmts) override;
     virtual bool getPostData(const uint32_t &token, std::vector<RsGxsChannelPost> &posts) override;
+
+    // helper function that moved old post versions in the mOldVersions of new posts.
+    void sortPosts(std::vector<RsGxsChannelPost>& posts, const std::vector<RsGxsComment> &comments) const;
 
     //Not currently used
     //virtual bool getRelatedPosts(const uint32_t &token, std::vector<RsGxsChannelPost> &posts);

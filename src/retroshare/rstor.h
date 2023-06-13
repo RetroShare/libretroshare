@@ -179,6 +179,8 @@ public:
     static bool hasError();
     static std::string errorMessage();
 
+    static void setVerbose(bool v);
+
 private:
     static Tor::TorManager *instance();
 };

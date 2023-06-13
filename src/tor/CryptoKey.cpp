@@ -87,7 +87,7 @@ bool CryptoKey::loadFromFile(const std::string& path)
 
     if(data.startsWith("-----BEGIN RSA PRIVATE KEY-----"))
     {
-        RsInfo() << "Note: Reading/converting Tor v2 key format." ;
+        RsInfo() << "  Note: Reading/converting Tor v2 key format." ;
 
         // This to be compliant with old format. New format is oblivious to the type of key so we dont need a header
         data = data.replace(ByteArray("-----BEGIN RSA PRIVATE KEY-----"),ByteArray());
@@ -98,8 +98,7 @@ bool CryptoKey::loadFromFile(const std::string& path)
         data = ByteArray("RSA1024:")+data;
     }
 
-    RsDbg() << "Have read the following key: " ;
-    RsDbg() << data.toString() ;
+    RsInfo() << "  Have read the following key: " << data.toString() ;
 
     key_data = data;
 
@@ -110,15 +109,15 @@ bool CryptoKey::loadFromTorMessage(const ByteArray& b)
 {
     // note: We should probably check the structure a bit more, for security.
 
-    RsDbg() << "Loading new key:" ;
+    RsInfo() << "  Loading new key:" ;
 
     if(b.startsWith("RSA1024"))
-        RsDbg() << "  type: RSA-1024 (Tor v2)" ;
+        RsInfo() << "  type: RSA-1024 (Tor v2)" ;
     else if(b.startsWith("ED25519-V3"))
-        RsDbg() << "  type: ED25519-V3 (Tor v3)" ;
+        RsInfo() << "  type: ED25519-V3 (Tor v3)" ;
     else if(b.indexOf(':'))
     {
-        RsDbg() << "  unknown type, or bad syntax in key: \"" << b.left(b.indexOf(':')).toString() << "\". Not accepted." << std::endl;
+        RsInfo() << "  unknown type, or bad syntax in key: \"" << b.left(b.indexOf(':')).toString() << "\". Not accepted." << std::endl;
         return false;
     }
 

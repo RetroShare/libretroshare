@@ -69,6 +69,7 @@ public:
     std::list<std::string> logMessages;
     std::string errorMessage;
     bool configNeeded;
+    bool mVerbose;
     std::string userProvidedTorExecutablePath;
 
 	HiddenService *hiddenService ;
@@ -105,11 +106,20 @@ TorManager::~TorManager()
     delete(d);
 }
 
+void TorManager::setVerbose(bool v)
+{
+    if(d)
+        d->mVerbose = v;
+
+    if(d->process)
+        d->process->setVerbose(v);
+}
 TorManagerPrivate::TorManagerPrivate(TorManager *parent)
     : q(parent)
     , process(0)
     , control(new TorControl())
     , configNeeded(false)
+    , mVerbose(false)
     , hiddenService(NULL)
 {
     control->set_statusChanged_callback([this](int new_status,int /*old_status*/) { controlStatusChanged(new_status); });
@@ -222,24 +232,23 @@ bool TorManager::setupHiddenService()
 		return false ;
 	}
 
-    RsDbg() << "Using legacy dir: " << legacyDir ;
+    RsInfo() << "  Using legacy dir: " << legacyDir ;
     auto key_path = RsDirUtil::makePath(legacyDir,"private_key");
 
     if (!legacyDir.empty() && RsDirUtil::fileExists(key_path))
     {
-        RsDbg() << "Attempting to load key from legacy filesystem format from file \"" << key_path << "\"" ;
+        RsInfo() << "  Attempting to load key from legacy filesystem format from file \"" << key_path << "\"" ;
 
         d->hiddenService = new Tor::HiddenService(this,legacyDir);
 
         if(!d->hiddenService->privateKey().bytes().empty())
         {
-            RsDbg() << "Got key from legacy dir: " ;
-            RsDbg() << d->hiddenService->privateKey().bytes().toHex().toString() ;
-            RsDbg() << "Service id is: " << d->hiddenService->serviceId() ;
+            RsInfo() << "  Got key from legacy dir: " << d->hiddenService->privateKey().bytes().toHex().toString().substr(0,40) << "..." ;
+            RsInfo() << "  Service id is: " << d->hiddenService->serviceId() ;
 
             if(d->hiddenService->serviceId().size() != 56)
             {
-                RsWarn() << "Existing service id is not a proper Tor v3 service ID. Creating a new one..." ;
+                RsWarn() << "  Existing service id is not a proper Tor v3 service ID. Creating a new one..." ;
                 delete d->hiddenService;
                 d->hiddenService = nullptr;
 
@@ -247,12 +256,12 @@ bool TorManager::setupHiddenService()
             }
         }
         else
-            RsWarn() << "Failed to load existing hidden service. Creating a new one." ;
+            RsWarn() << "  Failed to load existing hidden service. Creating a new one." ;
     }
 
     if(!d->hiddenService)
     {
-        RsDbg() << "Creating new hidden service." ;
+        RsInfo() << "  Creating new hidden service." ;
         d->hiddenService = new Tor::HiddenService(this,legacyDir);
     }
 
@@ -270,7 +279,7 @@ bool TorManager::setupHiddenService()
     }
     while(!test_listening_port(address,hidden_service_port));
 
-    RsDbg() << "Testing listening address:port " << address << ":" << hidden_service_port << ": OK - Adding hidden service to TorControl." ;
+    RsInfo() << "  Testing listening address:port " << address << ":" << hidden_service_port << ": OK - Adding hidden service to TorControl." ;
 
     // Note: 9878 is quite arbitrary, but since each RS node generates its own hidden service, all of them
     // can use the same port without any conflict.
@@ -283,7 +292,8 @@ bool TorManager::setupHiddenService()
 
 void TorManager::hiddenServiceStatusChanged(int new_status,int old_status)
 {
-    RsDbg() << "Hidden service status changed from " << old_status << " to " << new_status ;
+    if(d->mVerbose)
+        RsInfo() << "Hidden service status changed from " << old_status << " to " << new_status ;
 
     if(rsEvents)
     {
@@ -306,7 +316,9 @@ void TorManager::hiddenServicePrivateKeyChanged()
 
     RsDirUtil::checkCreateDirectory(legacyDir);
 
-    RsDbg() << "Hidden service private key changed!" ;
+    if(d->mVerbose)
+        RsInfo() << "Hidden service private key changed!" ;
+
     auto key_path = RsDirUtil::makePath(legacyDir,"/private_key");
 
 //    if (!RsDirUtil::fileExists(key_path))
@@ -334,7 +346,8 @@ void TorManager::hiddenServiceHostnameChanged()
     of << hostname << std::endl;
     of.close();
 
-    RsDbg() << "Hidden service hostname changed: " << hostname ;
+    if(d->mVerbose)
+        RsInfo() << "Hidden service hostname changed: " << hostname ;
 }
 
 bool TorManager::configurationNeeded() const
@@ -422,8 +435,10 @@ bool TorManager::startTorManager()
             return false;
         }
 
-        if (!d->process) {
+        if (!d->process)
+        {
             d->process = new TorProcess(d);
+            d->process->setVerbose(d->mVerbose);
 
             // QObject::connect(d->process, SIGNAL(stateChanged(int)), d, SLOT(processStateChanged(int)));
             // QObject::connect(d->process, SIGNAL(errorMessageChanged(std::string)), d, SLOT(processErrorChanged(std::string)));
@@ -516,22 +531,22 @@ void TorManager::threadTick()
         break;
 
     case TorControl::NotConnected:
-        RsDbg() << "Connecting to tor process at " << d->process->controlHost() << ":" << d->process->controlPort() << "..." ;
+        RsInfo() << "Connecting to tor process at " << d->process->controlHost() << ":" << d->process->controlPort() << "..." ;
         d->control->connect(d->process->controlHost(),d->process->controlPort());
         break;
 
     case TorControl::SocketConnected:
-        RsDbg() << "Connection established." ;
+        RsInfo() << "Connection established." ;
 
         if(d->hiddenService == nullptr)
         {
-            RsDbg() << "Setting up hidden service" ;
+            RsInfo() << "Setting up hidden service" ;
             setupHiddenService();
         }
 
         d->control->setAuthPassword(d->process->controlPassword());
         d->control->authenticate();
-        RsDbg() << "Authenticating..." ;
+        RsInfo() << "Authenticating..." ;
         break;
 
     case TorControl::Authenticating:
@@ -541,7 +556,7 @@ void TorManager::threadTick()
     case TorControl::Authenticated:
         if(!authenticated_msg_already_given)
         {
-            RsDbg() << "Authenticated. Looking for hidden services.";
+            RsInfo() << "Authenticated. Looking for hidden services.";
             authenticated_msg_already_given = true;
         }
         break;
@@ -597,7 +612,8 @@ bool TorManager::getHiddenServiceInfo(std::string& service_id,std::string& servi
 
 void TorManagerPrivate::processStateChanged(int state)
 {
-    RsInfo() << "state: " << state << " passwd=\"" << process->controlPassword().toString() << "\" " << process->controlHost()
+    if(mVerbose)
+        RsInfo() << "state: " << state << " passwd=\"" << process->controlPassword().toString() << "\" " << process->controlHost()
 	         << ":" << process->controlPort() << std::endl;
 
     if (state == TorProcess::Ready) {
@@ -620,7 +636,9 @@ void TorManagerPrivate::processLogMessage(const std::string &message)
     auto p = message.find_first_of('\n');
     auto msg = (p==std::string::npos)?message:message.substr(0,p);
 
-    RsInfo() << "tor:" << msg ;
+    if(mVerbose)
+        RsInfo() << "tor:" << msg ;
+
     logMessages.push_back(msg);
 }
 
@@ -789,6 +807,10 @@ std::list<std::string> RsTor::logMessages()
     return instance()->logMessages();
 }
 
+void RsTor::setVerbose(bool v)
+{
+    instance()->setVerbose(v);
+}
 std::string RsTor::torExecutablePath()
 {
     return instance()->torExecutablePath();

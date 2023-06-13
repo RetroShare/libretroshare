@@ -96,6 +96,7 @@ public:
     void stateChanged(int newState);
     void errorMessageChanged(const std::string &errorMessage);
     void logMessage(const std::string &message);
+    void setVerbose(bool v);
 
     void start();
     void stop();
@@ -123,6 +124,7 @@ private:
     TorProcessHandle mTorProcessId;
     time_t mLastTryReadControlPort ;
     int mControlPortReadNbTries ;
+    bool mVerbose;
 
     void processStarted();
     void processFinished();

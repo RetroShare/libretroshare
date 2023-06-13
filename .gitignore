@@ -9,3 +9,7 @@ local.properties
 
 # Ignore Qt Creator local CMake configuration
 CMakeLists.txt.user
+
+# Build artifacts
+Makefile.libretroshare
+*.a
