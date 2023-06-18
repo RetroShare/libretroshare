@@ -437,6 +437,10 @@ bool ftServer::setChunkStrategy(const RsFileHash& hash,FileChunksInfo::ChunkStra
 {
 	return mFtController->setChunkStrategy(hash,s);
 }
+FileChunksInfo::ChunkStrategy ftServer::getChunkStrategy(const RsFileHash& hash)
+{
+	return mFtController->getChunkStrategy(hash) ;
+}
 void ftServer::setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy s)
 {
 	mFtController->setDefaultChunkStrategy(s) ;
