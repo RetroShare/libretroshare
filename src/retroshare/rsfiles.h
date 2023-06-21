@@ -607,9 +607,10 @@ public:
 	 * @brief Get chunk strategy for the file getting downloaded
 	 * @jsonapi{development}
 	 * @param[in] hash file identifier
-	 * @return default chunk strategy for file
+	 * @param[out] s current chunk strategy for file
+	 * @return false if error occured, true otherwise
 	 */
-  virtual FileChunksInfo::ChunkStrategy getChunkStrategy(const RsFileHash& hash) = 0;
+  virtual bool getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s) = 0;
 
 	/**
 	 * @brief Set default chunk strategy

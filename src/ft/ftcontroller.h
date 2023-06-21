@@ -137,7 +137,7 @@ public:
         bool  alreadyHaveFile(const RsFileHash& hash, FileInfo &info);
 
         bool 	setChunkStrategy(const RsFileHash& hash,FileChunksInfo::ChunkStrategy s);
-        FileChunksInfo::ChunkStrategy	getChunkStrategy(const RsFileHash& hash);
+        bool	getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s);
 		void 	setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy s);
         FileChunksInfo::ChunkStrategy	defaultChunkStrategy();
 		void setFreeDiskSpaceLimit(uint32_t size_in_mb) ;

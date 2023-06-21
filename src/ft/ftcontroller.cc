@@ -1274,13 +1274,16 @@ bool ftController::setChunkStrategy(const RsFileHash& hash,FileChunksInfo::Chunk
 	mit->second->mCreator->setChunkStrategy(s) ;
 	return true ;
 }
-FileChunksInfo::ChunkStrategy ftController::getChunkStrategy(const RsFileHash& hash)
+bool ftController::getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s)
 {
-    std::map<RsFileHash,ftFileControl*>::iterator mit=mDownloads.find(hash);
-	if (mit!=mDownloads.end())
+  RsStackMutex stack(ctrlMutex); /******* LOCKED ********/
+  std::map<RsFileHash,ftFileControl*>::iterator mit=mDownloads.find(hash);
+	if (mit==mDownloads.end())
 	{
-	  return mit->second->mCreator->getChunkStrategy() ;
+    return false;
 	}
+	s = mit->second->mCreator->getChunkStrategy() ;
+  return true;
 }
 
 bool 	ftController::FileCancel(const RsFileHash& hash)
