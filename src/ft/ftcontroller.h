@@ -137,11 +137,12 @@ public:
         bool  alreadyHaveFile(const RsFileHash& hash, FileInfo &info);
 
         bool 	setChunkStrategy(const RsFileHash& hash,FileChunksInfo::ChunkStrategy s);
+        bool	getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s);
 		void 	setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy s);
-        void 	setDefaultEncryptionPolicy(uint32_t s);
         FileChunksInfo::ChunkStrategy	defaultChunkStrategy();
-		uint32_t freeDiskSpaceLimit() const ;
 		void setFreeDiskSpaceLimit(uint32_t size_in_mb) ;
+		uint32_t freeDiskSpaceLimit() const ;
+        void 	setDefaultEncryptionPolicy(uint32_t s);
         uint32_t defaultEncryptionPolicy();
 
         void setMaxUploadsPerFriend(uint32_t m) ;

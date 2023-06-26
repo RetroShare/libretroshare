@@ -604,6 +604,15 @@ public:
 	        FileChunksInfo::ChunkStrategy newStrategy ) = 0;
 
 	/**
+	 * @brief Get chunk strategy for the file getting downloaded
+	 * @jsonapi{development}
+	 * @param[in] hash file identifier
+	 * @param[out] s current chunk strategy for file
+	 * @return false if error occured, true otherwise
+	 */
+  virtual bool getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s) = 0;
+
+	/**
 	 * @brief Set default chunk strategy
 	 * @jsonapi{development}
 	 * @param[in] strategy
@@ -721,7 +730,17 @@ public:
 		/***
 		 * Control of Downloads Priority.
 		 ***/
+    /**
+     * @brief Get the number of Maximum simultaneous downloads
+     * @jsonapi{development}
+     * @return _max_active_downloads number of max active downloads
+     */
 		virtual uint32_t getQueueSize() = 0 ;
+    /**
+     * @brief Set the number of Maximum simultaneous downloads
+     * @jsonapi{development}
+     * @param[in] s number of max active downloads to set
+     */
 		virtual void setQueueSize(uint32_t s) = 0 ;
 		virtual bool changeQueuePosition(const RsFileHash& hash, QueueMove mv) = 0;
 		virtual bool changeDownloadSpeed(const RsFileHash& hash, int speed) = 0;

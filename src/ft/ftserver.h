@@ -195,6 +195,7 @@ public:
     virtual bool setDestinationDirectory(const RsFileHash& hash,const std::string& new_path) ;
     virtual bool setDestinationName(const RsFileHash& hash,const std::string& new_name) ;
     virtual bool setChunkStrategy(const RsFileHash& hash,FileChunksInfo::ChunkStrategy s) ;
+    virtual bool getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s) ;
     virtual void setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy) ;
     virtual FileChunksInfo::ChunkStrategy defaultChunkStrategy() ;
     virtual uint32_t freeDiskSpaceLimit() const ;
