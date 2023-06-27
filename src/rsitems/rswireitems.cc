@@ -95,3 +95,29 @@ void RsGxsWirePulseItem::serial_process(RsGenericSerializer::SerializeJob j,RsGe
 	pulse.mImage4.serial_process(j, ctx);
 }
 
+// Function which will edit the information in the wire group
+bool RsGxsWireGroupItem::fromWireGroup(RsWireGroup &group, bool moveImage)
+{
+    clear();
+    meta = group.mMeta;
+    this->group.mMeta = group.mMeta;
+    this->group.mTagline = group.mTagline;
+    this->group.mLocation = group.mLocation;
+    if (moveImage)
+    {
+        this->group.mHeadshot.mData = group.mHeadshot.mData;
+        this->group.mHeadshot.mSize = group.mHeadshot.mSize;
+        group.mHeadshot.shallowClear();
+
+        this->group.mMasthead.mData = group.mMasthead.mData;
+        this->group.mMasthead.mSize = group.mMasthead.mSize;
+        group.mMasthead.shallowClear();
+    }
+    else
+    {
+        this->group.mHeadshot.take(group.mHeadshot.mData, group.mHeadshot.mSize);
+
+        this->group.mMasthead.take(group.mMasthead.mData, group.mMasthead.mSize);
+    }
+    return true;
+}

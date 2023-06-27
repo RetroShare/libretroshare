@@ -45,6 +45,7 @@ public:
 
 	void clear();
 
+    bool fromWireGroup(RsWireGroup &group, bool moveImage);
 	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 
 	RsWireGroup group;
