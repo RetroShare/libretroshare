@@ -1618,7 +1618,14 @@ bool 	ftController::FileDetails(const RsFileHash &hash, FileInfo &info)
 	info.storage_permission_flags.clear() ;
 	info.transfer_info_flags = it->second->mFlags ;
 	info.priority = SPEED_NORMAL ;
-	RsDirUtil::removeTopDir(it->second->mDestination, info.path); /* remove fname */
+
+    // WARNING: The following line was originally inconsistent with the documentation in rstypes.h that states that info.path
+    //          should be the full path, not only the directory.
+    //
+    //              RsDirUtil::removeTopDir(it->second->mDestination, info.path); /* remove fname */
+
+    info.path = it->second->mDestination;
+
 	info.queue_position = it->second->mQueuePosition ;
 
 	if(it->second->mFlags & RS_FILE_REQ_ANONYMOUS_ROUTING)
