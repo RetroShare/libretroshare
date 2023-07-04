@@ -192,7 +192,7 @@ struct FileInfo : RsSerializable
 	/// 0 if none
 	int searchId;
 
-	std::string path;
+    std::string path;		// full path of the file (*Not just the directory*)
 	std::string fname;
 	RsFileHash hash;
 
