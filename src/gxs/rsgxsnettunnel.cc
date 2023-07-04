@@ -1467,6 +1467,10 @@ void RsGxsNetTunnelService::getStatistics(
     bias = mRandomBias ;
 }
 
+bool RsGxsNetTunnelService::isGXSHash(RsFileHash hash) const
+{
+	return mHandledHashes.find(hash) != mHandledHashes.end();
+}
 
 
 
