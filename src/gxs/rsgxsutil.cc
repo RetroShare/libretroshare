@@ -85,7 +85,7 @@ bool RsGxsCleanUp::clean(RsGxsGroupId& next_group_to_check,std::vector<RsGxsGrou
 #ifdef DEBUG_GXSUTIL
             std::cerr << "  Scheduling group " << grpMeta.mGroupId << " for removal." << std::endl;
 #endif
-            grps_to_delete.push_back(grpMeta.mGroupId);
+            //grps_to_delete.push_back(grpMeta.mGroupId);
         }
         else
         {
