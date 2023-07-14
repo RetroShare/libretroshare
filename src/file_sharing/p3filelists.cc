@@ -319,10 +319,25 @@ cleanup = true;
     {
         RS_STACK_MUTEX(mFLSMtx) ;
 
-        RsFileListsBannedHashesConfigItem *item = new RsFileListsBannedHashesConfigItem ;
+        // We need to be careful not to exceed the max size limit for a RsItem.
 
-        item->primary_banned_files_list = mPrimaryBanList;
-        sList.push_back(item) ;
+        RsFileListsBannedHashesConfigItem *item = nullptr;
+
+        for(auto it(mPrimaryBanList.begin());it!=mPrimaryBanList.end();++it)
+        {
+            if(item == nullptr)
+                item = new RsFileListsBannedHashesConfigItem ;
+
+            item->primary_banned_files_list.insert(*it);
+
+            if(item->primary_banned_files_list.size() > 1000)	// safe bet for size
+            {
+                sList.push_back(item) ;
+                item = nullptr;
+            }
+        }
+        if(item != nullptr)
+            sList.push_back(item) ;
     }
 
     RsConfigKeyValueSet *rskv = new RsConfigKeyValueSet();
@@ -455,6 +470,7 @@ bool p3FileDatabase::loadList(std::list<RsItem *>& load)
 	ignored_suffixes.push_back( "~" );
 	ignored_suffixes.push_back( ".part" );
 #endif
+    mPrimaryBanList.clear();
 
     for(std::list<RsItem *>::iterator it = load.begin(); it != load.end(); ++it)
     {
@@ -570,7 +586,7 @@ bool p3FileDatabase::loadList(std::list<RsItem *>& load)
 
         if(fb)
         {
-            mPrimaryBanList = fb->primary_banned_files_list ;
+            mPrimaryBanList.insert(fb->primary_banned_files_list.begin(),fb->primary_banned_files_list.end()) ;
             mBannedFileListNeedsUpdate = true;
             mLastPrimaryBanListChangeTimeStamp = time(NULL);
         }
