@@ -146,6 +146,23 @@ p3PeerMgrIMPL::p3PeerMgrIMPL(const RsPeerId& ssl_own_id, const RsPgpId& gpg_own_
 
 		mProxyServerStatusTor = RS_NET_PROXY_STATUS_UNKNOWN ;
 		mProxyServerStatusI2P = RS_NET_PROXY_STATUS_UNKNOWN;
+
+        // Init standard groups.
+
+        const int standardGroupCount = 5;
+        const RsNodeGroupId   standardGroupIds  [standardGroupCount] = { RS_GROUP_ID_FRIENDS,           RS_GROUP_ID_FAMILY,           RS_GROUP_ID_COWORKERS,           RS_GROUP_ID_OTHERS,           RS_GROUP_ID_FAVORITES };
+        const char           *standardGroupNames[standardGroupCount] = { RS_GROUP_DEFAULT_NAME_FRIENDS, RS_GROUP_DEFAULT_NAME_FAMILY, RS_GROUP_DEFAULT_NAME_COWORKERS, RS_GROUP_DEFAULT_NAME_OTHERS, RS_GROUP_DEFAULT_NAME_FAVORITES };
+
+        for(uint32_t k=0;k<standardGroupCount;++k)
+            if(groupList.find(standardGroupIds[k]) == groupList.end())
+            {
+                RsGroupInfo info ;
+                info.id = standardGroupIds[k];
+                info.name = standardGroupNames[k];
+                info.flag |= RS_GROUP_FLAG_STANDARD;
+
+                groupList[info.id] = info;
+            }
 	}
 
 #ifdef PEER_DEBUG
@@ -2675,22 +2692,6 @@ bool  p3PeerMgrIMPL::loadList(std::list<RsItem *>& load)
 	    /* set missing groupIds */
 
 	    RsStackMutex stack(mPeerMtx); /****** STACK LOCK MUTEX *******/
-
-	    /* Standard groups */
-	    const int standardGroupCount = 5;
-        const RsNodeGroupId   standardGroupIds  [standardGroupCount] = { RS_GROUP_ID_FRIENDS,           RS_GROUP_ID_FAMILY,           RS_GROUP_ID_COWORKERS,           RS_GROUP_ID_OTHERS,           RS_GROUP_ID_FAVORITES };
-        const char           *standardGroupNames[standardGroupCount] = { RS_GROUP_DEFAULT_NAME_FRIENDS, RS_GROUP_DEFAULT_NAME_FAMILY, RS_GROUP_DEFAULT_NAME_COWORKERS, RS_GROUP_DEFAULT_NAME_OTHERS, RS_GROUP_DEFAULT_NAME_FAVORITES };
-
-        for(uint32_t k=0;k<standardGroupCount;++k)
-            if(groupList.find(standardGroupIds[k]) == groupList.end())
-            {
-                RsGroupInfo info ;
-                info.id = standardGroupIds[k];
-                info.name = standardGroupNames[k];
-                info.flag |= RS_GROUP_FLAG_STANDARD;
-
-                groupList[info.id] = info;
-		    }
 
         // Also filter out profiles in groups that are not friends. Normally this shouldn't be needed, but it's a precaution
 
