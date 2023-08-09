@@ -161,7 +161,7 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
 			// no need to check the limit
 		}
 
-		IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
 	if (addMsgId) {
@@ -220,7 +220,8 @@ void p3HistoryMgr::cleanOldMessages()
 	}
 
 	if(changed)
-		IndicateConfigChanged() ;
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
+
 }
 
 /***** p3Config *****/
@@ -548,8 +549,8 @@ void p3HistoryMgr::clear(const ChatId &chatId)
 		mit->second.clear();
 		mMessages.erase(mit);
 
-		IndicateConfigChanged();
-	}
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
+    }
 
 	RsServer::notify()->notifyHistoryChanged(0, NOTIFY_TYPE_MOD);
 }
@@ -595,7 +596,7 @@ void p3HistoryMgr::removeMessages(const std::list<uint32_t> &msgIds)
 
 	if (!removedIds.empty())
 	{
-		IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
 		for (iit = removedIds.begin(); iit != removedIds.end(); ++iit)
 			RsServer::notify()->notifyHistoryChanged(*iit, NOTIFY_TYPE_DEL);
@@ -625,7 +626,7 @@ uint32_t p3HistoryMgr::getMaxStorageDuration()
 void p3HistoryMgr::setMaxStorageDuration(uint32_t seconds)
 {
 	if(mMaxStorageDurationSeconds != seconds)
-		IndicateConfigChanged() ;
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
 	mMaxStorageDurationSeconds = seconds ;
 }
@@ -655,7 +656,7 @@ void p3HistoryMgr::setEnable(uint32_t chat_type, bool enable)
 	}
 
 	if (oldValue != enable) 
-		IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 
 uint32_t p3HistoryMgr::getSaveCount(uint32_t chat_type)
@@ -693,5 +694,5 @@ void p3HistoryMgr::setSaveCount(uint32_t chat_type, uint32_t count)
 	}
 
 	if (oldValue != count) 
-		IndicateConfigChanged();
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
