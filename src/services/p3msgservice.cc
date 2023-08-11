@@ -2052,7 +2052,9 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
     mis.to = to;
     mis.from = from;
 
+#ifdef DEBUG_DISTANT_MSG
     std::cerr << "msg (peerId=" << msg->PeerId() << ", distant=" << bool(msg->msgFlags & RS_MSG_FLAGS_DISTANT)<< ": " << msg << std::endl;
+#endif
 
     mis.from = msi.from;
 

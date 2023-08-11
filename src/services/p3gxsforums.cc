@@ -1151,7 +1151,9 @@ void p3GxsForums::computeMessagesHierarchy(const RsGxsForumGroup& forum_group,
                                                std::vector<ForumPostEntry>& posts,
                                                std::map<RsGxsMessageId,std::vector<std::pair<rstime_t,RsGxsMessageId> > >& mPostVersions )
 {
-    std::cerr << "updating messages data with " << msgs_metas_array.size() << " messages" << std::endl;
+#ifdef GXSFORUMS_DEBUG
+    RsDbg() << "updating messages data with " << msgs_metas_array.size() << " messages";
+#endif
 
     auto addEntry = [&posts](const ForumPostEntry& entry,uint32_t parent) -> uint32_t
     {
