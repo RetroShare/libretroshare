@@ -2101,6 +2101,7 @@ bool    p3PeerMgrIMPL::setLocation(const RsPeerId &id, const std::string &locati
                 mOwnState.location = location;
                 changed = true;
             }
+            IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
             return changed;
         }
 
@@ -2112,6 +2113,7 @@ bool    p3PeerMgrIMPL::setLocation(const RsPeerId &id, const std::string &locati
                 changed = true;
             }
         }
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_LESS); /**** INDICATE MSG CONFIG CHANGED! *****/
         return changed;
 }
 

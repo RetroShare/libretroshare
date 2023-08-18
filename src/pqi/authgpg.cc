@@ -616,7 +616,7 @@ bool AuthPGP::AllowConnection(const RsPgpId& gpg_id, bool accept)
         instance()->mPgpHandler->setAcceptConnexion(gpg_id,accept) ;
 	}
 
-    instance()->IndicateConfigChanged();
+    instance()->IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
 	RsServer::notify()->notifyListChange(NOTIFY_LIST_FRIENDS, accept ? NOTIFY_TYPE_ADD : NOTIFY_TYPE_DEL);
 
