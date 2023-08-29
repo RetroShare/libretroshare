@@ -168,6 +168,7 @@ public:
         // This list contains all threaded services. It will be used to shut them down properly.
 
         std::list<RsTickingThread*> mRegisteredServiceThreads ;
+        std::list<RsGeneralDataService*> mRegisteredDataServices ;
 
         /* GXS */
 //		p3Wiki *mWiki;
