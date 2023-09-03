@@ -1931,7 +1931,23 @@ int RsServer::StartupRetroShare()
 	// rsDisc & RsMsgs done already.
 	rsBandwidthControl = mBwCtrl;
 
-	
+    // register all db in a list, so that we can properly close them on quit.
+    mRegisteredDataServices.push_back(gxsid_ds);
+    mRegisteredDataServices.push_back(gxsforums_ds);
+    mRegisteredDataServices.push_back(gxschannels_ds);
+    mRegisteredDataServices.push_back(gxscircles_ds);
+    mRegisteredDataServices.push_back(gxstrans_ds);
+    mRegisteredDataServices.push_back(posted_ds);
+#ifdef RS_USE_WIRE
+    mRegisteredDataServices.push_back(wire_ds);
+#endif
+#ifdef RS_USE_PHOTO
+    mRegisteredDataServices.push_back(photo_ds);
+#endif
+#ifdef RS_USE_WIKI
+    mRegisteredDataServices.push_back(wiki_ds);
+#endif
+
 	rsStatus = new p3Status(mStatusSrv);
 	rsHistory = new p3History(mHistoryMgr);
 
