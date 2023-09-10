@@ -30,16 +30,14 @@
 #include "retroshare/rswebui.h"
 #include "jsonapi/jsonapi.h"
 
-class p3WebUI: public RsWebUi, public JsonApiResourceProvider
+class p3WebUI: public RsWebUi /*, public p3Config */, public JsonApiResourceProvider
 {
 public:
 	~p3WebUI() override = default;
 
 	/// implements RsWebUI
-	virtual std::error_condition setHtmlFilesDirectory(
-	        const std::string& html_dir ) override;
-	virtual std::error_condition setUserPassword(
-	        const std::string& passwd ) override;
+    virtual std::error_condition setHtmlFilesDirectory( const std::string& html_dir ) override;
+    virtual std::error_condition setUserPassword( const std::string& passwd ) override;
 
 	virtual std::error_condition restart() override;
 	virtual std::error_condition stop() override;
@@ -47,6 +45,9 @@ public:
 	bool isRunning() const override;
 
 	/// implements JsonApiResourceProvider
-	virtual std::vector<std::shared_ptr<restbed::Resource> > getResources()
-	const override;
+    virtual std::vector<std::shared_ptr<restbed::Resource> > getResources() const override;
+    virtual std::string getName() const override { return "Web interface" ; };
+
+protected:
+
 };

@@ -649,6 +649,14 @@ bool JsonApiServer::revokeAuthToken(const std::string& token)
 	if(mAuthTokenStorage.mAuthorizedTokens.erase(token))
 	{
 		IndicateConfigChanged();
+
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsJsonApiEvent>();
+            ev->mJsonApiEventCode = RsJsonApiEventCode::TOKEN_LIST_CHANGED;
+            rsEvents->postEvent(ev);
+        }
+
 		return true;
 	}
 	return false;
@@ -675,7 +683,14 @@ std::error_condition JsonApiServer::authorizeUser(
 	{
 		p = passwd;
 		IndicateConfigChanged();
-	}
+
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsJsonApiEvent>();
+            ev->mJsonApiEventCode = RsJsonApiEventCode::TOKEN_LIST_CHANGED;
+            rsEvents->postEvent(ev);
+        }
+    }
 	return ec;
 }
 
@@ -732,6 +747,11 @@ void JsonApiServer::unregisterResourceProvider(const JsonApiResourceProvider& rp
 bool JsonApiServer::hasResourceProvider(const JsonApiResourceProvider& rp)
 { return mResourceProviders.find(rp) != mResourceProviders.end(); }
 
+const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& JsonApiServer::getResourceProviders() const
+{
+    return mResourceProviders;
+}
+
 std::vector<std::shared_ptr<rb::Resource> > JsonApiServer::getResources() const
 {
 	auto tab = mResources;
@@ -768,6 +788,13 @@ void JsonApiServer::onStopRequested()
 	auto tService = std::atomic_exchange(
 	            &mService, std::shared_ptr<rb::Service>(nullptr) );
 	if(tService) tService->stop();
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsJsonApiEvent>();
+        ev->mJsonApiEventCode = RsJsonApiEventCode::API_STOPPED;
+        rsEvents->postEvent(ev);
+    }
 }
 
 uint16_t JsonApiServer::listeningPort() const { return mListeningPort; }
@@ -798,16 +825,25 @@ void JsonApiServer::run()
 		 * service and therefore leaves the listening port open */
 		auto tExpected = std::shared_ptr<rb::Service>(nullptr);
 		if(atomic_compare_exchange_strong(&mService, &tExpected, tService))
-			tService->start(settings);
-		else
+            tService->start(settings);
+        else
 		{
 			RsErr() << __PRETTY_FUNCTION__ << " mService was expected to be "
 			        << " null, instead we got: " << tExpected
 			        << " something wrong happened JsonApiServer won't start"
 			        << std::endl;
 			print_stacktrace();
+            throw std::runtime_error("mService was expected to be null. Something wrong happened JsonApiServer won't start");
 		}
-	}
+
+        if(rsEvents)
+        {
+            std::cerr << "Posting a JSONAPI event" << std::endl;
+            auto ev = std::make_shared<RsJsonApiEvent>();
+            ev->mJsonApiEventCode = RsJsonApiEventCode::API_STARTED;
+            rsEvents->postEvent(ev);
+        }
+    }
 	catch(std::exception& e)
 	{
 		/* TODO: find a way to report back programmatically if failed listening

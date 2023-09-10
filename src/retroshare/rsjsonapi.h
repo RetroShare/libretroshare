@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <system_error>
 
+#include "rsevents.h"
 #include "util/rsdebug.h"
 #include "util/rsmemory.h"
 
@@ -49,6 +50,31 @@ enum class RsJsonApiErrorNum : int32_t
 	AUTHORIZATION_REQUEST_DENIED     = 2008,
 	CANNOT_EXECUTE_BEFORE_RS_LOGIN   = 2009,
 	NOT_A_MACHINE_GUN                = 2010
+};
+
+enum class RsJsonApiEventCode: uint8_t
+{
+    UNKNOWN                          = 0x00,
+    API_STARTED                      = 0x01,
+    API_STOPPED                      = 0x02,
+    TOKEN_LIST_CHANGED               = 0x03,
+};
+
+struct RsJsonApiEvent: RsEvent
+{
+    RsJsonApiEvent() : RsEvent(RsEventType::JSON_API) {}
+
+    RsJsonApiEventCode mJsonApiEventCode;
+
+    /// @see RsEvent
+    void serial_process( RsGenericSerializer::SerializeJob j,
+                         RsGenericSerializer::SerializeContext& ctx) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mJsonApiEventCode);
+    }
+
+    ~RsJsonApiEvent() override = default;
 };
 
 struct RsJsonApiErrorCategory: std::error_category
@@ -185,6 +211,7 @@ public:
 	virtual void registerResourceProvider(const JsonApiResourceProvider&) = 0;
 	virtual void unregisterResourceProvider(const JsonApiResourceProvider&) = 0;
 	virtual bool hasResourceProvider(const JsonApiResourceProvider&) = 0;
+    virtual const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& getResourceProviders() const =0;
 
 	/**
 	 * @brief This function should be used by JSON API clients that aren't
