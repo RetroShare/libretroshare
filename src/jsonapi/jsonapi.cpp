@@ -825,7 +825,16 @@ void JsonApiServer::run()
 		 * service and therefore leaves the listening port open */
 		auto tExpected = std::shared_ptr<rb::Service>(nullptr);
 		if(atomic_compare_exchange_strong(&mService, &tExpected, tService))
+        {
+            if(rsEvents)
+            {
+                std::cerr << "Posting a JSONAPI event" << std::endl;
+                auto ev = std::make_shared<RsJsonApiEvent>();
+                ev->mJsonApiEventCode = RsJsonApiEventCode::API_STARTED;
+                rsEvents->postEvent(ev);
+            }
             tService->start(settings);
+        }
         else
 		{
 			RsErr() << __PRETTY_FUNCTION__ << " mService was expected to be "
@@ -836,13 +845,7 @@ void JsonApiServer::run()
             throw std::runtime_error("mService was expected to be null. Something wrong happened JsonApiServer won't start");
 		}
 
-        if(rsEvents)
-        {
-            std::cerr << "Posting a JSONAPI event" << std::endl;
-            auto ev = std::make_shared<RsJsonApiEvent>();
-            ev->mJsonApiEventCode = RsJsonApiEventCode::API_STARTED;
-            rsEvents->postEvent(ev);
-        }
+
     }
 	catch(std::exception& e)
 	{
