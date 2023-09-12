@@ -741,9 +741,27 @@ void JsonApiServer::handleCorsOptions(
 { session->close(rb::NO_CONTENT, corsOptionsHeaders); }
 
 void JsonApiServer::registerResourceProvider(const JsonApiResourceProvider& rp)
-{ mResourceProviders.insert(rp); }
+{
+    mResourceProviders.insert(rp);
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsJsonApiEvent>();
+        ev->mJsonApiEventCode = RsJsonApiEventCode::SERVICE_LIST_CHANGED;
+        rsEvents->postEvent(ev);
+    }
+}
 void JsonApiServer::unregisterResourceProvider(const JsonApiResourceProvider& rp)
-{ mResourceProviders.erase(rp); }
+{
+    mResourceProviders.erase(rp);
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsJsonApiEvent>();
+        ev->mJsonApiEventCode = RsJsonApiEventCode::SERVICE_LIST_CHANGED;
+        rsEvents->postEvent(ev);
+    }
+}
 bool JsonApiServer::hasResourceProvider(const JsonApiResourceProvider& rp)
 { return mResourceProviders.find(rp) != mResourceProviders.end(); }
 

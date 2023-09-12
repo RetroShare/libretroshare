@@ -58,6 +58,7 @@ enum class RsJsonApiEventCode: uint8_t
     API_STARTED                      = 0x01,
     API_STOPPED                      = 0x02,
     TOKEN_LIST_CHANGED               = 0x03,
+    SERVICE_LIST_CHANGED             = 0x04,
 };
 
 struct RsJsonApiEvent: RsEvent
