@@ -203,7 +203,9 @@ std::error_condition p3WebUI::setUserPassword(const std::string& passwd)
 
 std::error_condition p3WebUI::restart()
 {
-    rsJsonApi->registerResourceProvider(*this);
+    if(!rsJsonApi->hasResourceProvider(*this))
+        rsJsonApi->registerResourceProvider(*this);
+
     return rsJsonApi->restart(true);
 }
 
