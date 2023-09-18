@@ -50,10 +50,10 @@
 
 
 /****
- ****/
 #define GXSCHANNEL_DEBUG 1
 #define GXSCOMMENT_DEBUG 1
 #define DEBUG_CHANNEL_MODEL 1
+ ****/
 
 /*extern*/ RsGxsChannels* rsGxsChannels = nullptr;
 
