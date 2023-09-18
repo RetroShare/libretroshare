@@ -1358,7 +1358,7 @@ bool RsGxsDataAccess::getMsgRelatedInfo(MsgRelatedInfoReq *req)
 		if(!origMeta)
 		{
 			RS_ERR("Cannot find meta of msgId: ", msgId, " to relate to");
-			return false;
+            continue;
 		}
 
         const RsGxsMessageId& origMsgId = origMeta->mOrigMsgId;
