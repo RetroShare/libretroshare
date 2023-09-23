@@ -1364,16 +1364,16 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
         info.flags = flags;
         info.destination = to;
 
-        info.flags |= RS_MSG_FLAGS_OUTGOING ;
+        info.flags |= RS_MSG_OUTGOING ;
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
         {
-            info.flags |= RS_MSG_FLAGS_DISTANT;
+            info.flags |= RS_MSG_DISTANT;
             info.origin = from;
         }
         else
         {
-            info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
+            info.flags |= RS_MSG_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
             info.origin = Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
         }
     }
@@ -1448,7 +1448,7 @@ bool 	p3MsgService::MessageSend(MessageInfo &info)
     msg->recvTime = time(NULL);
     msg->msgId = getNewUniqueMsgId();
 
-    msg->msgFlags |= RS_MSG_OUTGOING;
+    msg->msgFlags |= RS_MSG_FLAGS_OUTGOING;
 
     mSentMessages[msg->msgId] = msi;
 
