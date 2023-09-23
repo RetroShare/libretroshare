@@ -49,30 +49,37 @@ const uint8_t RS_PKT_SUBTYPE_MSG_OUTGOING_MAP_STORAGE = 0x0b;
 
 /**************************************************************************/
 
-const uint32_t RS_MSG_FLAGS_OUTGOING              = 0x00000001;
-const uint32_t RS_MSG_FLAGS_PENDING               = 0x00000002;
-const uint32_t RS_MSG_FLAGS_DRAFT                 = 0x00000004;
-const uint32_t RS_MSG_FLAGS_NEW                   = 0x00000010;
-const uint32_t RS_MSG_FLAGS_TRASH                 = 0x00000020;
-const uint32_t RS_MSG_FLAGS_UNREAD_BY_USER        = 0x00000040;
-const uint32_t RS_MSG_FLAGS_REPLIED               = 0x00000080;
-const uint32_t RS_MSG_FLAGS_FORWARDED             = 0x00000100;
-const uint32_t RS_MSG_FLAGS_STAR                  = 0x00000200;
-const uint32_t RS_MSG_FLAGS_PARTIAL               = 0x00000400;
-const uint32_t RS_MSG_FLAGS_USER_REQUEST          = 0x00000800;
-const uint32_t RS_MSG_FLAGS_FRIEND_RECOMMENDATION = 0x00001000;
-const uint32_t RS_MSG_FLAGS_RETURN_RECEPT         = 0x00002000;
-const uint32_t RS_MSG_FLAGS_ENCRYPTED             = 0x00004000;
-const uint32_t RS_MSG_FLAGS_DISTANT               = 0x00008000;
-const uint32_t RS_MSG_FLAGS_SIGNATURE_CHECKS      = 0x00010000;
-const uint32_t RS_MSG_FLAGS_SIGNED                = 0x00020000;
-const uint32_t RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES  = 0x00040000;
-const uint32_t RS_MSG_FLAGS_DECRYPTED             = 0x00080000;
-const uint32_t RS_MSG_FLAGS_ROUTED                = 0x00100000;
-const uint32_t RS_MSG_FLAGS_PUBLISH_KEY           = 0x00200000;
-const uint32_t RS_MSG_FLAGS_SPAM                  = 0x00400000;
+enum class RsMsgItemFlags: uint32_t
+{
+    RS_MSG_FLAGS_OUTGOING              = 0x00000001,
+    RS_MSG_FLAGS_PENDING               = 0x00000002,
+    RS_MSG_FLAGS_DRAFT                 = 0x00000004,
+    RS_MSG_FLAGS_NEW                   = 0x00000010,
+    RS_MSG_FLAGS_TRASH                 = 0x00000020,
+    RS_MSG_FLAGS_UNREAD_BY_USER        = 0x00000040,
+    RS_MSG_FLAGS_REPLIED               = 0x00000080,
+    RS_MSG_FLAGS_FORWARDED             = 0x00000100,
+    RS_MSG_FLAGS_STAR                  = 0x00000200,
+    RS_MSG_FLAGS_PARTIAL               = 0x00000400,
+    RS_MSG_FLAGS_USER_REQUEST          = 0x00000800,
+    RS_MSG_FLAGS_FRIEND_RECOMMENDATION = 0x00001000,
+    RS_MSG_FLAGS_RETURN_RECEPT         = 0x00002000,
+    RS_MSG_FLAGS_ENCRYPTED             = 0x00004000,
+    RS_MSG_FLAGS_DISTANT               = 0x00008000,
+    RS_MSG_FLAGS_SIGNATURE_CHECKS      = 0x00010000,
+    RS_MSG_FLAGS_SIGNED                = 0x00020000,
+    RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES  = 0x00040000,
+    RS_MSG_FLAGS_DECRYPTED             = 0x00080000,
+    RS_MSG_FLAGS_ROUTED                = 0x00100000,
+    RS_MSG_FLAGS_PUBLISH_KEY           = 0x00200000,
+    RS_MSG_FLAGS_SPAM                  = 0x00400000,
+};
 
-const uint32_t RS_MSG_FLAGS_SYSTEM                = RS_MSG_FLAGS_USER_REQUEST | RS_MSG_FLAGS_FRIEND_RECOMMENDATION | RS_MSG_FLAGS_PUBLISH_KEY;
+RS_REGISTER_ENUM_FLAGS_TYPE(RsMsgItemFlags);
+
+const RsMsgItemFlags RS_MSG_FLAGS_SYSTEM = RsMsgItemFlags::RS_MSG_FLAGS_USER_REQUEST
+                                         | RsMsgItemFlags::RS_MSG_FLAGS_FRIEND_RECOMMENDATION
+                                         | RsMsgItemFlags::RS_MSG_FLAGS_PUBLISH_KEY;
 
 typedef uint32_t MessageIdentifier;
 
@@ -101,7 +108,7 @@ class RsMsgItem: public RsMessageItem
 
 		// ----------- Specific fields ------------- //
 
-		uint32_t msgFlags;
+        RsMsgItemFlags msgFlags;
         MessageIdentifier msgId;
 
 		uint32_t sendTime;
@@ -187,7 +194,7 @@ struct RsOutgoingMessageInfo: public RsSerializable
 
     Rs::Msgs::MsgAddress origin;
     Rs::Msgs::MsgAddress destination;
-    uint32_t flags;
+    RsMsgItemFlags flags;
     GRouterMsgPropagationId grouter_id;
 };
 

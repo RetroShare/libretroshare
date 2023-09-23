@@ -1257,7 +1257,7 @@ bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
     return true;
 }
 
-bool    p3MsgService::setMsgFlag(const std::string &mid, uint32_t flag, uint32_t mask)
+bool    p3MsgService::setMsgFlag(const std::string &mid, RsMsgItemFlags flag, RsMsgItemFlags mask)
 {
     uint32_t msgId = atoi(mid.c_str());
 
@@ -1273,7 +1273,7 @@ bool    p3MsgService::setMsgFlag(const std::string &mid, uint32_t flag, uint32_t
         }
         auto msg = &sit->second->msg;
 
-        uint32_t oldFlag = msg->msgFlags;
+        auto oldFlag = msg->msgFlags;
 
         msg->msgFlags &= ~mask;
         msg->msgFlags |= flag;
@@ -1348,7 +1348,7 @@ bool    p3MsgService::setMsgParentId(uint32_t msgId, uint32_t msgParentId)
 /****************************************/
 	/* Message Items */
 // no from field because it's implicitly our own PeerId
-MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const MsgAddress& from,const MsgAddress& to,uint32_t flags)
+MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const MsgAddress& from,const MsgAddress& to,RsMsgFlags flags)
 {
     auto msgId     = getNewUniqueMsgId(); /* grabs Mtx as well */
     {
@@ -1361,19 +1361,19 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
 
         // then add the new msg id with the correct from/to
 
-        info.flags = flags;
+        info.flags = uint32_t(flags);
         info.destination = to;
 
-        info.flags |= RS_MSG_OUTGOING ;
+        info.flags |= RS_MSG_FLAGS_OUTGOING ;
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
         {
-            info.flags |= RS_MSG_DISTANT;
+            info.flags |= RS_MSG_FLAGS_DISTANT;
             info.origin = from;
         }
         else
         {
-            info.flags |= RS_MSG_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
+            info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
             info.origin = Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
         }
     }
@@ -1454,7 +1454,7 @@ bool 	p3MsgService::MessageSend(MessageInfo &info)
 
     // Update info for caller (is that necessary?)
     info.msgId = std::to_string(msg->msgId);
-    info.msgflags = msg->msgFlags;
+    // info.msgflags = msg->msgFlags; // commented out to avoid type conversion. The flags should be identical anyway.
 
     // Then stores outgoing message references for each destination in the msgOutgoing list
 
@@ -1566,9 +1566,9 @@ uint32_t p3MsgService::sendMail(
 	return ret;
 }
 
-bool p3MsgService::SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag)
+bool p3MsgService::SystemMessage(const std::string &title, const std::string &message, RsMsgFlags systemFlag)
 {
-	if ((systemFlag & RS_MSG_SYSTEM) == 0) {
+    if (!(systemFlag & RS_MSG_SYSTEM)) {
 		/* no flag specified */
 		return false;
 	}
@@ -1580,13 +1580,13 @@ bool p3MsgService::SystemMessage(const std::string &title, const std::string &me
 
 	msg->msgFlags = 0;
 
-	if (systemFlag & RS_MSG_USER_REQUEST) {
+    if (!!(systemFlag & RsMsgFlags::RS_MSG_USER_REQUEST)) {
 		msg->msgFlags |= RS_MSG_FLAGS_USER_REQUEST;
 	}
-	if (systemFlag & RS_MSG_FRIEND_RECOMMENDATION) {
+    if (!!(systemFlag & RsMsgFlags::RS_MSG_FRIEND_RECOMMENDATION)) {
 		msg->msgFlags |= RS_MSG_FLAGS_FRIEND_RECOMMENDATION;
 	}
-	if (systemFlag & RS_MSG_PUBLISH_KEY) {
+    if (!!(systemFlag & RsMsgFlags::RS_MSG_PUBLISH_KEY)) {
 		msg->msgFlags |= RS_MSG_FLAGS_PUBLISH_KEY;
 	}
 
@@ -1987,24 +1987,24 @@ void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from
 
 	/* translate flags, if we sent it... outgoing */
 
-    if (flags & RS_MSG_FLAGS_OUTGOING)        mi.msgflags |= RS_MSG_OUTGOING;
-    if (flags & RS_MSG_FLAGS_PENDING)         mi.msgflags |= RS_MSG_PENDING;    /* if it has a pending flag, then its in the outbox */
-    if (flags & RS_MSG_FLAGS_DRAFT)           mi.msgflags |= RS_MSG_DRAFT;
-    if (flags & RS_MSG_FLAGS_NEW)             mi.msgflags |= RS_MSG_NEW;
+    if (flags & RS_MSG_FLAGS_OUTGOING)        mi.msgflags |= RsMsgFlags::RS_MSG_OUTGOING;
+    if (flags & RS_MSG_FLAGS_PENDING)         mi.msgflags |= RsMsgFlags::RS_MSG_PENDING;    /* if it has a pending flag, then its in the outbox */
+    if (flags & RS_MSG_FLAGS_DRAFT)           mi.msgflags |= RsMsgFlags::RS_MSG_DRAFT;
+    if (flags & RS_MSG_FLAGS_NEW)             mi.msgflags |= RsMsgFlags::RS_MSG_NEW;
 
-    if (flags & RS_MSG_FLAGS_SIGNED)                  mi.msgflags |= RS_MSG_SIGNED ;
-    if (flags & RS_MSG_FLAGS_SIGNATURE_CHECKS)        mi.msgflags |= RS_MSG_SIGNATURE_CHECKS ;
-    if (flags & RS_MSG_FLAGS_DISTANT)                 mi.msgflags |= RS_MSG_DISTANT ;
-    if (flags & RS_MSG_FLAGS_TRASH)                   mi.msgflags |= RS_MSG_TRASH;
-    if (flags & RS_MSG_FLAGS_UNREAD_BY_USER)          mi.msgflags |= RS_MSG_UNREAD_BY_USER;
-    if (flags & RS_MSG_FLAGS_REPLIED)                 mi.msgflags |= RS_MSG_REPLIED;
-    if (flags & RS_MSG_FLAGS_FORWARDED)               mi.msgflags |= RS_MSG_FORWARDED;
-    if (flags & RS_MSG_FLAGS_STAR)                    mi.msgflags |= RS_MSG_STAR;
-    if (flags & RS_MSG_FLAGS_SPAM)                    mi.msgflags |= RS_MSG_SPAM;
-    if (flags & RS_MSG_FLAGS_USER_REQUEST)            mi.msgflags |= RS_MSG_USER_REQUEST;
-    if (flags & RS_MSG_FLAGS_FRIEND_RECOMMENDATION)   mi.msgflags |= RS_MSG_FRIEND_RECOMMENDATION;
-    if (flags & RS_MSG_FLAGS_PUBLISH_KEY)             mi.msgflags |= RS_MSG_PUBLISH_KEY;
-    if (flags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)    mi.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
+    if (flags & RS_MSG_FLAGS_SIGNED)                  mi.msgflags |= RsMsgFlags::RS_MSG_SIGNED ;
+    if (flags & RS_MSG_FLAGS_SIGNATURE_CHECKS)        mi.msgflags |= RsMsgFlags::RS_MSG_SIGNATURE_CHECKS ;
+    if (flags & RS_MSG_FLAGS_DISTANT)                 mi.msgflags |= RsMsgFlags::RS_MSG_DISTANT ;
+    if (flags & RS_MSG_FLAGS_TRASH)                   mi.msgflags |= RsMsgFlags::RS_MSG_TRASH;
+    if (flags & RS_MSG_FLAGS_UNREAD_BY_USER)          mi.msgflags |= RsMsgFlags::RS_MSG_UNREAD_BY_USER;
+    if (flags & RS_MSG_FLAGS_REPLIED)                 mi.msgflags |= RsMsgFlags::RS_MSG_REPLIED;
+    if (flags & RS_MSG_FLAGS_FORWARDED)               mi.msgflags |= RsMsgFlags::RS_MSG_FORWARDED;
+    if (flags & RS_MSG_FLAGS_STAR)                    mi.msgflags |= RsMsgFlags::RS_MSG_STAR;
+    if (flags & RS_MSG_FLAGS_SPAM)                    mi.msgflags |= RsMsgFlags::RS_MSG_SPAM;
+    if (flags & RS_MSG_FLAGS_USER_REQUEST)            mi.msgflags |= RsMsgFlags::RS_MSG_USER_REQUEST;
+    if (flags & RS_MSG_FLAGS_FRIEND_RECOMMENDATION)   mi.msgflags |= RsMsgFlags::RS_MSG_FRIEND_RECOMMENDATION;
+    if (flags & RS_MSG_FLAGS_PUBLISH_KEY)             mi.msgflags |= RsMsgFlags::RS_MSG_PUBLISH_KEY;
+    if (flags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)    mi.msgflags |= RsMsgFlags::RS_MSG_LOAD_EMBEDDED_IMAGES;
 
 	mi.ts = msg->sendTime;
 
@@ -2045,7 +2045,7 @@ void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from
 void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& from, const MsgAddress& to, MessageIdentifier mid,MsgInfoSummary& mis)
 {
     mis.msgId = std::to_string(mid);
-    mis.msgflags = 0;
+    mis.msgflags = RsMsgFlags(0);
 
     const RsMsgItem *msg = &msi.msg;	// trick to keep the old code
 
@@ -2059,72 +2059,72 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
     mis.from = msi.from;
 
     if(msg->msgFlags & RS_MSG_FLAGS_DISTANT)
-        mis.msgflags |= RS_MSG_DISTANT ;
+        mis.msgflags |= RsMsgFlags::RS_MSG_DISTANT ;
 
     if (msg->msgFlags & RS_MSG_FLAGS_SIGNED)
-		mis.msgflags |= RS_MSG_SIGNED ;
+        mis.msgflags |= RsMsgFlags::RS_MSG_SIGNED ;
 
 	if (msg->msgFlags & RS_MSG_FLAGS_SIGNATURE_CHECKS)
-		mis.msgflags |= RS_MSG_SIGNATURE_CHECKS ;
+        mis.msgflags |= RsMsgFlags::RS_MSG_SIGNATURE_CHECKS ;
 
 	/* translate flags, if we sent it... outgoing */
 	if ((msg->msgFlags & RS_MSG_FLAGS_OUTGOING)
 	   /*|| (msg->PeerId() == mServiceCtrl->getOwnId())*/)
 	{
-		mis.msgflags |= RS_MSG_OUTGOING;
+        mis.msgflags |= RsMsgFlags::RS_MSG_OUTGOING;
 	}
 	/* if it has a pending flag, then its in the outbox */
 	if (msg->msgFlags & RS_MSG_FLAGS_PENDING)
 	{
-		mis.msgflags |= RS_MSG_PENDING;
+        mis.msgflags |= RsMsgFlags::RS_MSG_PENDING;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_DRAFT)
 	{
-		mis.msgflags |= RS_MSG_DRAFT;
+        mis.msgflags |= RsMsgFlags::RS_MSG_DRAFT;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_NEW)
 	{
-		mis.msgflags |= RS_MSG_NEW;
+        mis.msgflags |= RsMsgFlags::RS_MSG_NEW;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_TRASH)
 	{
-		mis.msgflags |= RS_MSG_TRASH;
+        mis.msgflags |= RsMsgFlags::RS_MSG_TRASH;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_UNREAD_BY_USER)
 	{
-		mis.msgflags |= RS_MSG_UNREAD_BY_USER;
+        mis.msgflags |= RsMsgFlags::RS_MSG_UNREAD_BY_USER;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_REPLIED)
 	{
-		mis.msgflags |= RS_MSG_REPLIED;
+        mis.msgflags |= RsMsgFlags::RS_MSG_REPLIED;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_FORWARDED)
 	{
-		mis.msgflags |= RS_MSG_FORWARDED;
+        mis.msgflags |= RsMsgFlags::RS_MSG_FORWARDED;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_STAR)
 	{
-		mis.msgflags |= RS_MSG_STAR;
+        mis.msgflags |= RsMsgFlags::RS_MSG_STAR;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_SPAM)
 	{
-		mis.msgflags |= RS_MSG_SPAM;
+        mis.msgflags |= RsMsgFlags::RS_MSG_SPAM;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_USER_REQUEST)
 	{
-		mis.msgflags |= RS_MSG_USER_REQUEST;
+        mis.msgflags |= RsMsgFlags::RS_MSG_USER_REQUEST;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_FRIEND_RECOMMENDATION)
 	{
-		mis.msgflags |= RS_MSG_FRIEND_RECOMMENDATION;
+        mis.msgflags |= RsMsgFlags::RS_MSG_FRIEND_RECOMMENDATION;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_PUBLISH_KEY)
 	{
-		mis.msgflags |= RS_MSG_PUBLISH_KEY;
+        mis.msgflags |= RsMsgFlags::RS_MSG_PUBLISH_KEY;
 	}
 	if (msg->msgFlags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)
 	{
-		mis.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
+        mis.msgflags |= RsMsgFlags::RS_MSG_LOAD_EMBEDDED_IMAGES;
 	}
 
     mis.title = msg->subject;
@@ -2196,13 +2196,13 @@ bool p3MsgService::initMIRsMsg(RsMailStorageItem *msi,const MessageInfo& info)
 		msg -> attachment.items.push_back(mfi);
 	}
 	/* translate flags from outside */
-	if (info.msgflags & RS_MSG_USER_REQUEST)
+    if (!!(info.msgflags & RsMsgFlags::RS_MSG_USER_REQUEST))
         msg->msgFlags |= RS_MSG_FLAGS_USER_REQUEST;
 
-	if (info.msgflags & RS_MSG_FRIEND_RECOMMENDATION)
+    if (!!(info.msgflags & RsMsgFlags::RS_MSG_FRIEND_RECOMMENDATION))
 		msg->msgFlags |= RS_MSG_FLAGS_FRIEND_RECOMMENDATION;
 
-    if (info.msgflags & RS_MSG_SIGNED)
+    if (!!(info.msgflags & RsMsgFlags::RS_MSG_SIGNED))
         msg->msgFlags |= RS_MSG_FLAGS_SIGNED;
 
     return true;
@@ -2304,7 +2304,7 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
             if(mit != it->second.end())
             {
                 std::cerr << "  reseting the ROUTED flag so that the message is requested again" << std::endl;
-                mit->second.flags &= ~RS_MSG_FLAGS_ROUTED;
+                mit->second.flags &= ~RsMsgFlags::RS_MSG_FLAGS_ROUTED;
                 break;
             }
             else

@@ -70,7 +70,7 @@ public:
 
 	RS_DEPRECATED_FOR(sendMail)
       virtual bool MessageSend(Rs::Msgs::MessageInfo &info)override ;
-      virtual bool SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag)override ;
+      virtual bool SystemMessage(const std::string &title, const std::string &message, RsMsgFlags systemFlag)override ;
       virtual bool MessageToDraft(Rs::Msgs::MessageInfo &info, const std::string &msgParentId)override ;
       virtual bool MessageToTrash(const std::string &mid, bool bTrash)override ;
       virtual bool MessageDelete(const std::string &mid)override ;

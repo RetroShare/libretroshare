@@ -317,7 +317,7 @@ uint32_t p3Msgs::sendMail(
 	            trackingIds, errorMsg );
 }
 
-bool p3Msgs::SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag)
+bool p3Msgs::SystemMessage(const std::string &title, const std::string &message, RsMsgFlags systemFlag)
 {
 	return mMsgSrv->SystemMessage(title, message, systemFlag);
 }
@@ -357,17 +357,17 @@ bool p3Msgs::MessageRead(const std::string &mid, bool unreadByUser)
 
 bool p3Msgs::MessageReplied(const std::string &mid, bool replied)
 {
-	return mMsgSrv->setMsgFlag(mid, replied ? RS_MSG_FLAGS_REPLIED : 0, RS_MSG_FLAGS_REPLIED);
+    return mMsgSrv->setMsgFlag(mid, replied ? RsMsgItemFlags::RS_MSG_FLAGS_REPLIED : RsMsgItemFlags(0), RsMsgItemFlags::RS_MSG_FLAGS_REPLIED);
 }
 
 bool p3Msgs::MessageForwarded(const std::string &mid, bool forwarded)
 {
-	return mMsgSrv->setMsgFlag(mid, forwarded ? RS_MSG_FLAGS_FORWARDED : 0, RS_MSG_FLAGS_FORWARDED);
+    return mMsgSrv->setMsgFlag(mid, forwarded ? RsMsgItemFlags::RS_MSG_FLAGS_FORWARDED : RsMsgItemFlags(0), RsMsgItemFlags::RS_MSG_FLAGS_FORWARDED);
 }
 
 bool p3Msgs::MessageLoadEmbeddedImages(const std::string &mid, bool load)
 {
-	return mMsgSrv->setMsgFlag(mid, load ? RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES : 0, RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES);
+    return mMsgSrv->setMsgFlag(mid, load ? RsMsgItemFlags::RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES : RsMsgItemFlags(0), RsMsgItemFlags::RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES);
 }
 
 bool 	p3Msgs::getMessageTagTypes(MsgTagType& tags)

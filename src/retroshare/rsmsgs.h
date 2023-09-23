@@ -38,34 +38,41 @@
 
 #define RS_MSG_BOXMASK   0x000f   /* Mask for determining Box */
 
-#define RS_MSG_OUTGOING        0x0001   /* !Inbox */
-#define RS_MSG_PENDING         0x0002   /* OutBox */
-#define RS_MSG_DRAFT           0x0004   /* Draft  */
+enum class RsMsgFlags: uint32_t
+{
+    RS_MSG_INCOMING              = 0x00000000,  /* !Inbox */
+    RS_MSG_OUTGOING              = 0x00000001,  /* !Inbox */
+    RS_MSG_PENDING               = 0x00000002,  /* OutBox */
+    RS_MSG_DRAFT                 = 0x00000004,  /* Draft  */
+
+    RS_MSG_NEW                   = 0x00000010,  /* New */
+    RS_MSG_TRASH                 = 0x00000020,  /* Trash */
+    RS_MSG_UNREAD_BY_USER        = 0x00000040,  /* Unread by user */
+    RS_MSG_REPLIED               = 0x00000080,  /* Message is replied */
+    RS_MSG_FORWARDED             = 0x00000100,  /* Message is forwarded */
+    RS_MSG_STAR                  = 0x00000200,  /* Message is marked with a star */
+
+    // system message
+    RS_MSG_USER_REQUEST          = 0x00000400,  /* user request */
+    RS_MSG_FRIEND_RECOMMENDATION = 0x00000800,  /* friend recommendation */
+    RS_MSG_DISTANT               = 0x00001000,/* message is distant */
+    RS_MSG_SIGNATURE_CHECKS      = 0x00002000,/* message was signed, and signature checked */
+    RS_MSG_SIGNED                = 0x00004000,/* message was signed and signature didn't check */
+    RS_MSG_LOAD_EMBEDDED_IMAGES  = 0x00008000,  /* load embedded images */
+    RS_MSG_PUBLISH_KEY           = 0x00020000,  /* publish key */
+    RS_MSG_SPAM                  = 0x00040000,  /* Message is marked as spam */
+};
+
+RS_REGISTER_ENUM_FLAGS_TYPE(RsMsgFlags);
 
 /* ORs of above */
-#define RS_MSG_INBOX           0x00     /* Inbox */
-#define RS_MSG_SENTBOX         0x01     /* Sentbox  = OUTGOING           */
-#define RS_MSG_OUTBOX          0x03     /* Outbox   = OUTGOING + PENDING */
-#define RS_MSG_DRAFTBOX        0x05     /* Draftbox = OUTGOING + DRAFT   */
-#define RS_MSG_TRASHBOX        0x20     /* Trashbox = RS_MSG_TRASH       */
+static const RsMsgFlags RS_MSG_INBOX       (RsMsgFlags::RS_MSG_INCOMING);                                 /* Inbox */
+static const RsMsgFlags RS_MSG_SENTBOX     (RsMsgFlags::RS_MSG_OUTGOING);                                 /* Sentbox  = OUTGOING           */
+static const RsMsgFlags RS_MSG_OUTBOX      (RsMsgFlags::RS_MSG_OUTGOING | RsMsgFlags::RS_MSG_PENDING);    /* Outbox   = OUTGOING + PENDING */
+static const RsMsgFlags RS_MSG_DRAFTBOX    (RsMsgFlags::RS_MSG_OUTGOING | RsMsgFlags::RS_MSG_DRAFT);      /* Draftbox = OUTGOING + DRAFT   */
+static const RsMsgFlags RS_MSG_TRASHBOX    (RsMsgFlags::RS_MSG_TRASH);                                    /* Trashbox = RS_MSG_TRASH       */
 
-#define RS_MSG_NEW                   0x000010   /* New */
-#define RS_MSG_TRASH                 0x000020   /* Trash */
-#define RS_MSG_UNREAD_BY_USER        0x000040   /* Unread by user */
-#define RS_MSG_REPLIED               0x000080   /* Message is replied */
-#define RS_MSG_FORWARDED             0x000100   /* Message is forwarded */
-#define RS_MSG_STAR                  0x000200   /* Message is marked with a star */
-// system message
-#define RS_MSG_USER_REQUEST          0x000400   /* user request */
-#define RS_MSG_FRIEND_RECOMMENDATION 0x000800   /* friend recommendation */
-#define RS_MSG_DISTANT               0x001000	/* message is distant */
-#define RS_MSG_SIGNATURE_CHECKS      0x002000	/* message was signed, and signature checked */
-#define RS_MSG_SIGNED                0x004000	/* message was signed and signature didn't check */
-#define RS_MSG_LOAD_EMBEDDED_IMAGES  0x008000   /* load embedded images */
-#define RS_MSG_PUBLISH_KEY           0x020000   /* publish key */
-#define RS_MSG_SPAM                  0x040000   /* Message is marked as spam */
-
-#define RS_MSG_SYSTEM                (RS_MSG_USER_REQUEST | RS_MSG_FRIEND_RECOMMENDATION | RS_MSG_PUBLISH_KEY)
+static const RsMsgFlags RS_MSG_SYSTEM      (RsMsgFlags::RS_MSG_USER_REQUEST | RsMsgFlags::RS_MSG_FRIEND_RECOMMENDATION | RsMsgFlags::RS_MSG_PUBLISH_KEY);
 
 #define RS_CHAT_LOBBY_EVENT_PEER_LEFT   				0x01
 #define RS_CHAT_LOBBY_EVENT_PEER_STATUS 				0x02
@@ -194,14 +201,14 @@ class MsgAddress: public RsSerializable
 
 struct MessageInfo : RsSerializable
 {
-	MessageInfo(): msgflags(0), size(0), count(0), ts(0) {}
+    MessageInfo(): msgflags(RsMsgFlags(0)), size(0), count(0), ts(0) {}
 
 	std::string msgId;
 
     MsgAddress from;
     MsgAddress to;
 
-    unsigned int msgflags;
+    RsMsgFlags msgflags;
 
     std::set<MsgAddress> destinations;
 
@@ -247,13 +254,13 @@ typedef std::set<uint32_t> MsgTagInfo  ;
 
 struct MsgInfoSummary : RsSerializable
 {
-	MsgInfoSummary() : msgflags(0), count(0), ts(0) {}
+    MsgInfoSummary() : msgflags(RsMsgFlags(0)), count(0), ts(0) {}
 
 	RsMailMessageId msgId;
     MsgAddress from;
     MsgAddress to;						// specific address the message has been sent to (may be used for e.g. reply)
 
-	uint32_t msgflags;
+    RsMsgFlags msgflags;
     MsgTagInfo msgtags;
 
 	std::string title;
@@ -677,7 +684,7 @@ public:
 	 * @param[in] systemFlag
 	 * @return true on success
 	 */
-	virtual bool SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag) = 0;
+    virtual bool SystemMessage(const std::string &title, const std::string &message, RsMsgFlags systemFlag) = 0;
 
 	/**
 	 * @brief MessageToDraft
