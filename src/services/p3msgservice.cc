@@ -1034,7 +1034,7 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
                 initRsMIS(*mref->second,sit.second.origin,sit.second.destination,sit.first,mis);
 
                 // correct the flags
-                mis.msgflags = sit.second.flags;
+                //mis.msgflags = sit.second.flags;
                 msgList.push_back(mis);
             }
         }
@@ -1364,16 +1364,16 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
         info.flags = flags;
         info.destination = to;
 
-        info.flags |= RS_MSG_OUTGOING ;
+        info.flags |= RS_MSG_FLAGS_OUTGOING ;
 
         if(to.type() == MsgAddress::MSG_ADDRESS_TYPE_RSGXSID)
         {
-            info.flags |= RS_MSG_DISTANT;
+            info.flags |= RS_MSG_FLAGS_DISTANT;
             info.origin = from;
         }
         else
         {
-            info.flags |= RS_MSG_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
+            info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
             info.origin = Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
         }
     }
