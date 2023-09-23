@@ -59,7 +59,7 @@ RsItem *RsMsgSerialiser::create_item(uint16_t service,uint8_t type) const
 void 	RsMsgItem::clear()
 {
 	msgId    = 0;
-	msgFlags = 0;
+    msgFlags = RsMsgItemFlags(0);
 	sendTime = 0;
 	recvTime = 0;
 	subject.clear();
@@ -132,7 +132,7 @@ void RsMsgParentId::serial_process(RsGenericSerializer::SerializeJob j,RsGeneric
 
 void RsMsgItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
-    RsTypeSerializer::serial_process<uint32_t>(j,ctx,msgFlags,"msgFlags");
+    RsTypeSerializer::serial_process(j,ctx,msgFlags,"msgFlags");
     RsTypeSerializer::serial_process<uint32_t>(j,ctx,sendTime,"sendTime");
     RsTypeSerializer::serial_process<uint32_t>(j,ctx,recvTime,"recvTime");
 

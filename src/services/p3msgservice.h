@@ -82,14 +82,14 @@ public:
 
     bool    deleteMessage(const std::string &mid);
     bool    markMsgIdRead(const std::string &mid, bool bUnreadByUser);
-    bool    setMsgFlag(const std::string &mid, uint32_t flag, uint32_t mask);
+    bool    setMsgFlag(const std::string &mid, RsMsgItemFlags flag, RsMsgItemFlags mask);
     bool    getMsgParentId(const std::string &msgId, std::string &msgParentId);
     // msgParentId == 0 --> remove
     bool    setMsgParentId(uint32_t msgId, uint32_t msgParentId);
 
 	RS_DEPRECATED_FOR(sendMail)
     bool    MessageSend(Rs::Msgs::MessageInfo &info);
-    bool    SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag);
+    bool    SystemMessage(const std::string &title, const std::string &message, RsMsgFlags systemFlag);
     bool    MessageToDraft(Rs::Msgs::MessageInfo &info, const std::string &msgParentId);
     bool    MessageToTrash(const std::string &mid, bool bTrash);
 
@@ -183,7 +183,7 @@ private:
     void handleIncomingItem(RsMsgItem *, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to) ;
 
     uint32_t getNewUniqueMsgId();
-    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to, uint32_t flags);
+    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to, RsMsgFlags flags);
     uint32_t sendDistantMessage(RsMsgItem *item,const RsGxsId& signing_gxs_id);
     void    checkSizeAndSendMessage(RsMsgItem *msg, const RsPeerId &destination);
     void cleanListOfReceivedMessageHashes();
