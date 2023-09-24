@@ -50,7 +50,9 @@
 
 
 /****
- * #define GXSCHANNEL_DEBUG 1
+#define GXSCHANNEL_DEBUG 1
+#define GXSCOMMENT_DEBUG 1
+#define DEBUG_CHANNEL_MODEL 1
  ****/
 
 /*extern*/ RsGxsChannels* rsGxsChannels = nullptr;
@@ -653,7 +655,7 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 					cmt.mMeta = mi->meta;
 #ifdef GXSCOMMENT_DEBUG
 					RsDbg() << __PRETTY_FUNCTION__ << " Found Comment:" << std::endl;
-					cmt.print(std::cerr,"  ", "cmt");
+                    RsDbg() << cmt ;
 #endif
 					cmts.push_back(cmt);
 					delete cmtItem;
@@ -1275,6 +1277,9 @@ template<class T> void sortPostMetas(std::vector<T>& posts,
     //
     // The algorithm handles the case where some parent has been deleted.
 
+    // Output: original_version is a map containing for each most ancient parent, the index of the most recent version in posts array,
+    //         and the set of all versions of that oldest post.
+
 #ifdef DEBUG_CHANNEL_MODEL
     std::cerr << "Inserting channel posts" << std::endl;
 #endif
@@ -1418,9 +1423,20 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::ve
         // it->second>=posts.size() is impossible by construction, since post_indices
         // is previously filled using posts ids.
 
+#ifdef DEBUG_CHANNEL_MODEL
+        std::cerr << "Handling comment " << comments[i].mMeta.mMsgId << " for post " << comments[i].mMeta.mThreadId << std::endl;
+#endif
         if(it == post_indices.end())
+        {
+#ifdef DEBUG_CHANNEL_MODEL
+            std::cerr << "  could not find post index! Comment will be ignored." << std::endl;
+#endif
             continue;
+        }
 
+#ifdef DEBUG_CHANNEL_MODEL
+        std::cerr << "  post index: " << it->second << std::endl;
+#endif
         auto& p(posts[it->second]);
 
         ++p.mCommentCount;
@@ -1429,22 +1445,42 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::ve
             ++p.mUnreadCommentCount;
     }
 
-    // make sure the posts are delivered in the same order they appears in the posts[] tab.
+    // Make a map of (newest version, oldest version) so that we ensure the posts keep the original order of the posts array
+    // and we keep track of where to find all versions of this post, and update comment count.
 
-    std::vector<uint32_t> ids;
+    std::map<uint32_t,RsGxsMessageId> ids;
 
-    for(auto id:original_versions)
-        ids.push_back(id.second.first);
+    for(const auto& id:original_versions)
+        ids[id.second.first] = id.first;	// id.second.first is the the latest version of each post, since id.second has been sorted.
 
-    std::sort(ids.begin(),ids.end());
-
-    for(uint32_t i=0;i<ids.size();++i)
+    for(const auto& id_pair:ids)
     {
-        mPosts.push_back(posts[ids[i]]);
-        mPosts.back().mOlderVersions = original_versions[posts[ids[i]].mMeta.mMsgId].second;
+        mPosts.push_back(posts[id_pair.first]);
+        mPosts.back().mOlderVersions = original_versions[id_pair.second].second;
+
+        // Also add up all comments counts from older versions
+
+        for(const auto& o_version:mPosts.back().mOlderVersions )
+            if(o_version != mPosts.back().mMeta.mMsgId)			// avoid counting twice
+            {
+                mPosts.back().mCommentCount       += posts[post_indices[o_version]].mCommentCount;
+                mPosts.back().mUnreadCommentCount += posts[post_indices[o_version]].mUnreadCommentCount;
+            }
     }
 
     posts = mPosts;
+
+#ifdef DEBUG_CHANNEL_MODEL
+    std::cerr << "Final sorting result:" << std::endl;
+
+    for(uint32_t i=0;i<posts.size();++i)
+    {
+        std::cerr << "  post " << posts[i].mMeta.mMsgId << ": " << posts[i].mCommentCount << " comments (" << posts[i].mUnreadCommentCount << " unread)" << std::endl;
+
+        for(const auto& c:posts[i].mOlderVersions)
+            std::cerr << "    older version: " << c << std::endl;
+    }
+#endif
 }
 
 bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
