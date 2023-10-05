@@ -101,7 +101,7 @@ class RsMsgItem: public RsMessageItem
 
 		// ----------- Specific fields ------------- //
 
-		uint32_t msgFlags;
+        uint32_t msgFlags;			// combination of flags from rsmsgitems.h (RS_MSG_FLAGS_OUTGOING, etc)
         MessageIdentifier msgId;
 
 		uint32_t sendTime;

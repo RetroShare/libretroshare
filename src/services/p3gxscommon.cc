@@ -228,6 +228,10 @@ static bool convertMsgDataToVotedComments(const std::vector<RsGxsMsgItem*>& msgI
                 comment.mMeta = item->meta;
                 comments.push_back(comment);
                 delete item;
+#ifdef DEBUG_GXSCOMMON
+                RsDbg() << "Got comment from user " << comment.mMeta.mAuthorId << ", date " << comment.mMeta.mPublishTs
+                        << " :\"" << comment.mComment << "\"" << std::endl;
+#endif
             }
             else
             {
@@ -334,10 +338,16 @@ bool p3GxsCommentService::getGxsRelatedComments(const uint32_t &token, std::vect
     if(msgData.empty())
         return true;
 
-    if(msgData.size() > 1)
-        return false;
+    //if(msgData.size() > 1)
+    //    return false;
 
-    return ok && convertMsgDataToVotedComments(msgData.begin()->second,comments);
+    std::vector<RsGxsMsgItem*> msgItems;
+
+    for(auto mitem:msgData)
+        for(auto itm:mitem.second)
+            msgItems.push_back(itm);
+
+    return ok && convertMsgDataToVotedComments(msgItems,comments);
 }
 
 
