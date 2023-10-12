@@ -30,7 +30,7 @@
 
 #include <upnp/upnp.h>
 #include <upnp/upnptools.h>
-#include <upnp/upnpdebug.h>
+//#include <upnp/upnpdebug.h>
 
 #include "util/rsthreads.h"
 
