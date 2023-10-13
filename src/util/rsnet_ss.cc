@@ -46,8 +46,10 @@
 
 #include "util/rsnet.h"
 #include "util/rsstring.h"
-#include "pqi/pqinetwork.h"
-#include "util/stacktrace.h"
+
+#ifdef SS_DEBUG
+#	include "util/stacktrace.h"
+#endif //def SS_DEBUG
 
 /***************************** Internal Helper Fns ******************************/
 
@@ -248,10 +250,6 @@ bool sockaddr_storage_setipv4(struct sockaddr_storage &addr, const sockaddr_in *
 
 bool sockaddr_storage_setipv6(struct sockaddr_storage &addr, const sockaddr_in6 *addr_ipv6)
 {
-#ifdef SS_DEBUG
-	RS_ERR();
-#endif
-
 	sockaddr_storage_clear(addr);
 	struct sockaddr_in6 *ipv6_ptr = to_ipv6_ptr(addr);
 

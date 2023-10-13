@@ -286,6 +286,8 @@ struct hexDump {
 ////////////////////////////////////////////////////////////////////////////////
 /// All the following lines are DEPRECATED!!
 
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
+
 #include "util/rsdeprecate.h"
 
 /**
@@ -378,6 +380,8 @@ void rslog(const RsLog::logLvl lvl, RsLog::logInfo *info, const std::string &msg
 #define PQL_DEBUG_ALERT RSL_DEBUG_ALERT 
 #define PQL_DEBUG_BASIC	RSL_DEBUG_BASIC
 #define PQL_DEBUG_ALL 	RSL_DEBUG_ALL
+
+#endif // ndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
 
 /// All the lines before are DEPRECATED!!
 ////////////////////////////////////////////////////////////////////////////////

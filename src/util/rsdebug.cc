@@ -93,6 +93,8 @@ std::ostream& hex_dump(std::ostream& os, const void *buffer,
 ////////////////////////////////////////////////////////////////////////////////
 /// All the following lines are DEPRECATED!!
 
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
+
 #include <map>
 #include <cstdio>
 
@@ -258,6 +260,9 @@ void rslog(const RsLog::logLvl lvl, RsLog::logInfo *info, const std::string &msg
 		lineCount++;
 	}
 }
+
+#endif // ndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
+
 /// All the lines before are DEPRECATED!!
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
