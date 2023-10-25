@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2017       Cyril Soler <csoler@users.sourceforge.net>         *
- * Copyright (C) 2018-2020  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020       Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2020-2023  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -1007,8 +1007,7 @@ protected:
 RsTypeSerializer_SUPPRESS_WBC_WARNING_PUSH
 		while(member > 127) { ++ret; member >>= 7; }
 RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
-		Dbg2() << __PRETTY_FUNCTION__ << " memberBackup: " << memberBackup
-		       << " return: " << ret << std::endl;
+		RS_DBG2("memberBackup: ", memberBackup, " return: ", ret);
 		return ret;
 	}
 
@@ -1092,11 +1091,8 @@ RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
 			// If the next-byte flag is not set. ++ is after on purpose
 			if(!(data[offset++] & 128))
 			{
-				Dbg2() << __PRETTY_FUNCTION__
-				       << " size: " << size
-				       << " backupOffset " << offsetBackup
-				       << " offset: " << offset
-				       << " member " << member << std::endl;
+				RS_DBG2( "size: ", size, " offsetBackup: ", offsetBackup,
+				         " offset: ", offset, " member: ", member );
 				return true;
 			}
 		}
@@ -1195,8 +1191,6 @@ RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
 		print_stacktrace();
 		exit(EINVAL);
 	}
-
-	RS_SET_CONTEXT_DEBUG_LEVEL(1)
 };
 
 

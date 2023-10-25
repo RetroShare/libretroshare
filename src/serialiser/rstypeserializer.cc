@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2017       Cyril Soler <csoler@users.sourceforge.net>         *
- * Copyright (C) 2018-2022  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020-2022  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2020-2023  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -249,9 +249,8 @@ template<> bool RsTypeSerializer::from_JSON( \
 	    } \
 	} \
  \
-	Dbg4() << __PRETTY_FUNCTION__ << " integer representation of " << memberName \
-	       << " not found in JSON then attempt to look for string representation" \
-	       << std::endl; \
+	RS_DBG4( "integer representation of ", memberName, \
+	         " not found in JSON then attempt to look for string representation" ); \
  \
  \
 	if(v.HasMember(strReprKey)) \
@@ -271,8 +270,8 @@ template<> bool RsTypeSerializer::from_JSON( \
 	    } \
 	} \
  \
-	Dbg3() << __PRETTY_FUNCTION__ << " neither integral representation nor " \
-	       << "string representation found for: " <<  memberName << std::endl; \
+	RS_DBG3( "neither integral representation nor ", \
+	         "string representation found for: ", memberName ); \
  \
 	return false; \
 }
@@ -616,8 +615,7 @@ void RsTypeSerializer::RawMemoryWrapper::serial_process(
 
 		if(!second)
 		{
-			Dbg3() << __PRETTY_FUNCTION__ << " Deserialized empty memory chunk"
-			       << std::endl;
+			RS_DBG3("Deserialized empty memory chunk");
 			clear();
 			break;
 		}
