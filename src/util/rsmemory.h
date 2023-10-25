@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2012  Cyril Soler <csoler@users.sourceforge.net>              *
- * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@altermundi.net>           *
- * Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2023  Gioacchino Mazzurco <gio@altermundi.net>           *
+ * Copyright (C) 2021-2023  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -30,6 +30,7 @@
 
 #include "util/stacktrace.h"
 #include "util/rsdebug.h"
+#include "util/rsdeprecate.h"
 
 /**
  * @brief Shorthand macro to declare optional functions output parameters
@@ -113,7 +114,7 @@ template<typename T> using rs_owner_ptr = T*;
 
 
 /// 1Gb should be enough for everything!
-static constexpr size_t SAFE_MEMALLOC_THRESHOLD = 1024*1024*1024;
+static constexpr size_t RS_SAFE_MEMALLOC_THRESHOLD = 1024*1024*1024;
 
 /** Comfortable templated safer malloc, just use it specifing the type of the
  * pointer to be returned without need of ugly casting the returned pointer
@@ -137,11 +138,11 @@ template<typename T = void> rs_owner_ptr<T> rs_malloc(
 		return nullptr;
 	}
 
-	if(size > SAFE_MEMALLOC_THRESHOLD)
+	if(size > RS_SAFE_MEMALLOC_THRESHOLD)
 	{
 		rs_error_bubble_or_exit(
 		            std::errc::argument_out_of_domain, ec,
-		            "A chunk of size larger than ", SAFE_MEMALLOC_THRESHOLD,
+		            "A chunk of size larger than ", RS_SAFE_MEMALLOC_THRESHOLD,
 		            " was requested" );
 		return nullptr;
 	}
