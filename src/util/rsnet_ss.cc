@@ -4,7 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright 2004-2006 Robert Fernie <retroshare@lunamutt.com>                 *
- * Copyright 2015-2018 Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright 2015-2023 Gioacchino Mazzurco <gio@eigenlab.org>                  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -22,6 +22,7 @@
  *******************************************************************************/
 
 #include "util/rsurl.h"
+#include "util/rsdebug.h"
 
 #include <sstream>
 #include <iomanip>
@@ -38,6 +39,7 @@
 #	include <netinet/in.h>
 #	include <sys/socket.h>
 #	include <sys/types.h>
+#	include <net/if.h>
 #	ifdef __APPLE__
 /// Provides Linux like accessor for in6_addr.s6_addr16 for Mac.
 #		define	s6_addr16 __u6_addr.__u6_addr16
@@ -305,11 +307,51 @@ bool sockaddr_storage_inet_pton( sockaddr_storage &addr,
 		addr.ss_family = AF_INET6;
 		return true;
 	}
-	else if ( 1 == inet_pton(AF_INET, ipStr.c_str(), &(addrv4p->sin_addr)) )
+
+	if ( 1 == inet_pton(AF_INET, ipStr.c_str(), &(addrv4p->sin_addr)) )
 	{
 		addr.ss_family = AF_INET;
 		return sockaddr_storage_ipv4_to_ipv6(addr);
 	}
+
+	/* An IPv6 address may contain scope/interface indication after a % sign
+	 * Usually needed for link local address, after % either the interface
+	 * literal name is indicated or a numeric id, in case of literal name
+	 * conversion to id is needed.
+	 * Examples:
+	 * fe80::0123:4567:89ab:cdef%eth0
+	 * fe80::0123:4567:89ab:cdef%3 */
+	auto pos = ipStr.find("%");
+	if ( (pos != std::string::npos) && // % Not found
+	     (pos+1 < ipStr.length()) && // We need to have something after %
+	     pos > 3  ) // Exclude more pathological cases
+	{
+		if(!sockaddr_storage_inet_pton(addr, ipStr.substr(0, pos)))
+			return false;
+
+		/* Use std::atoi instead of std::stoul to avoid exceptions, in our
+		 * case 0 is an error anyway */
+		auto& scopeId = addrv6p->sin6_scope_id;
+		scopeId = std::atoi(&ipStr[pos+1]);
+
+#ifndef WINDOWS_SYS
+		/* if_nametoindex should be available on Windows including netioapi.h
+		 * but I have no way to test ATM */
+		// Attempt conversion from literal interface name
+		if(!scopeId) scopeId = if_nametoindex(ipStr.substr(pos+1).c_str());
+#endif // ndef WINDOWS_SYS
+
+		if(!scopeId)
+		{
+			RS_ERR( rs_errno_to_condition(errno),
+			        " Invalid scope id or interface in address string: ",
+			        ipStr );
+			return false;
+		}
+
+		return true;
+	}
+
 
 	return false;
 }

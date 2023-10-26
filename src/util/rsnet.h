@@ -4,7 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright 2004-2006 Robert Fernie <retroshare@lunamutt.com>                 *
- * Copyright 2015-2018 Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright 2015-2023 Gioacchino Mazzurco <gio@eigenlab.org>                  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -151,6 +151,16 @@ bool sockaddr_storage_setport(struct sockaddr_storage &addr, uint16_t port);
 bool sockaddr_storage_setipv4(struct sockaddr_storage &addr, const sockaddr_in *addr_ipv4);
 bool sockaddr_storage_setipv6(struct sockaddr_storage &addr, const sockaddr_in6 *addr_ipv6);
 
+/**
+ * @brief Enhanced inet_pton
+ * Support parsing IPv4, IPv6, IPv6 link local (RFC 3927, RFC 4007) addresses
+ * in a single call without hints.
+ * IPv4 are stored as IPv4-mapped IPv6 so the application can deal with them as
+ * if they where IPv6 addresses trasparently.
+ * @param addr storage for parsed address
+ * @param ipStr string representing the address to parse
+ * @return false on error, true otherwise
+*/
 bool sockaddr_storage_inet_pton( sockaddr_storage &addr,
                                  const std::string& ipStr );
 bool sockaddr_storage_ipv4_aton(struct sockaddr_storage &addr, const char *name);
