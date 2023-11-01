@@ -876,7 +876,7 @@ void JsonApiServer::run()
 		return;
 	}
 
-	RsDbg() << __PRETTY_FUNCTION__ << " finished!" << std::endl;
+    RsDbg() << __PRETTY_FUNCTION__ << " finished!" << std::endl;
 }
 
 /*static*/ void RsJsonApi::version(
