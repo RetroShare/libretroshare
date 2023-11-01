@@ -35,7 +35,7 @@ std::string BinToHex(const char *arr, const uint32_t len);
 
 std::string BinToHex(const unsigned char *arr, const uint32_t len, uint32_t max_len=0);
 bool HexToBin(const std::string& input,unsigned char *data, const uint32_t len);
-std::string NumberToString(uint64_t n, bool hex=false);
+std::string NumberToString(uint64_t n,bool hex=false,char padchar=' ',int total_size=0);
 
 // Returns in n the int that can be read in the string. Returns false when no int is fond.
 bool StringToInt(const std::string& s,int& n);
