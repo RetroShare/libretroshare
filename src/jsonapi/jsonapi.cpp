@@ -846,7 +846,9 @@ void JsonApiServer::run()
         {
             if(rsEvents)
             {
+#ifdef DEBUG_JSONAPI
                 std::cerr << "Posting a JSONAPI event" << std::endl;
+#endif
                 auto ev = std::make_shared<RsJsonApiEvent>();
                 ev->mJsonApiEventCode = RsJsonApiEventCode::API_STARTED;
                 rsEvents->postEvent(ev);
