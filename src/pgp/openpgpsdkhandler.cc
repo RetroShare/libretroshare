@@ -1670,7 +1670,9 @@ bool OpenPGPSDKHandler::locked_syncPublicKeyring()
 	{
 		std::string tmp_keyring_file = _pubring_path + ".tmp" ;
 
+#ifdef DEBUG_PGPHANDLER
         RsErr() << "Local changes in public keyring. Writing to disk..." ;
+#endif
 		if(!ops_write_keyring_to_file(_pubring,ops_false,tmp_keyring_file.c_str(),ops_true)) 
 		{
             RsErr() << "Cannot write public keyring tmp file. Disk full? Disk quota exceeded?" ;
@@ -1682,7 +1684,9 @@ bool OpenPGPSDKHandler::locked_syncPublicKeyring()
 			return false ;
 		}
 
+#ifdef DEBUG_PGPHANDLER
         RsErr() << "Done." ;
+#endif
 		_pubring_last_update_time = time(NULL) ;	// should we get this value from the disk instead??
 		_pubring_changed = false ;
 	}

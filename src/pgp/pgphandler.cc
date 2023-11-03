@@ -383,12 +383,16 @@ bool PGPHandler::locked_syncTrustDatabase()
 
 	if(_trustdb_changed)
 	{
-        RsErr() << "Local changes in trust database. Writing to disk..." ;
+#ifdef DEBUG_PGPHANDLER
+        RsDbg() << "Local changes in trust database. Writing to disk..." ;
+#endif
 		if(!locked_writePrivateTrustDatabase())
             RsErr() << "Cannot write trust database. Disk full? Disk quota exceeded?" ;
 		else
 		{
-            RsErr() << "Done." ;
+#ifdef DEBUG_PGPHANDLER
+            RsDbg() << "Done." ;
+#endif
 			_trustdb_last_update_time = time(NULL) ;
 			_trustdb_changed = false ;
 		}

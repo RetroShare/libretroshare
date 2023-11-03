@@ -33,12 +33,18 @@
 #include <sys/timeb.h>
 #endif
 
-std::string RsUtil::NumberToString(uint64_t n,bool hex)
+std::string RsUtil::NumberToString(uint64_t n,bool hex,char padchar,int total_size)
 {
     std::ostringstream os ;
 
     if(hex)
         os << std::hex ;
+
+    if(total_size > 0)
+    {
+        os << std::setw(total_size);
+        os << std::setfill(padchar);
+    }
 
     os << n ;
     os.flush() ;

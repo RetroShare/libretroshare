@@ -145,6 +145,9 @@ struct RsConfigOptions
 
 	uint16_t    jsonApiPort;		/* port to use fo Json API */
 	std::string jsonApiBindAddress; /* bind address for Json API */
+
+    bool        enableWebUI;		/* enable web interface */
+    std::string webUIPasswd;        /* passwd to start the webui with */
 };
 
 

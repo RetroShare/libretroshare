@@ -370,7 +370,14 @@ void TorProcess::tick()
 
     if(!mStdOutFD->isactive() && !mStdErrFD->isactive())
     {
-        RsErr() << "Tor process died. Exiting TorControl process." ;
+        static rstime_t last(0);
+
+        rstime_t now = time(nullptr);
+        if(now > last + 10)
+        {
+            last = now;
+            RsErr() << "Tor process died. Exiting TorControl process." ;
+        }
         stop();
         return;
     }

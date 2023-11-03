@@ -50,6 +50,7 @@
 #include "plugins/pluginmanager.h"
 #include "retroshare/rsversion.h"
 #include "rsserver/rsloginhandler.h"
+#include "jsonapi/p3webui.h"
 #include "rsserver/rsaccounts.h"
 
 #ifdef RS_EMBEDED_FRIEND_SERVER
@@ -135,6 +136,7 @@ RsConfigOptions::RsConfigOptions()
 #ifdef RS_JSONAPI
           ,jsonApiPort(0)					// JSonAPI server is enabled in each main()
           ,jsonApiBindAddress("127.0.0.1")
+          ,enableWebUI(false)
 #endif
 {
 }
@@ -409,7 +411,23 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
     RsInfo() << "Allocating JSON API server (not launched yet)" ;
 	JsonApiServer* jas = new JsonApiServer();
 	jas->setListeningPort(conf.jsonApiPort);
-	jas->setBindingAddress(conf.jsonApiBindAddress);
+    jas->setBindingAddress(conf.jsonApiBindAddress);
+
+#ifdef RS_WEBUI
+    if(conf.enableWebUI)
+    {
+        p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
+
+        if(!webui)
+            RsErr() << "rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
+        else
+        {
+            jas->registerResourceProvider(*webui);
+            RsDbg() << "WebUI is registered." ;
+        }
+        jas->authorizeUser("webui", conf.webUIPasswd);
+    }
+#endif
 
 	if(conf.jsonApiPort != 0) jas->restart();
 
