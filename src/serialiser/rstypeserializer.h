@@ -1002,12 +1002,12 @@ protected:
 	std::enable_if_t<std::is_unsigned<std::decay_t<T>>::value, uint32_t>
 	VLQ_size(T member)
 	{
-		std::decay_t<T> memberBackup = member;
+        // std::decay_t<T> memberBackup = member;
 		uint32_t ret = 1;
 RsTypeSerializer_SUPPRESS_WBC_WARNING_PUSH
 		while(member > 127) { ++ret; member >>= 7; }
 RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
-		RS_DBG2("memberBackup: ", memberBackup, " return: ", ret);
+        // RS_DBG2("memberBackup: ", memberBackup, " return: ", ret);
 		return ret;
 	}
 
