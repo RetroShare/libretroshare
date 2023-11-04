@@ -408,34 +408,6 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	if(!RsAccounts::init(rsInitConfig->optBaseDir,error_code))
 		return error_code ;
 
-#ifdef RS_JSONAPI
-	// We create the JsonApiServer this early, because it is needed *before* login
-    RsInfo() << "Allocating JSON API server (not launched yet)" ;
-	JsonApiServer* jas = new JsonApiServer();
-	jas->setListeningPort(conf.jsonApiPort);
-    jas->setBindingAddress(conf.jsonApiBindAddress);
-
-#ifdef RS_WEBUI
-    if(conf.enableWebUI)
-    {
-        p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
-
-        if(!webui)
-            RsErr() << "rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
-        else
-        {
-            jas->registerResourceProvider(*webui);
-            RsDbg() << "WebUI is registered." ;
-        }
-        jas->authorizeUser("webui", conf.webUIPasswd);
-    }
-#endif
-
-	if(conf.jsonApiPort != 0) jas->restart();
-
-	rsJsonApi = jas;
-#endif
-
 #ifdef RS_AUTOLOGIN
 	/* check that we have selected someone */
 	RsPeerId preferredId;
@@ -455,6 +427,67 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	return RS_INIT_OK;
 }
 
+#ifdef RS_JSONAPI
+void RsInit::startupWebServices(const RsConfigOptions& conf)
+{
+    // We create the JsonApiServer this early, because it is needed *before* login
+    RsInfo() << "Allocating JSON API server (not launched yet)" ;
+    JsonApiServer* jas = new JsonApiServer();
+    jas->setListeningPort(conf.jsonApiPort);
+    jas->setBindingAddress(conf.jsonApiBindAddress);
+
+    // add jsonapi server to config manager so that it can save/load its tokens
+    p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
+
+    assert(cfgmgr != nullptr);
+    jas->connectToConfigManager(*cfgmgr);	// forces load config.
+
+#ifdef RS_WEBUI
+    if(conf.enableWebUI)
+    {
+        // If passwd is supplied for webui, use it. Otherwise, keep the last one,
+        // saved in the jsonapi tokens list.
+
+        bool ok = false;
+
+        if(!conf.webUIPasswd.empty())
+        {
+            RsDbg() << "Using new passwd for web ui: \"" << conf.webUIPasswd << "\"" << std::endl;
+            jas->authorizeUser("webui", conf.webUIPasswd);
+            ok=true;
+        }
+        else
+        {
+            const auto passwd_it = jas->getAuthorizedTokens().find("webui");
+            if(!passwd_it->second.empty())
+            {
+                RsDbg() << "Re-using stored passwd for web ui: \"" << passwd_it->second << "\"" << std::endl;
+                ok=true;
+            }
+            else
+                RsDbg() << "Cannot enable webui: no passwd was previously saved, and no passwd was supplied at start." << std::endl;
+        }
+
+        if(ok)
+        {
+            p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
+
+            if(!webui)
+                RsErr() << "rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
+            else
+            {
+                jas->registerResourceProvider(*webui);
+                RsDbg() << "WebUI is registered." ;
+            }
+        }
+    }
+#endif
+
+    if(conf.jsonApiPort != 0) jas->restart();
+
+    rsJsonApi = jas;
+}
+#endif
 
 /*
  * To prevent several running instances from using the same directory
@@ -1266,11 +1299,6 @@ int RsServer::StartupRetroShare()
 	// 	programatically_inserted_plugins.push_back(myCoolPlugin) ;
 	//
 	mPluginsManager->loadPlugins(programatically_inserted_plugins) ;
-
-#ifdef RS_JSONAPI
-	// add jsonapi server to config manager so that it can save/load its tokens
-	if(rsJsonApi) rsJsonApi->connectToConfigManager(*mConfigMgr);
-#endif
 
     	/**** Reputation system ****/
 

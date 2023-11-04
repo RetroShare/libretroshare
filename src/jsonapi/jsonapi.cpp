@@ -707,30 +707,52 @@ RsSerialiser* JsonApiServer::setupSerialiser()
 {
 	RsSerialiser* rss = new RsSerialiser;
 	rss->addSerialType(new JsonApiConfigSerializer);
-	return rss;
+    return rss;
 }
 
 bool JsonApiServer::saveList(bool& cleanup, std::list<RsItem*>& saveItems)
 {
-	cleanup = false;
-	configMutex.lock();
-	saveItems.push_back(&mAuthTokenStorage);
-	return true;
+    cleanup = true;
+    configMutex.lock();
+
+    auto ita = new JsonApiServerAuthTokenStorage;
+    *ita = mAuthTokenStorage;
+    saveItems.push_back(ita);
+
+    JsonApiServerConfigItem *itm = new JsonApiServerConfigItem;
+    itm->mListeningPort = mListeningPort;
+    itm->mBindingAddress= mBindingAddress;
+
+    saveItems.push_back(itm);
+
+    std::cerr << "Saving auth tokens: " << std::endl;
+    for(auto it:mAuthTokenStorage.mAuthorizedTokens)
+        std::cerr << "  " << it.first << ":" << it.second << std::endl;
+    return true;
 }
 
 bool JsonApiServer::loadList(std::list<RsItem*>& loadList)
 {
 	for(RsItem* it : loadList)
-		switch (static_cast<JsonApiItemsType>(it->PacketSubType()))
-		{
-		case JsonApiItemsType::AuthTokenItem:
-			mAuthTokenStorage = *static_cast<JsonApiServerAuthTokenStorage*>(it);
-			delete it;
-			break;
-		default:
-			delete it;
-			break;
-		}
+    {
+        JsonApiServerAuthTokenStorage *au=dynamic_cast<JsonApiServerAuthTokenStorage*>(it);
+
+        if(au)
+            mAuthTokenStorage = *au;
+
+        JsonApiServerConfigItem *ac=dynamic_cast<JsonApiServerConfigItem*>(it);
+
+        if(ac)
+        {
+            mListeningPort = ac->mListeningPort;
+            mBindingAddress = ac->mBindingAddress;
+        }
+
+        delete it;
+    }
+    std::cerr << "Loaded auth tokens: " << std::endl;
+    for(auto it:mAuthTokenStorage.mAuthorizedTokens)
+        std::cerr << "  " << it.first << ":" << it.second << std::endl;
 	return true;
 }
 
@@ -816,7 +838,11 @@ void JsonApiServer::onStopRequested()
 }
 
 uint16_t JsonApiServer::listeningPort() const { return mListeningPort; }
-void JsonApiServer::setListeningPort(uint16_t p) { mListeningPort = p; }
+void JsonApiServer::setListeningPort(uint16_t p)
+{
+    mListeningPort = p;
+    IndicateConfigChanged();
+}
 void JsonApiServer::setBindingAddress(const std::string& bindAddress)
 { mBindingAddress = bindAddress; }
 std::string JsonApiServer::getBindingAddress() const { return mBindingAddress; }
