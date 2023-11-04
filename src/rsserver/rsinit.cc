@@ -50,7 +50,9 @@
 #include "plugins/pluginmanager.h"
 #include "retroshare/rsversion.h"
 #include "rsserver/rsloginhandler.h"
+#ifdef RS_WEBUI
 #include "jsonapi/p3webui.h"
+#endif
 #include "rsserver/rsaccounts.h"
 
 #ifdef RS_EMBEDED_FRIEND_SERVER
