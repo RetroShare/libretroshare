@@ -32,6 +32,7 @@
 #include "serialiser/rsserializable.h"
 #include "serialiser/rsserializer.h"
 #include "retroshare/rsevents.h"
+#include "util/rserrorbubbleorexit.h"
 
 #ifdef __ANDROID__
 #	include "rs_android/retroshareserviceandroid.hpp"

@@ -28,7 +28,7 @@
 #include <memory>
 #include <system_error>
 
-#include "util/stacktrace.h"
+#include "util/rserrorbubbleorexit.h"
 #include "util/rsdebug.h"
 #include "util/rsdeprecate.h"
 

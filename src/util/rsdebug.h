@@ -254,32 +254,6 @@ struct hexDump {
 	}
 };
 
-/**
- * @def rs_error_bubble_or_exit
- * Bubbling up an error condition to be handled upstream if possible or dealing
- * it fatally here, is a very common pattern, @see rs_malloc as an example, so
- * instead of rewriting the same snippet over and over, increasing the
- * possibility of introducing bugs, use this macro to properly deal with that
- * situation.
- * @param p_error_condition expect something convertible to an
- *	std::error_condition to be dealt with
- * @param p_bubble_storage pointer to a location to store the
- *	std::error_condition to be bubbled up upstream, if it is nullptr the error
- *	will be handled with a fatal report end then exiting here
- * @param ... optional additional information you want to be printed toghether
- *	with the error report when is fatal (aka not bubbled up) */
-#define rs_error_bubble_or_exit(p_error_condition, p_bubble_storage, ... ) \
-	if(p_bubble_storage) \
-    { \
-	    *p_bubble_storage = p_error_condition; \
-	} \
-	else \
-    { \
-	    RS_FATAL(p_error_condition, " " RS_OPT_VA_ARGS(__VA_ARGS__)); \
-	    print_stacktrace(); \
-	    exit(std::error_condition(p_error_condition).value()); \
-	}
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
