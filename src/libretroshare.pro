@@ -482,6 +482,7 @@ HEADERS +=	util/folderiterator.h \
     util/rsdebuglevel2.h \
     util/rsdebuglevel3.h \
     util/rsdebuglevel4.h \
+    util/rserrorbubbleorexit.h \
 			util/rskbdinput.h \
 			util/rsmemory.h \
 			util/smallobject.h \
@@ -512,6 +513,7 @@ HEADERS +=	util/folderiterator.h \
     util/cxx11retrocompat.h \
     util/cxx14retrocompat.h \
     util/cxx17retrocompat.h \
+    util/rslikelyunlikely.h \
     util/cxx23retrocompat.h \
     util/rsurl.h \
     util/rsmacrosugar.hpp
