@@ -431,16 +431,35 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 void RsInit::startupWebServices(const RsConfigOptions& conf)
 {
     // We create the JsonApiServer this early, because it is needed *before* login
-    RsInfo() << "Allocating JSON API server (not launched yet)" ;
+    std::cerr << std::endl;
+    RsInfo() << "Configuring web services" ;
+
     JsonApiServer* jas = new JsonApiServer();
-    jas->setListeningPort(conf.jsonApiPort);
-    jas->setBindingAddress(conf.jsonApiBindAddress);
+    bool jsonapi_needed = false;
 
     // add jsonapi server to config manager so that it can save/load its tokens
     p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
 
-    assert(cfgmgr != nullptr);
-    jas->connectToConfigManager(*cfgmgr);	// forces load config.
+    if(cfgmgr != nullptr)
+        jas->connectToConfigManager(*cfgmgr);	// forces load config.
+
+    if(conf.jsonApiPort >= 1024)
+    {
+        RsInfo() << "  Using supplied listening port " << conf.jsonApiPort ;
+        jas->setListeningPort(conf.jsonApiPort);
+        jsonapi_needed = true;
+    }
+    else
+        RsInfo() << "  Using default port " << jas->listeningPort() ;
+
+    if(!conf.jsonApiBindAddress.empty())
+    {
+        RsInfo() << "  Using supplied binding address " << conf.jsonApiBindAddress ;
+        jas->setBindingAddress(conf.jsonApiBindAddress);
+        jsonapi_needed = true;
+    }
+    else
+        RsInfo() << "  Using default binding address " << jas->getBindingAddress() ;
 
 #ifdef RS_WEBUI
     if(conf.enableWebUI)
@@ -448,42 +467,55 @@ void RsInit::startupWebServices(const RsConfigOptions& conf)
         // If passwd is supplied for webui, use it. Otherwise, keep the last one,
         // saved in the jsonapi tokens list.
 
-        bool ok = false;
+        std::string webui_passwd;
+        RsInfo() << "  Service: WEB Interface." ;
 
         if(!conf.webUIPasswd.empty())
         {
-            RsDbg() << "Using new passwd for web ui: \"" << conf.webUIPasswd << "\"" << std::endl;
-            jas->authorizeUser("webui", conf.webUIPasswd);
-            ok=true;
+            webui_passwd = conf.webUIPasswd;
+            RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
         }
         else
         {
             const auto passwd_it = jas->getAuthorizedTokens().find("webui");
-            if(!passwd_it->second.empty())
+            if(passwd_it != jas->getAuthorizedTokens().end() && !passwd_it->second.empty())
             {
-                RsDbg() << "Re-using stored passwd for web ui: \"" << passwd_it->second << "\"" << std::endl;
-                ok=true;
+                RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
+                webui_passwd = passwd_it->second;
             }
             else
-                RsDbg() << "Cannot enable webui: no passwd was previously saved, and no passwd was supplied at start." << std::endl;
+                RsInfo() << "    No supplied passwd for WEB Interface. Please use the appropriate commandline option." ;
         }
 
-        if(ok)
+        if(!webui_passwd.empty())
         {
             p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
 
             if(!webui)
-                RsErr() << "rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
+                RsErr() << "    rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
             else
             {
+                RsInfo() << "    Enabling WEB Interface." ;
+
+                jas->authorizeUser("webui", webui_passwd);
                 jas->registerResourceProvider(*webui);
-                RsDbg() << "WebUI is registered." ;
+                jsonapi_needed = true;
             }
+        }
+        else
+        {
+            RsErr() << "    Cannot start web UI. Please configure it manually." ;
+            jas->revokeAuthToken("webui");
         }
     }
 #endif
 
-    if(conf.jsonApiPort != 0) jas->restart();
+    if(jsonapi_needed)
+    {
+        RsInfo() << "  Starting JSON API." ;
+        jas->restart();
+        RsInfo() << "  Done." ;
+    }
 
     rsJsonApi = jas;
 }

@@ -1156,7 +1156,7 @@ bool AuthSSLimpl::AuthX509WithGPG(X509 *x509,bool verbose, uint32_t& diagnostic)
 
 		Dbg2() << __PRETTY_FUNCTION__
 		       << " verifying the PGP Key signature with finger print: "
-		       << pd.fpr << std::endl;
+               << pd.fpr ;
 
 		/* Take a early look at signature parameters. In particular we dont
 		 * accept signatures with unsecure hash algorithms */
