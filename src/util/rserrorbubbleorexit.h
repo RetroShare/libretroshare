@@ -23,6 +23,7 @@
 #include <system_error>
 #include <type_traits>
 
+#include "util/rslikelyunlikely.h"
 #include "util/rsdebug.h"
 #include "util/stacktrace.h"
 
@@ -63,9 +64,18 @@ void rsErrorBubbleOrExitDebuggable(
 		        typename std::decay_t<PF>,
 		        typename std::decay_t<decltype(__PRETTY_FUNCTION__)> >::value );
 
+	if(!errorCondition) RS_UNLIKELY
+	{
+		/* This is an unexpected situation, added to help debugging*/
+		RS_ERR("Called without error information!");
+		print_stacktrace();
+		return;
+	}
+
 	if(bubbleStorage)
 	{
 		*bubbleStorage = errorCondition;
+		print_stacktrace();
 	}
 	else
 	{
