@@ -1308,16 +1308,15 @@ bool sockaddr_storage_inet_ntop (const sockaddr_storage &addr, std::string &dst)
 
 		if(addrv6p->sin6_scope_id)
 		{
-			/* An IPv6 address may contain scope/interface indication after a % sign
-			 * Usually needed for link local address, after % either the interface
-			 * literal name is indicated or a numeric id, in case of literal name
-			 * conversion to id is needed.
-			 * Examples:
+			/* An IPv6 address may contain scope/interface indication after a %
+			 * sign. Usually needed for link local address, after % either the
+			 * interface literal name (when possible) is indicated or a numeric
+			 * id. Examples:
 			 * fe80::0123:4567:89ab:cdef%eth0
 			 * fe80::0123:4567:89ab:cdef%3 */
 
 			// Attempt conversion to literal interface name
-			char ifName[IF_NAMESIZE+1];
+			char ifName[IF_NAMESIZE+1] = {0};
 			if(if_indextoname(addrv6p->sin6_scope_id, ifName))
 			{
 				dst += "%";
