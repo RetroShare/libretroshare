@@ -66,7 +66,7 @@ void rsErrorBubbleOrExitDebuggable(
 
 	if(!errorCondition) RS_UNLIKELY
 	{
-		/* This is an unexpected situation, added to help debugging*/
+		/* This is an unexpected situation, added to help debugging */
 		RS_ERR("Called without error information!");
 		print_stacktrace();
 		return;

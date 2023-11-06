@@ -163,6 +163,17 @@ bool sockaddr_storage_setipv6(struct sockaddr_storage &addr, const sockaddr_in6 
 */
 bool sockaddr_storage_inet_pton( sockaddr_storage &addr,
                                  const std::string& ipStr );
+
+/**
+ * @brief Enhanced inet_ntop
+ * Support converting IPv4, IPv6, IPv6 link local (RFC 3927, RFC 4007) addresses
+ * in a single call without more information.
+ * @param addr numeric address input
+ * @param ipStr storage for string representation of the address
+ * @return false on error, true otherwise
+*/
+bool sockaddr_storage_inet_ntop(const sockaddr_storage& addr, std::string& ipStr);
+
 bool sockaddr_storage_ipv4_aton(struct sockaddr_storage &addr, const char *name);
 
 bool sockaddr_storage_ipv4_setport(struct sockaddr_storage &addr, const uint16_t port);
@@ -193,8 +204,6 @@ bool sockaddr_storage_isPrivateNet(const struct sockaddr_storage &addr);
 bool sockaddr_storage_isLinkLocalNet(const struct sockaddr_storage &addr);
 bool sockaddr_storage_ipv6_isLinkLocalNet(const sockaddr_storage &addr);
 bool sockaddr_storage_isExternalNet(const struct sockaddr_storage &addr);
-
-bool sockaddr_storage_inet_ntop(const sockaddr_storage &addr, std::string &dst);
 
 int rs_setsockopt( int sockfd, int level, int optname,
                    const uint8_t *optval, uint32_t optlen );

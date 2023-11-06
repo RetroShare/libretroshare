@@ -1290,7 +1290,7 @@ bool sockaddr_storage_inet_ntop (const sockaddr_storage &addr, std::string &dst)
 	sockaddr * sptr = (sockaddr *) &tmp;
 	success = (0 == WSAAddressToString( sptr, sizeof(sockaddr_storage), NULL, wIpStr, &len ));
 	wcstombs(ipStr, wIpStr, len);
-#else // WINDOWS_SYS
+#else // def WINDOWS_SYS
 	switch(addr.ss_family)
 	{
 	case AF_INET:
@@ -1302,11 +1302,36 @@ bool sockaddr_storage_inet_ntop (const sockaddr_storage &addr, std::string &dst)
 	case AF_INET6:
 	{
 		const struct sockaddr_in6 * addrv6p = (const struct sockaddr_in6 *) &addr;
-		success = inet_ntop( addr.ss_family, (const void *) &(addrv6p->sin6_addr), ipStr, INET6_ADDRSTRLEN );
+		success = inet_ntop(
+		            addr.ss_family, (const void *) &(addrv6p->sin6_addr),
+		            ipStr, INET6_ADDRSTRLEN );
+
+		if(addrv6p->sin6_scope_id)
+		{
+			/* An IPv6 address may contain scope/interface indication after a % sign
+			 * Usually needed for link local address, after % either the interface
+			 * literal name is indicated or a numeric id, in case of literal name
+			 * conversion to id is needed.
+			 * Examples:
+			 * fe80::0123:4567:89ab:cdef%eth0
+			 * fe80::0123:4567:89ab:cdef%3 */
+
+			// Attempt conversion to literal interface name
+			char ifName[IF_NAMESIZE+1];
+			if(if_indextoname(addrv6p->sin6_scope_id, ifName))
+			{
+				dst += "%";
+				dst += ifName;
+			}
+			else
+			{
+				dst += "%" + std::to_string(addrv6p->sin6_scope_id);
+			}
+		}
 	}
 	break;
 	}
-#endif // WINDOWS_SYS
+#endif // def WINDOWS_SYS
 
 	dst = ipStr;
 	return success;
