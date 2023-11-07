@@ -459,6 +459,8 @@ public:
 class RsConfigMgr
 {
 public:
+    virtual ~RsConfigMgr() = default;
+
     enum class CheckPriority:uint8_t {
                         UNKNOWN           = 0x00,	// placeholder
                         SAVE_WHEN_CLOSING = 0x01,	// Means we do not care if configuration is lost on crash.

@@ -79,13 +79,13 @@ public:
 	RsServer();
 	virtual ~RsServer();
 
-	virtual int StartupRetroShare();
+    virtual int StartupRetroShare() override;
 
 	/// @see RsControl::isReady()
-	virtual bool isReady() { return coreReady; }
+    virtual bool isReady() override { return coreReady; }
 
 	/// @see RsControl::setShutdownCallback
-	void setShutdownCallback(const std::function<void(int)>& callback)
+    void setShutdownCallback(const std::function<void(int)>& callback) override
 	{ mShutdownCallback = callback; }
 
 	void threadTick() override; /// @see RsTickingThread
@@ -120,7 +120,8 @@ public:
 		/* Config */
 
 		virtual void    ConfigFinalSave( );
-		virtual void	startServiceThread(RsTickingThread *t, const std::string &threadName) ;
+        virtual RsConfigMgr *configManager() const override { return mConfigMgr; }
+        virtual void	startServiceThread(RsTickingThread *t, const std::string &threadName) ;
 
 		/************* Rs shut down function: in upnp 'port lease time' bug *****************/
 

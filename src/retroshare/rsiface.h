@@ -50,6 +50,8 @@ int InitRetroShare(int argc, char **argv, RsInit *config);
  */
 extern RsControl* rsControl;
 
+class RsConfigMgr;
+
 /** The Main Interface Class - for controlling the server */
 class RsControl
 {
@@ -61,7 +63,9 @@ public:
 	/* Real Startup Fn */
 	virtual int StartupRetroShare() = 0;
 
-	/**
+    virtual RsConfigMgr *configManager() const =0;
+
+    /**
 	 * @brief Check if core is fully ready, true only after StartupRetroShare()
 	 *	finish and before rsGlobalShutDown() begin
 	 * @jsonapi{development}

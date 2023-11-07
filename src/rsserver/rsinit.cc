@@ -408,34 +408,6 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	if(!RsAccounts::init(rsInitConfig->optBaseDir,error_code))
 		return error_code ;
 
-#ifdef RS_JSONAPI
-	// We create the JsonApiServer this early, because it is needed *before* login
-    RsInfo() << "Allocating JSON API server (not launched yet)" ;
-	JsonApiServer* jas = new JsonApiServer();
-	jas->setListeningPort(conf.jsonApiPort);
-    jas->setBindingAddress(conf.jsonApiBindAddress);
-
-#ifdef RS_WEBUI
-    if(conf.enableWebUI)
-    {
-        p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
-
-        if(!webui)
-            RsErr() << "rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
-        else
-        {
-            jas->registerResourceProvider(*webui);
-            RsDbg() << "WebUI is registered." ;
-        }
-        jas->authorizeUser("webui", conf.webUIPasswd);
-    }
-#endif
-
-	if(conf.jsonApiPort != 0) jas->restart();
-
-	rsJsonApi = jas;
-#endif
-
 #ifdef RS_AUTOLOGIN
 	/* check that we have selected someone */
 	RsPeerId preferredId;
@@ -455,6 +427,99 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	return RS_INIT_OK;
 }
 
+#ifdef RS_JSONAPI
+void RsInit::startupWebServices(const RsConfigOptions& conf)
+{
+    // We create the JsonApiServer this early, because it is needed *before* login
+    std::cerr << std::endl;
+    RsInfo() << "Configuring web services" ;
+
+    JsonApiServer* jas = new JsonApiServer();
+    bool jsonapi_needed = false;
+
+    // add jsonapi server to config manager so that it can save/load its tokens
+    p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
+
+    if(cfgmgr != nullptr)
+        jas->connectToConfigManager(*cfgmgr);	// forces load config.
+
+    if(conf.jsonApiPort >= 1024)
+    {
+        RsInfo() << "  Using supplied listening port " << conf.jsonApiPort ;
+        jas->setListeningPort(conf.jsonApiPort);
+        jsonapi_needed = true;
+    }
+    else
+        RsInfo() << "  Using default port " << jas->listeningPort() ;
+
+    if(!conf.jsonApiBindAddress.empty())
+    {
+        RsInfo() << "  Using supplied binding address " << conf.jsonApiBindAddress ;
+        jas->setBindingAddress(conf.jsonApiBindAddress);
+        jsonapi_needed = true;
+    }
+    else
+        RsInfo() << "  Using default binding address " << jas->getBindingAddress() ;
+
+#ifdef RS_WEBUI
+    if(conf.enableWebUI)
+    {
+        // If passwd is supplied for webui, use it. Otherwise, keep the last one,
+        // saved in the jsonapi tokens list.
+
+        std::string webui_passwd;
+        RsInfo() << "  Service: WEB Interface." ;
+
+        if(!conf.webUIPasswd.empty())
+        {
+            webui_passwd = conf.webUIPasswd;
+            RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
+        }
+        else
+        {
+            const auto passwd_it = jas->getAuthorizedTokens().find("webui");
+            if(passwd_it != jas->getAuthorizedTokens().end() && !passwd_it->second.empty())
+            {
+                RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
+                webui_passwd = passwd_it->second;
+            }
+            else
+                RsInfo() << "    No supplied passwd for WEB Interface. Please use the appropriate commandline option." ;
+        }
+
+        if(!webui_passwd.empty())
+        {
+            p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
+
+            if(!webui)
+                RsErr() << "    rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
+            else
+            {
+                RsInfo() << "    Enabling WEB Interface." ;
+
+                jas->authorizeUser("webui", webui_passwd);
+                jas->registerResourceProvider(*webui);
+                jsonapi_needed = true;
+            }
+        }
+        else
+        {
+            RsErr() << "    Cannot start web UI. Please configure it manually." ;
+            jas->revokeAuthToken("webui");
+        }
+    }
+#endif
+
+    if(jsonapi_needed)
+    {
+        RsInfo() << "  Starting JSON API." ;
+        jas->restart();
+        RsInfo() << "  Done." ;
+    }
+
+    rsJsonApi = jas;
+}
+#endif
 
 /*
  * To prevent several running instances from using the same directory
@@ -1266,11 +1331,6 @@ int RsServer::StartupRetroShare()
 	// 	programatically_inserted_plugins.push_back(myCoolPlugin) ;
 	//
 	mPluginsManager->loadPlugins(programatically_inserted_plugins) ;
-
-#ifdef RS_JSONAPI
-	// add jsonapi server to config manager so that it can save/load its tokens
-	if(rsJsonApi) rsJsonApi->connectToConfigManager(*mConfigMgr);
-#endif
 
     	/**** Reputation system ****/
 

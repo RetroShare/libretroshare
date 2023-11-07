@@ -203,8 +203,11 @@ public:
 	 * @return RS_INIT_...
 	 */
 	static int InitRetroShare(const RsConfigOptions&);
+#ifdef RS_JSONAPI
+    static void startupWebServices(const RsConfigOptions& conf);
+#endif
 
-	static bool isPortable();
+    static bool isPortable();
 	static bool isWindowsXP();
 	static bool collectEntropy(uint32_t bytes) ;
     static bool startAutoTor();

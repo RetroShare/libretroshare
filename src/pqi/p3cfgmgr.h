@@ -150,6 +150,8 @@ class p3ConfigMgr: public RsConfigMgr
 {
 	public:
 
+        virtual ~p3ConfigMgr() = default;
+
 		/**
 		 * @param bdir base directory: where config files will be saved
 		 */
