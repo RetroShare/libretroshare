@@ -365,8 +365,9 @@ bool AuthSSLimpl::InitAuth(
     // actions_to_seed_PRNG(); This doesn't *set* the current state, but only adds to it, according to
     // OpenSSL doc. So it shouldn't normally be needed, but doesn't cause any problem either.
 	RAND_seed(passwd, strlen(passwd));
-
+#ifdef DEBUG
 	RS_DBG("SSL Library Init!");
+#endif
 
 	// setup connection method
 	sslctx = SSL_CTX_new(SSLv23_method());
@@ -1154,9 +1155,11 @@ bool AuthSSLimpl::AuthX509WithGPG(X509 *x509,bool verbose, uint32_t& diagnostic)
 
 		/* NOW check sign via GPG Functions */
 
-		Dbg2() << __PRETTY_FUNCTION__
-		       << " verifying the PGP Key signature with finger print: "
+#ifdef DEBUG
+        RsDbg2() << __PRETTY_FUNCTION__
+               << " verifying the PGP Key signature with finger print: "
                << pd.fpr ;
+#endif
 
 		/* Take a early look at signature parameters. In particular we dont
 		 * accept signatures with unsecure hash algorithms */

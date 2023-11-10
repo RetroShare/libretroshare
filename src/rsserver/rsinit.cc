@@ -428,14 +428,14 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 }
 
 #ifdef RS_JSONAPI
-void RsInit::startupWebServices(const RsConfigOptions& conf)
+void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jsonapi)
 {
     // We create the JsonApiServer this early, because it is needed *before* login
     std::cerr << std::endl;
     RsInfo() << "Configuring web services" ;
 
     JsonApiServer* jas = new JsonApiServer();
-    bool jsonapi_needed = false;
+    bool jsonapi_needed = force_start_jsonapi;
 
     // add jsonapi server to config manager so that it can save/load its tokens
     p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
@@ -447,7 +447,6 @@ void RsInit::startupWebServices(const RsConfigOptions& conf)
     {
         RsInfo() << "  Using supplied listening port " << conf.jsonApiPort ;
         jas->setListeningPort(conf.jsonApiPort);
-        jsonapi_needed = true;
     }
     else
         RsInfo() << "  Using default port " << jas->listeningPort() ;
@@ -456,7 +455,6 @@ void RsInit::startupWebServices(const RsConfigOptions& conf)
     {
         RsInfo() << "  Using supplied binding address " << conf.jsonApiBindAddress ;
         jas->setBindingAddress(conf.jsonApiBindAddress);
-        jsonapi_needed = true;
     }
     else
         RsInfo() << "  Using default binding address " << jas->getBindingAddress() ;
@@ -486,6 +484,7 @@ void RsInit::startupWebServices(const RsConfigOptions& conf)
             else
                 RsInfo() << "    No supplied passwd for WEB Interface. Please use the appropriate commandline option." ;
         }
+        RsInfo() << "    Using webui files from: " << rsWebUi->htmlFilesDirectory() << std::endl;
 
         if(!webui_passwd.empty())
         {
@@ -516,6 +515,8 @@ void RsInit::startupWebServices(const RsConfigOptions& conf)
         jas->restart();
         RsInfo() << "  Done." ;
     }
+    else
+        RsInfo() << "  Not starting JSON API, since it is currently not required by any service." ;
 
     rsJsonApi = jas;
 }
@@ -939,7 +940,9 @@ int RsServer::StartupRetroShare()
 	/**************************************************************************/
 
 	/* set the debugging to crashMode */
+#ifdef DEBUG
 	std::cerr << "set the debugging to crashMode." << std::endl;
+#endif
 	if ((!rsInitConfig->haveLogFile) && (!rsInitConfig->outStderr))
 	{
 		std::string crashfile = RsAccounts::AccountDirectory();
@@ -994,7 +997,9 @@ int RsServer::StartupRetroShare()
 	/**************************************************************************/
 	/* setup classes / structures */
 	/**************************************************************************/
+#ifdef DEBUG
 	std::cerr << "setup classes / structures" << std::endl;
+#endif
 
 	/* History Manager */
 	mHistoryMgr = new p3HistoryMgr();

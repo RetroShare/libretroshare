@@ -172,7 +172,9 @@ int setDebugCrashMode(const char *cfile)
 
 	if (0 < locked_setDebugFile(crashfile.c_str()))
 	{
-		fprintf(stderr, "Switching To CrashLog Mode!\n");
+#ifdef DEBUG
+        fprintf(stderr, "Switching To CrashLog Mode!\n");
+#endif
 		debugMode = RS_DEBUG_LOGCRASH;
 		lineCount = 0;
 		debugTS = time(NULL);

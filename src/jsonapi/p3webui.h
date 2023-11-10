@@ -37,6 +37,7 @@ public:
 
 	/// implements RsWebUI
     virtual std::error_condition setHtmlFilesDirectory( const std::string& html_dir ) override;
+    virtual std::string htmlFilesDirectory() const override;
     virtual std::error_condition setUserPassword( const std::string& passwd ) override;
 
 	virtual std::error_condition restart() override;
