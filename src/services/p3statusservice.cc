@@ -85,7 +85,7 @@ bool p3StatusService::getOwnStatus(StatusInfo& statusInfo)
 	it = mStatusInfoMap.find(ownId);
 
 	if (it == mStatusInfoMap.end()){
-		std::cerr << "p3StatusService::saveList() :" << "Did not find your status" << ownId << std::endl;
+        RsErr() << "p3StatusService::saveList() :" << "Did not find your status (Id=" << ownId << ")" ;
 
 		// own status not set, set it to online
 		statusInfo.id = ownId;

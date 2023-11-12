@@ -204,7 +204,7 @@ public:
 	 */
 	static int InitRetroShare(const RsConfigOptions&);
 #ifdef RS_JSONAPI
-    static void startupWebServices(const RsConfigOptions& conf);
+    static void startupWebServices(const RsConfigOptions& conf, bool force_start_jsonapi);
 #endif
 
     static bool isPortable();

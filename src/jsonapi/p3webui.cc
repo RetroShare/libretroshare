@@ -172,10 +172,16 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 	return rtab;
 }
 
+std::string p3WebUI::htmlFilesDirectory() const
+{
+    return _base_directory;
+}
 
 std::error_condition p3WebUI::setHtmlFilesDirectory(const std::string& html_dir)
 {
+#ifdef DEBUG
 	RS_DBG("html_dir: ", html_dir);
+#endif
 
 	if(!RsDirUtil::checkDirectory(html_dir))
 	{
