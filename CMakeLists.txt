@@ -109,6 +109,11 @@ option(
 	"Enable retro-compatibility breaking changes planned for RetroShare 0.7.0"
 	OFF )
 
+option(
+	RS_LIBRETROSHARE_STANDALONE_INSTALL
+	"Install libretroshare as a stand-alone library"
+	OFF )
+
 set(
 	RS_DATA_DIR
 	"${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}"
@@ -238,19 +243,21 @@ set_target_properties(
 	${PROJECT_NAME}
 	PROPERTIES PUBLIC_HEADER "${RS_PUBLIC_HEADERS}" )
 
-install(
-	TARGETS ${PROJECT_NAME}
-	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
-	PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}" )
-
-## As of today libretroshare doesn't hide implementation details properly so it
-## is necessary to install private headers too
-foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
-	get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
+if(RS_LIBRETROSHARE_STANDALONE_INSTALL)
 	install(
-		FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
-		DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
-endforeach()
+		TARGETS ${PROJECT_NAME}
+		LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
+		PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}" )
+
+	## As of today libretroshare doesn't hide implementation details properly so it
+	## is necessary to install private headers too
+	foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
+		get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
+		install(
+			FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
+			DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
+	endforeach()
+endif(RS_LIBRETROSHARE_STANDALONE_INSTALL)
 
 if(RS_SPLIT_DEBUG)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-g")
@@ -338,6 +345,32 @@ endif(RS_BITDHT)
 
 ################################################################################
 
+set(RAPIDJSON_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/rapidjson/")
+find_path(
+	RS_RAPIDJSON_INCLUDE "rapidjson/document.h"
+	PATH_SUFFIXES "include" "includes" )
+if(EXISTS "${RS_RAPIDJSON_INCLUDE}")
+	message( STATUS
+	         "RapidJSON found in system at ${RS_RAPIDJSON_INCLUDE}" )
+elseif(EXISTS "${RAPIDJSON_DEVEL_DIR}/CMakeLists.txt")
+	message( STATUS
+	         "RapidJSON found in development dir at ${RAPIDJSON_DEVEL_DIR}" )
+	target_include_directories(
+		${PROJECT_NAME}
+		PUBLIC "${RAPIDJSON_DEVEL_DIR}/include" )
+else()
+	FetchContent_Declare(
+		rapidjson
+		GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
+		GIT_SHALLOW TRUE
+		GIT_PROGRESS TRUE
+		TIMEOUT 10
+	)
+	FetchContent_MakeAvailable(rapidjson)
+endif()
+
+################################################################################
+
 if(RS_JSON_API)
 	find_package(Doxygen REQUIRED)
 	find_package(Python3 REQUIRED)
@@ -398,12 +431,26 @@ if(RS_JSON_API)
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
 
-	## At moment depending on restbed the CMake way doesn't seems to work at
-	## least on Android due to upstream CMake file limitation, patches should be
-	## sent upstream.
-	## Restbed is therefore compiled by Android toolchain preparation script
+	set(RESTBED_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/")
 	if(RS_ANDROID)
-		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
+		## At moment depending on restbed the CMake way doesn't seems to work at
+		## least on Android due to upstream CMake file limitation, patches
+		## should be sent upstream.
+		## Restbed is therefore compiled by Android toolchain preparation script
+	elseif(EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
+		message( STATUS
+		         "Restbed submodule found at ${RESTBED_DEVEL_DIR} using it" )
+		add_subdirectory(
+			${RESTBED_DEVEL_DIR}
+			${CMAKE_BINARY_DIR}/restbed
+			EXCLUDE_FROM_ALL )
+		# EXCLUDE_FROM_ALL prevent executing install directives from included
+		# dependencies see https://stackoverflow.com/a/64900982
+
+		## TODO: Temporary work around target_include_directories PUBLIC should
+		## be added upstream
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE "${RESTBED_DEVEL_DIR}/source/" )
 	else()
 		FetchContent_Declare(
 			restbed
@@ -420,10 +467,9 @@ if(RS_JSON_API)
 		## be added upstream
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
+	endif()
 
-		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
-	endif(RS_ANDROID)
-
+	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
 
@@ -501,22 +547,35 @@ if(RS_BRODCAST_DISCOVERY)
 	## TODO: upstream option to disable tests building
 	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
 	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
-	FetchContent_Declare(
-		udp-discovery-cpp
-		GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
-		GIT_TAG "origin/master"
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
-	)
-	FetchContent_MakeAvailable(udp-discovery-cpp)
+
+	set(UDP_DISCOVERY_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/")
+	if(EXISTS "${UDP_DISCOVERY_DEVEL_DIR}/CMakeLists.txt")
+		message( STATUS
+		         "UDP discovery source found at ${UDP_DISCOVERY_DEVEL_DIR} using it" )
+		add_subdirectory(${UDP_DISCOVERY_DEVEL_DIR} ${CMAKE_BINARY_DIR}/udp-discovery-cpp/)
+
+		## TODO: Temporary work around target_include_directories PUBLIC should
+		## be added upstream
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE "${UDP_DISCOVERY_DEVEL_DIR}" )
+	else()
+		FetchContent_Declare(
+			udp-discovery-cpp
+			GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
+			GIT_TAG "origin/master"
+			GIT_SHALLOW TRUE
+			GIT_PROGRESS TRUE
+			TIMEOUT 10
+		)
+		FetchContent_MakeAvailable(udp-discovery-cpp)
+
+		## TODO: Temporary work around target_include_directories PUBLIC should
+		## be added upstream
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
+	endif()
 
 	target_link_libraries(${PROJECT_NAME} PRIVATE udp-discovery)
-
-	## TODO: Temporary work around target_include_directories PUBLIC should be
-	## added upstream
-	target_include_directories(
-		${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
 endif(RS_BRODCAST_DISCOVERY)
@@ -562,7 +621,6 @@ endif(RS_EXPORT_JNI_ONLOAD)
 
 ################################################################################
 
-#if(CMAKE_SYSTEM_NAME STREQUAL "Android")
 if(RS_ANDROID)
 	FetchContent_Declare(
 		jni-hpp
@@ -577,7 +635,6 @@ if(RS_ANDROID)
 	target_include_directories(
 		${PROJECT_NAME} PRIVATE "${jni-hpp_SOURCE_DIR}/include" )
 endif(RS_ANDROID)
-#endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 
 ################################################################################
 
