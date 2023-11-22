@@ -75,7 +75,6 @@ void rsErrorBubbleOrExitDebuggable(
 	if(bubbleStorage)
 	{
 		*bubbleStorage = errorCondition;
-		print_stacktrace();
 	}
 	else
 	{
