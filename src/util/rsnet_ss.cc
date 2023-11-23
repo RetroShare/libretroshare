@@ -292,12 +292,13 @@ int inet_pton(int af, const char *src, void *dst)
 #endif
 #endif
 
-bool sockaddr_storage_inet_pton( sockaddr_storage &addr,
+bool sockaddr_storage_inet_pton( sockaddr_storage& addr,
                                  const std::string& ipStr )
 {
 #ifdef SS_DEBUG
 	std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
+	sockaddr_storage_clear(addr);
 
 	struct sockaddr_in6 * addrv6p = (struct sockaddr_in6 *) &addr;
 	struct sockaddr_in * addrv4p = (struct sockaddr_in *) &addr;
