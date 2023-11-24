@@ -3,8 +3,9 @@
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright 2004-2006 Robert Fernie <retroshare@lunamutt.com>                 *
- * Copyright 2015-2023 Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2004-2006 Robert Fernie <retroshare@lunamutt.com>             *
+ * Copyright (C) 2015-2023 Gioacchino Mazzurco <gio@retroshare.cc>             *
+ * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -20,8 +21,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
-#ifndef RS_UNIVERSAL_NETWORK_HEADER
-#define RS_UNIVERSAL_NETWORK_HEADER
+#pragma once
 
 #include <inttypes.h>
 #include <stdlib.h>	/* Included because GCC4.4 wants it */
@@ -70,6 +70,12 @@ uint64_t ntohll(uint64_t x);
 #ifndef htonll
 uint64_t htonll(uint64_t x);
 #endif
+
+/** Address to string conversion functions return this value if fed with an
+ *  invalid address numeric representation */
+constexpr char AF_INVALID_STR[] = "AF_INVALID";
+
+constexpr char IPV6_SCOPE_ID_SEPARATOR = '%';
 
 /* blank a network address */
 void sockaddr_clear(struct sockaddr_in *addr);
@@ -217,5 +223,3 @@ int rs_setsockopt( int sockfd, int level, int optname,
  * @return 0 on success, -1 for errors.
  */
 int rs_setSockTimeout( int sockfd, bool forReceive = true, int timeout_Sec = 0, int timeout_uSec = 0);
-
-#endif /* RS_UNIVERSAL_NETWORK_HEADER */
