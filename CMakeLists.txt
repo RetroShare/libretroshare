@@ -463,8 +463,15 @@ if(RS_JSON_API)
 		)
 		FetchContent_MakeAvailable(restbed)
 
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
+		## restbed 4.8 won't build if not added as subdirectory'
+		## @see https://stackoverflow.com/a/56593741
+		add_subdirectory(
+			${restbed_SOURCE_DIR}
+			${CMAKE_BINARY_DIR}/restbed
+			EXCLUDE_FROM_ALL )
+		# EXCLUDE_FROM_ALL prevent executing install directives from included
+		# dependencies see https://stackoverflow.com/a/64900982
+
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
 	endif()
