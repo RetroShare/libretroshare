@@ -148,6 +148,8 @@ struct RsConfigOptions
 
     bool        enableWebUI;		/* enable web interface */
     std::string webUIPasswd;        /* passwd to start the webui with */
+
+	int sslLevel;                   /* minimum security level for openssl */
 };
 
 

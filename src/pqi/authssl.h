@@ -77,7 +77,7 @@ public:
     //
     virtual bool InitAuth(
 	        const char* srvr_cert, const char* priv_key, const char* passwd,
-            std::string locationName,RsInit::LoadCertificateStatus& error_code ) = 0;
+            std::string locationName, int seclevel, RsInit::LoadCertificateStatus& error_code ) = 0;
 	virtual bool CloseAuth() = 0;
 
 	/*********** Overloaded Functions from p3AuthMgr **********/
@@ -175,7 +175,7 @@ public:
 	bool active() override;
     virtual bool InitAuth(
             const char* srvr_cert, const char* priv_key, const char* passwd,
-            std::string locationName,RsInit::LoadCertificateStatus& error_code ) override;
+            std::string locationName,int seclevel, RsInit::LoadCertificateStatus& error_code ) override;
 
 	bool CloseAuth() override;
 

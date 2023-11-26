@@ -322,7 +322,7 @@ bool AuthSSLimpl::active() { return init; }
 
 bool AuthSSLimpl::InitAuth(
         const char* cert_file, const char* priv_key_file, const char* passwd,
-        std::string locationName,RsInit::LoadCertificateStatus& error_code )
+        std::string locationName, int seclevel, RsInit::LoadCertificateStatus& error_code )
 {
     error_code = RsInit::OK;
 
@@ -509,9 +509,9 @@ bool AuthSSLimpl::InitAuth(
             return false;
         }
 
-        RsErr() << "Trying with security level 1:" ;
+        RsErr() << "Trying with security level " << seclevel << ": ";
         // Try with security level 1, to keep compatibility with old certificates.
-        SSL_CTX_set_security_level(sslctx,1);
+        SSL_CTX_set_security_level(sslctx,seclevel);
         result = SSL_CTX_use_certificate(sslctx, x509);
 
         // If not commented out, this line will prevent RS from connecting to friends when the cert signature is SHA1.

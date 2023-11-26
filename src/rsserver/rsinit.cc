@@ -134,7 +134,8 @@ RsConfigOptions::RsConfigOptions()
           forcedInetAddress("127.0.0.1"), 	 /* inet address to use.*/
           forcedPort(0),
           outStderr(false),
-          debugLevel(5)
+          debugLevel(5),
+          sslLevel(1)
 #ifdef RS_JSONAPI
           ,jsonApiPort(0)					// JSonAPI server is enabled in each main()
           ,jsonApiBindAddress("127.0.0.1")
@@ -197,6 +198,8 @@ struct RsInitConfig
 
 		uint16_t jsonApiPort;
 		std::string jsonApiBindAddress;
+
+		int sslLevel;
 };
 
 static RsInitConfig* rsInitConfig = nullptr;
@@ -317,6 +320,7 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
     rsInitConfig->jsonApiPort        = conf.jsonApiPort;
     rsInitConfig->jsonApiBindAddress = conf.jsonApiBindAddress;
     rsInitConfig->mainExecutablePath = conf.main_executable_path;
+	rsInitConfig->sslLevel           = conf.sslLevel;
 
 #ifdef PTW32_STATIC_LIB
 	// for static PThreads under windows... we need to init the library...
@@ -686,7 +690,9 @@ bool RsInit::LoadCertificates(bool autoLoginNT,LoadCertificateStatus& error_code
     if(!AuthSSL::instance().InitAuth(RsAccounts::AccountPathCertFile().c_str(),
                                               RsAccounts::AccountPathKeyFile().c_str(),
                                               rsInitConfig->passwd.c_str(),
-                                              RsAccounts::AccountLocationName(),err_code))
+											  RsAccounts::AccountLocationName(),
+											  rsInitConfig->sslLevel,
+											  err_code))
 	{
         error_code = err_code;
         return false;
