@@ -293,7 +293,7 @@ if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
 else()
 	FetchContent_Declare(
 		openpgpsdk
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/OpenPGP-SDK.git"
+		GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
 		GIT_TAG "origin/master"
 		GIT_SHALLOW TRUE
 		GIT_PROGRESS TRUE
@@ -317,7 +317,7 @@ if(RS_BITDHT)
 	else()
 		FetchContent_Declare(
 			bitdht
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/BitDHT.git"
+		GIT_REPOSITORY "https://github.com/RetroShare/BitDHT.git"
 			GIT_TAG "origin/master"
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
@@ -437,6 +437,7 @@ if(RS_JSON_API)
 		## least on Android due to upstream CMake file limitation, patches
 		## should be sent upstream.
 		## Restbed is therefore compiled by Android toolchain preparation script
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 	elseif(EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
 		message( STATUS
 		         "Restbed submodule found at ${RESTBED_DEVEL_DIR} using it" )
@@ -447,11 +448,12 @@ if(RS_JSON_API)
 		# EXCLUDE_FROM_ALL prevent executing install directives from included
 		# dependencies see https://stackoverflow.com/a/64900982
 
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE "${RESTBED_DEVEL_DIR}/source/" )
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 	else()
+		message( WARNING
+		         "FetchContent restbed, will be installed if you run make install")
 		FetchContent_Declare(
 			restbed
 			GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
@@ -460,16 +462,16 @@ if(RS_JSON_API)
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
 			TIMEOUT 10
+#			EXCLUDE_FROM_ALL # Available only in CMake >= 3.28
 		)
 		FetchContent_MakeAvailable(restbed)
 
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
 	endif()
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
+
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
 
@@ -624,7 +626,7 @@ endif(RS_EXPORT_JNI_ONLOAD)
 if(RS_ANDROID)
 	FetchContent_Declare(
 		jni-hpp
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/jni-hpp.git"
+		GIT_REPOSITORY "https://github.com/RetroShare/jni-hpp.git"
 		GIT_TAG "origin/master"
 		GIT_SHALLOW TRUE
 		GIT_PROGRESS TRUE
