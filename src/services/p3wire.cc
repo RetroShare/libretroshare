@@ -519,7 +519,7 @@ bool p3Wire::getGroups(const std::list<RsGxsGroupId> groupIds, std::vector<RsWir
 
 	if (groupIds.empty())
 	{
-		if (!requestGroupInfo(token, opts) || waitToken(token) != RsTokenService::COMPLETE )
+        if (!requestGroupInfo(token, opts) || waitToken(token,std::chrono::milliseconds(5000)) != RsTokenService::COMPLETE )
 		{
 			return false;
 		}
