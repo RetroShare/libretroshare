@@ -40,7 +40,7 @@ const int RetroDb::OPEN_READWRITE = SQLITE_OPEN_READWRITE;
 const int RetroDb::OPEN_READWRITE_CREATE = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
 RetroDb::RetroDb(const std::string& dbPath, int flags, const std::string& key):
-    mDb(nullptr), mKey(key)
+    mDb(nullptr), mKey(key),mDbNeedsCleaning(false),mPath(dbPath)
 {
 	bool alreadyExists = RsDirUtil::fileExists(dbPath);
 
@@ -154,6 +154,16 @@ RetroDb::~RetroDb() { closeDb(); }
 
 void RetroDb::closeDb()
 {
+    if(!mDb)
+        return;
+
+    if(mDbNeedsCleaning)
+    {
+        RsDbg() << "Cleaning the Db \"" << mPath << "\" using the VACUUM command." ;
+        execSQL("VACUUM;");
+        mDbNeedsCleaning = false;
+    }
+
 	// no-op if mDb is nullptr (https://www.sqlite.org/c3ref/close.html)
 	int rc = sqlite3_close(mDb);
 	mDb = nullptr;
@@ -580,7 +590,15 @@ bool RetroDb::sqlDelete(const std::string &tableName, const std::string &whereCl
     }else
         sqlQuery += ";";
 
-    return execSQL(sqlQuery);
+    bool res = execSQL(sqlQuery);
+
+    if(res)
+    {
+        RsDbg() << "After deletion from Db \"" << mPath << "\", a cleaning operation will occur when closing." ;
+        mDbNeedsCleaning = true;
+    }
+
+    return res;
 }
 
 

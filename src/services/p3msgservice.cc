@@ -1034,7 +1034,7 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
                 initRsMIS(*mref->second,sit.second.origin,sit.second.destination,sit.first,mis);
 
                 // correct the flags
-                mis.msgflags = sit.second.flags;
+                //mis.msgflags = sit.second.flags;
                 msgList.push_back(mis);
             }
         }
@@ -1448,7 +1448,7 @@ bool 	p3MsgService::MessageSend(MessageInfo &info)
     msg->recvTime = time(NULL);
     msg->msgId = getNewUniqueMsgId();
 
-    msg->msgFlags |= RS_MSG_OUTGOING;
+    msg->msgFlags |= RS_MSG_FLAGS_OUTGOING;
 
     mSentMessages[msg->msgId] = msi;
 

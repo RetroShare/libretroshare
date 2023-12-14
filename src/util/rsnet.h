@@ -3,8 +3,9 @@
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright 2004-2006 Robert Fernie <retroshare@lunamutt.com>                 *
- * Copyright 2015-2018 Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2004-2006 Robert Fernie <retroshare@lunamutt.com>             *
+ * Copyright (C) 2015-2023 Gioacchino Mazzurco <gio@retroshare.cc>             *
+ * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -20,8 +21,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
-#ifndef RS_UNIVERSAL_NETWORK_HEADER
-#define RS_UNIVERSAL_NETWORK_HEADER
+#pragma once
 
 #include <inttypes.h>
 #include <stdlib.h>	/* Included because GCC4.4 wants it */
@@ -70,6 +70,12 @@ uint64_t ntohll(uint64_t x);
 #ifndef htonll
 uint64_t htonll(uint64_t x);
 #endif
+
+/** Address to string conversion functions return this value if fed with an
+ *  invalid address numeric representation */
+constexpr char AF_INVALID_STR[] = "AF_INVALID";
+
+constexpr char IPV6_SCOPE_ID_SEPARATOR = '%';
 
 /* blank a network address */
 void sockaddr_clear(struct sockaddr_in *addr);
@@ -151,8 +157,29 @@ bool sockaddr_storage_setport(struct sockaddr_storage &addr, uint16_t port);
 bool sockaddr_storage_setipv4(struct sockaddr_storage &addr, const sockaddr_in *addr_ipv4);
 bool sockaddr_storage_setipv6(struct sockaddr_storage &addr, const sockaddr_in6 *addr_ipv6);
 
+/**
+ * @brief Enhanced inet_pton
+ * Support parsing IPv4, IPv6, IPv6 link local (RFC 3927, RFC 4007) addresses
+ * in a single call without hints.
+ * IPv4 are stored as IPv4-mapped IPv6 so the application can deal with them as
+ * if they where IPv6 addresses trasparently.
+ * @param addr storage for parsed address
+ * @param ipStr string representing the address to parse
+ * @return false on error, true otherwise
+*/
 bool sockaddr_storage_inet_pton( sockaddr_storage &addr,
                                  const std::string& ipStr );
+
+/**
+ * @brief Enhanced inet_ntop
+ * Support converting IPv4, IPv6, IPv6 link local (RFC 3927, RFC 4007) addresses
+ * in a single call without more information.
+ * @param addr numeric address input
+ * @param ipStr storage for string representation of the address
+ * @return false on error, true otherwise
+*/
+bool sockaddr_storage_inet_ntop(const sockaddr_storage& addr, std::string& ipStr);
+
 bool sockaddr_storage_ipv4_aton(struct sockaddr_storage &addr, const char *name);
 
 bool sockaddr_storage_ipv4_setport(struct sockaddr_storage &addr, const uint16_t port);
@@ -184,8 +211,6 @@ bool sockaddr_storage_isLinkLocalNet(const struct sockaddr_storage &addr);
 bool sockaddr_storage_ipv6_isLinkLocalNet(const sockaddr_storage &addr);
 bool sockaddr_storage_isExternalNet(const struct sockaddr_storage &addr);
 
-bool sockaddr_storage_inet_ntop(const sockaddr_storage &addr, std::string &dst);
-
 int rs_setsockopt( int sockfd, int level, int optname,
                    const uint8_t *optval, uint32_t optlen );
 
@@ -198,5 +223,3 @@ int rs_setsockopt( int sockfd, int level, int optname,
  * @return 0 on success, -1 for errors.
  */
 int rs_setSockTimeout( int sockfd, bool forReceive = true, int timeout_Sec = 0, int timeout_uSec = 0);
-
-#endif /* RS_UNIVERSAL_NETWORK_HEADER */

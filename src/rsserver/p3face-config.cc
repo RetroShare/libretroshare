@@ -109,5 +109,10 @@ void RsServer::rsGlobalShutDown()
 
 	AuthPGP::exit();
 
+    // close all databases
+
+    for(auto db:mRegisteredDataServices)
+        delete db;
+
 	mShutdownCallback(0);
 }

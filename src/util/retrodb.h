@@ -202,6 +202,8 @@ private:
 
     sqlite3* mDb;
     const std::string mKey;
+    bool mDbNeedsCleaning;
+    std::string mPath;
 
 	RS_SET_CONTEXT_DEBUG_LEVEL(3)
 };

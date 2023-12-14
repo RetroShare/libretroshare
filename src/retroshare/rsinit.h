@@ -145,6 +145,9 @@ struct RsConfigOptions
 
 	uint16_t    jsonApiPort;		/* port to use fo Json API */
 	std::string jsonApiBindAddress; /* bind address for Json API */
+
+    bool        enableWebUI;		/* enable web interface */
+    std::string webUIPasswd;        /* passwd to start the webui with */
 };
 
 
@@ -200,8 +203,11 @@ public:
 	 * @return RS_INIT_...
 	 */
 	static int InitRetroShare(const RsConfigOptions&);
+#ifdef RS_JSONAPI
+    static void startupWebServices(const RsConfigOptions& conf, bool force_start_jsonapi);
+#endif
 
-	static bool isPortable();
+    static bool isPortable();
 	static bool isWindowsXP();
 	static bool collectEntropy(uint32_t bytes) ;
     static bool startAutoTor();

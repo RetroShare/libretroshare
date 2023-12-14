@@ -106,6 +106,9 @@ enum class RsEventType : uint32_t
 	/// @see RsMailTagEvent
 	MAIL_TAG                                                = 17,
 
+    /// @see RsJsonApiEvent
+    JSON_API                                                = 18,
+
 	/** Emitted to update library clients about file hashing being completed */
 	FILE_HASHING_COMPLETED                                  = 20,
 

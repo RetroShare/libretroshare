@@ -3256,7 +3256,7 @@ bool p3IdService::cache_load_ownids(uint32_t token)
             }
             mOwnIdsLoaded = true ;
 
-            std::cerr << mOwnIds.size() << " own Ids loaded, " << mOwnSignedIds.size() << " of which are signed" << std::endl;
+            std::cerr << "Identities: " << mOwnIds.size() << " own Ids loaded, " << mOwnSignedIds.size() << " of which are signed" << std::endl;
 		}
 
 		// No need to cache these items...

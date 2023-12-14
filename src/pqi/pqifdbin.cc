@@ -74,7 +74,15 @@ int RsFdBinInterface::tick()
 {
     if(!mIsActive)
     {
-        RsErr() << "Ticking a non active FsBioInterface!" ;
+        static rstime_t last(0);
+
+        rstime_t now = time(nullptr);
+        if(now > last + 10)
+        {
+            last = now;
+            RsErr() << "Ticking a non active FsBioInterface!" ;
+        }
+
         return 0;
     }
     // 2 - read incoming data pending on existing connections

@@ -31,7 +31,11 @@
 #include "serialiser/rsserializer.h"
 #include "serialiser/rsserializable.h"
 
-enum class JsonApiItemsType : uint8_t { AuthTokenItem_deprecated = 0, AuthTokenItem = 1  };
+enum class JsonApiItemsType : uint8_t {
+    AuthTokenItem_deprecated = 0,
+    AuthTokenItem            = 1,
+    ConfigItem               = 2,
+};
 
 struct JsonApiServerAuthTokenStorage : RsItem
 {
@@ -52,6 +56,27 @@ struct JsonApiServerAuthTokenStorage : RsItem
 	std::map<std::string,std::string> mAuthorizedTokens;
 };
 
+struct JsonApiServerConfigItem : RsItem
+{
+    JsonApiServerConfigItem() : RsItem( RS_PKT_VERSION_SERVICE, RS_SERVICE_TYPE_JSONAPI,
+                static_cast<uint8_t>(JsonApiItemsType::ConfigItem) ) {}
+
+    /// @see RsSerializable
+    virtual void serial_process(RsGenericSerializer::SerializeJob j,
+                                RsGenericSerializer::SerializeContext& ctx)
+    {
+        RS_SERIAL_PROCESS(mListeningPort);
+        RS_SERIAL_PROCESS(mBindingAddress);
+    }
+
+    /// @see RsItem
+    virtual void clear() {}
+
+    uint16_t mListeningPort;
+    std::string mBindingAddress;
+};
+
+
 
 struct JsonApiConfigSerializer : RsServiceSerializer
 {
@@ -65,7 +90,8 @@ struct JsonApiConfigSerializer : RsServiceSerializer
 		switch(static_cast<JsonApiItemsType>(item_sub_id))
 		{
 		case JsonApiItemsType::AuthTokenItem: return new JsonApiServerAuthTokenStorage();
-		default: return nullptr;
+        case JsonApiItemsType::ConfigItem: return new JsonApiServerConfigItem();
+        default: return nullptr;
 		}
 	}
 };

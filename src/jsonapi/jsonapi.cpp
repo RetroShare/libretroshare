@@ -649,6 +649,14 @@ bool JsonApiServer::revokeAuthToken(const std::string& token)
 	if(mAuthTokenStorage.mAuthorizedTokens.erase(token))
 	{
 		IndicateConfigChanged();
+
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsJsonApiEvent>();
+            ev->mJsonApiEventCode = RsJsonApiEventCode::TOKEN_LIST_CHANGED;
+            rsEvents->postEvent(ev);
+        }
+
 		return true;
 	}
 	return false;
@@ -675,7 +683,14 @@ std::error_condition JsonApiServer::authorizeUser(
 	{
 		p = passwd;
 		IndicateConfigChanged();
-	}
+
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsJsonApiEvent>();
+            ev->mJsonApiEventCode = RsJsonApiEventCode::TOKEN_LIST_CHANGED;
+            rsEvents->postEvent(ev);
+        }
+    }
 	return ec;
 }
 
@@ -692,30 +707,52 @@ RsSerialiser* JsonApiServer::setupSerialiser()
 {
 	RsSerialiser* rss = new RsSerialiser;
 	rss->addSerialType(new JsonApiConfigSerializer);
-	return rss;
+    return rss;
 }
 
 bool JsonApiServer::saveList(bool& cleanup, std::list<RsItem*>& saveItems)
 {
-	cleanup = false;
-	configMutex.lock();
-	saveItems.push_back(&mAuthTokenStorage);
-	return true;
+    cleanup = true;
+    configMutex.lock();
+
+    auto ita = new JsonApiServerAuthTokenStorage;
+    *ita = mAuthTokenStorage;
+    saveItems.push_back(ita);
+
+    JsonApiServerConfigItem *itm = new JsonApiServerConfigItem;
+    itm->mListeningPort = mListeningPort;
+    itm->mBindingAddress= mBindingAddress;
+
+    saveItems.push_back(itm);
+
+    std::cerr << "Saving auth tokens: " << std::endl;
+    for(auto it:mAuthTokenStorage.mAuthorizedTokens)
+        std::cerr << "  " << it.first << ":" << it.second << std::endl;
+    return true;
 }
 
 bool JsonApiServer::loadList(std::list<RsItem*>& loadList)
 {
 	for(RsItem* it : loadList)
-		switch (static_cast<JsonApiItemsType>(it->PacketSubType()))
-		{
-		case JsonApiItemsType::AuthTokenItem:
-			mAuthTokenStorage = *static_cast<JsonApiServerAuthTokenStorage*>(it);
-			delete it;
-			break;
-		default:
-			delete it;
-			break;
-		}
+    {
+        JsonApiServerAuthTokenStorage *au=dynamic_cast<JsonApiServerAuthTokenStorage*>(it);
+
+        if(au)
+            mAuthTokenStorage = *au;
+
+        JsonApiServerConfigItem *ac=dynamic_cast<JsonApiServerConfigItem*>(it);
+
+        if(ac)
+        {
+            mListeningPort = ac->mListeningPort;
+            mBindingAddress = ac->mBindingAddress;
+        }
+
+        delete it;
+    }
+    std::cerr << "Loaded auth tokens: " << std::endl;
+    for(auto it:mAuthTokenStorage.mAuthorizedTokens)
+        std::cerr << "  " << it.first << ":" << it.second << std::endl;
 	return true;
 }
 
@@ -726,11 +763,34 @@ void JsonApiServer::handleCorsOptions(
 { session->close(rb::NO_CONTENT, corsOptionsHeaders); }
 
 void JsonApiServer::registerResourceProvider(const JsonApiResourceProvider& rp)
-{ mResourceProviders.insert(rp); }
+{
+    mResourceProviders.insert(rp);
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsJsonApiEvent>();
+        ev->mJsonApiEventCode = RsJsonApiEventCode::SERVICE_LIST_CHANGED;
+        rsEvents->postEvent(ev);
+    }
+}
 void JsonApiServer::unregisterResourceProvider(const JsonApiResourceProvider& rp)
-{ mResourceProviders.erase(rp); }
+{
+    mResourceProviders.erase(rp);
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsJsonApiEvent>();
+        ev->mJsonApiEventCode = RsJsonApiEventCode::SERVICE_LIST_CHANGED;
+        rsEvents->postEvent(ev);
+    }
+}
 bool JsonApiServer::hasResourceProvider(const JsonApiResourceProvider& rp)
 { return mResourceProviders.find(rp) != mResourceProviders.end(); }
+
+const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& JsonApiServer::getResourceProviders() const
+{
+    return mResourceProviders;
+}
 
 std::vector<std::shared_ptr<rb::Resource> > JsonApiServer::getResources() const
 {
@@ -768,10 +828,21 @@ void JsonApiServer::onStopRequested()
 	auto tService = std::atomic_exchange(
 	            &mService, std::shared_ptr<rb::Service>(nullptr) );
 	if(tService) tService->stop();
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsJsonApiEvent>();
+        ev->mJsonApiEventCode = RsJsonApiEventCode::API_STOPPED;
+        rsEvents->postEvent(ev);
+    }
 }
 
 uint16_t JsonApiServer::listeningPort() const { return mListeningPort; }
-void JsonApiServer::setListeningPort(uint16_t p) { mListeningPort = p; }
+void JsonApiServer::setListeningPort(uint16_t p)
+{
+    mListeningPort = p;
+    IndicateConfigChanged();
+}
 void JsonApiServer::setBindingAddress(const std::string& bindAddress)
 { mBindingAddress = bindAddress; }
 std::string JsonApiServer::getBindingAddress() const { return mBindingAddress; }
@@ -798,16 +869,30 @@ void JsonApiServer::run()
 		 * service and therefore leaves the listening port open */
 		auto tExpected = std::shared_ptr<rb::Service>(nullptr);
 		if(atomic_compare_exchange_strong(&mService, &tExpected, tService))
-			tService->start(settings);
-		else
+        {
+            if(rsEvents)
+            {
+#ifdef DEBUG_JSONAPI
+                std::cerr << "Posting a JSONAPI event" << std::endl;
+#endif
+                auto ev = std::make_shared<RsJsonApiEvent>();
+                ev->mJsonApiEventCode = RsJsonApiEventCode::API_STARTED;
+                rsEvents->postEvent(ev);
+            }
+            tService->start(settings);
+        }
+        else
 		{
 			RsErr() << __PRETTY_FUNCTION__ << " mService was expected to be "
 			        << " null, instead we got: " << tExpected
 			        << " something wrong happened JsonApiServer won't start"
 			        << std::endl;
 			print_stacktrace();
+            throw std::runtime_error("mService was expected to be null. Something wrong happened JsonApiServer won't start");
 		}
-	}
+
+
+    }
 	catch(std::exception& e)
 	{
 		/* TODO: find a way to report back programmatically if failed listening
@@ -817,7 +902,7 @@ void JsonApiServer::run()
 		return;
 	}
 
-	RsDbg() << __PRETTY_FUNCTION__ << " finished!" << std::endl;
+    RsDbg() << __PRETTY_FUNCTION__ << " finished!" << std::endl;
 }
 
 /*static*/ void RsJsonApi::version(

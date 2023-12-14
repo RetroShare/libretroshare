@@ -42,6 +42,8 @@ struct RsUrl : RsSerializable
 	explicit RsUrl(const std::string& urlStr);
 	explicit RsUrl(const sockaddr_storage& ssas);
 
+	/* TODO: An URL string may be invalid so this function need a way to report
+	 * a parsing error occurred */
 	RsUrl& fromString(const std::string& urlStr);
 	std::string toString() const;
 

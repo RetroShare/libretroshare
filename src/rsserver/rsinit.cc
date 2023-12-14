@@ -50,6 +50,9 @@
 #include "plugins/pluginmanager.h"
 #include "retroshare/rsversion.h"
 #include "rsserver/rsloginhandler.h"
+#ifdef RS_WEBUI
+#include "jsonapi/p3webui.h"
+#endif
 #include "rsserver/rsaccounts.h"
 
 #ifdef RS_EMBEDED_FRIEND_SERVER
@@ -135,6 +138,7 @@ RsConfigOptions::RsConfigOptions()
 #ifdef RS_JSONAPI
           ,jsonApiPort(0)					// JSonAPI server is enabled in each main()
           ,jsonApiBindAddress("127.0.0.1")
+          ,enableWebUI(false)
 #endif
 {
 }
@@ -404,18 +408,6 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	if(!RsAccounts::init(rsInitConfig->optBaseDir,error_code))
 		return error_code ;
 
-#ifdef RS_JSONAPI
-	// We create the JsonApiServer this early, because it is needed *before* login
-    RsInfo() << "Allocating JSON API server (not launched yet)" ;
-	JsonApiServer* jas = new JsonApiServer();
-	jas->setListeningPort(conf.jsonApiPort);
-	jas->setBindingAddress(conf.jsonApiBindAddress);
-
-	if(conf.jsonApiPort != 0) jas->restart();
-
-	rsJsonApi = jas;
-#endif
-
 #ifdef RS_AUTOLOGIN
 	/* check that we have selected someone */
 	RsPeerId preferredId;
@@ -435,6 +427,100 @@ int RsInit::InitRetroShare(const RsConfigOptions& conf)
 	return RS_INIT_OK;
 }
 
+#ifdef RS_JSONAPI
+void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jsonapi)
+{
+    // We create the JsonApiServer this early, because it is needed *before* login
+    std::cerr << std::endl;
+    RsInfo() << "Configuring web services" ;
+
+    JsonApiServer* jas = new JsonApiServer();
+    bool jsonapi_needed = force_start_jsonapi;
+
+    // add jsonapi server to config manager so that it can save/load its tokens
+    p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
+
+    if(cfgmgr != nullptr)
+        jas->connectToConfigManager(*cfgmgr);	// forces load config.
+
+    if(conf.jsonApiPort >= 1024)
+    {
+        RsInfo() << "  Using supplied listening port " << conf.jsonApiPort ;
+        jas->setListeningPort(conf.jsonApiPort);
+    }
+    else
+        RsInfo() << "  Using default port " << jas->listeningPort() ;
+
+    if(!conf.jsonApiBindAddress.empty())
+    {
+        RsInfo() << "  Using supplied binding address " << conf.jsonApiBindAddress ;
+        jas->setBindingAddress(conf.jsonApiBindAddress);
+    }
+    else
+        RsInfo() << "  Using default binding address " << jas->getBindingAddress() ;
+
+#ifdef RS_WEBUI
+    if(conf.enableWebUI)
+    {
+        // If passwd is supplied for webui, use it. Otherwise, keep the last one,
+        // saved in the jsonapi tokens list.
+
+        std::string webui_passwd;
+        RsInfo() << "  Service: WEB Interface." ;
+
+        if(!conf.webUIPasswd.empty())
+        {
+            webui_passwd = conf.webUIPasswd;
+            RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
+        }
+        else
+        {
+            const auto passwd_it = jas->getAuthorizedTokens().find("webui");
+            if(passwd_it != jas->getAuthorizedTokens().end() && !passwd_it->second.empty())
+            {
+                RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
+                webui_passwd = passwd_it->second;
+            }
+            else
+                RsInfo() << "    No supplied passwd for WEB Interface. Please use the appropriate commandline option." ;
+        }
+        RsInfo() << "    Using webui files from: " << rsWebUi->htmlFilesDirectory() << std::endl;
+
+        if(!webui_passwd.empty())
+        {
+            p3WebUI *webui = dynamic_cast<p3WebUI*>(rsWebUi);
+
+            if(!webui)
+                RsErr() << "    rsWebUI is not of type p3WebUI. This is really unexpected! Cannot launch web interface." ;
+            else
+            {
+                RsInfo() << "    Enabling WEB Interface." ;
+
+                jas->authorizeUser("webui", webui_passwd);
+                jas->registerResourceProvider(*webui);
+                jsonapi_needed = true;
+            }
+        }
+        else
+        {
+            RsErr() << "    Cannot start web UI. Please configure it manually." ;
+            jas->revokeAuthToken("webui");
+        }
+    }
+#endif
+
+    if(jsonapi_needed)
+    {
+        RsInfo() << "  Starting JSON API." ;
+        jas->restart();
+        RsInfo() << "  Done." ;
+    }
+    else
+        RsInfo() << "  Not starting JSON API, since it is currently not required by any service." ;
+
+    rsJsonApi = jas;
+}
+#endif
 
 /*
  * To prevent several running instances from using the same directory
@@ -854,7 +940,9 @@ int RsServer::StartupRetroShare()
 	/**************************************************************************/
 
 	/* set the debugging to crashMode */
+#ifdef DEBUG
 	std::cerr << "set the debugging to crashMode." << std::endl;
+#endif
 	if ((!rsInitConfig->haveLogFile) && (!rsInitConfig->outStderr))
 	{
 		std::string crashfile = RsAccounts::AccountDirectory();
@@ -909,7 +997,9 @@ int RsServer::StartupRetroShare()
 	/**************************************************************************/
 	/* setup classes / structures */
 	/**************************************************************************/
+#ifdef DEBUG
 	std::cerr << "setup classes / structures" << std::endl;
+#endif
 
 	/* History Manager */
 	mHistoryMgr = new p3HistoryMgr();
@@ -1246,11 +1336,6 @@ int RsServer::StartupRetroShare()
 	// 	programatically_inserted_plugins.push_back(myCoolPlugin) ;
 	//
 	mPluginsManager->loadPlugins(programatically_inserted_plugins) ;
-
-#ifdef RS_JSONAPI
-	// add jsonapi server to config manager so that it can save/load its tokens
-	if(rsJsonApi) rsJsonApi->connectToConfigManager(*mConfigMgr);
-#endif
 
     	/**** Reputation system ****/
 
@@ -1931,7 +2016,23 @@ int RsServer::StartupRetroShare()
 	// rsDisc & RsMsgs done already.
 	rsBandwidthControl = mBwCtrl;
 
-	
+    // register all db in a list, so that we can properly close them on quit.
+    mRegisteredDataServices.push_back(gxsid_ds);
+    mRegisteredDataServices.push_back(gxsforums_ds);
+    mRegisteredDataServices.push_back(gxschannels_ds);
+    mRegisteredDataServices.push_back(gxscircles_ds);
+    mRegisteredDataServices.push_back(gxstrans_ds);
+    mRegisteredDataServices.push_back(posted_ds);
+#ifdef RS_USE_WIRE
+    mRegisteredDataServices.push_back(wire_ds);
+#endif
+#ifdef RS_USE_PHOTO
+    mRegisteredDataServices.push_back(photo_ds);
+#endif
+#ifdef RS_USE_WIKI
+    mRegisteredDataServices.push_back(wiki_ds);
+#endif
+
 	rsStatus = new p3Status(mStatusSrv);
 	rsHistory = new p3History(mHistoryMgr);
 

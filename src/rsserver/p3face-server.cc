@@ -128,7 +128,8 @@ RsServer::RsServer() :
 
 RsServer::~RsServer()
 {
-	delete mGxsTrans;
+    // don't delete anything here, because databases are deleted elsewhere, and multiple inheritance make the deletion of databases
+    // a deletion of the associated services.
 }
 
 // General Internal Helper Functions  ----> MUST BE LOCKED! 

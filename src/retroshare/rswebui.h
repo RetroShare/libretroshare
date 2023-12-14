@@ -61,6 +61,13 @@ public:
 	virtual std::error_condition setHtmlFilesDirectory(
 	        const std::string& htmlDir ) = 0;
 
+    /**
+     * @brief Get WebUI static files directory
+     * @return html files directory path
+     * @jsonapi{development}
+     */
+    virtual std::string htmlFilesDirectory() const=0;
+
 	/**
 	 * @brief Set WebUI user password
 	 * @param[in] password new password for WebUI

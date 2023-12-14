@@ -43,6 +43,7 @@ enum MimeTypeIndex
 {
 	TEXT_HTML,
 	TEXT_CSS,
+	APPLICATION_JAVASCRIPT,
 	TEXT_SVG,
 	TEXT_TTF,
 	TEXT_WOFF,
@@ -53,6 +54,7 @@ static const constexpr char* const mime_types[] =
 {
 	"text/html",
 	"text/css",
+	"application/javascript",
 	"image/svg+xml",
 	"font/ttf",
 	"font/woff",
@@ -117,44 +119,46 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		auto resource1 = std::make_shared< restbed::Resource >();
 		resource1->set_paths( {
 		                          "/{filename: index.html}",
-		                          "/{filename: app.js}",
-		                      }
-		                      );
+		                      } );
 		resource1->set_method_handler( "GET", handler<TEXT_HTML>::get_handler );
 
 		auto resource2 = std::make_shared< restbed::Resource >();
 		resource2->set_paths( {
-		                          "/{dir: css}/{filename: fontawesome.css}",
-		                          "/{dir: css}/{filename: solid.css}",
-		                          "/{filename: app.css}",
+		                          "/{filename: app.js}",
 		                      } );
-		resource2->set_method_handler( "GET", handler<TEXT_CSS>::get_handler );
+		resource2->set_method_handler( "GET", handler<APPLICATION_JAVASCRIPT>::get_handler );
 
 		auto resource3 = std::make_shared< restbed::Resource >();
 		resource3->set_paths( {
-		                          "/{dir: data}/{filename: retroshare.svg}",
-		                          "/{dir: webfonts}/{filename: fa-solid-900.svg}",
+		                          "/{filename: styles.css}",
 		                      } );
-		resource3->set_method_handler( "GET", handler<TEXT_SVG>::get_handler );
+		resource3->set_method_handler( "GET", handler<TEXT_CSS>::get_handler );
 
 		auto resource4 = std::make_shared< restbed::Resource >();
 		resource4->set_paths( {
-		                          "/{dir: webfonts}/{filename: fa-solid-900.ttf}",
+		                          "/{dir: images}/{filename: retroshare.svg}",
+		                          "/{dir: webfonts}/{filename: fa-solid-900.svg}",
 		                      } );
-		resource4->set_method_handler( "GET", handler<TEXT_TTF>::get_handler );
+		resource4->set_method_handler( "GET", handler<TEXT_SVG>::get_handler );
 
 		auto resource5 = std::make_shared< restbed::Resource >();
 		resource5->set_paths( {
-		                          "/{dir: webfonts}/{filename: fa-solid-900.woff}",
-		                          "/{dir: webfonts}/{filename: fa-solid-900.woff2}",
+		                          "/{dir: webfonts}/{filename: fa-solid-900.ttf}",
 		                      } );
-		resource5->set_method_handler( "GET", handler<TEXT_WOFF>::get_handler );
+		resource5->set_method_handler( "GET", handler<TEXT_TTF>::get_handler );
 
 		auto resource6 = std::make_shared< restbed::Resource >();
 		resource6->set_paths( {
+		                          "/{dir: webfonts}/{filename: fa-solid-900.woff}",
+		                          "/{dir: webfonts}/{filename: fa-solid-900.woff2}",
+		                      } );
+		resource6->set_method_handler( "GET", handler<TEXT_WOFF>::get_handler );
+
+		auto resource7 = std::make_shared< restbed::Resource >();
+		resource7->set_paths( {
 		                          "/{dir: webfonts}/{filename: fa-solid-900.eot}",
 		                      } );
-		resource6->set_method_handler( "GET", handler<APPLICATION_OCTET_STREAM>::get_handler );
+		resource7->set_method_handler( "GET", handler<APPLICATION_OCTET_STREAM>::get_handler );
 
 		rtab.push_back(resource1);
 		rtab.push_back(resource2);
@@ -162,15 +166,22 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		rtab.push_back(resource4);
 		rtab.push_back(resource5);
 		rtab.push_back(resource6);
+		rtab.push_back(resource7);
 	}
 
 	return rtab;
 }
 
+std::string p3WebUI::htmlFilesDirectory() const
+{
+    return _base_directory;
+}
 
 std::error_condition p3WebUI::setHtmlFilesDirectory(const std::string& html_dir)
 {
+#ifdef DEBUG
 	RS_DBG("html_dir: ", html_dir);
+#endif
 
 	if(!RsDirUtil::checkDirectory(html_dir))
 	{
@@ -203,7 +214,9 @@ std::error_condition p3WebUI::setUserPassword(const std::string& passwd)
 
 std::error_condition p3WebUI::restart()
 {
-    rsJsonApi->registerResourceProvider(*this);
+    if(!rsJsonApi->hasResourceProvider(*this))
+        rsJsonApi->registerResourceProvider(*this);
+
     return rsJsonApi->restart(true);
 }
 

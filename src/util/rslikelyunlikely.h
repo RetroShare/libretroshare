@@ -1,9 +1,10 @@
 /*******************************************************************************
- * libretroshare/src/util: rsprint.h                                           *
+ * RetroShare C++20 likely/unlikely backwards compatibility utilities          *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright 2008-2008 Robert Fernie <retroshare@lunamutt.com>                 *
+ * Copyright (C) 2023  Gioacchino Mazzurco <gio@retroshare.cc>                 *
+ * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -19,32 +20,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
-#ifndef RSUTIL_PRINTFNS_H
-#define RSUTIL_PRINTFNS_H
 
-#include <inttypes.h>
-#include <string>
-#include <vector>
+#pragma once
 
-namespace RsUtil {
-
-std::string BinToHex(const std::string &bin);
-std::string BinToHex(const char *arr, const uint32_t len);
-
-// proxy function. When max_len>0 and len>max_len, only the first "max_len" bytes are writen to the string and "..." is happened.
-
-std::string BinToHex(const unsigned char *arr, const uint32_t len, uint32_t max_len=0);
-bool HexToBin(const std::string& input,unsigned char *data, const uint32_t len);
-std::string NumberToString(uint64_t n,bool hex=false,char padchar=' ',int total_size=0);
-
-// Returns in n the int that can be read in the string. Returns false when no int is fond.
-bool StringToInt(const std::string& s,int& n);
-
-std::string HashId(const std::string &id, bool reverse = false);
-std::vector<uint8_t> BinToSha256(const std::vector<uint8_t> &in);
-
-//std::string AccurateTimeString();
-
-}
-	
-#endif
+#if __cplusplus >= 202002L
+#	define RS_LIKELY [[likely]]
+#	define RS_UNLIKELY [[unlikely]]
+#else // __cplusplus >= 202002L
+#	define RS_LIKELY
+#	define RS_UNLIKELY
+#endif // __cplusplus >= 202002L

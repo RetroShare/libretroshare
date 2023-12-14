@@ -50,6 +50,8 @@ public:
 
 	inline bool operator< (const JsonApiResourceProvider& rp) const
 	{ return this < &rp; }
+
+    virtual std::string getName() const = 0;
 };
 
 /**
@@ -63,7 +65,10 @@ public:
 
 	std::vector<std::shared_ptr<rb::Resource>> getResources() const;
 
-	/// @see RsJsonApi
+    /// @see RsJsonApi
+    const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& getResourceProviders() const override;
+
+    /// @see RsJsonApi
 	void fullstop() override { RsThread::fullstop(); }
 
 	/// @see RsJsonApi

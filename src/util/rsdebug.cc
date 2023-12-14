@@ -93,6 +93,8 @@ std::ostream& hex_dump(std::ostream& os, const void *buffer,
 ////////////////////////////////////////////////////////////////////////////////
 /// All the following lines are DEPRECATED!!
 
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
+
 #include <map>
 #include <cstdio>
 
@@ -170,7 +172,9 @@ int setDebugCrashMode(const char *cfile)
 
 	if (0 < locked_setDebugFile(crashfile.c_str()))
 	{
-		fprintf(stderr, "Switching To CrashLog Mode!\n");
+#ifdef DEBUG
+        fprintf(stderr, "Switching To CrashLog Mode!\n");
+#endif
 		debugMode = RS_DEBUG_LOGCRASH;
 		lineCount = 0;
 		debugTS = time(NULL);
@@ -258,6 +262,9 @@ void rslog(const RsLog::logLvl lvl, RsLog::logInfo *info, const std::string &msg
 		lineCount++;
 	}
 }
+
+#endif // ndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
+
 /// All the lines before are DEPRECATED!!
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
