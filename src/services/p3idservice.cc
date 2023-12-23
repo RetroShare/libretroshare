@@ -682,8 +682,9 @@ void p3IdService::notifyChanges(std::vector<RsGxsNotify *> &changes)
 						// also time_stamp the key that this group represents
 						timeStampKey(RsGxsId(gid),RsIdentityUsage(RsServiceType(serviceType()),RsIdentityUsage::IDENTITY_NEW_FROM_GXS_SYNC)) ;
                         should_subscribe = true;
-
+#ifdef DEBUG_IDS
                         std::cerr << "Received new identity " << gid << " and subscribing to it" << std::endl;
+#endif
                     }
                         break;
 
@@ -3074,7 +3075,6 @@ void p3IdService::requestIdsFromNet()
 #ifdef DEBUG_IDS
 			std::cerr << __PRETTY_FUNCTION__ << ". Dropping request for ID " << cit->first << " at last minute, because it was found in cache"<< std::endl;
 #endif
-            std::cerr << __PRETTY_FUNCTION__ << ". Dropping request for ID " << cit->first << " at last minute, because it was found in cache"<< std::endl;
             auto tmp(cit);
             ++tmp;
             mIdsNotPresent.erase(cit);
