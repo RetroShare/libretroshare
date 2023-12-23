@@ -475,11 +475,12 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
         }
         else
         {
-            const auto passwd_it = jas->getAuthorizedTokens().find("webui");
-            if(passwd_it != jas->getAuthorizedTokens().end() && !passwd_it->second.empty())
+            const auto tokens = jas->getAuthorizedTokens();
+            const auto passwd_it = tokens.find("webui");
+            if(passwd_it != tokens.end() && !passwd_it->second.empty())
             {
-                RsInfo() << "    Using supplied web interface passwd \"" << conf.webUIPasswd << "\"" ;
                 webui_passwd = passwd_it->second;
+                RsInfo() << "    Using supplied web interface passwd \"" << webui_passwd << "\"" ;
             }
             else
                 RsInfo() << "    No supplied passwd for WEB Interface. Please use the appropriate commandline option." ;
