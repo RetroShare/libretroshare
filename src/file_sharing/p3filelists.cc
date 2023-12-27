@@ -1666,11 +1666,12 @@ void p3FileDatabase::handleDirSyncRequest(RsFileListsSyncRequestItem *item)
 	// look at item TS. If local is newer, send the full directory content.
 	{
 		RS_STACK_MUTEX(mFLSMtx);
-
+#ifdef DEBUG_P3FILELISTS
 		RS_DBG( "Received directory sync request from peer ", item->PeerId(),
 		        ". hash=", item->entry_hash, ", flags=", item->flags,
 		        ", request id: ", item->request_id, ", last known TS: ",
 		        item->last_known_recurs_modf_TS );
+#endif
 
 		EntryIndex entry_index = DirectoryStorage::NO_INDEX;
 		if(!mLocalSharedDirs->getIndexFromDirHash(item->entry_hash,entry_index))
