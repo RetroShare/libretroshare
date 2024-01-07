@@ -46,6 +46,7 @@ class RsWireGroup: public RsGxsGenericGroupData
 
 	std::string mTagline;
 	std::string mLocation;
+    std::string mDescription;
 
 	// Images max size should be enforced.
 	RsGxsImage  mHeadshot; // max size?
@@ -243,6 +244,10 @@ virtual bool getPulsesForGroups(const std::list<RsGxsGroupId> &groupIds,
 	// Provide pulse, and associated replies / like etc.
 virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId,
 				int type, RsWirePulseSPtr &pPulse) = 0;
+
+    // Retrieve statistics about the given wire
+    virtual bool getWireStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) =0;
+
 
 };
 

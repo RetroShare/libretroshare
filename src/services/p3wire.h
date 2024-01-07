@@ -82,6 +82,8 @@ public:
 
 	virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId, int type, RsWirePulseSPtr &pPulse) override;
 
+    bool getWireStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat) override;
+
 private:
 	// Internal Service Data.
 	// They should eventually all be here.

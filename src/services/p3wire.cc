@@ -1495,3 +1495,11 @@ bool p3Wire::fetchGroupPtrs(const std::list<RsGxsGroupId> &groupIds,
 	return getGroupPtrData(token, groups);
 }
 
+bool p3Wire::getWireStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat)
+{
+    uint32_t token;
+    if(!RsGxsIfaceHelper::requestGroupStatistic(token, groupId) || waitToken(token) != RsTokenService::COMPLETE)
+        return false;
+
+    return RsGenExchange::getGroupStatistic(token,stat);
+}
