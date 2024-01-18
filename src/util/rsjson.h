@@ -37,6 +37,15 @@ typedef rapidjson::Document RsJson;
 std::ostream& operator<<(std::ostream &out, const RsJson &jDoc);
 
 /**
+ * Print out RapidJSON Value to a stream, use std::ostringstream to get the
+ * string
+ * @param[out] out output stream
+ * @param[in] jValue JSON document to print
+ * @return same output stream passed as out parameter
+ */
+std::ostream& operator<<(std::ostream &out, const rapidjson::Value &jValue);
+
+/**
  * Stream manipulator to print RsJson in compact format
  * @param[out] out output stream
  * @return same output stream passed as out parameter

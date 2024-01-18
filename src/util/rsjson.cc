@@ -59,3 +59,21 @@ std::ostream& operator<<(std::ostream &out, const RsJson &jDoc)
 
 	return out << buffer.GetString();
 }
+
+
+std::ostream& operator<<(std::ostream &out, const rapidjson::Value& jValue)
+{
+	rapidjson::StringBuffer buffer; buffer.Clear();
+	if(out.iword(getJsonManipulatorStatePosition()))
+	{
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		jValue.Accept(writer);
+	}
+	else
+	{
+		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+		jValue.Accept(writer);
+	}
+
+	return out << buffer.GetString();
+}

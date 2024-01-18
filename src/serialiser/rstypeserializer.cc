@@ -758,3 +758,36 @@ void RsTypeSerializer::ErrConditionWrapper::serial_process(
 	default: RsTypeSerializer::fatalUnknownSerialJob(j);
 	}
 }
+
+
+//============================================================================//
+//                                 RsJson                                     //
+//============================================================================//
+
+
+template<>  /*static*/
+bool RsTypeSerializer::to_JSON( const std::string& memberName,
+                                const RsJson& jsonMember, RsJson& jDoc )
+{
+	rapidjson::Document::AllocatorType& allocator =
+	        jDoc.GetAllocator();
+
+	rapidjson::Value key;
+	key.SetString( memberName.c_str(),
+	               static_cast<rapidjson::SizeType>(memberName.length()),
+	               allocator );
+
+	rapidjson::Value value(jsonMember, allocator);
+	jDoc.AddMember(key, value, allocator);
+
+	return true;
+}
+
+template<> /*static*/
+bool RsTypeSerializer::from_JSON( const std::string& memberName,
+                                  RsJson& member, RsJson& jDoc )
+{
+	SAFE_GET_JSON_V();
+	member.CopyFrom(v, member.GetAllocator());
+	return ret;
+}
