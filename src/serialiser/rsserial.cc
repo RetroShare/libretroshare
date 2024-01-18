@@ -393,10 +393,13 @@ RsItem *    RsSerialiser::deserialise(void *data, uint32_t *size)
 #endif
 		return NULL;
 	}
-	if(pkt_size > getRsPktMaxSize())
+	if(pkt_size > RsSerialiser::MAX_SERIAL_SIZE)
 	{
-	   std::cerr << "(EE) trying to deserialise a packet with absurdely large size " << pkt_size << ". This means there's a bug upward or packet corruption. Packet content: " << RsUtil::BinToHex((unsigned char*)data,std::min(300u,pkt_size)) ;
-	   return NULL ;
+		RS_ERR("Attempt to deserialise a packet with absurdely large size ")
+		        << pkt_size << ". This means there's a bug upward or packet "
+		        << "corruption. Packet content: "
+		        << hexDump(data, std::min(300u,pkt_size));
+		return nullptr;
 	}
 
 	/* store the packet size to return the amount we should use up */
@@ -430,50 +433,46 @@ RsItem *    RsSerialiser::deserialise(void *data, uint32_t *size)
 	RsItem *item = (it->second)->deserialise(data, &pkt_size);
 	if (!item)
 	{
-#ifdef  RSSERIAL_ERROR_DEBUG
-		std::cerr << "RsSerialiser::deserialise() ERROR Failed!";
-		std::cerr << std::endl;
-		std::cerr << "RsSerialiser::deserialise() pkt_size: " << pkt_size << " vs *size: " << *size;
-        std::cerr << std::endl;
-
-        //RsItem *item2 = (it->second)->deserialise(data, &pkt_size);
-
+#ifdef RSSERIAL_ERROR_DEBUG
 		uint32_t failedtype = getRsItemId(data);
-		std::cerr << "RsSerialiser::deserialise() FAILED PACKET Size: ";
-		std::cerr << getRsItemSize(data) << " ID: ";
-		std::cerr << std::hex << failedtype << std::endl;
-		std::cerr << "RsSerialiser::deserialise() FAILED PACKET: ";
-		std::cerr << " Version: " << std::hex << (uint32_t) getRsItemVersion(failedtype) << std::dec;
-		std::cerr << " Class: " << std::hex << (uint32_t) getRsItemClass(failedtype) << std::dec;
-		std::cerr << " Type: " << std::hex << (uint32_t) getRsItemType(failedtype) << std::dec;
-		std::cerr << " SubType: " << std::hex << (uint32_t) getRsItemSubType(failedtype) << std::dec;
-        std::cerr << " Data: " << RsUtil::BinToHex((char*)data,pkt_size).substr(0,300) << std::endl;
-        std::cerr << std::endl;
+		RS_ERR("Failed!")
+		        << std::endl
+		        << "pkt_size: " << pkt_size << " vs *size: " << *size
+		        << std::endl
+		        << std::hex
+		        << "Size: " << getRsItemSize(data)
+		        << " ID: " << failedtype << std::endl
+		        << " Version: "  << (uint32_t) getRsItemVersion(failedtype)
+		        << " Class: " << (uint32_t) getRsItemClass(failedtype)
+		        << " Type: " << (uint32_t) getRsItemType(failedtype)
+		        << " SubType: " << (uint32_t) getRsItemSubType(failedtype)
+		        << " Data: " << hexDump(data, std::min<size_t>(pkt_size, 300))
+		        << std::dec
+		        << std::endl;
 #endif
-		return NULL;
+		return nullptr;
 	}
 
-	if (pkt_size != *size)
+#ifdef RSSERIAL_ERROR_DEBUG
+	if(pkt_size != *size)
 	{
-#ifdef  RSSERIAL_ERROR_DEBUG
-		std::cerr << "RsSerialiser::deserialise() ERROR: size mismatch!";
-		std::cerr << std::endl;
-		std::cerr << "RsSerialiser::deserialise() pkt_size: " << pkt_size << " vs *size: " << *size;
-		std::cerr << std::endl;
-
 		uint32_t failedtype = getRsItemId(data);
-		std::cerr << "RsSerialiser::deserialise() FAILED PACKET Size: ";
-		std::cerr << getRsItemSize(data) << " ID: ";
-		std::cerr << std::hex << failedtype << std::dec;
-		std::cerr << "RsSerialiser::deserialise() FAILED PACKET: ";
-		std::cerr << " Version: " << std::hex << (uint32_t) getRsItemVersion(failedtype) << std::dec;
-		std::cerr << " Class: " << std::hex << (uint32_t) getRsItemClass(failedtype) << std::dec;
-		std::cerr << " Type: " << std::hex << (uint32_t) getRsItemType(failedtype) << std::dec;
-        std::cerr << " SubType: " << std::hex << (uint32_t) getRsItemSubType(failedtype) << std::dec;
-        std::cerr << " Data: " << RsUtil::BinToHex((char*)data,pkt_size).substr(0,300) << std::endl;
-		std::cerr << std::endl;
-#endif
+		RS_ERR("size mismatch!")
+		        << std::endl
+		        << "pkt_size: " << pkt_size << " vs *size: " << *size
+		        << std::endl
+		        << "FAILED PACKET Size: " << getRsItemSize(data)
+		        << std::hex
+		        << " ID: " << failedtype
+		        << " Version: " << (uint32_t) getRsItemVersion(failedtype)
+		        << " Class: " << (uint32_t) getRsItemClass(failedtype)
+		        << " Type: " << (uint32_t) getRsItemType(failedtype)
+		        << " SubType: " << (uint32_t) getRsItemSubType(failedtype)
+		        << " Data: " << hexDump(data, std::min<size_t>(pkt_size ,300))
+		        << std::endl;
 	}
+#endif
+
 	return item;
 }
 
@@ -538,26 +537,32 @@ uint16_t  getRsItemService(uint32_t type)
 
 std::ostream &printRsItemBase(std::ostream &out, std::string clsName, uint16_t indent)
 {
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
         printIndent(out, indent);
 	out << "RsItem: " << clsName << " ####################################";
         out << std::endl;
+#endif
         return out;
 }
 
 std::ostream &printRsItemEnd(std::ostream &out, std::string clsName, uint16_t indent)
 {
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
         printIndent(out, indent);
         out << "###################### " << clsName << " #####################";
         out << std::endl;
+#endif
 	return out;
 }
 
 std::ostream &RsRawItem::print(std::ostream &out, uint16_t indent)
 {
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
         printRsItemBase(out, "RsRawItem", indent);
 	printIndent(out, indent);
 	out << "Size: " << len << std::endl;
 	printRsItemEnd(out, "RsRawItem", indent);
+#endif
 	return out;
 }
 

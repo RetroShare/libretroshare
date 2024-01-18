@@ -37,7 +37,8 @@ RsItem *RsServiceSerializer::deserialise(void *data, uint32_t *size)
 	{
 		RsErr() << __PRETTY_FUNCTION__ << " Called with inconsistent parameters data: " << std::endl;
 		if(data)
-			RsErr() << "Data is: " << RsUtil::BinToHex(static_cast<uint8_t*>(data),std::min(50u,*size)) << ((*size>50)?"...":"") << std::endl;
+			RsErr() << "Data is: " << hexDump(data, std::min(50u,*size))
+			        << ((*size>50)?"...":"") << std::endl;
 		else
 			RsErr() << "Null Data" << std::endl;
 
@@ -62,9 +63,13 @@ RsItem *RsServiceSerializer::deserialise(void *data, uint32_t *size)
 
 	if(!item)
 	{
-		std::cerr << "(EE) " << typeid(*this).name() << ": cannot deserialise unknown item subtype " << std::hex << (int)getRsItemSubType(rstype) << std::dec << std::endl;
-        std::cerr << "(EE) Data is: " << RsUtil::BinToHex(static_cast<uint8_t*>(data),std::min(50u,*size)) << ((*size>50)?"...":"") << std::endl;
-		return NULL ;
+		RS_ERR(typeid(*this).name())
+		        << ": cannot deserialise unknown item subtype "
+		        << std::hex << (int)getRsItemSubType(rstype) << std::dec
+		        << std::endl
+		        << "Data is: " << hexDump(data,std::min(50u,*size))
+		        << ((*size>50)?"...":"") << std::endl;
+		return nullptr;
 	}
 
 	SerializeContext ctx(
@@ -76,7 +81,7 @@ RsItem *RsServiceSerializer::deserialise(void *data, uint32_t *size)
 
 	if(ctx.mSize < ctx.mOffset)
 	{
-		std::cerr << "RsSerializer::deserialise(): ERROR. offset does not match expected size!" << std::endl;
+		RS_ERR("offset does not match expected size!");
         delete item ;
 		return NULL ;
 	}
@@ -104,9 +109,16 @@ RsItem *RsConfigSerializer::deserialise(void *data, uint32_t *size)
 
 	if(!item)
 	{
-		std::cerr << "(EE) " << typeid(*this).name() << ": cannot deserialise unknown item subtype " << std::hex << (int)getRsItemSubType(rstype) << std::dec << std::endl;
-        std::cerr << "(EE) Data is: " << RsUtil::BinToHex(static_cast<uint8_t*>(data),std::min(50u,*size)) << ((*size>50)?"...":"") << std::endl;
-		return NULL ;
+		RS_ERR( typeid(*this).name(),
+		        ": cannot deserialise unknown item subtype ",
+		        std::hex, (int) getRsItemSubType(rstype), std::dec )
+#ifndef RS_DISABLE_DEPRECATED_DEBUG_UTILS
+		        << " Data is: "
+		        << RsUtil::BinToHex(static_cast<uint8_t*>(data), std::min(50u,*size))
+		        << ((*size>50)?"...":"") << std::endl
+#endif // RS_DISABLE_DEPRECATED_DEBUG_UTILS
+		           ;
+		return nullptr;
 	}
 
 	SerializeContext ctx(
