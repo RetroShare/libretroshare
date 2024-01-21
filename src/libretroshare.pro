@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: (C) 2004-2021 Retroshare Team <contact@retroshare.cc>
+# SPDX-FileCopyrightText: (C) 2004-2024 Retroshare Team <contact@retroshare.cc>
 # SPDX-License-Identifier: CC0-1.0
 
 !include("../../retroshare.pri"): error("Could not include file ../../retroshare.pri")
@@ -658,6 +658,7 @@ SOURCES +=	util/folderiterator.cc \
 			util/rsrandom.cc \
 			util/rstickevent.cc \
 			util/rsrecogn.cc \
+            util/rsstacktrace.cc \
             util/rstime.cc \
             util/rsurl.cc \
             util/rsbase64.cc

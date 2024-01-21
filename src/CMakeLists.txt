@@ -613,6 +613,7 @@ list(
 	util/rsdnsutils.cc
 	util/rsnet.cc
 	util/rsnet_ss.cc
+	util/rsstacktrace.cc
 	util/rsthreads.cc )
 
 # util/i2pcommon.cpp
