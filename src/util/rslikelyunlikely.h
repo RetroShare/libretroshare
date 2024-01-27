@@ -1,8 +1,10 @@
 /*******************************************************************************
+ * RetroShare C++20 likely/unlikely backwards compatibility utilities          *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
- * Copyright (C) 2018  Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2023  Gioacchino Mazzurco <gio@retroshare.cc>                 *
+ * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -19,61 +21,12 @@
  *                                                                             *
  *******************************************************************************/
 
-#include <rapidjson/writer.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/prettywriter.h>
+#pragma once
 
-#include "util/rsjson.h"
-
-inline int getJsonManipulatorStatePosition()
-{
-	static int p = std::ios_base::xalloc();
-	return p;
-}
-
-std::ostream& compactJSON(std::ostream &out)
-{
-	out.iword(getJsonManipulatorStatePosition()) = 1;
-	return out;
-}
-
-std::ostream& prettyJSON(std::ostream &out)
-{
-	out.iword(getJsonManipulatorStatePosition()) = 0;
-	return out;
-}
-
-std::ostream& operator<<(std::ostream &out, const RsJson &jDoc)
-{
-	rapidjson::StringBuffer buffer; buffer.Clear();
-	if(out.iword(getJsonManipulatorStatePosition()))
-	{
-		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-		jDoc.Accept(writer);
-	}
-	else
-	{
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-		jDoc.Accept(writer);
-	}
-
-	return out << buffer.GetString();
-}
-
-
-std::ostream& operator<<(std::ostream &out, const rapidjson::Value& jValue)
-{
-	rapidjson::StringBuffer buffer; buffer.Clear();
-	if(out.iword(getJsonManipulatorStatePosition()))
-	{
-		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-		jValue.Accept(writer);
-	}
-	else
-	{
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-		jValue.Accept(writer);
-	}
-
-	return out << buffer.GetString();
-}
+#if __cplusplus >= 202002L
+#	define RS_LIKELY [[likely]]
+#	define RS_UNLIKELY [[unlikely]]
+#else // __cplusplus >= 202002L
+#	define RS_LIKELY
+#	define RS_UNLIKELY
+#endif // __cplusplus >= 202002L

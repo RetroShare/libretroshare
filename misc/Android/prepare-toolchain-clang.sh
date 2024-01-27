@@ -98,8 +98,8 @@ define_default_value TIFF_SOURCE_SHA256 eb0484e568ead8fa23b513e9b0041df7e327f4ee
 define_default_value CIMG_SOURCE_VERSION "2.9.7"
 define_default_value CIMG_SOURCE_SHA256 595dda9718431a123b418fa0db88e248c44590d47d9b1646970fa0503e27fa5c
 
-define_default_value PHASH_SOURCE_REPO "https://gitlab.com/g10h4ck/pHash.git"
-define_default_value PHASH_SOURCE_VERSION origin/android-ndk
+define_default_value PHASH_SOURCE_REPO "https://github.com/RetroShare/pHash.git"
+define_default_value PHASH_SOURCE_VERSION origin/master
 
 define_default_value MVPTREE_SOURCE_REPO "https://github.com/starkdg/mvptree.git"
 define_default_value MVPTREE_SOURCE_VERSION origin/master
@@ -824,6 +824,7 @@ build_libretroshare()
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
 		-D RS_SQLCIPHER=OFF -D RS_DH_PRIME_INIT_CHECK=OFF \
 		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
+		-D RS_LIBRETROSHARE_STANDALONE_INSTALL=ON \
 		$RS_EXTRA_CMAKE_OPTS || return $?
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?

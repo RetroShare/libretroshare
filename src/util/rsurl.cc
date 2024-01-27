@@ -1,6 +1,8 @@
 /*
  * RetroShare
- * Copyright (C) 2018-2019  Gioacchino Mazzurco <gio@eigenlab.org>
+ *
+ * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@retroshare.cc>
+ * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -76,6 +78,16 @@ RsUrl& RsUrl::fromString(const std::string& urlStr)
 		if(++hostBeginI >= endI) return *this;
 		hostEndI = urlStr.find(ipv6WrapClose, hostBeginI);
 		mHost = urlStr.substr(hostBeginI, hostEndI - hostBeginI);
+
+		/* Deal with scope id separator % in URLs with Link-Local IPv6 addresses
+		 * as per RFC. There must be just one near the end, so look only for
+		 * last occurrence */
+		const std::string decodedSIS = std::string(1, IPV6_SCOPE_ID_SEPARATOR);
+		const auto encodedSIS = UrlEncode(decodedSIS);
+		const auto scopeIdPos = mHost.rfind(encodedSIS);
+		if(scopeIdPos < string::npos)
+			mHost.replace(scopeIdPos, encodedSIS.size(), decodedSIS);
+
 		++hostEndI;
 	}
 	else
@@ -138,9 +150,22 @@ std::string RsUrl::toString() const
 
 	if(!mHost.empty())
 	{
-		if(mHost.find(ipv6Separator) != string::npos &&
-		        mHost[0] != ipv6WrapOpen[0] )
-			urlStr += ipv6WrapOpen + mHost + ipv6WrapClose;
+		if(mHost.find(ipv6Separator) != string::npos)
+		{
+			std::string hostCopy = mHost;
+
+			/* The result is not that readable but % in Link-Local IPv6
+			 * addresses need to be escaped as %25 in URL string representation
+			 * as per RFC */
+			const auto scopeSepPos = hostCopy.find(IPV6_SCOPE_ID_SEPARATOR);
+			if(scopeSepPos != string::npos)
+				hostCopy.replace(
+				            scopeSepPos, 1,
+				            UrlEncode(std::string(1, IPV6_SCOPE_ID_SEPARATOR)) );
+
+			if(hostCopy[0] != ipv6WrapOpen[0])
+				urlStr += ipv6WrapOpen + hostCopy + ipv6WrapClose;
+		}
 		else urlStr += mHost;
 	}
 
@@ -171,7 +196,10 @@ RsUrl& RsUrl::setScheme(const std::string& scheme)
 	return *this;
 }
 
-const std::string& RsUrl::host() const { return mHost; }
+const std::string& RsUrl::host() const
+{
+	return mHost;
+}
 RsUrl& RsUrl::setHost(const std::string& host)
 {
 	mHost = host;
@@ -247,7 +275,7 @@ RsUrl& RsUrl::setFragment(const std::string& fragment)
 	{
 		// Keep alphanumeric and other accepted characters intact
 		if ( isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~'
-		     || ignore.find(c) != string::npos )
+		     || ignore.find(c) != string::npos ) RS_LIKELY
 		{
 			escaped << c;
 			continue;

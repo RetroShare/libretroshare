@@ -109,6 +109,11 @@ option(
 	"Enable retro-compatibility breaking changes planned for RetroShare 0.7.0"
 	OFF )
 
+option(
+	RS_LIBRETROSHARE_STANDALONE_INSTALL
+	"Install libretroshare as a stand-alone library"
+	OFF )
+
 set(
 	RS_DATA_DIR
 	"${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}"
@@ -154,9 +159,16 @@ cmake_dependent_option(
 # doesn't make the library fat as the debugging symbols are stored
 # separately, enable us to symbolicate crash reports produced by release builds
 # @see https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
+# https://web.archive.org/web/20231127210015/https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
 option(
 	RS_SPLIT_DEBUG
 	"Generate split debug symbols, useful for debugabble release builds"
+	OFF )
+
+option(
+	RS_CPPTRACE_STACKTRACE
+	"Use Jeremy Rifkin Cpptrace library to print stacktrace instead of \
+	our implementation"
 	OFF )
 
 set(
@@ -238,19 +250,21 @@ set_target_properties(
 	${PROJECT_NAME}
 	PROPERTIES PUBLIC_HEADER "${RS_PUBLIC_HEADERS}" )
 
-install(
-	TARGETS ${PROJECT_NAME}
-	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
-	PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}" )
-
-## As of today libretroshare doesn't hide implementation details properly so it
-## is necessary to install private headers too
-foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
-	get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
+if(RS_LIBRETROSHARE_STANDALONE_INSTALL)
 	install(
-		FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
-		DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
-endforeach()
+		TARGETS ${PROJECT_NAME}
+		LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
+		PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}" )
+
+	## As of today libretroshare doesn't hide implementation details properly so it
+	## is necessary to install private headers too
+	foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
+		get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
+		install(
+			FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
+			DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
+	endforeach()
+endif(RS_LIBRETROSHARE_STANDALONE_INSTALL)
 
 if(RS_SPLIT_DEBUG)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-g")
@@ -286,7 +300,7 @@ if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
 else()
 	FetchContent_Declare(
 		openpgpsdk
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/OpenPGP-SDK.git"
+		GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
 		GIT_TAG "origin/master"
 		GIT_SHALLOW TRUE
 		GIT_PROGRESS TRUE
@@ -310,7 +324,7 @@ if(RS_BITDHT)
 	else()
 		FetchContent_Declare(
 			bitdht
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/BitDHT.git"
+		GIT_REPOSITORY "https://github.com/RetroShare/BitDHT.git"
 			GIT_TAG "origin/master"
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
@@ -335,6 +349,32 @@ if(RS_BITDHT)
 		endif(RS_BITDHT_STUNNER_EXT_IP)
 	endif(RS_BITDHT_STUNNER)
 endif(RS_BITDHT)
+
+################################################################################
+
+set(RAPIDJSON_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/rapidjson/")
+find_path(
+	RS_RAPIDJSON_INCLUDE "rapidjson/document.h"
+	PATH_SUFFIXES "include" "includes" )
+if(EXISTS "${RS_RAPIDJSON_INCLUDE}")
+	message( STATUS
+	         "RapidJSON found in system at ${RS_RAPIDJSON_INCLUDE}" )
+elseif(EXISTS "${RAPIDJSON_DEVEL_DIR}/CMakeLists.txt")
+	message( STATUS
+	         "RapidJSON found in development dir at ${RAPIDJSON_DEVEL_DIR}" )
+	target_include_directories(
+		${PROJECT_NAME}
+		PUBLIC "${RAPIDJSON_DEVEL_DIR}/include" )
+else()
+	FetchContent_Declare(
+		rapidjson
+		GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
+		GIT_SHALLOW TRUE
+		GIT_PROGRESS TRUE
+		TIMEOUT 10
+	)
+	FetchContent_MakeAvailable(rapidjson)
+endif()
 
 ################################################################################
 
@@ -398,13 +438,29 @@ if(RS_JSON_API)
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
 
-	## At moment depending on restbed the CMake way doesn't seems to work at
-	## least on Android due to upstream CMake file limitation, patches should be
-	## sent upstream.
-	## Restbed is therefore compiled by Android toolchain preparation script
+	set(RESTBED_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/")
 	if(RS_ANDROID)
+		## At moment depending on restbed the CMake way doesn't seems to work at
+		## least on Android due to upstream CMake file limitation, patches
+		## should be sent upstream.
+		## Restbed is therefore compiled by Android toolchain preparation script
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
+	elseif(EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
+		message( STATUS
+		         "Restbed submodule found at ${RESTBED_DEVEL_DIR} using it" )
+		add_subdirectory(
+			${RESTBED_DEVEL_DIR}
+			${CMAKE_BINARY_DIR}/restbed
+			EXCLUDE_FROM_ALL )
+		# EXCLUDE_FROM_ALL prevent executing install directives from included
+		# dependencies see https://stackoverflow.com/a/64900982
+
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE "${RESTBED_DEVEL_DIR}/source/" )
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 	else()
+		message( WARNING
+		         "FetchContent restbed, will be installed if you run make install")
 		FetchContent_Declare(
 			restbed
 			GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
@@ -413,16 +469,15 @@ if(RS_JSON_API)
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
 			TIMEOUT 10
+#			EXCLUDE_FROM_ALL # Available only in CMake >= 3.28
 		)
 		FetchContent_MakeAvailable(restbed)
 
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
-
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
-	endif(RS_ANDROID)
+	endif()
+
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
@@ -501,22 +556,35 @@ if(RS_BRODCAST_DISCOVERY)
 	## TODO: upstream option to disable tests building
 	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
 	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
-	FetchContent_Declare(
-		udp-discovery-cpp
-		GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
-		GIT_TAG "origin/master"
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
-	)
-	FetchContent_MakeAvailable(udp-discovery-cpp)
+
+	set(UDP_DISCOVERY_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/")
+	if(EXISTS "${UDP_DISCOVERY_DEVEL_DIR}/CMakeLists.txt")
+		message( STATUS
+		         "UDP discovery source found at ${UDP_DISCOVERY_DEVEL_DIR} using it" )
+		add_subdirectory(${UDP_DISCOVERY_DEVEL_DIR} ${CMAKE_BINARY_DIR}/udp-discovery-cpp/)
+
+		## TODO: Temporary work around target_include_directories PUBLIC should
+		## be added upstream
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE "${UDP_DISCOVERY_DEVEL_DIR}" )
+	else()
+		FetchContent_Declare(
+			udp-discovery-cpp
+			GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
+			GIT_TAG "origin/master"
+			GIT_SHALLOW TRUE
+			GIT_PROGRESS TRUE
+			TIMEOUT 10
+		)
+		FetchContent_MakeAvailable(udp-discovery-cpp)
+
+		## TODO: Temporary work around target_include_directories PUBLIC should
+		## be added upstream
+		target_include_directories(
+			${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
+	endif()
 
 	target_link_libraries(${PROJECT_NAME} PRIVATE udp-discovery)
-
-	## TODO: Temporary work around target_include_directories PUBLIC should be
-	## added upstream
-	target_include_directories(
-		${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
 endif(RS_BRODCAST_DISCOVERY)
@@ -562,11 +630,10 @@ endif(RS_EXPORT_JNI_ONLOAD)
 
 ################################################################################
 
-#if(CMAKE_SYSTEM_NAME STREQUAL "Android")
 if(RS_ANDROID)
 	FetchContent_Declare(
 		jni-hpp
-		GIT_REPOSITORY "https://gitlab.com/RetroShare/jni-hpp.git"
+		GIT_REPOSITORY "https://github.com/RetroShare/jni-hpp.git"
 		GIT_TAG "origin/master"
 		GIT_SHALLOW TRUE
 		GIT_PROGRESS TRUE
@@ -577,7 +644,6 @@ if(RS_ANDROID)
 	target_include_directories(
 		${PROJECT_NAME} PRIVATE "${jni-hpp_SOURCE_DIR}/include" )
 endif(RS_ANDROID)
-#endif(CMAKE_SYSTEM_NAME STREQUAL "Android")
 
 ################################################################################
 
@@ -643,3 +709,20 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
+
+################################################################################
+
+if(RS_CPPTRACE_STACKTRACE)
+    FetchContent_Declare(
+      cpptrace
+      GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+      GIT_TAG v0.3.1
+      GIT_SHALLOW TRUE
+      GIT_PROGRESS TRUE
+      TIMEOUT 10
+    )
+    FetchContent_MakeAvailable(cpptrace)
+    target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
+    target_compile_definitions(
+        ${LIBRARY_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
+endif(RS_CPPTRACE_STACKTRACE)

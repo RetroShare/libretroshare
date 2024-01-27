@@ -292,12 +292,13 @@ int inet_pton(int af, const char *src, void *dst)
 #endif
 #endif
 
-bool sockaddr_storage_inet_pton( sockaddr_storage &addr,
+bool sockaddr_storage_inet_pton( sockaddr_storage& addr,
                                  const std::string& ipStr )
 {
 #ifdef SS_DEBUG
 	std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
+	sockaddr_storage_clear(addr);
 
 	struct sockaddr_in6 * addrv6p = (struct sockaddr_in6 *) &addr;
 	struct sockaddr_in * addrv4p = (struct sockaddr_in *) &addr;
@@ -545,7 +546,7 @@ std::string sockaddr_storage_tostring(const struct sockaddr_storage &addr)
 		url.setScheme("ipv6");
 		break;
 	default:
-		return "AF_INVALID";
+		return AF_INVALID_STR;
 	}
 
 	url.setHost(sockaddr_storage_iptostring(addr))
@@ -622,21 +623,21 @@ std::string sockaddr_storage_familytostring(const struct sockaddr_storage &addr)
 	std::string output;
 	switch(addr.ss_family)
 	{
-		case AF_INET:
-			output = "IPv4";
-			break;
-		case AF_INET6:
-			output = "IPv6";
-			break;
-		default:
-			output = "AF_INVALID";
+	case AF_INET:
+		output = "IPv4";
+		break;
+	case AF_INET6:
+		output = "IPv6";
+		break;
+	default:
+		output = AF_INVALID_STR;
 #ifdef SS_DEBUG
-			std::cerr << __PRETTY_FUNCTION__ << " Got invalid address!"
-			          << std::endl;
-			sockaddr_storage_dump(addr);
-			print_stacktrace();
+		std::cerr << __PRETTY_FUNCTION__ << " Got invalid address!"
+		          << std::endl;
+		sockaddr_storage_dump(addr);
+		print_stacktrace();
 #endif
-			break;
+		break;
 	}
 	return output;
 }
@@ -654,8 +655,8 @@ std::string sockaddr_storage_iptostring(const struct sockaddr_storage &addr)
 		break;
 	default:
 		output = "INVALID_IP";
-		std::cerr << __PRETTY_FUNCTION__ << " Got invalid IP!" << std::endl;
 #ifdef SS_DEBUG
+		std::cerr << __PRETTY_FUNCTION__ << " Got invalid IP!" << std::endl;
 		sockaddr_storage_dump(addr);
 		print_stacktrace();
 #endif
@@ -1276,40 +1277,76 @@ bool sockaddr_storage_ipv6_isExternalNet(const struct sockaddr_storage &/*addr*/
 
 bool sockaddr_storage_inet_ntop (const sockaddr_storage &addr, std::string &dst)
 {
-	bool success = false;
-	char ipStr[255];
-
 #ifdef WINDOWS_SYS
 	// Use WSAAddressToString instead of InetNtop because the latter is missing
 	// on XP and is present only on Vista and newers
-	wchar_t wIpStr[255];
 	long unsigned int len = 255;
+	wchar_t wIpStr[255];
+	char ipStr[255];
 	sockaddr_storage tmp;
 	sockaddr_storage_clear(tmp);
 	sockaddr_storage_copyip(tmp, addr);
 	sockaddr * sptr = (sockaddr *) &tmp;
-	success = (0 == WSAAddressToString( sptr, sizeof(sockaddr_storage), NULL, wIpStr, &len ));
+	bool success = (0 == WSAAddressToString(
+	                    sptr, sizeof(sockaddr_storage), NULL, wIpStr, &len ));
 	wcstombs(ipStr, wIpStr, len);
-#else // WINDOWS_SYS
+	dst = ipStr;
+	return success;
+#else // def WINDOWS_SYS
 	switch(addr.ss_family)
 	{
 	case AF_INET:
 	{
-		const struct sockaddr_in * addrv4p = (const struct sockaddr_in *) &addr;
-		success = inet_ntop( addr.ss_family, (const void *) &(addrv4p->sin_addr), ipStr, INET_ADDRSTRLEN );
+		const sockaddr_in * addrv4p = (const struct sockaddr_in *) &addr;
+		char ipStr[INET_ADDRSTRLEN];
+		if(! inet_ntop(
+		            addr.ss_family, (const void *) &(addrv4p->sin_addr),
+		            ipStr, INET_ADDRSTRLEN ))
+			return false;
+		dst = ipStr;
+		return true;
 	}
-	break;
 	case AF_INET6:
 	{
-		const struct sockaddr_in6 * addrv6p = (const struct sockaddr_in6 *) &addr;
-		success = inet_ntop( addr.ss_family, (const void *) &(addrv6p->sin6_addr), ipStr, INET6_ADDRSTRLEN );
-	}
-	break;
-	}
-#endif // WINDOWS_SYS
+		const sockaddr_in6 * addrv6p = (const struct sockaddr_in6 *) &addr;
+		char ipStr[INET6_ADDRSTRLEN];
+		if(! inet_ntop(
+		            addr.ss_family, (const void *) &(addrv6p->sin6_addr),
+		            ipStr, INET6_ADDRSTRLEN ))
+			return false;
 
-	dst = ipStr;
-	return success;
+		dst = ipStr;
+
+		if(addrv6p->sin6_scope_id)
+		{
+			/* An IPv6 address may contain scope/interface indication after a %
+			 * sign. Usually needed for link local address, after % either the
+			 * interface literal name (when possible) is indicated or a numeric
+			 * id. Examples:
+			 * fe80::0123:4567:89ab:cdef%eth0
+			 * fe80::0123:4567:89ab:cdef%3 */
+
+			// Attempt conversion to literal interface name
+			char ifName[IF_NAMESIZE+1] = {0};
+			if(if_indextoname(addrv6p->sin6_scope_id, ifName))
+			{
+				dst += IPV6_SCOPE_ID_SEPARATOR;
+				dst += ifName;
+			}
+			else
+			{
+				dst += IPV6_SCOPE_ID_SEPARATOR;
+				dst += std::to_string(addrv6p->sin6_scope_id);
+			}
+		}
+
+		return true;
+	}
+	default:
+		dst = AF_INVALID_STR;
+		return false;
+	}
+#endif // def WINDOWS_SYS
 }
 
 int rs_setsockopt( int sockfd, int level, int optname,

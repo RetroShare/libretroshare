@@ -613,6 +613,7 @@ list(
 	util/rsdnsutils.cc
 	util/rsnet.cc
 	util/rsnet_ss.cc
+	util/rsstacktrace.cc
 	util/rsthreads.cc )
 
 # util/i2pcommon.cpp
@@ -644,12 +645,14 @@ list(
 	util/rsdeprecate.h
 	util/rsdir.h
 	util/rsdiscspace.h
+	util/rserrorbubbleorexit.h
 	util/rsendian.h
 	util/rsfile.h
 	util/rsinitedptr.h
 	util/rsjson.h
 	util/rskbdinput.cc
 	util/rskbdinput.h
+	util/rslikelyunlikely.h
 	util/rsmacrosugar.hpp
 	util/rsmemcache.h
 	util/rsmemory.h
