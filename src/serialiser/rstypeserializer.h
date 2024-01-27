@@ -292,7 +292,16 @@ struct RsTypeSerializer
 				/* Deserializing an item it is safe to assume the map is
 				 * originally empty, so use emplace which have less requirements
 				 * on the type instead of assignation operator */
-				member.emplace(t, u);
+                // member.emplace(t, u);
+
+                // [EDITED] (1) We cannot assume anything in the incoming data since we do not know how the
+                // 			deserialization is handled in the calling function (e.g. it could be one map over
+                //          multiple items, or a map that wasn't properly cleaned, etc).
+                //			(2) all serialisation methods wipe elements by deserialized ones. We cannot change
+                //			this convention at one place, especially for a method that is never called explicitly.
+
+                member[t] = u;
+
 			}
 			break;
 		}
@@ -375,11 +384,8 @@ struct RsTypeSerializer
 
 					ctx.mOk &= ok;
 
-					/* Deserializing an item it is safe to assume the map is
-					 * originally empty, so use emplace which have less
-					 * requirements on the type instead of assignation operator
-					 */
-					if(ok) member.emplace(key, value);
+                    if(ok) member.insert(std::pair<T,U>(key,value));
+
 					else break;
 				}
 			}
