@@ -41,6 +41,7 @@
 #include "util/rsstring.h"
 #include "util/rsrandom.h"
 #include "util/rstime.h"
+#include "util/rsprint.h"
 #include "util/rsmemory.h"
 #include "util/folderiterator.h"
 #include "retroshare/rstypes.h"
@@ -912,16 +913,33 @@ bool RsDirUtil::isDirectorySeparator(const char &c)
 	return false;
 }
 
-std::string RsDirUtil::makePath(const std::string &path1, const std::string &path2)
+std::string RsDirUtil::makePath(const std::string &path1, const std::string &path2,bool ensure_file_not_already_there)
 {
 	std::string path = path1;
 
 	if (path.empty() == false && !RsDirUtil::isDirectorySeparator(*path.rbegin())) {
 		path += "/";
 	}
-	path += path2;
 
-	return path;
+    if(!ensure_file_not_already_there || !fileExists(path+path2))
+        return path+path2;
+
+    // Create a filename that does not already exist
+
+    size_t ext_place = path2.find_last_of(".");
+    std::string path2_without_extension = path2.substr(0,ext_place);
+    std::string path2_extension = (ext_place == std::string::npos) ? "" : path2.substr(ext_place,std::string::npos);
+
+    for(int i=1;i<1000;++i)
+    {
+        auto f = path+path2_without_extension+" ("+RsUtil::NumberToString(i)+")"+path2_extension;
+
+       if(!fileExists(f))
+           return f;
+    }
+
+    std::cerr << "Warning: impossible to find a file that doesn't exist with name " << path+path2 << std::endl;
+    return path+path2;
 }
 
 int RsDirUtil::createLockFile(const std::string& lock_file_path, rs_lock_handle_t &lock_handle)
