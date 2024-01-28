@@ -816,7 +816,7 @@ bool ftController::completeFile(const RsFileHash& hash)
 #endif
 	}
 
-	/* Notify GUI */
+    /* Notify GUI */
     if(rsEvents)
     {
         auto ev = std::make_shared<RsFileTransferEvent>();
@@ -1612,7 +1612,7 @@ bool 	ftController::FileDetails(const RsFileHash &hash, FileInfo &info)
 			 * are both NULL
 			 */
 			return false;
-		}
+        }
 		completed = true;
 	}
 
@@ -1628,7 +1628,10 @@ bool 	ftController::FileDetails(const RsFileHash &hash, FileInfo &info)
     //
     //              RsDirUtil::removeTopDir(it->second->mDestination, info.path); /* remove fname */
 
-    info.path = it->second->mDestination;
+    if(completed)
+        info.path = it->second->mCurrentPath;	// when the file is completed, it may have been moved to another name because the destination already exists
+    else
+        info.path = it->second->mDestination;
 
 	info.queue_position = it->second->mQueuePosition ;
 
