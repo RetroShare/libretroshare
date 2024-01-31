@@ -175,9 +175,11 @@ FILE		*rs_fopen(const char* filename, const char* mode);
 std::string convertPathToUnix(std::string path);
 bool        isDirectorySeparator(const char &c);
 
-/** Concatenate two path pieces putting '/' separator between them only if
- * needed */
-std::string makePath(const std::string &path1, const std::string &path2);
+// Concatenate two path pieces putting '/' separator between them only if needed
+// The optional boolean concatenates (%d) to the file, using the minimum number to ensure that
+// the file doesn't already exist.
+
+std::string makePath(const std::string &path1, const std::string &path2,bool ensure_file_does_not_exist=false);
 
 RS_SET_CONTEXT_DEBUG_LEVEL(1);
 }

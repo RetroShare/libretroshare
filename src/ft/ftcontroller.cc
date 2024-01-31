@@ -734,7 +734,8 @@ bool ftController::completeFile(const RsFileHash& hash)
 		RsDirUtil::splitDirFromFile(fc->mDestination,dst_dir,dst_file) ;
 
 		// We use this intermediate file in case the destination directory is not available, so as to not keep the partial file name.
-		std::string intermediate_file_name = RsDirUtil::makePath(src_dir, dst_file);
+        std::string intermediate_file_name = RsDirUtil::makePath(src_dir, dst_file,true);
+        std::string destination_file_name = RsDirUtil::makePath(dst_dir, dst_file,true);
 
 		// I don't know how the size can be zero, but believe me, this happens,
 		// and it causes an error on linux because then the file may not even exist.
@@ -750,10 +751,13 @@ bool ftController::completeFile(const RsFileHash& hash)
 			{
 				fc->mCurrentPath = intermediate_file_name ;
 
-				std::cerr << "CompleteFile(): 2 - renaming/copying " << intermediate_file_name << " into " << fc->mDestination << std::endl;
+                if(destination_file_name != fc->mDestination)
+                    RsInfo() << "A file with the same destination name " << fc->mDestination << " already exists. The downloaded file will be moved to " << destination_file_name << " instead." << std::endl;
 
-				if(RsDirUtil::moveFile(intermediate_file_name,fc->mDestination) )
-					fc->mCurrentPath = fc->mDestination;
+                std::cerr << "CompleteFile(): 2 - renaming/copying " << intermediate_file_name << " into " << destination_file_name << std::endl;
+
+                if(RsDirUtil::moveFile(intermediate_file_name,destination_file_name) )
+                    fc->mCurrentPath = destination_file_name;
 				else
 					fc->mState = ftFileControl::ERROR_COMPLETION;
 			}
@@ -762,7 +766,7 @@ bool ftController::completeFile(const RsFileHash& hash)
 		}
 
 		/* for extralist additions */
-		path    = fc->mDestination;
+        path    = destination_file_name;
 		name    = fc->mName;
 		//hash    = fc->mHash;
 		size    = fc->mSize;
@@ -812,7 +816,7 @@ bool ftController::completeFile(const RsFileHash& hash)
 #endif
 	}
 
-	/* Notify GUI */
+    /* Notify GUI */
     if(rsEvents)
     {
         auto ev = std::make_shared<RsFileTransferEvent>();
@@ -1608,7 +1612,7 @@ bool 	ftController::FileDetails(const RsFileHash &hash, FileInfo &info)
 			 * are both NULL
 			 */
 			return false;
-		}
+        }
 		completed = true;
 	}
 
@@ -1624,7 +1628,10 @@ bool 	ftController::FileDetails(const RsFileHash &hash, FileInfo &info)
     //
     //              RsDirUtil::removeTopDir(it->second->mDestination, info.path); /* remove fname */
 
-    info.path = it->second->mDestination;
+    if(completed)
+        info.path = it->second->mCurrentPath;	// when the file is completed, it may have been moved to another name because the destination already exists
+    else
+        info.path = it->second->mDestination;
 
 	info.queue_position = it->second->mQueuePosition ;
 
