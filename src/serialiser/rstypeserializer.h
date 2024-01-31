@@ -280,6 +280,17 @@ struct RsTypeSerializer
 		}
 		case RsGenericSerializer::DESERIALIZE:
 		{
+			/* Deserializing a map we expect the container is empty, enforce it
+			 * and print some diagnostic if it is not */
+			if(!member.empty())
+			{
+				RS_ERR( "DESERIALIZE operation for std::map ", memberName,
+				        "expect it to be empty, clearing it now ",
+				        "please report to developers" );
+				print_stacktrace();
+				member.clear();
+			}
+
 			uint32_t mapSize = 0;
 			RS_SERIAL_PROCESS(mapSize);
 
@@ -289,19 +300,15 @@ struct RsTypeSerializer
 				RS_SERIAL_PROCESS(t);
 				RS_SERIAL_PROCESS(u);
 
-				/* Deserializing an item it is safe to assume the map is
-				 * originally empty, so use emplace which have less requirements
-				 * on the type instead of assignation operator */
-                // member.emplace(t, u);
-
-                // [EDITED] (1) We cannot assume anything in the incoming data since we do not know how the
-                // 			deserialization is handled in the calling function (e.g. it could be one map over
-                //          multiple items, or a map that wasn't properly cleaned, etc).
-                //			(2) all serialisation methods wipe elements by deserialized ones. We cannot change
-                //			this convention at one place, especially for a method that is never called explicitly.
-
-                member[t] = u;
-
+				if(ctx.mOk)
+				{
+					/* Keys must not be duplicated in the serialized map if it
+					 * is not the case it is a pathological state we must report
+					 * failure */
+					// C++ > 17 auto [_it, emplaced]
+					auto eStatus = member.emplace(t, u);
+					ctx.mOk &= eStatus.second;
+				}
 			}
 			break;
 		}
@@ -343,6 +350,17 @@ struct RsTypeSerializer
 		}
 		case RsGenericSerializer::FROM_JSON:
 		{
+			/* Deserializing a map we expect the container is empty, enforce it
+			 * and print some diagnostic if it is not */
+			if(!member.empty())
+			{
+				RS_ERR( "FROM_JSON operation for std::map ", memberName,
+				        " expect it to be empty, clearing it now ",
+				        "please report to developers" );
+				print_stacktrace();
+				member.clear();
+			}
+
 			using namespace rapidjson;
 
 			bool ok = ctx.mOk || !!(ctx.mFlags & RsSerializationFlags::YIELDING);
@@ -384,8 +402,15 @@ struct RsTypeSerializer
 
 					ctx.mOk &= ok;
 
-                    if(ok) member.insert(std::pair<T,U>(key,value));
-
+					if(ok)
+					{
+						/* Keys must not be duplicated in the serialized map if
+						 * it is not the case it is a pathological state we must
+						 * report failure */
+						// C++ > 17 auto [_it, emplaced]
+						auto eStatus = member.emplace(key, value);
+						ctx.mOk &= eStatus.second;
+					}
 					else break;
 				}
 			}
