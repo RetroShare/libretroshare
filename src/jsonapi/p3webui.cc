@@ -144,6 +144,14 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		auto resource5 = std::make_shared< restbed::Resource >();
 		resource5->set_paths( {
 		                          "/{dir: webfonts}/{filename: fa-solid-900.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-Regular.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-Italic.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-Light.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-LightItalic.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-Medium.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-MediumItalic.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-Bold.ttf}",
+		                          "/{dir: webfonts}/{filename: Roboto-BoldItalic.ttf}",
 		                      } );
 		resource5->set_method_handler( "GET", handler<TEXT_TTF>::get_handler );
 
@@ -151,6 +159,22 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		resource6->set_paths( {
 		                          "/{dir: webfonts}/{filename: fa-solid-900.woff}",
 		                          "/{dir: webfonts}/{filename: fa-solid-900.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-Regular.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-Regular.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-Italic.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-Italic.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-Light.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-Light.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-LightItalic.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-LightItalic.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-Medium.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-Medium.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-MediumItalic.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-MediumItalic.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-Bold.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-Bold.woff2}",
+		                          "/{dir: webfonts}/{filename: Roboto-BoldItalic.woff}",
+		                          "/{dir: webfonts}/{filename: Roboto-BoldItalic.woff2}",
 		                      } );
 		resource6->set_method_handler( "GET", handler<TEXT_WOFF>::get_handler );
 
