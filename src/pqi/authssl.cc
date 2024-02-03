@@ -496,9 +496,9 @@ bool AuthSSLimpl::InitAuth(
 
         if(security_level_problem)
         {
-            RsErr() << "Your Retroshare certificate uses low security settings (probably a SHA1 signature)";
-            RsErr() << "that are incompatible with current security level " << ssl_security_level << " of the OpenSSL library.";
-            RsErr() << "You need to create a new node, possibly using the same profile." ;
+            RsErr() << "/!\\ Your Retroshare certificate uses low security settings (probably a SHA1 signature)";
+            RsErr() << "/!\\ that are incompatible with current security level " << ssl_security_level << " of the OpenSSL library.";
+            RsErr() << "/!\\ You need to create a new node, possibly using the same profile." ;
             error_code = RsInit::ERR_CERT_CRYPTO_IS_TOO_WEAK;
         }
         else
@@ -519,8 +519,17 @@ bool AuthSSLimpl::InitAuth(
 
         if(result != 1)
         {
-            RsErr() << "Failed." ;
-            return false;
+            RsErr() << "Failed!" ;
+            RsErr() << "Trying with level 0:" ;
+
+            SSL_CTX_set_security_level(sslctx,0);
+            result = SSL_CTX_use_certificate(sslctx, x509);
+
+            if(result != 1)
+            {
+                RsErr() << "Failed." ;
+                return false;
+            }
         }
         RsErr() << "Passed. But still, create a new node!";
 	}
