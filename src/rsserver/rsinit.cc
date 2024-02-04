@@ -206,8 +206,7 @@ static const int SSLPWD_LEN = 64;
 
 void RsInit::InitRsConfig()
 {
-	RsInfo() << "libretroshare version: " << RS_HUMAN_READABLE_VERSION
-	         << std::endl;
+    //RsDbg() << "libretroshare version: " << RS_HUMAN_READABLE_VERSION;
 
 	rsInitConfig = new RsInitConfig;
 

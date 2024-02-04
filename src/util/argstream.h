@@ -252,7 +252,7 @@ namespace
 			inline bool helpRequested() const;
 			inline bool isOk() const;
 			inline std::string errorLog() const;
-			inline std::string usage(bool skipCommandLine = false) const;
+            inline std::string usage(bool skipCommandLine = false,bool indent=true) const;
 			inline bool defaultErrorHandling(bool ignoreUnused=false,bool skipCommandLine=false) const;
 			static inline char uniqueLetter();
 		protected:
@@ -341,7 +341,11 @@ namespace
 			}
 			else
 			{
-				os<<"(default="<<initialValue_<<")";
+                std::ostringstream ss;
+                ss << "(default="<<initialValue_<<")";
+
+                if(ss.str().size() > 10)
+                os<<ss.str();
 			}
 			return os.str();
 		}
@@ -569,7 +573,7 @@ namespace
 			return helpRequested_;
 		}
 	inline std::string
-		argstream::usage(bool skipCommandLine) const
+        argstream::usage(bool skipCommandLine,bool indent) const
 		{
 			std::ostringstream os;
 
@@ -584,7 +588,9 @@ namespace
 			for (std::deque<help_entry>::const_iterator
 					iter = argHelps_.begin();iter != argHelps_.end();++iter)
 			{
-				os<<'\t'<<iter->first<<std::string(lmax-iter->first.size(),' ')
+                if(indent)
+                os<<'\t';
+                 os<<iter->first<<std::string(lmax-iter->first.size(),' ')
 					<<" : "<<iter->second<<'\n';
 			}
 			return os.str();
