@@ -180,14 +180,14 @@ const TransferRequestFlags RS_FILE_REQ_NO_SEARCH           ( 0x02000000 );	// di
 // 																	 | RS_FILE_HINTS_NETWORK_WIDE_GROUPS | RS_FILE_HINTS_BROWSABLE_GROUPS ;
 
 enum class RsSharedDirectoriesEventCode: uint8_t {
-    UNKNOWN                  = 0x00,
-    STARTING_DIRECTORY_SWEEP = 0x01, // (void)
-    HASHING_FILE             = 0x02, // mMessage: full path and hashing speed of the file being hashed
-    DIRECTORY_SWEEP_ENDED    = 0x03, // (void)
-    SAVING_FILE_INDEX        = 0x04, // (void)
-    EXTRA_LIST_FILE_ADDED    = 0x05, // (void)
-    EXTRA_LIST_FILE_REMOVED  = 0x06, // (void)
-    SHARED_DIRS_LIST_CHANGED = 0x07, // (void)
+    UNKNOWN                     = 0x00,
+    STARTING_DIRECTORY_SWEEP    = 0x01, // (void)
+    HASHING_FILE                = 0x02, // mMessage: full path and hashing speed of the file being hashed
+    DIRECTORY_SWEEP_ENDED       = 0x03, // (void)
+    SAVING_FILE_INDEX           = 0x04, // (void)
+    EXTRA_LIST_FILE_ADDED       = 0x05, // (void)
+    EXTRA_LIST_FILE_REMOVED     = 0x06, // (void)
+    SHARED_DIRS_LIST_CHANGED    = 0x07, // (void)
 };
 
 enum class RsFileTransferEventCode: uint8_t {
@@ -1113,6 +1113,10 @@ public:
 
 		virtual bool	ignoreDuplicates() = 0;
 		virtual void 	setIgnoreDuplicates(bool ignore) = 0;
+
+		virtual uint64_t getCumulativeUpload(RsFileHash hash) = 0;
+		virtual uint64_t getCumulativeUploadAll() = 0;
+		virtual uint64_t getCumulativeUploadNum() = 0;
 
 	virtual ~RsFiles() = default;
 };
