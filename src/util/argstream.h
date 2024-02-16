@@ -578,7 +578,10 @@ namespace
 			std::ostringstream os;
 
 			if(!skipCommandLine)
+            {
 			   os<<"usage: "<<progName_<<cmdLine_<<'\n';
+               os<<std::endl;
+            }
 			unsigned int lmax = 0;
 			for (std::deque<help_entry>::const_iterator
 					iter = argHelps_.begin();iter != argHelps_.end();++iter)
