@@ -111,9 +111,7 @@ std::unique_ptr<RsFileTree> RsFileTree::fromRadix64(
 	return nullptr;
 }
 
-void RsFileTree::recurs_buildFileTree(
-        RsFileTree& ft, uint32_t index, const DirDetails& dd, bool remote,
-        bool remove_top_dirs )
+void RsFileTree::recurs_buildFileTree( RsFileTree& ft, uint32_t index, const DirDetails& dd, bool remote, bool remove_top_dirs )
 {
 	RsDbg() << __PRETTY_FUNCTION__ << " index: " << index << std::endl;
 	if(ft.mDirs.size() <= index)
@@ -159,26 +157,60 @@ void RsFileTree::recurs_buildFileTree(
 			std::cerr << "(EE) Cannot request dir details for pointer " << dd.children[i].ref << std::endl;
 }
 
-bool RsFileTree::getDirectoryContent(
-        std::string& name, std::vector<uint64_t>& subdirs,
-        std::vector<FileData>& subfiles, uint64_t index_p ) const
+bool RsFileTree::getDirectoryContent(DirIndex dir_handle, DirData& dd) const
 {
-	// Avoid warnings on Android armv7
-	using sz_t = std::vector<FileData>::size_type;
-	sz_t index = static_cast<sz_t>(index_p);
+    if(dir_handle >= mDirs.size())
+        return false;
 
-	if(index >= mDirs.size()) return false;
-
-	name = mDirs[index].name;
-	subdirs = mDirs[index].subdirs ;
-
-	subfiles.clear() ;
-	for(sz_t i=0; i < mDirs[index].subfiles.size(); ++i)
-		subfiles.push_back(mFiles[static_cast<sz_t>(mDirs[index].subfiles[i])]);
-
-	return true;
+    dd = mDirs[dir_handle];
+    return true;
 }
 
+bool RsFileTree::getFileContent(FileIndex file_handle,FileData& fd) const
+{
+    if(file_handle >= mFiles.size())
+        return false;
+
+    fd = mFiles[file_handle];
+    return true;
+}
+uint64_t RsFileTree::totalFileSize() const
+{
+    if(mTotalSize == 0)
+        for(uint32_t i=0;i<mFiles.size();++i)
+            mTotalSize += mFiles[i].size;
+
+    return mTotalSize;
+}
+
+std::unique_ptr<RsFileTree> RsFileTree::fromFile(const std::string& name, uint64_t size, const RsFileHash&  hash)
+{
+    std::unique_ptr<RsFileTree>ft(new RsFileTree);
+
+    FileData fd;
+    fd.name = name;
+    fd.hash = hash;
+    fd.size = size;
+
+    ft->mFiles.push_back(fd);
+    ft->mTotalFiles = 1;
+    ft->mTotalSize = size;
+
+    return ft;
+}
+std::unique_ptr<RsFileTree> RsFileTree::fromDirectory(const std::string& name)
+{
+    std::unique_ptr<RsFileTree>ft(new RsFileTree);
+
+    DirData dd;
+    dd.name = name;
+
+    ft->mDirs.push_back(dd);
+    ft->mTotalFiles = 0;
+    ft->mTotalSize = 0;
+
+    return ft;
+}
 std::unique_ptr<RsFileTree> RsFileTree::fromDirDetails(
         const DirDetails& dd, bool remote ,bool remove_top_dirs )
 {
@@ -196,7 +228,9 @@ std::unique_ptr<RsFileTree> RsFileTree::fromDirDetails(
 		dd.subfiles.push_back(0);
 		ft->mDirs.push_back(dd);
 	}
-	else recurs_buildFileTree(*ft, 0, dd, remote, remove_top_dirs );
+    else
+        recurs_buildFileTree(*ft, 0, dd, remote, remove_top_dirs );
+
 	return ft;
 }
 

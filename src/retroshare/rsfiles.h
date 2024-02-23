@@ -324,6 +324,10 @@ struct RsFileTree : RsSerializable
 {
 public:
 	RsFileTree() : mTotalFiles(0), mTotalSize(0) {}
+    virtual ~RsFileTree();
+
+    typedef uint32_t FileIndex;
+    typedef uint64_t DirIndex;
 
 	/**
 	 * @brief Create a RsFileTree from directory details
@@ -332,17 +336,107 @@ public:
 	 * @param remove_top_dirs
 	 * @return pointer to the created file-tree
 	 */
-	static std::unique_ptr<RsFileTree> fromDirDetails(
-	        const DirDetails& dd, bool remote, bool remove_top_dirs = true );
+    static std::unique_ptr<RsFileTree> fromDirDetails(const DirDetails& dd, bool remote, bool remove_top_dirs = true );
 
-	/**
+    /**
+     * @brief Create a RsFileTree from a single file
+     * @param name name of the file
+     * @param size size of the file
+     * @param hash hash of the file
+     * @return pointer to the created file-tree
+     */
+    static std::unique_ptr<RsFileTree> fromFile(const std::string& name, uint64_t size, const RsFileHash&  hash);
+
+    /**
+     * @brief Create a RsFileTree from a single file
+     * @param name name of the directory
+     * @return pointer to the created file-tree
+     */
+    static std::unique_ptr<RsFileTree> fromDirectory(const std::string& name);
+
+    /**
 	 * @brief Create a RsFileTree from Base64 representation
 	 * @param base64 base64 or base64url string representation of the file-tree
 	 * @return pointer to the parsed file-tree on success, nullptr plus error
 	 *	details on failure
 	 */
-	static std::tuple<std::unique_ptr<RsFileTree>, std::error_condition>
-	fromBase64(const std::string& base64);
+    static std::tuple<std::unique_ptr<RsFileTree>, std::error_condition> fromBase64(const std::string& base64);
+
+    /**
+     * @brief The FileData struct
+     */
+    struct FileData: RsSerializable
+    {
+        std::string name;
+        uint64_t    size;
+        RsFileHash  hash;
+
+        void serial_process(
+                RsGenericSerializer::SerializeJob j,
+                RsGenericSerializer::SerializeContext& ctx ) override;
+    };
+
+    /**
+     * @brief The DirData struct
+     */
+    struct DirData: RsSerializable
+    {
+        std::string name;
+        std::vector<uint64_t> subdirs;
+        std::vector<uint64_t> subfiles;
+
+        void serial_process(
+                RsGenericSerializer::SerializeJob j,
+                RsGenericSerializer::SerializeContext& ctx ) override;
+    };
+
+    /*!
+     * \brief root
+     * \return root of the hierarchy. Always 0.
+     */
+    DirIndex root() const { return 0; }
+
+    /*!
+     * \brief addDirectory	Adds an empty sub-directory to a given directory
+     * \param parent 		Parent directory to add to.
+     * \param name			name of the subdirectory
+     * \return 				Index of the created subdirectory
+     */
+    DirIndex addDirectory(DirIndex parent,const std::string& name);
+
+     /*!
+     * \brief addFile		Adds a file to a given directory
+     * \param parent 		Parent directory to add to.
+     * \param name			name of the file
+     * \param hash			hash of the file
+     * \param size			size of the file
+     * \return 				Index of the created file
+     */
+    FileIndex addFile(DirIndex parent,const std::string& name,const RsFileHash& hash,uint64_t size);
+
+    /*!
+     * \brief getDirectoryContent
+     * \param dir_handle	index of the directory
+     * \param dd			directory data for that index
+     * \return
+     */
+    bool getDirectoryContent(DirIndex dir_handle, DirData& dd) const;
+
+    /*!
+     * \brief getFileContent
+     * \param file_handle		global index of the file
+     * \param fd				returned populated file data
+     * \return
+     */
+    bool getFileContent(FileIndex file_handle,FileData& fd) const;
+
+    /*!
+     * \brief totalFileSize
+     * \return total size counting for all files in the hierarchy
+     */
+    uint64_t totalFileSize() const;
+    uint64_t numDirs() const { return mDirs.size(); }
+    uint64_t numFiles() const { return mFiles.size(); }
 
 	/** @brief Convert to base64 representetion */
 	std::string toBase64() const;
@@ -357,65 +451,34 @@ public:
 		RS_SERIAL_PROCESS(mTotalFiles);
 		RS_SERIAL_PROCESS(mTotalSize);
 	}
+    /**
+     * @brief Create a RsFileTree from Radix64 representation
+     * @deprecated kept for retrocompatibility with RetroShare-gui
+     * The format is not compatible with the new methods
+     * @param radix64_string
+     * @return nullptr if on failure, pointer to the created FileTree on success
+     */
+    RS_DEPRECATED_FOR(fromBase64)
+    static std::unique_ptr<RsFileTree> fromRadix64(
+            const std::string& radix64_string );
 
-	struct FileData: RsSerializable
-	{
-		std::string name;
-		uint64_t    size;
-		RsFileHash  hash;
+    /** @brief Convert to radix64 representetion
+     * @deprecated kept for retrocompatibility with RetroShare-gui
+     * The format is not compatible with the new methods
+     */
+    RS_DEPRECATED_FOR(toBase64)
+    std::string toRadix64() const;
 
-		void serial_process(
-		        RsGenericSerializer::SerializeJob j,
-		        RsGenericSerializer::SerializeContext& ctx ) override;
-	};
 
-	/// Allow browsing the hierarchy
-	bool getDirectoryContent(
-	        std::string& name, std::vector<uint64_t>& subdirs,
-	        std::vector<FileData>& subfiles, uint64_t handle = 0 ) const;
-
-	struct DirData: RsSerializable
-	{
-		std::string name;
-		std::vector<uint64_t> subdirs;
-		std::vector<uint64_t> subfiles;
-
-		void serial_process(
-		        RsGenericSerializer::SerializeJob j,
-		        RsGenericSerializer::SerializeContext& ctx ) override;
-	};
-
-	static void recurs_buildFileTree(
-	        RsFileTree& ft, uint32_t index, const DirDetails& dd, bool remote,
-	        bool remove_top_dirs );
+private:
+    static void recurs_buildFileTree( RsFileTree& ft, uint32_t index, const DirDetails& dd, bool remote, bool remove_top_dirs );
 
 	std::vector<FileData> mFiles;
 	std::vector<DirData> mDirs;
 
 	uint32_t mTotalFiles;
-	uint64_t mTotalSize;
+    mutable uint64_t mTotalSize;
 
-	virtual ~RsFileTree();
-
-	/**
-	 * @brief Create a RsFileTree from Radix64 representation
-	 * @deprecated kept for retrocompatibility with RetroShare-gui
-	 * The format is not compatible with the new methods
-	 * @param radix64_string
-	 * @return nullptr if on failure, pointer to the created FileTree on success
-	 */
-	RS_DEPRECATED_FOR(fromBase64)
-	static std::unique_ptr<RsFileTree> fromRadix64(
-	        const std::string& radix64_string );
-
-	/** @brief Convert to radix64 representetion
-	 * @deprecated kept for retrocompatibility with RetroShare-gui
-	 * The format is not compatible with the new methods
-	 */
-	RS_DEPRECATED_FOR(toBase64)
-	std::string toRadix64() const;
-
-private:
 	/** @deprecated kept for retrocompatibility with RetroShare-gui */
 	RS_DEPRECATED_FOR(serial_process)
 	bool serialise(unsigned char *& data,uint32_t& data_size) const;

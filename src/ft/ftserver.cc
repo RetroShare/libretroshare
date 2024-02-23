@@ -307,8 +307,8 @@ std::error_condition ftServer::requestFiles(
         const std::vector<RsPeerId>& srcIds, FileRequestFlags flags )
 {
 	constexpr auto fname = __PRETTY_FUNCTION__;
-	const auto dirsCount = collection.mDirs.size();
-	const auto filesCount = collection.mFiles.size();
+    const auto dirsCount = collection.numDirs();
+    const auto filesCount = collection.numFiles();
 
 	Dbg2() << fname << " dirsCount: " << dirsCount
 	       << " filesCount: " << filesCount << std::endl;
@@ -326,12 +326,6 @@ std::error_condition ftServer::requestFiles(
 		return std::errc::invalid_argument;
 	}
 
-	if(filesCount != collection.mTotalFiles)
-	{
-		RsErr() << fname << " Files count mismatch" << std::endl;
-		return std::errc::invalid_argument;
-	}
-
 	std::string basePath = destPath.empty() ? getDownloadDirectory() : destPath;
 	// Track how many time a directory have been explored
 	std::vector<uint32_t> dirsSeenCnt(dirsCount, 0);
@@ -344,7 +338,9 @@ std::error_condition ftServer::requestFiles(
 		uint64_t dirHandle; std::string parentPath;
 		std::tie(dirHandle, parentPath) = se;
 
-		const auto& dirData = collection.mDirs[dirHandle];
+        RsFileTree::DirData dirData;
+        collection.getDirectoryContent(dirHandle,dirData);
+
 		auto& seenTimes = dirsSeenCnt[dirHandle];
 		std::string dirPath = RsDirUtil::makePath(parentPath, dirData.name);
 
@@ -362,7 +358,8 @@ std::error_condition ftServer::requestFiles(
 		{
 			if(fHandle >= filesCount) return std::errc::argument_out_of_domain;
 
-			const RsFileTree::FileData& fData = collection.mFiles[fHandle];
+            RsFileTree::FileData fData;
+            collection.getFileContent(fHandle,fData);
 
 			bool fr =
 			FileRequest( fData.name, fData.hash, fData.size,
@@ -2272,10 +2269,10 @@ std::error_condition ftServer::dirDetailsToLink(
 	{
 		RsUrl tUrl(baseUrl);
 		tUrl.setQueryKV(FILES_URL_COUNT_FIELD,
-		                std::to_string(tFileTree->mTotalFiles) )
+                        std::to_string(tFileTree->numFiles()) )
 		    .setQueryKV(FILES_URL_NAME_FIELD, dirDetails.name)
 		    .setQueryKV( FILES_URL_SIZE_FIELD,
-		                 std::to_string(tFileTree->mTotalSize) );
+                         std::to_string(tFileTree->totalFileSize()) );
 		if(fragSneak)
 			tUrl.setQueryKV(FILES_URL_DATA_FIELD, FILES_URL_FAGMENT_FORWARD)
 			        .setFragment(link);
