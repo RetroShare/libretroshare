@@ -157,22 +157,50 @@ void RsFileTree::recurs_buildFileTree( RsFileTree& ft, uint32_t index, const Dir
 			std::cerr << "(EE) Cannot request dir details for pointer " << dd.children[i].ref << std::endl;
 }
 
-bool RsFileTree::getDirectoryContent(DirIndex dir_handle, DirData& dd) const
+const RsFileTree::DirData& RsFileTree::directoryData(DirIndex dir_handle) const
 {
-    if(dir_handle >= mDirs.size())
-        return false;
+    assert(dir_handle < mDirs.size());
 
-    dd = mDirs[dir_handle];
-    return true;
+    return mDirs[dir_handle];
 }
 
-bool RsFileTree::getFileContent(FileIndex file_handle,FileData& fd) const
+RsFileTree::DirIndex RsFileTree::addDirectory(DirIndex parent,const std::string& name)
 {
-    if(file_handle >= mFiles.size())
-        return false;
+    if(parent >= mDirs.size())
+    {
+        RsErr() << "Consistency error in RsFileTree::addDirectory. parent index " << parent << " does not exist.";
+        return 0;
+    }
+    mDirs[parent].subdirs.push_back(mDirs.size());
 
-    fd = mFiles[file_handle];
-    return true;
+    DirData dd;
+    dd.name = name;
+    mDirs.push_back(dd);
+
+    return mDirs.size()-1;
+}
+RsFileTree::FileIndex RsFileTree::addFile(DirIndex parent,const std::string& name,const RsFileHash& hash,uint64_t size)
+{
+    if(parent >= mDirs.size())
+    {
+        RsErr() << "Consistency error in RsFileTree::addFile. parent index " << parent << " does not exist.";
+        return 0;
+    }
+    FileData fd;
+    fd.hash = hash;
+    fd.size = size;
+    fd.name = name;
+
+    mDirs[parent].subfiles.push_back(mFiles.size());
+    mFiles.push_back(fd);
+
+    return mFiles.size()-1;
+}
+const RsFileTree::FileData& RsFileTree::fileData(FileIndex file_handle) const
+{
+    assert(file_handle < mFiles.size());	// this should never happen!
+
+    return mFiles[file_handle];
 }
 uint64_t RsFileTree::totalFileSize() const
 {
@@ -214,24 +242,24 @@ std::unique_ptr<RsFileTree> RsFileTree::fromDirectory(const std::string& name)
 std::unique_ptr<RsFileTree> RsFileTree::fromDirDetails(
         const DirDetails& dd, bool remote ,bool remove_top_dirs )
 {
-	std::unique_ptr<RsFileTree>ft(new RsFileTree);
-	if(dd.type == DIR_TYPE_FILE)
-	{
-		FileData fd;
+    std::unique_ptr<RsFileTree>ft(new RsFileTree);
+    if(dd.type == DIR_TYPE_FILE)
+    {
+        FileData fd;
         fd.name = dd.name; fd.hash = dd.hash; fd.size = dd.size;
-		ft->mFiles.push_back(fd);
-		ft->mTotalFiles = 1;
-		ft->mTotalSize = fd.size;
+        ft->mFiles.push_back(fd);
+        ft->mTotalFiles = 1;
+        ft->mTotalSize = fd.size;
 
-		DirData dd;
-		dd.name = "/";
-		dd.subfiles.push_back(0);
-		ft->mDirs.push_back(dd);
-	}
+        DirData dd;
+        dd.name = "/";
+        dd.subfiles.push_back(0);
+        ft->mDirs.push_back(dd);
+    }
     else
         recurs_buildFileTree(*ft, 0, dd, remote, remove_top_dirs );
 
-	return ft;
+    return ft;
 }
 
 typedef FileListIO::read_error read_error ;

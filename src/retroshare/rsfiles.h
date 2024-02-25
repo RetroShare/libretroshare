@@ -415,20 +415,18 @@ public:
     FileIndex addFile(DirIndex parent,const std::string& name,const RsFileHash& hash,uint64_t size);
 
     /*!
-     * \brief getDirectoryContent
+     * \brief directoryData
      * \param dir_handle	index of the directory
-     * \param dd			directory data for that index
-     * \return
+     * \return              directory data for that index
      */
-    bool getDirectoryContent(DirIndex dir_handle, DirData& dd) const;
+    const DirData& directoryData(DirIndex dir_handle) const;
 
     /*!
-     * \brief getFileContent
+     * \brief fileData
      * \param file_handle		global index of the file
-     * \param fd				returned populated file data
-     * \return
+     * \return                  returned populated file data
      */
-    bool getFileContent(FileIndex file_handle,FileData& fd) const;
+    const FileData& fileData(FileIndex file_handle) const;
 
     /*!
      * \brief totalFileSize

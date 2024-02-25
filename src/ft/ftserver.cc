@@ -338,8 +338,7 @@ std::error_condition ftServer::requestFiles(
 		uint64_t dirHandle; std::string parentPath;
 		std::tie(dirHandle, parentPath) = se;
 
-        RsFileTree::DirData dirData;
-        collection.getDirectoryContent(dirHandle,dirData);
+        const RsFileTree::DirData& dirData(collection.directoryData(dirHandle));
 
 		auto& seenTimes = dirsSeenCnt[dirHandle];
 		std::string dirPath = RsDirUtil::makePath(parentPath, dirData.name);
@@ -358,8 +357,7 @@ std::error_condition ftServer::requestFiles(
 		{
 			if(fHandle >= filesCount) return std::errc::argument_out_of_domain;
 
-            RsFileTree::FileData fData;
-            collection.getFileContent(fHandle,fData);
+            const RsFileTree::FileData& fData(collection.fileData(fHandle));
 
 			bool fr =
 			FileRequest( fData.name, fData.hash, fData.size,
