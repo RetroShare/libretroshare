@@ -49,6 +49,14 @@ void RsFileTree::FileData::serial_process(
 	RS_SERIAL_PROCESS(hash);
 }
 
+RsFileTree::RsFileTree()
+    : mTotalFiles(0), mTotalSize(0)
+{
+    DirData dd;
+    dd.name = "/";
+    mDirs.push_back(dd);
+}
+
 /*static*/ std::tuple<std::unique_ptr<RsFileTree>, std::error_condition>
 RsFileTree::fromBase64(const std::string& base64)
 {
@@ -109,6 +117,23 @@ std::unique_ptr<RsFileTree> RsFileTree::fromRadix64(
 	if(ft->deserialise(mem.data(), static_cast<uint32_t>(mem.size())))
 		return ft;
 	return nullptr;
+}
+
+void RsFileTree::recurs_addTree( DirIndex parent, const RsFileTree& tree, DirIndex cdir)
+{
+    const auto& dd(tree.directoryData(cdir));
+
+    for(uint32_t i=0;i<dd.subdirs.size();++i)
+    {
+        auto new_dir_index = addDirectory(parent,tree.directoryData(dd.subdirs[i]).name);
+        recurs_addTree(new_dir_index,tree,dd.subdirs[i]);
+    }
+
+    for(uint32_t i=0;i<dd.subfiles.size();++i)
+    {
+        const auto& fd(tree.fileData(dd.subfiles[i]));
+        addFile(parent,fd.name,fd.hash,fd.size);
+    }
 }
 
 void RsFileTree::recurs_buildFileTree( RsFileTree& ft, uint32_t index, const DirDetails& dd, bool remote, bool remove_top_dirs )
@@ -196,6 +221,11 @@ RsFileTree::FileIndex RsFileTree::addFile(DirIndex parent,const std::string& nam
 
     return mFiles.size()-1;
 }
+void RsFileTree::addFileTree(DirIndex parent,const RsFileTree& tree)
+{
+    recurs_addTree(parent,tree,tree.root());
+}
+
 const RsFileTree::FileData& RsFileTree::fileData(FileIndex file_handle) const
 {
     assert(file_handle < mFiles.size());	// this should never happen!
@@ -221,6 +251,7 @@ std::unique_ptr<RsFileTree> RsFileTree::fromFile(const std::string& name, uint64
     fd.size = size;
 
     ft->mFiles.push_back(fd);
+    ft->mDirs[0].subfiles.push_back(0);
     ft->mTotalFiles = 1;
     ft->mTotalSize = size;
 
@@ -233,6 +264,7 @@ std::unique_ptr<RsFileTree> RsFileTree::fromDirectory(const std::string& name)
     DirData dd;
     dd.name = name;
 
+    ft->mDirs[0].subdirs.push_back(0);
     ft->mDirs.push_back(dd);
     ft->mTotalFiles = 0;
     ft->mTotalSize = 0;
@@ -248,13 +280,9 @@ std::unique_ptr<RsFileTree> RsFileTree::fromDirDetails(
         FileData fd;
         fd.name = dd.name; fd.hash = dd.hash; fd.size = dd.size;
         ft->mFiles.push_back(fd);
+        ft->mDirs[0].subfiles.push_back(0);
         ft->mTotalFiles = 1;
         ft->mTotalSize = fd.size;
-
-        DirData dd;
-        dd.name = "/";
-        dd.subfiles.push_back(0);
-        ft->mDirs.push_back(dd);
     }
     else
         recurs_buildFileTree(*ft, 0, dd, remote, remove_top_dirs );
@@ -436,5 +464,3 @@ bool RsFileTree::serialise(unsigned char *& buffer,uint32_t& buffer_size) const
         return false;
     }
 }
-
-RsFileTree::~RsFileTree() = default;

@@ -323,8 +323,8 @@ struct SharedDirStats
 struct RsFileTree : RsSerializable
 {
 public:
-	RsFileTree() : mTotalFiles(0), mTotalSize(0) {}
-    virtual ~RsFileTree();
+    RsFileTree() ;
+    virtual ~RsFileTree() = default;
 
     typedef uint32_t FileIndex;
     typedef uint64_t DirIndex;
@@ -415,6 +415,13 @@ public:
     FileIndex addFile(DirIndex parent,const std::string& name,const RsFileHash& hash,uint64_t size);
 
     /*!
+     * \brief addFileTree	Adds an entire file tree within the given directory. No duplicate check is performed.
+     * \param parent		Parent directory index to add to.
+     * \param tree			RsFileTree to add
+     */
+    void addFileTree(DirIndex parent, const RsFileTree& tree);
+
+    /*!
      * \brief directoryData
      * \param dir_handle	index of the directory
      * \return              directory data for that index
@@ -470,6 +477,7 @@ public:
 
 private:
     static void recurs_buildFileTree( RsFileTree& ft, uint32_t index, const DirDetails& dd, bool remote, bool remove_top_dirs );
+    void recurs_addTree( DirIndex parent, const RsFileTree& tree, DirIndex cdir);
 
 	std::vector<FileData> mFiles;
 	std::vector<DirData> mDirs;
