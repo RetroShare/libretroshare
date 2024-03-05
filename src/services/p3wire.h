@@ -34,7 +34,7 @@
  *
  */
 
-class p3Wire: public RsGenExchange, public RsWire
+class p3Wire: public RsGenExchange, public RsWire, public p3Config
 {
 public:
 	p3Wire(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs *gixs);
@@ -43,6 +43,9 @@ public:
 
 protected:
 	virtual void notifyChanges(std::vector<RsGxsNotify*>& changes) ;
+    virtual RsSerialiser* setupSerialiser() override;                            // @see p3Config::setupSerialiser()
+    virtual bool saveList(bool &cleanup, std::list<RsItem *>&saveList) override; // @see p3Config::saveList(bool &cleanup, std::list<RsItem *>&)
+    virtual bool loadList(std::list<RsItem *>& loadList) override;               // @see p3Config::loadList(std::list<RsItem *>&)
 
 public:
 	virtual void service_tick();
@@ -83,6 +86,7 @@ public:
 	virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId, int type, RsWirePulseSPtr &pPulse) override;
 
     bool getWireStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat) override;
+    void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
 private:
 	// Internal Service Data.
@@ -117,6 +121,9 @@ private:
 	std::string genRandomId();
 
 	RsMutex mWireMtx;
+    RsMutex mKnownWireMutex;
+
+    std::map<RsGxsGroupId,rstime_t> mKnownWire;
 };
 
 #endif 

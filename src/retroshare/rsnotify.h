@@ -75,7 +75,7 @@ const uint32_t RS_FEED_TYPE_SECURITY_IP = 0x2000;
 const uint32_t RS_FEED_TYPE_CIRCLE   = 0x4000;
 
 #ifdef RS_USE_WIRE
-const uint32_t RS_FEED_TYPE_WIRE  = 0x0030;
+const uint32_t RS_FEED_TYPE_WIRE  = 0x8000;
 #endif
 
 const uint32_t RS_FEED_ITEM_PEER_CONNECT            = RS_FEED_TYPE_PEER  | 0x0001;

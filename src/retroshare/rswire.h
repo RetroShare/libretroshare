@@ -246,8 +246,8 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
 				int type, RsWirePulseSPtr &pPulse) = 0;
 
     // Retrieve statistics about the given wire
-    virtual bool getWireStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) =0;
-
+    virtual bool getWireStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) = 0;
+    virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
 };
 
@@ -263,6 +263,8 @@ enum class RsWireEventCode: uint8_t
     NEW_LIKE                        = 0x06, // this event happens when there is a new like to a post
     NEW_REPUBLISH                   = 0x07, // this event happens when there is a new republish of a post
     WIRE_UPDATED                    = 0x08, // this event happens when there is any change to the wire account
+    READ_STATUS_CHANGED             = 0x09, // existing message has been read or set to unread
+    STATISTICS_CHANGED              = 0x10  // statistics changed
 };
 
 struct RsWireEvent: RsEvent
