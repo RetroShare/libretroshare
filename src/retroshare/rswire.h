@@ -39,6 +39,25 @@ class RsWireGroup;
 typedef std::shared_ptr<RsWireGroup> RsWireGroupSPtr;
 typedef std::shared_ptr<const RsWireGroup> RsWireGroupConstSPtr;
 
+struct RsWireStatistics: RsSerializable
+{
+    uint32_t mNumberOfPulses;
+    uint32_t mNumberOfRepliesAndLikes;
+    uint32_t mNumberOfUnreadPulses;
+    uint32_t mNumberOfNewPulses;
+
+    /// @see RsSerializable
+    virtual void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RS_SERIAL_PROCESS(mNumberOfPulses);
+        RS_SERIAL_PROCESS(mNumberOfRepliesAndLikes);
+        RS_SERIAL_PROCESS(mNumberOfUnreadPulses);
+        RS_SERIAL_PROCESS(mNumberOfNewPulses);
+    }
+};
+
 class RsWireGroup: public RsGxsGenericGroupData
 {
 	public:
@@ -246,8 +265,13 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
 				int type, RsWirePulseSPtr &pPulse) = 0;
 
     // Retrieve statistics about the given wire
-    virtual bool getWireStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) = 0;
+    virtual bool getWireStatistics(const RsGxsGroupId& wireId, RsWireStatistics& stat) = 0;
+    virtual bool getWireGroupStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) = 0;
+
     virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+
+    virtual bool getContentSummaries( const RsGxsGroupId& groupId,
+                                      std::vector<RsMsgMetaData>& summaries ) = 0;
 
 };
 
