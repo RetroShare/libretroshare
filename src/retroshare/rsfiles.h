@@ -355,6 +355,13 @@ public:
     static std::unique_ptr<RsFileTree> fromDirectory(const std::string& name);
 
     /**
+     * @brief fromTree	rebuilds a clean file tree, getting rid of possibly unreferenced items
+     * @param tree		source tree
+     * @return 			output cleaned tree
+     */
+    static std::unique_ptr<RsFileTree> fromTreeCleaned(const RsFileTree& tree);
+
+    /**
 	 * @brief Create a RsFileTree from Base64 representation
 	 * @param base64 base64 or base64url string representation of the file-tree
 	 * @return pointer to the parsed file-tree on success, nullptr plus error
@@ -414,12 +421,37 @@ public:
      */
     FileIndex addFile(DirIndex parent,const std::string& name,const RsFileHash& hash,uint64_t size);
 
+     /*!
+     * \brief updateFile	Updates a given file
+     * \param name			name of the file
+     * \param hash			hash of the file
+     * \param size			size of the file
+     * \return 				true if, ok false if the index is invalid.
+     */
+    bool updateFile(FileIndex file_index, const std::string& name, const RsFileHash& hash, uint64_t size);
+
     /*!
      * \brief addFileTree	Adds an entire file tree within the given directory. No duplicate check is performed.
      * \param parent		Parent directory index to add to.
      * \param tree			RsFileTree to add
      */
     void addFileTree(DirIndex parent, const RsFileTree& tree);
+
+    /*!
+     * \brief removeFile		removes a single file
+     * \param index_to_remove	index of the file to be removed
+     * \param parent_index		index of the parent directory where the file is (avoids searching)
+     * \return 					true is the file is found, false otherwise
+     */
+    bool removeFile(FileIndex index_to_remove,DirIndex parent_index);
+
+     /*!
+     * \brief removeDirectory	removes a directory and all its pending subtree
+     * \param index_to_remove	index of the directory to be removed
+     * \param parent_index		index of the parent directory where the directory is (avoids searching)
+     * \return 					true is the directory is found, false otherwise
+     */
+    bool removeDirectory(DirIndex index_to_remove,DirIndex parent_index);
 
     /*!
      * \brief directoryData
