@@ -138,6 +138,7 @@ RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_FORUMS_CONFI
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_POSTED_CONFIG   = 0x0316;
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_CHANNELS_CONFIG = 0x0317;
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_CIRCLES_CONFIG  = 0x0318;
+RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_WIRE_CONFIG  = 0x0319;
 
 // Experimental Services.
 /* DSDV Testing at the moment - Service Only */
