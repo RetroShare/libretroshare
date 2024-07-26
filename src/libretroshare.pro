@@ -350,8 +350,6 @@ INCLUDEPATH *= $${OPENPGPSDK_DIR}
 PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
 LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
 
-LIBS *= -lrnp
-
 ################################### HEADERS & SOURCES #############################
 
 HEADERS +=	ft/ftchunkmap.h \

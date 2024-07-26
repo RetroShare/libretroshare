@@ -48,6 +48,8 @@ static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_NAME_SIZE   = 64 ;
 static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_EMAIL_SIZE  = 64 ;
 static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_PASSWD_SIZE = 1024 ;
 
+#define RNP_IDENTIFIER_KEYID  "keyid"
+
 //#define DEBUG_PGPHANDLER 1
 //#define PGPHANDLER_DSA_SUPPORT
 
@@ -80,30 +82,64 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         if (rnp_input_from_path(&keyfile, pubring.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
-        if (rnp_load_keys(ffi, "GPG", keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+        if (rnp_load_keys(ffi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
         rnp_input_destroy(keyfile);
-
-        size_t count;
-        rnp_get_public_key_count(ffi,&count);
-
-#ifdef DEBUG_RNP
-        RsInfo() << "Loaded " << count << " public keys: " << std::endl;
-
-        rnp_identifier_iterator_t it;
-        rnp_identifier_iterator_create(ffi,&it,"keyid");
-        const char *key_identifier = nullptr;
-
-        while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
-            RsInfo() << "  Key id: " << key_identifier << std::endl;
-
-
-        rnp_identifier_iterator_destroy(it);
-#endif
     }
     else
         RsInfo() << "  pubring file: " << pubring << " not found. Creating an empty one";
+
+    if(secring_exist)
+    {
+        rnp_input_t keyfile = nullptr;
+
+        /* load public keyring */
+        if (rnp_input_from_path(&keyfile, secring.c_str()) != RNP_SUCCESS)
+            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
+
+        if (rnp_load_keys(ffi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
+
+        rnp_input_destroy(keyfile);
+    }
+    else
+        RsInfo() << "  secring file: " << secring << " not found. Creating an empty one";
+
+
+    size_t pub_count;
+    size_t sec_count;
+    rnp_get_public_key_count(ffi,&pub_count);
+    rnp_get_secret_key_count(ffi,&sec_count);
+
+    RsInfo() << "Loaded " << pub_count << " public keys, and " << sec_count << " secret keys." ;
+
+#ifdef DEBUG_RNP
+    rnp_identifier_iterator_t it;
+    rnp_identifier_iterator_create(ffi,&it,RNP_IDENTIFIER_KEYID);
+    const char *key_identifier = nullptr;
+
+    while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
+    {
+        rnp_key_handle_t key_handle;
+        rnp_locate_key(ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
+
+        char *key_fprint = nullptr;
+        char *key_uid = nullptr;
+        rnp_key_get_fprint(key_handle, &key_fprint);
+        rnp_key_get_primary_uid(key_handle, &key_uid);
+
+        bool have_secret = false;
+        rnp_key_have_secret(key_handle,&have_secret);
+
+        RsInfo() << (have_secret?"  [SECRET]":"          ") << "  Key id: " << key_identifier << " fingerprint: " << key_fprint << " Username: \"" << key_uid << "\"" ;
+
+        rnp_buffer_destroy(key_fprint);
+        rnp_buffer_destroy(key_uid);
+    }
+
+    rnp_identifier_iterator_destroy(it);
+#endif
 
 #ifdef TODO
         const ops_keydata_t *keydata ;
