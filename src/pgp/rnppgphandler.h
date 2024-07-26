@@ -31,6 +31,8 @@
 #include "pgp/pgphandler.h"
 #include "retroshare/rstypes.h"
 
+#include "rnp/rnp.h"
+
 class RNPPGPHandler: public PGPHandler
 {
 public:
@@ -74,6 +76,11 @@ public:
 
         bool locked_syncPublicKeyring() ;
         bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) ;
+
+        // RNP structures
+
+        rnp_ffi_t ffi;
+
 #ifdef TO_REMOVE
 
         void initCertificateInfo(PGPCertificateInfo& cert,const ops_keydata_t *keydata,uint32_t i) ;

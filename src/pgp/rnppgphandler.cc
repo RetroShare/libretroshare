@@ -35,14 +35,14 @@
 #include "util/rswin.h"
 #endif
 
-
-#include "rnppgphandler.h"
-
 #include "util/rsdir.h"		
 #include "util/rsdiscspace.h"		
 #include "util/rsmemory.h"		
 #include "pgp/pgpkeyutil.h"
 #include "retroshare/rspeers.h"
+
+#include "rnppgphandler.h"
+#include "rnp/rnp_err.h"
 
 static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_NAME_SIZE   = 64 ;
 static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_EMAIL_SIZE  = 64 ;
@@ -51,6 +51,7 @@ static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_PASSWD_SIZE = 1024 ;
 //#define DEBUG_PGPHANDLER 1
 //#define PGPHANDLER_DSA_SUPPORT
 
+#define DEBUG_RNP 1
 #define NOT_IMPLEMENTED RsErr() << " function " << __PRETTY_FUNCTION__ << " Not implemented yet." << std::endl; return false;
 
 RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secring,const std::string& trustdb,const std::string& pgp_lock_filename)
@@ -60,77 +61,99 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
     RsInfo() << "RNP-PGPHandler: Initing pgp keyrings";
 
-#ifdef TODO
+    /* initialize FFI object */
+    if (rnp_ffi_create(&ffi, "GPG", "GPG") != RNP_SUCCESS)
+        throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot initialize ffi object.");
+
     // Check that the file exists. If not, create a void keyring.
 
-    FILE *ftest ;
-    ftest = RsDirUtil::rs_fopen(pubring.c_str(),"rb") ;
-    bool pubring_exist = (ftest != NULL) ;
-    if(ftest != NULL)
-        fclose(ftest) ;
-    ftest = RsDirUtil::rs_fopen(secring.c_str(),"rb") ;
-    bool secring_exist = (ftest != NULL) ;
-    if(ftest != NULL)
-        fclose(ftest) ;
+    bool pubring_exist = RsDirUtil::fileExists(pubring);
+    bool secring_exist = RsDirUtil::fileExists(secring);
 
     // Read public and secret keyrings from supplied files.
     //
     if(pubring_exist)
     {
-        if(ops_false == ops_keyring_read_from_file(_pubring, false, pubring.c_str()))
-            throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read pubring. File corrupted.") ;
+        rnp_input_t keyfile = nullptr;
+
+        /* load public keyring */
+        if (rnp_input_from_path(&keyfile, pubring.c_str()) != RNP_SUCCESS)
+            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
+
+        if (rnp_load_keys(ffi, "GPG", keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
+
+        rnp_input_destroy(keyfile);
+
+        size_t count;
+        rnp_get_public_key_count(ffi,&count);
+
+#ifdef DEBUG_RNP
+        RsInfo() << "Loaded " << count << " public keys: " << std::endl;
+
+        rnp_identifier_iterator_t it;
+        rnp_identifier_iterator_create(ffi,&it,"keyid");
+        const char *key_identifier = nullptr;
+
+        while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
+            RsInfo() << "  Key id: " << key_identifier << std::endl;
+
+
+        rnp_identifier_iterator_destroy(it);
+#endif
     }
     else
         RsInfo() << "  pubring file: " << pubring << " not found. Creating an empty one";
 
-    const ops_keydata_t *keydata ;
-    int i=0 ;
-    while( (keydata = ops_keyring_get_key_by_index(_pubring,i)) != NULL )
-    {
-        PGPCertificateInfo& cert(_public_keyring_map[ RsPgpId(keydata->key_id) ]) ;
-
-        // Init all certificates.
-
-        initCertificateInfo(cert,keydata,i) ;
-
-        // Validate signatures.
-
-        validateAndUpdateSignatures(cert,keydata) ;
-
-        ++i ;
-    }
-    _pubring_last_update_time = time(NULL) ;
-
-    RsInfo() << "  Pubring read successfully";
-
-    if(secring_exist)
-    {
-        if(ops_false == ops_keyring_read_from_file(_secring, false, secring.c_str()))
+#ifdef TODO
+        const ops_keydata_t *keydata ;
+        int i=0 ;
+        while( (keydata = ops_keyring_get_key_by_index(_pubring,i)) != NULL )
         {
-            RS_ERR("Cannot read secring. File seems corrupted");
-            print_stacktrace();
+            PGPCertificateInfo& cert(_public_keyring_map[ RsPgpId(keydata->key_id) ]) ;
 
-            // We should not use exceptions they are terrible for embedded platforms
-            throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read secring. File corrupted.") ;
+            // Init all certificates.
+
+            initCertificateInfo(cert,keydata,i) ;
+
+            // Validate signatures.
+
+            validateAndUpdateSignatures(cert,keydata) ;
+
+            ++i ;
         }
-    }
-    else
-        RsInfo() << "  Secring file: " << pubring << " not found. Creating an empty one";
+        _pubring_last_update_time = time(NULL) ;
 
-    i=0 ;
-    while( (keydata = ops_keyring_get_key_by_index(_secring,i)) != NULL )
-    {
-        initCertificateInfo(_secret_keyring_map[ RsPgpId(keydata->key_id) ],keydata,i) ;
-        ++i ;
-    }
-    _secring_last_update_time = time(NULL) ;
+        RsInfo() << "  Pubring read successfully";
 
-    RsInfo() << "  Secring read successfully";
+        if(secring_exist)
+        {
+            if(ops_false == ops_keyring_read_from_file(_secring, false, secring.c_str()))
+            {
+                RS_ERR("Cannot read secring. File seems corrupted");
+                print_stacktrace();
 
-    locked_readPrivateTrustDatabase() ;
-    _trustdb_last_update_time = time(NULL) ;
+                // We should not use exceptions they are terrible for embedded platforms
+                throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read secring. File corrupted.") ;
+            }
+        }
+        else
+            RsInfo() << "  Secring file: " << pubring << " not found. Creating an empty one";
+
+        i=0 ;
+        while( (keydata = ops_keyring_get_key_by_index(_secring,i)) != NULL )
+        {
+            initCertificateInfo(_secret_keyring_map[ RsPgpId(keydata->key_id) ],keydata,i) ;
+            ++i ;
+        }
+        _secring_last_update_time = time(NULL) ;
+
+        RsInfo() << "  Secring read successfully";
+
+        locked_readPrivateTrustDatabase() ;
+        _trustdb_last_update_time = time(NULL) ;
 #endif
-}
+    }
 
 #ifdef TO_REMOVE
 ops_keyring_t *OpenPGPSDKHandler::allocateOPSKeyring()
