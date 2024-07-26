@@ -383,6 +383,7 @@ HEADERS +=	pqi/authssl.h \
 			pqi/authgpg.h \
 			pgp/pgphandler.h \
 			pgp/openpgpsdkhandler.h \
+			pgp/rnppgphandler.h \
 			pgp/pgpkeyutil.h \
 			pqi/pqifdbin.h \
 			pqi/rstcpsocket.h \
@@ -564,6 +565,7 @@ SOURCES +=	pqi/authgpg.cc \
 			pqi/authssl.cc \
 			pgp/pgphandler.cc \
 			pgp/openpgpsdkhandler.cc \
+			pgp/rnppgphandler.cc \
 			pgp/pgpkeyutil.cc \
 			pgp/rscertificate.cc \
 			pgp/pgpauxutils.cc \
