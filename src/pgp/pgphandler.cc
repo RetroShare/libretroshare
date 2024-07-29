@@ -400,5 +400,35 @@ bool PGPHandler::locked_syncTrustDatabase()
 	return true ;
 }
 
+bool PGPHandler::extract_name_and_comment(const char *uid,std::string& name,std::string& comment,std::string& email)
+{
+    name ="";
+    const std::string namestring(uid);
+
+    uint32_t i=0;
+    while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { name += namestring[i] ; ++i ;}
+
+    // trim right spaces
+    std::string::size_type found = name.find_last_not_of(' ');
+    if (found != std::string::npos)
+        name.erase(found + 1);
+    else
+        name.clear(); // all whitespace
+
+    std::string& next = (namestring[i] == '(')?comment:email ;
+    ++i ;
+    next = "" ;
+    while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next += namestring[i] ; ++i ;}
+
+    while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { next += namestring[i] ; ++i ;}
+
+    if(i< namestring.length())
+    {
+        std::string& next2 = (namestring[i] == '(')?comment:email ;
+        ++i ;
+        next2 = "" ;
+        while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next2 += namestring[i] ; ++i ;}
+    }
+}
 
 

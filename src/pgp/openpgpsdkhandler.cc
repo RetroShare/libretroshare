@@ -203,35 +203,7 @@ void OpenPGPSDKHandler::initCertificateInfo(PGPCertificateInfo& cert,const ops_k
 	//
 
 	if(keydata->uids != NULL)
-	{
-		std::string namestring( (char *)keydata->uids[0].user_id ) ;
-
-		cert._name = "" ;
-		uint32_t i=0;
-		while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { cert._name += namestring[i] ; ++i ;}
-
-		// trim right spaces
-		std::string::size_type found = cert._name.find_last_not_of(' ');
-		if (found != std::string::npos)
-			cert._name.erase(found + 1);
-		else
-			cert._name.clear(); // all whitespace
-
-		std::string& next = (namestring[i] == '(')?cert._comment:cert._email ;
-		++i ;
-		next = "" ;
-		while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next += namestring[i] ; ++i ;}
-
-		while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { next += namestring[i] ; ++i ;}
-
-		if(i< namestring.length())
-		{
-			std::string& next2 = (namestring[i] == '(')?cert._comment:cert._email ;
-			++i ;
-			next2 = "" ;
-			while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next2 += namestring[i] ; ++i ;}
-		}
-	}
+        extract_name_and_comment((char *)keydata->uids[0].user_id,cert._name,cert._comment,cert._email);
 
 	cert._trustLvl = 1 ;	// to be setup accordingly
 	cert._validLvl = 1 ;	// to be setup accordingly

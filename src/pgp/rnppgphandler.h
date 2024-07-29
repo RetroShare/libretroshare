@@ -81,9 +81,9 @@ public:
 
         rnp_ffi_t ffi;
 
+        void initCertificateInfo(const rnp_key_handle_t& key_handle);
 #ifdef TO_REMOVE
 
-        void initCertificateInfo(PGPCertificateInfo& cert,const ops_keydata_t *keydata,uint32_t i) ;
 
 		// Returns true if the signatures have been updated
 		//

@@ -207,7 +207,9 @@ public:
 		bool locked_writePrivateTrustDatabase() ;
         bool locked_syncTrustDatabase() ;
 
-		// Members.
+        bool extract_name_and_comment(const char *uid,std::string& name,std::string& comment,std::string& email);
+
+        // Members.
 		//
 		mutable RsMutex pgphandlerMtx ;
 

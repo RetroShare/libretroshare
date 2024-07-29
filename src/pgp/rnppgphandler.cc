@@ -114,7 +114,6 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
     RsInfo() << "Loaded " << pub_count << " public keys, and " << sec_count << " secret keys." ;
 
-#ifdef DEBUG_RNP
     rnp_identifier_iterator_t it;
     rnp_identifier_iterator_create(ffi,&it,RNP_IDENTIFIER_KEYID);
     const char *key_identifier = nullptr;
@@ -124,22 +123,10 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         rnp_key_handle_t key_handle;
         rnp_locate_key(ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
 
-        char *key_fprint = nullptr;
-        char *key_uid = nullptr;
-        rnp_key_get_fprint(key_handle, &key_fprint);
-        rnp_key_get_primary_uid(key_handle, &key_uid);
-
-        bool have_secret = false;
-        rnp_key_have_secret(key_handle,&have_secret);
-
-        RsInfo() << (have_secret?"  [SECRET]":"          ") << "  Key id: " << key_identifier << " fingerprint: " << key_fprint << " Username: \"" << key_uid << "\"" ;
-
-        rnp_buffer_destroy(key_fprint);
-        rnp_buffer_destroy(key_uid);
+        initCertificateInfo(key_handle) ;
     }
 
     rnp_identifier_iterator_destroy(it);
-#endif
 
 #ifdef TODO
         const ops_keydata_t *keydata ;
@@ -242,68 +229,59 @@ ops_parse_cb_return_t cb_get_passphrase(const ops_parser_content_t *content_,ops
 
 	return OPS_RELEASE_MEMORY;
 }
+#endif
 
-
-void OpenPGPSDKHandler::initCertificateInfo(PGPCertificateInfo& cert,const ops_keydata_t *keydata,uint32_t index)
+void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 {
-	// Parse certificate name
-	//
+    // Parse certificate name
+    //
 
-	if(keydata->uids != NULL)
-	{
-		std::string namestring( (char *)keydata->uids[0].user_id ) ;
+    char *key_fprint = nullptr;
+    char *key_uid = nullptr;
+    char *key_id = nullptr;
+    char *key_alg = nullptr;
+    uint32_t key_bits = 0;
 
-		cert._name = "" ;
-		uint32_t i=0;
-		while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { cert._name += namestring[i] ; ++i ;}
+    rnp_key_get_fprint(key_handle, &key_fprint);
+    rnp_key_get_primary_uid(key_handle, &key_uid);
+    rnp_key_get_keyid(key_handle, &key_id);
+    rnp_key_get_alg(key_handle, &key_alg);
+    rnp_key_get_bits(key_handle, &key_bits);
 
-		// trim right spaces
-		std::string::size_type found = cert._name.find_last_not_of(' ');
-		if (found != std::string::npos)
-			cert._name.erase(found + 1);
-		else
-			cert._name.clear(); // all whitespace
+    bool have_secret = false;
+    rnp_key_have_secret(key_handle,&have_secret);
 
-		std::string& next = (namestring[i] == '(')?cert._comment:cert._email ;
-		++i ;
-		next = "" ;
-		while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next += namestring[i] ; ++i ;}
+    RsInfo() << (have_secret?"  [SECRET]":"          ") << " type: " << key_alg << "-" << key_bits << "  Key id: " << key_id<< " fingerprint: " << key_fprint << " Username: \"" << key_uid << "\"" ;
 
-		while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { next += namestring[i] ; ++i ;}
+    PGPCertificateInfo& cert(_public_keyring_map[ RsPgpId(key_id) ]) ;
 
-		if(i< namestring.length())
-		{
-			std::string& next2 = (namestring[i] == '(')?cert._comment:cert._email ;
-			++i ;
-			next2 = "" ;
-			while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next2 += namestring[i] ; ++i ;}
-		}
-	}
+    extract_name_and_comment(key_uid,cert._name,cert._comment,cert._email);
 
-	cert._trustLvl = 1 ;	// to be setup accordingly
-	cert._validLvl = 1 ;	// to be setup accordingly
-	cert._key_index = index ;
-	cert._flags = 0 ;
-	cert._time_stamp = 0 ;// "never" by default. Will be updated by trust database, and effective key usage.
+    cert._trustLvl = 1 ;	// to be setup accordingly
+    cert._validLvl = 1 ;	// to be setup accordingly
+    //cert._key_index = index ;
+    cert._flags = 0 ;
+    cert._time_stamp = 0 ;// "never" by default. Will be updated by trust database, and effective key usage.
 
-	switch(keydata->key.pkey.algorithm)
-	{
-		case OPS_PKA_RSA: cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_RSA ;
-								break ;
-		case OPS_PKA_DSA: cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_DSA ;
-								cert._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_UNSUPPORTED_ALGORITHM ;
-								break ;
-		default: cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_UNKNOWN ;
-								cert._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_UNSUPPORTED_ALGORITHM ;
-								break ;
-	}
+    if(!strcmp(key_alg,"RSA"))
+        cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_RSA ;
+    else
+    {
+        cert._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_UNSUPPORTED_ALGORITHM ;
 
-	ops_fingerprint_t f ;
-	ops_fingerprint(&f,&keydata->key.pkey) ; 
+        if(!strcmp(key_alg,"DSA"))
+            cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_DSA ;
+    }
 
-	cert._fpr = PGPFingerprintType(f.fingerprint) ;
+    cert._fpr = PGPFingerprintType(key_fprint) ;
+
+    rnp_buffer_destroy(key_fprint);
+    rnp_buffer_destroy(key_uid);
+    rnp_buffer_destroy(key_id);
+    rnp_buffer_destroy(key_alg);
 }
 
+#ifdef TODO
 bool OpenPGPSDKHandler::validateAndUpdateSignatures(PGPCertificateInfo& cert,const ops_keydata_t *keydata)
 {
 	ops_validate_result_t* result=(ops_validate_result_t*)ops_mallocz(sizeof *result);
