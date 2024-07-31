@@ -125,6 +125,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
 
         initCertificateInfo(key_handle) ;
+        rnp_key_handle_destroy(key_handle);
     }
 
     rnp_identifier_iterator_destroy(it);
@@ -254,27 +255,33 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 
     RsInfo() << (have_secret?"  [SECRET]":"          ") << " type: " << key_alg << "-" << key_bits << "  Key id: " << key_id<< " fingerprint: " << key_fprint << " Username: \"" << key_uid << "\"" ;
 
-    PGPCertificateInfo& cert(_public_keyring_map[ RsPgpId(key_id) ]) ;
-
-    extract_name_and_comment(key_uid,cert._name,cert._comment,cert._email);
-
-    cert._trustLvl = 1 ;	// to be setup accordingly
-    cert._validLvl = 1 ;	// to be setup accordingly
-    //cert._key_index = index ;
-    cert._flags = 0 ;
-    cert._time_stamp = 0 ;// "never" by default. Will be updated by trust database, and effective key usage.
-
-    if(!strcmp(key_alg,"RSA"))
-        cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_RSA ;
-    else
+    auto fill_cert = [=](PGPCertificateInfo& cert,char *key_uid)
     {
-        cert._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_UNSUPPORTED_ALGORITHM ;
+        extract_name_and_comment(key_uid,cert._name,cert._comment,cert._email);
 
-        if(!strcmp(key_alg,"DSA"))
-            cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_DSA ;
-    }
+        cert._trustLvl = 1 ;	// to be setup accordingly
+        cert._validLvl = 1 ;	// to be setup accordingly
+        //cert._key_index = index ;
+        cert._flags = 0 ;
+        cert._time_stamp = 0 ;// "never" by default. Will be updated by trust database, and effective key usage.
 
-    cert._fpr = PGPFingerprintType(key_fprint) ;
+        if(!strcmp(key_alg,"RSA"))
+            cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_RSA ;
+        else
+        {
+            cert._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_UNSUPPORTED_ALGORITHM ;
+
+            if(!strcmp(key_alg,"DSA"))
+                cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_DSA ;
+        }
+
+        cert._fpr = PGPFingerprintType(key_fprint) ;
+    };
+
+    fill_cert(_public_keyring_map[ RsPgpId(key_id)],key_uid) ;
+
+    if(have_secret)
+        fill_cert(_secret_keyring_map[ RsPgpId(key_id)],key_uid) ;
 
     rnp_buffer_destroy(key_fprint);
     rnp_buffer_destroy(key_uid);
@@ -341,8 +348,10 @@ bool RNPPGPHandler::haveSecretKey(const RsPgpId& id) const
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    NOT_IMPLEMENTED;
-    return false;
+    bool result = _secret_keyring_map.find(id) != _secret_keyring_map.end();
+
+    RsDbg() << "HaveSecretKey: " << id << " : " << result ;
+    return result;
 }
 
 bool RNPPGPHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
