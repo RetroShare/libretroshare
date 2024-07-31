@@ -79,7 +79,7 @@ public:
 
         // RNP structures
 
-        rnp_ffi_t ffi;
+        rnp_ffi_t mRnpFfi;
 
         void initCertificateInfo(const rnp_key_handle_t& key_handle);
 #ifdef TO_REMOVE

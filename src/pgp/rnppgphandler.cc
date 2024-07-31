@@ -36,7 +36,8 @@
 #endif
 
 #include "util/rsdir.h"		
-#include "util/rsdiscspace.h"		
+#include "util/rsprint.h"
+#include "util/rsdiscspace.h"
 #include "util/rsmemory.h"		
 #include "pgp/pgpkeyutil.h"
 #include "retroshare/rspeers.h"
@@ -64,7 +65,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
     RsInfo() << "RNP-PGPHandler: Initing pgp keyrings";
 
     /* initialize FFI object */
-    if (rnp_ffi_create(&ffi, "GPG", "GPG") != RNP_SUCCESS)
+    if (rnp_ffi_create(&mRnpFfi, "GPG", "GPG") != RNP_SUCCESS)
         throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot initialize ffi object.");
 
     // Check that the file exists. If not, create a void keyring.
@@ -82,7 +83,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         if (rnp_input_from_path(&keyfile, pubring.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
-        if (rnp_load_keys(ffi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+        if (rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
         rnp_input_destroy(keyfile);
@@ -98,7 +99,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         if (rnp_input_from_path(&keyfile, secring.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
 
-        if (rnp_load_keys(ffi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+        if (rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
 
         rnp_input_destroy(keyfile);
@@ -109,19 +110,19 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
     size_t pub_count;
     size_t sec_count;
-    rnp_get_public_key_count(ffi,&pub_count);
-    rnp_get_secret_key_count(ffi,&sec_count);
+    rnp_get_public_key_count(mRnpFfi,&pub_count);
+    rnp_get_secret_key_count(mRnpFfi,&sec_count);
 
     RsInfo() << "Loaded " << pub_count << " public keys, and " << sec_count << " secret keys." ;
 
     rnp_identifier_iterator_t it;
-    rnp_identifier_iterator_create(ffi,&it,RNP_IDENTIFIER_KEYID);
+    rnp_identifier_iterator_create(mRnpFfi,&it,RNP_IDENTIFIER_KEYID);
     const char *key_identifier = nullptr;
 
     while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
     {
         rnp_key_handle_t key_handle;
-        rnp_locate_key(ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
+        rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
 
         initCertificateInfo(key_handle) ;
     }
@@ -1617,42 +1618,85 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-	RsPgpId id = RsPgpId(key_fingerprint.toByteArray() + PGPFingerprintType::SIZE_IN_BYTES - RsPgpId::SIZE_IN_BYTES) ;
+    rnp_op_verify_t           verify;
+    rnp_input_t               literal_data_input;
+    rnp_input_t               signature_input;
+    rnp_op_verify_signature_t sig = nullptr;
+    rnp_result_t              sigstatus = RNP_SUCCESS;
+    rnp_key_handle_t          key = nullptr;
+    char *                    keyid = nullptr;
+    char *                    key_fprint = nullptr;
 
-    NOT_IMPLEMENTED;
-#ifdef TODO
-	const ops_keydata_t *key = locked_getPublicKey(id,true) ;
+    bool signature_verification_result = false;
 
-	if(key == NULL)
-	{
-        RsErr() << "No key returned by fingerprint " << key_fingerprint.toStdString() << ", and ID " << id.toStdString() << ", signature verification failed!" ;
-		return false ;
-	}
+    try
+    {
+        if(rnp_input_from_memory(&literal_data_input,(uint8_t*)literal_data,literal_data_length,false))
+            throw std::runtime_error("Cannot initialize input data");
 
-	// Check that fingerprint is the same.
-	const ops_public_key_t *pkey = &key->key.pkey ;
-	ops_fingerprint_t fp ;
-	ops_fingerprint(&fp,pkey) ; 
+        if(rnp_input_from_memory(&signature_input,(uint8_t*)sign,sign_len,false))
+            throw std::runtime_error("Cannot initialize signature data");
 
-	if(key_fingerprint != PGPFingerprintType(fp.fingerprint))
-	{
-        RsErr() << "Key fingerprint does not match " << key_fingerprint.toStdString() << ", for ID " << id.toStdString() << ", signature verification failed!" ;
-		return false ;
-	}
+        if(rnp_op_verify_detached_create(&verify, mRnpFfi, literal_data_input, signature_input) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot initialize signature verification structure");
 
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "Verifying signature from fingerprint " << key_fingerprint.toStdString() << ", length " << std::dec << sign_len << ", literal data length = " << literal_data_length ;
-    RsErr() << "Signature body: " ;
-	hexdump( (unsigned char *)sign,sign_len) ;
-    RsErr() ;
-    RsErr() << "Signed data: " ;
-	hexdump( (unsigned char *)literal_data,     literal_data_length) ;
-    RsErr() ;
-#endif
 
-	return ops_validate_detached_signature(literal_data,literal_data_length,sign,sign_len,key) ;
-#endif
+        if (rnp_op_verify_execute(verify) != RNP_SUCCESS)
+            throw std::runtime_error("failed to execute verification operation");
+
+        size_t sigcount=0;
+
+        /* now check signatures and get some info about them */
+        if (rnp_op_verify_get_signature_count(verify, &sigcount) != RNP_SUCCESS)
+            throw std::runtime_error("failed to get signature count");
+
+        if(sigcount != 1)
+            throw std::runtime_error("ERROR: expected a single signature. Got "+RsUtil::NumberToString(sigcount));
+
+        if (rnp_op_verify_get_signature_at(verify, 0, &sig) != RNP_SUCCESS)
+            throw std::runtime_error("failed to get signature result ");
+
+        if (rnp_op_verify_signature_get_key(sig, &key) != RNP_SUCCESS)
+            throw std::runtime_error("failed to get signature result key");
+
+        if (rnp_key_get_keyid(key, &keyid) != RNP_SUCCESS)
+            throw std::runtime_error("failed to get signature result key id");
+
+        sigstatus = rnp_op_verify_signature_get_status(sig);
+
+        switch(sigstatus)
+        {
+        case RNP_SUCCESS :                 break;
+        case RNP_ERROR_SIGNATURE_EXPIRED : throw std::runtime_error("Signature expired");
+        case RNP_ERROR_KEY_NOT_FOUND : 	   throw std::runtime_error("key to verify signature was not available");
+        default:
+        case RNP_ERROR_SIGNATURE_INVALID : throw std::runtime_error("unmatched signature");
+        }
+
+        if(rnp_key_get_fprint(key, &key_fprint) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot extract fingerprint from signing key.");
+
+        PGPFingerprintType signer_fprint(key_fprint);
+        signature_verification_result = (sigstatus == RNP_SUCCESS) && (signer_fprint == key_fingerprint);
+
+        RsInfo() << "Status for signature by key " << key_fingerprint.toStdString() << ": found key " << signer_fprint.toStdString() << " in keyring. Status = " << (int)signature_verification_result;
+    }
+    catch(std::exception& e)
+    {
+            RsErr() << "Signature verification failed: " << e.what() ;
+            return false;
+    }
+
+    rnp_buffer_destroy(keyid);
+    rnp_key_handle_destroy(key);
+    rnp_op_verify_destroy(verify);
+
+    rnp_input_destroy(literal_data_input);
+    rnp_input_destroy(signature_input);
+
+    return signature_verification_result;
 }
+
 
 #ifdef TO_REMOVE
 // Lexicographic order on signature packets
