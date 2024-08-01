@@ -67,7 +67,7 @@ public:
         virtual bool decryptTextFromFile(const RsPgpId&,std::string& text,const std::string& inputfile) override;
         virtual bool SignDataBin(const RsPgpId& id,const void *data, const uint32_t len, unsigned char *sign, unsigned int *signlen,bool use_raw_signature, std::string reason /* = "" */) override;
         virtual bool privateSignCertificate(const RsPgpId& ownId,const RsPgpId& id_of_key_to_sign) override;
-        virtual bool VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const PGPFingerprintType& key_fingerprint) override;
+        virtual bool VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const RsPgpFingerprint &key_fingerprint) override;
         virtual bool getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) const override;
         virtual bool haveSecretKey(const RsPgpId& id) const override;
         virtual bool syncDatabase() override;

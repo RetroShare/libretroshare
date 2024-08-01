@@ -194,44 +194,47 @@ ops_keyring_t *OpenPGPSDKHandler::allocateOPSKeyring()
 
 	return kr ;
 }
-
-ops_parse_cb_return_t cb_get_passphrase(const ops_parser_content_t *content_,ops_parse_cb_info_t *cbinfo)// __attribute__((unused)))
-{
-	const ops_parser_content_union_t *content=&content_->content;
-	bool prev_was_bad = false ;
-	
-	switch(content_->tag)
-	{
-		case OPS_PARSER_CMD_GET_SK_PASSPHRASE_PREV_WAS_BAD: prev_was_bad = true ;
-			/* fallthrough */
-		case OPS_PARSER_CMD_GET_SK_PASSPHRASE:
-		{
-			std::string passwd;
-			std::string uid_hint ;
-
-			if(cbinfo->cryptinfo.keydata->nuids > 0)
-				uid_hint = std::string((const char *)cbinfo->cryptinfo.keydata->uids[0].user_id) ;
-			uid_hint += "(" + RsPgpId(cbinfo->cryptinfo.keydata->key_id).toStdString()+")" ;
-
-			bool cancelled = false ;
-			passwd = PGPHandler::passphraseCallback()(NULL,"",uid_hint.c_str(),NULL,prev_was_bad,&cancelled) ;
-
-			if(cancelled)
-				*(unsigned char *)cbinfo->arg = 1;
-
-			*(content->secret_key_passphrase.passphrase)= (char *)ops_mallocz(passwd.length()+1) ;
-			memcpy(*(content->secret_key_passphrase.passphrase),passwd.c_str(),passwd.length()) ;
-			return OPS_KEEP_MEMORY;
-		}
-		break;
-
-		default:
-			break;
-	}
-
-	return OPS_RELEASE_MEMORY;
-}
 #endif
+
+bool rnp_get_passphrase_cb(rnp_ffi_t        ffi,
+                           void *           app_ctx,
+                           rnp_key_handle_t key,
+                           const char *     pgp_context,
+                           char             buf[],
+                           size_t           buf_len)
+{
+	bool prev_was_bad = false ;
+    char *key_id;
+    char *user_id;
+
+    rnp_key_get_keyid(key,&key_id);
+    rnp_key_get_primary_uid(key,&user_id);
+
+    RsDbg() << "GetPassphrase callback called: keyid = " << key_id << ", context = \"" << pgp_context << "\"" << " userid=\"" << user_id << "\"";
+
+    std::string passwd;
+
+    std::string uid_hint ;
+
+    uid_hint += user_id;
+    uid_hint += " (" + RsPgpId(key_id).toStdString()+")" ;
+
+    bool cancelled = false ;
+    passwd = PGPHandler::passphraseCallback()(NULL,"",uid_hint.c_str(),NULL,prev_was_bad,&cancelled) ;
+
+    if(cancelled)
+        return false;
+
+    if(passwd.length() >= buf_len)
+    {
+        RsErr() << "Passwd is too long (" << passwd.length() << " chars). Passwd buffer should be larger (only " << buf_len << ")." ;
+        return false;
+    }
+    memcpy(buf,passwd.c_str(),passwd.length());
+    buf[passwd.length()] = 0;
+
+    return true;
+}
 
 void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 {
@@ -255,7 +258,7 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 
     RsInfo() << (have_secret?"  [SECRET]":"          ") << " type: " << key_alg << "-" << key_bits << "  Key id: " << key_id<< " fingerprint: " << key_fprint << " Username: \"" << key_uid << "\"" ;
 
-    auto fill_cert = [=](PGPCertificateInfo& cert,char *key_uid)
+    auto fill_cert = [key_alg,key_fprint](PGPCertificateInfo& cert,char *key_uid)
     {
         extract_name_and_comment(key_uid,cert._name,cert._comment,cert._email);
 
@@ -275,7 +278,7 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
                 cert._type = PGPCertificateInfo::PGP_CERTIFICATE_TYPE_DSA ;
         }
 
-        cert._fpr = PGPFingerprintType(key_fprint) ;
+        cert._fpr = RsPgpFingerprint(key_fprint) ;
     };
 
     fill_cert(_public_keyring_map[ RsPgpId(key_id)],key_uid) ;
@@ -1362,62 +1365,101 @@ bool RNPPGPHandler::encryptDataBin(const RsPgpId& key_id,const void *data, const
 
 bool RNPPGPHandler::decryptDataBin(const RsPgpId& /*key_id*/,const void *encrypted_data, const uint32_t encrypted_len, unsigned char *data, unsigned int *data_len)
 {
-	int out_length ;
-	unsigned char *out ;
+    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    NOT_IMPLEMENTED;
-#ifdef TODO
-	ops_boolean_t res = ops_decrypt_memory((const unsigned char *)encrypted_data,encrypted_len,&out,&out_length,_secring,ops_false,cb_get_passphrase) ;
+    /* set the password provider */
+    rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
 
-	if(*data_len < (unsigned int)out_length)
-	{
-        RsErr() << "Not enough room to store decrypted data! Please give more.";
-		return false ;
-	}
+    /* create file input and memory output objects for the encrypted message and decrypted
+     * message */
 
-	*data_len = (unsigned int)out_length ;
-	memcpy(data,out,out_length) ;
-	free(out) ;
+    rnp_input_t input;
+    rnp_output_t output;
+    bool result = false;
 
-	return (bool)res ;
-#endif
+    try
+    {
+        if (rnp_input_from_memory(&input, (uint8_t*)encrypted_data,encrypted_len,false) != RNP_SUCCESS)
+            throw std::runtime_error("cannot read input encrypted data") ;
+
+        if (rnp_output_to_memory(&output,0) != RNP_SUCCESS)
+            throw std::runtime_error("cannot create output decrypted data structure") ;
+
+        if (rnp_decrypt(mRnpFfi, input, output) != RNP_SUCCESS)
+            throw std::runtime_error("decryption failed.");
+
+        uint8_t *output_buf = nullptr;
+        size_t output_len = 0;
+
+        /* get the decrypted message from the output structure */
+        if (rnp_output_memory_get_buf(output, &output_buf, &output_len, false) != RNP_SUCCESS)
+            throw std::runtime_error("decryption failed.");
+
+        if(output_len > *data_len)
+            throw std::runtime_error("Decrypted data is too large for the supplied buffer (" + RsUtil::NumberToString(output_len) + " vs. " + RsUtil::NumberToString(*data_len) + " bytes).");
+
+        memcpy(data,output_buf,output_len);
+        *data_len = output_len;
+        result = true;
+    }
+    catch(std::exception& e)
+    {
+        RsErr() << "DecryptMemory: ERROR: " << e.what() ;
+        result = false;
+    }
+
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    return result;
 }
 
 bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const std::string& inputfile)
 {
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-	unsigned char *out_buf = NULL ;
-	std::string buf ;
+    /* set the password provider */
+    rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
 
-	FILE *f = RsDirUtil::rs_fopen(inputfile.c_str(),"rb") ;
+    /* create file input and memory output objects for the encrypted message and decrypted
+     * message */
 
-	if (f == NULL)
-	{
-        RsErr() << "Cannot open file " << inputfile << " for read." ;
-		return false;
-	}
+    rnp_input_t input;
+    rnp_output_t output;
+    bool result = false;
 
-    signed int c ;
-	while( (c = fgetc(f))!= EOF)
-		buf += (unsigned char)c;
+    try
+    {
+        if (rnp_input_from_path(&input, inputfile.c_str()) != RNP_SUCCESS)
+            throw std::runtime_error("cannot read input file to decrypt \"" + inputfile + "\"") ;
 
-	fclose(f) ;
+        if (rnp_output_to_memory(&output,0) != RNP_SUCCESS)
+            throw std::runtime_error("cannot create output decrypted data structure") ;
 
-    NOT_IMPLEMENTED;
-#ifdef TODO
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "OpenPGPSDKHandler::decryptTextFromFile: read a file of length " << std::dec << buf.length() ;
-    RsErr() << "buf=\"" << buf << "\"" ;
-#endif
+        if (rnp_decrypt(mRnpFfi, input, output) != RNP_SUCCESS)
+            throw std::runtime_error("decryption failed.");
 
-	int out_length ;
-    ops_boolean_t res = ops_decrypt_memory((const unsigned char *)buf.c_str(),buf.length(),&out_buf,&out_length,_secring,ops_true,cb_get_passphrase) ;
+        uint8_t *output_buf = nullptr;
+        size_t output_len = 0;
 
-	text = std::string((char *)out_buf,out_length) ;
-	free (out_buf);
-	return (bool)res ;
-#endif
+        /* get the decrypted message from the output structure */
+        if (rnp_output_memory_get_buf(output, &output_buf, &output_len, false) != RNP_SUCCESS)
+            throw std::runtime_error("decryption failed.");
+
+        text = std::string((char *)output_buf,output_len);
+        result = true;
+    }
+    catch(std::exception& e)
+    {
+        RsErr() << "DecryptMemory: ERROR: " << e.what() ;
+        result = false;
+    }
+
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    return result;
+
 }
 
 bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32_t len, unsigned char *sign, unsigned int *signlen,bool use_raw_signature, std::string reason /* = "" */)
@@ -1623,7 +1665,7 @@ bool RNPPGPHandler::getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) c
 #endif
 }
 
-bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const PGPFingerprintType& key_fingerprint)
+bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const RsPgpFingerprint& key_fingerprint)
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
@@ -1685,7 +1727,7 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
         if(rnp_key_get_fprint(key, &key_fprint) != RNP_SUCCESS)
             throw std::runtime_error("Cannot extract fingerprint from signing key.");
 
-        PGPFingerprintType signer_fprint(key_fprint);
+        RsPgpFingerprint signer_fprint(key_fprint);
         signature_verification_result = (sigstatus == RNP_SUCCESS) && (signer_fprint == key_fingerprint);
 
         RsInfo() << "Status for signature by key " << key_fingerprint.toStdString() << ": found key " << signer_fprint.toStdString() << " in keyring. Status = " << (int)signature_verification_result;
