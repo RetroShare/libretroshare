@@ -176,7 +176,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 			RS_ERR("Cannot read secring. File seems corrupted");
 			print_stacktrace();
 
-			// We should not use exceptions they are terrible for embedded platforms
+            // We should not use exceptions they are terrible for embedded platforms
 			throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read secring. File corrupted.") ;
 		}
 	}
@@ -185,10 +185,14 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 
 	i=0 ;
 	while( (keydata = ops_keyring_get_key_by_index(_secring,i)) != NULL )
-	{
-		initCertificateInfo(_secret_keyring_map[ RsPgpId(keydata->key_id) ],keydata,i) ;
-		++i ;
-	}
+        if(keydata->key.pkey.algorithm == OPS_PKA_RSA)
+        {
+            initCertificateInfo(_secret_keyring_map[ RsPgpId(keydata->key_id) ],keydata,i) ;
+            ++i ;
+        }
+        else
+            RsErr() << "  Skipping key with unsupported algorithm";
+
 	_secring_last_update_time = time(NULL) ;
 
     RsInfo() << "  Secring read successfully";
@@ -293,33 +297,6 @@ bool OpenPGPSDKHandler::haveSecretKey(const RsPgpId& id) const
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
 	return locked_getSecretKey(id) != NULL ;
-}
-
-bool OpenPGPSDKHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
-{
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-	// go through secret keyring, and check that we have the pubkey as well.
-	//
-	
-	const ops_keydata_t *keydata = NULL ;
-	int i=0 ;
-
-	while( (keydata = ops_keyring_get_key_by_index(_secring,i++)) != NULL )
-		if(ops_keyring_find_key_by_id(_pubring,keydata->key_id) != NULL) // check that the key is in the pubring as well
-		{
-#ifdef PGPHANDLER_DSA_SUPPORT
-			if(keydata->key.pkey.algorithm == OPS_PKA_RSA || keydata->key.pkey.algorithm == OPS_PKA_DSA)
-#else
-			if(keydata->key.pkey.algorithm == OPS_PKA_RSA)
-#endif
-				ids.push_back(RsPgpId(keydata->key_id)) ;
-#ifdef DEBUG_PGPHANDLER
-			else
-                RsErr() << "Skipping keypair " << RsPgpId(keydata->key_id).toStdString() << ", unsupported algorithm: " <<  keydata->key.pkey.algorithm ;
-#endif
-		}
-
-	return true ;
 }
 
 bool OpenPGPSDKHandler::GeneratePGPCertificate(const std::string& name, const std::string& email, const std::string& passphrase, RsPgpId& pgpId, const int keynumbits, std::string& errString)

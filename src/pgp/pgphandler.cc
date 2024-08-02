@@ -200,6 +200,19 @@ bool PGPHandler::getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(cons
 	return true ;
 }
 
+bool PGPHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
+{
+    RsStackMutex mtx(pgphandlerMtx) ;	// lock access to PGP memory structures.
+
+    ids.clear();
+
+    for(auto it:_secret_keyring_map)
+        ids.push_back(it.first);
+
+    return !ids.empty();
+}
+
+
 bool PGPHandler::isPgpPubKeyAvailable(const RsPgpId &id)
 { return _public_keyring_map.find(id) != _public_keyring_map.end(); }
 

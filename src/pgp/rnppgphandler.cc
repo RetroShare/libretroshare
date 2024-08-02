@@ -388,37 +388,6 @@ bool RNPPGPHandler::haveSecretKey(const RsPgpId& id) const
     return result;
 }
 
-bool RNPPGPHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
-{
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-	// go through secret keyring, and check that we have the pubkey as well.
-	//
-	
-    NOT_IMPLEMENTED;
-    return false;
-#ifdef TODO
-    const ops_keydata_t *keydata = NULL ;
-	int i=0 ;
-
-	while( (keydata = ops_keyring_get_key_by_index(_secring,i++)) != NULL )
-		if(ops_keyring_find_key_by_id(_pubring,keydata->key_id) != NULL) // check that the key is in the pubring as well
-		{
-#ifdef PGPHANDLER_DSA_SUPPORT
-			if(keydata->key.pkey.algorithm == OPS_PKA_RSA || keydata->key.pkey.algorithm == OPS_PKA_DSA)
-#else
-			if(keydata->key.pkey.algorithm == OPS_PKA_RSA)
-#endif
-				ids.push_back(RsPgpId(keydata->key_id)) ;
-#ifdef DEBUG_PGPHANDLER
-			else
-                RsErr() << "Skipping keypair " << RsPgpId(keydata->key_id).toStdString() << ", unsupported algorithm: " <<  keydata->key.pkey.algorithm ;
-#endif
-		}
-
-	return true ;
-#endif
-}
-
 bool RNPPGPHandler::GeneratePGPCertificate(const std::string& name, const std::string& email, const std::string& passphrase, RsPgpId& pgpId, const int keynumbits, std::string& errString)
 {
 	// Some basic checks

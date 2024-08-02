@@ -93,7 +93,6 @@ public:
         virtual bool removeKeysFromPGPKeyring(const std::set<RsPgpId>& key_ids,std::string& backup_file,uint32_t& error_code) =0;
         //virtual std::string makeRadixEncodedPGPKey(uint32_t key_index,bool include_signatures) =0;
 
-        virtual bool availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)=0;
         virtual bool GeneratePGPCertificate(const std::string& name, const std::string& email, const std::string& passwd, RsPgpId& pgpId, const int keynumbits, std::string& errString) =0;
 
         virtual std::string SaveCertificateToString(const RsPgpId& id,bool include_signatures) const=0;
@@ -154,7 +153,8 @@ public:
         //                              Common methods to PGPHandler                             //
         //=======================================================================================//
 
-		bool getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(const PGPCertificateInfo&) = NULL) const ;
+        bool availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids);
+        bool getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(const PGPCertificateInfo&) = NULL) const ;
 
         bool parseSignature(unsigned char *sign, unsigned int signlen,RsPgpId& issuer_id) ;
 
