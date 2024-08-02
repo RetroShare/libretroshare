@@ -86,12 +86,14 @@ typedef t_ScopeGuard<rnp_op_verify_st, &rnp_op_verify_destroy>  rnp_op_verify_au
 typedef t_ScopeGuard<char            , &myBufferClean>          rnp_buffer_autodelete;
 typedef t_ScopeGuard<rnp_key_handle_st,&rnp_key_handle_destroy> rnp_key_handle_autodelete;
 typedef t_ScopeGuard<rnp_op_sign_st,   &rnp_op_sign_destroy>    rnp_op_sign_autodelete;
+typedef t_ScopeGuard<rnp_op_encrypt_st,&rnp_op_encrypt_destroy> rnp_op_encrypt_autodelete;
 
 #define RNP_INPUT_STRUCT(name)               rnp_input_t      name=nullptr; rnp_input_autodelete      name ## tmp_destructor(name);
 #define RNP_OUTPUT_STRUCT(name)              rnp_output_t     name=nullptr; rnp_output_autodelete     name ## tmp_destructor(name);
 #define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t  name=nullptr; rnp_op_verify_autodelete  name ## tmp_destructor(name);
 #define RNP_KEY_HANDLE_STRUCT(name)          rnp_key_handle_t name=nullptr; rnp_key_handle_autodelete name ## tmp_destructor(name);
 #define RNP_OP_SIGN_STRUCT(name)             rnp_op_sign_t    name=nullptr; rnp_op_sign_autodelete    name ## tmp_destructor(name);
+#define RNP_OP_ENCRYPT_STRUCT(name)          rnp_op_encrypt_t name=nullptr; rnp_op_encrypt_autodelete    name ## tmp_destructor(name);
 #define RNP_BUFFER_STRUCT(name)              char            *name=nullptr; rnp_buffer_autodelete     name ## tmp_destructor(name);
 
 // The following one misses a fnction to delete the pointer (problem in RNP lib???)
@@ -1257,7 +1259,41 @@ bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& t
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    NOT_IMPLEMENTED;
+    rnp_input_t input ;
+    RNP_OUTPUT_STRUCT(output);
+    RNP_OP_ENCRYPT_STRUCT(encrypt);
+
+    if(rnp_input_from_memory(&input, (uint8_t*)text.c_str(),text.size(),false) != RNP_SUCCESS)
+        throw std::runtime_error("Cannot create input memory structure");
+
+    if(rnp_output_to_path(&output, outfile.c_str()) != RNP_SUCCESS)
+        throw std::runtime_error("Cannot create output structure");
+
+    if(rnp_op_encrypt_create(&encrypt, mRnpFfi, input, output) != RNP_SUCCESS)
+        throw std::runtime_error("Cannot create encryption structure");
+
+    rnp_op_encrypt_set_armor(encrypt, true);
+    rnp_op_encrypt_set_file_name(encrypt, nullptr);
+    rnp_op_encrypt_set_file_mtime(encrypt, (uint32_t) time(NULL));
+    rnp_op_encrypt_set_compression(encrypt, "ZIP", 6);
+    rnp_op_encrypt_set_cipher(encrypt, RNP_ALGNAME_AES_256);
+    rnp_op_encrypt_set_aead(encrypt, "None");
+
+    RNP_KEY_HANDLE_STRUCT(key);
+
+    if(rnp_locate_key(mRnpFfi, "keyid", key_id.toStdString().c_str(), &key) != RNP_SUCCESS)
+        throw std::runtime_error("Cannot locate destination key " + key_id.toStdString() + " for encryption");
+
+    if(rnp_op_encrypt_add_recipient(encrypt, key) != RNP_SUCCESS)
+        throw std::runtime_error("Failed to add recipient " + key_id.toStdString() + " for encryption");
+
+    // Execute encryption operation
+
+    if(rnp_op_encrypt_execute(encrypt) != RNP_SUCCESS)
+        throw std::runtime_error("Encryption operation failed.");
+
+    return true;
+
 #ifdef TODO
 	const ops_keydata_t *public_key = locked_getPublicKey(key_id,true) ;
 
@@ -1528,8 +1564,6 @@ bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32
         RsErr() << "Signature failed: " << e.what();
         return false;
     }
-
-
 }
 
 bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& id_of_key_to_sign)
