@@ -85,12 +85,14 @@ typedef t_ScopeGuard<rnp_input_st,     &rnp_input_destroy    >  rnp_input_autode
 typedef t_ScopeGuard<rnp_op_verify_st, &rnp_op_verify_destroy>  rnp_op_verify_autodelete;
 typedef t_ScopeGuard<char            , &myBufferClean>          rnp_buffer_autodelete;
 typedef t_ScopeGuard<rnp_key_handle_st,&rnp_key_handle_destroy> rnp_key_handle_autodelete;
+typedef t_ScopeGuard<rnp_op_sign_st,   &rnp_op_sign_destroy>    rnp_op_sign_autodelete;
 
-#define RNP_INPUT_STRUCT(name)               rnp_input_t name=nullptr;      rnp_input_autodelete      name ## tmp_destructor(name);
-#define RNP_OUTPUT_STRUCT(name)              rnp_output_t name=nullptr;     rnp_output_autodelete     name ## tmp_destructor(name);
-#define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t name=nullptr;  rnp_op_verify_autodelete  name ## tmp_destructor(name);
+#define RNP_INPUT_STRUCT(name)               rnp_input_t      name=nullptr; rnp_input_autodelete      name ## tmp_destructor(name);
+#define RNP_OUTPUT_STRUCT(name)              rnp_output_t     name=nullptr; rnp_output_autodelete     name ## tmp_destructor(name);
+#define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t  name=nullptr; rnp_op_verify_autodelete  name ## tmp_destructor(name);
 #define RNP_KEY_HANDLE_STRUCT(name)          rnp_key_handle_t name=nullptr; rnp_key_handle_autodelete name ## tmp_destructor(name);
-#define RNP_BUFFER_STRUCT(name)              char *name=nullptr;            rnp_buffer_autodelete     name ## tmp_destructor(name);
+#define RNP_OP_SIGN_STRUCT(name)             rnp_op_sign_t    name=nullptr; rnp_op_sign_autodelete    name ## tmp_destructor(name);
+#define RNP_BUFFER_STRUCT(name)              char            *name=nullptr; rnp_buffer_autodelete     name ## tmp_destructor(name);
 
 // The following one misses a fnction to delete the pointer (problem in RNP lib???)
 
@@ -232,16 +234,17 @@ ops_keyring_t *OpenPGPSDKHandler::allocateOPSKeyring()
 }
 #endif
 
-bool rnp_get_passphrase_cb(rnp_ffi_t        ffi,
-                           void *           app_ctx,
+bool rnp_get_passphrase_cb(rnp_ffi_t        /* ffi */,
+                           void *           /* app_ctx */,
                            rnp_key_handle_t key,
                            const char *     pgp_context,
                            char             buf[],
                            size_t           buf_len)
 {
 	bool prev_was_bad = false ;
-    char *key_id;
-    char *user_id;
+
+    RNP_BUFFER_STRUCT(key_id);
+    RNP_BUFFER_STRUCT(user_id);
 
     rnp_key_get_keyid(key,&key_id);
     rnp_key_get_primary_uid(key,&user_id);
@@ -1450,113 +1453,83 @@ bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const s
 
 bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32_t len, unsigned char *sign, unsigned int *signlen,bool use_raw_signature, std::string reason /* = "" */)
 {
-    NOT_IMPLEMENTED;
-#ifdef TODO
-	// need to find the key and to decrypt it.
-	ops_keydata_t *key = nullptr;
-	{
-		RS_STACK_MUTEX(pgphandlerMtx); // lock access to PGP memory structures.
-		const ops_keydata_t *test_key = locked_getSecretKey(id);
-		if(!test_key)
-		{
-			RsErr("Cannot sign: no secret key with id ", id.toStdString() );
-			return false ;
-		}
-		// Copy key as it may take time for user to respond.
-		key = ops_keydata_new();
-		ops_keydata_copy(key, test_key);
-	}
+    // passwd provider function.
 
-	std::string uid_hint ;
-	if(key->nuids > 0)
-		uid_hint = std::string((const char *)key->uids[0].user_id) ;
-	uid_hint += "(" + RsPgpId(key->key_id).toStdString()+")" ;
+    try
+    {
+        rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
 
-#ifdef DEBUG_PGPHANDLER
-	ops_fingerprint_t f ;
-	ops_fingerprint(&f,&key->key.pkey) ; 
+        RNP_INPUT_STRUCT(data_input);
+        RNP_OUTPUT_STRUCT(signature_output);
+        RNP_OP_SIGN_STRUCT(signature);
 
-	PGPFingerprintType fp(f.fingerprint) ;
+        if(rnp_input_from_memory(&data_input, (uint8_t *) data, len, false) != RNP_SUCCESS)
+            throw std::runtime_error("failed to create input object\n");
+
+        if (rnp_output_to_memory(&signature_output, 0) != RNP_SUCCESS)
+            throw std::runtime_error("failed to create output object");
+
+        // initialize and configure signature parameters
+
+        if(rnp_op_sign_detached_create(&signature, mRnpFfi, data_input, signature_output) != RNP_SUCCESS)
+            throw std::runtime_error("failed to create sign operation");
+
+        /* armor, file name, compression */
+        rnp_op_sign_set_armor(signature, false);
+        rnp_op_sign_set_file_mtime(signature, (uint32_t) time(NULL));
+        rnp_op_sign_set_compression(signature, "ZIP", 6);
+        rnp_op_sign_set_creation_time(signature, (uint32_t) time(NULL));   // now
+        rnp_op_sign_set_expiration_time(signature, 0);				       // 0 = never expires
+        rnp_op_sign_set_hash(signature, RNP_ALGNAME_SHA256);
+
+        // now add signatures. First locate the signing key, then add and setup signature
+
+        RNP_KEY_HANDLE_STRUCT(key);
+
+        if (rnp_locate_key(mRnpFfi, "keyid", id.toStdString().c_str(), &key) != RNP_SUCCESS)
+            throw std::runtime_error("failed to locate signing key " + id.toStdString());
+
+        // we do not need pointer to the signature so passing NULL as the last parameter
+
+        if (rnp_op_sign_add_signature(signature, key, nullptr) != RNP_SUCCESS)
+            throw std::runtime_error("failed to add signature for key " + id.toStdString());
+
+        // Finally do signing
+
+        if (rnp_op_sign_execute(signature) != RNP_SUCCESS)
+            throw std::runtime_error("failed to sign");
+
+        // Now get the result
+
+        uint8_t *output_buf = nullptr;
+        size_t output_len = 0;
+
+        /* get the decrypted message from the output structure */
+        if (rnp_output_memory_get_buf(signature_output, &output_buf, &output_len, false) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot retrieve signature data.");
+
+        if(output_len > *signlen)
+            throw std::runtime_error("Decrypted data is too large for the supplied buffer (" + RsUtil::NumberToString(output_len) + " vs. " + RsUtil::NumberToString(*signlen) + " bytes).");
+
+        memcpy(sign,output_buf,output_len);
+        *signlen = output_len;
+
+#ifdef DEBUG_RNP
+        RsErr() << "Signed with key " << id.toStdString() << ", length " << std::dec << *signlen << ", literal data length = " << len ;
+        RsErr() << "Signature body: " << RsUtil::BinToHex((unsigned char *)data,len);
+        RsErr() << "Data: " << RsUtil::BinToHex( (unsigned char *)sign,*signlen) ;
+        RsErr() ;
 #endif
+        return true ;
+    }
+    catch (std::exception& e)
+    {
+        RsErr() << __PRETTY_FUNCTION__ << ": ERROR" ;
+        RsErr() << "Signature failed: " << e.what();
+        return false;
+    }
 
-	bool last_passwd_was_wrong = false ;
-	ops_secret_key_t *secret_key = nullptr ;
 
-	for(int i=0;i<3;++i)
-	{
-		bool cancelled =false;
-		// Need to be outside of mutex to not block GUI.
-		std::string passphrase = _passphrase_callback(NULL,reason.c_str(),uid_hint.c_str(),"Please enter password for encrypting your key : ",last_passwd_was_wrong,&cancelled) ;//TODO reason
-
-		secret_key = ops_decrypt_secret_key_from_data(key,passphrase.c_str()) ;
-
-		if(cancelled)
-		{
-			RsErr() << "Key entering cancelled" ;
-			ops_keydata_free(key);
-			return false ;
-		}
-		if(secret_key)
-			break ;
-
-		RsErr() << "Key decryption went wrong. Wrong password?" ;
-		last_passwd_was_wrong = true ;
-	}
-	// No more need of key, free it.
-	ops_keydata_free(key);
-
-	if(!secret_key)
-	{
-		RsErr() << "Could not obtain secret key. Signature cancelled." ;
-		return false ;
-	}
-
-	// then do the signature.
-
-	RS_STACK_MUTEX(pgphandlerMtx); // lock access to PGP memory structures.
-
-	ops_boolean_t not_raw = !use_raw_signature ;
-#ifdef V07_NON_BACKWARD_COMPATIBLE_CHANGE_002
-	ops_memory_t *memres = ops_sign_buf(data,len,OPS_SIG_BINARY,OPS_HASH_SHA256,secret_key,ops_false,ops_false,not_raw,not_raw) ;
-#else
-	ops_memory_t *memres = ops_sign_buf(data,len,OPS_SIG_BINARY,OPS_HASH_SHA1,secret_key,ops_false,ops_false,not_raw,not_raw) ;
-#endif
-
-	if(!memres)
-		return false ;
-
-	bool res ;
-	uint32_t slen = (uint32_t)ops_memory_get_length(memres);
-
-	if(*signlen >= slen)
-	{
-		*signlen = slen ;
-
-		memcpy(sign,ops_memory_get_data(memres),*signlen) ;
-		res = true ;
-	}
-	else
-	{
-        RsErr() << "(EE) memory chunk is not large enough for signature packet. Requred size: " << slen << " bytes." ;
-		res = false ;
-	}
-
-	ops_memory_release(memres) ;
-	free(memres) ;
-	ops_secret_key_free(secret_key) ;
-	free(secret_key) ;
-
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "Signed with fingerprint " << fp.toStdString() << ", length " << std::dec << *signlen << ", literal data length = " << len ;
-    RsErr() << "Signature body: " ;
-	hexdump( (unsigned char *)data,     len) ;
-    RsErr() ;
-    RsErr() << "Data: " ;
-	hexdump( (unsigned char *)sign,*signlen) ;
-    RsErr() ;
-#endif
-	return res ;
-#endif
 }
 
 bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& id_of_key_to_sign)
