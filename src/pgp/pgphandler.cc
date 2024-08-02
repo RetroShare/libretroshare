@@ -400,6 +400,78 @@ bool PGPHandler::locked_syncTrustDatabase()
 	return true ;
 }
 
+bool PGPHandler::syncDatabase()
+{
+    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+    RsStackFileLock flck(_pgp_lock_filename) ;	// lock access to PGP directory.
+
+#ifdef DEBUG_PGPHANDLER
+    RsErr() << "Sync-ing keyrings." ;
+#endif
+    locked_syncPublicKeyring() ;
+    //locked_syncSecretKeyring() ;
+
+    // Now sync the trust database as well.
+    //
+    locked_syncTrustDatabase() ;
+
+#ifdef DEBUG_PGPHANDLER
+    RsErr() << "Done. " ;
+#endif
+    return true ;
+}
+
+bool PGPHandler::locked_syncPublicKeyring()
+{
+    struct stat64 buf ;
+#ifdef WINDOWS_SYS
+    std::wstring wfullname;
+    librs::util::ConvertUtf8ToUtf16(_pubring_path, wfullname);
+    if(-1 == _wstati64(wfullname.c_str(), &buf))
+#else
+    if(-1 == stat64(_pubring_path.c_str(), &buf))
+#endif
+    {
+        RsErr() << "PGPHandler::syncPublicKeyring(): can't stat file " << _pubring_path << ". Can't sync public keyring." ;
+        buf.st_mtime = 0;
+    }
+
+    if(_pubring_last_update_time < buf.st_mtime)
+    {
+        RsErr() << "Detected change on disk of public keyring. Merging!" << std::endl ;
+
+        locked_updateKeyringFromDisk(false,_pubring_path) ;
+        _pubring_last_update_time = buf.st_mtime ;
+    }
+
+    // Now check if the pubring was locally modified, which needs saving it again
+    if(_pubring_changed && RsDiscSpace::checkForDiscSpace(RS_PGP_DIRECTORY))
+    {
+        std::string tmp_keyring_file = _pubring_path + ".tmp" ;
+
+#ifdef DEBUG_PGPHANDLER
+        RsErr() << "Local changes in public keyring. Writing to disk..." ;
+#endif
+        if(!locked_writeKeyringToDisk(false,tmp_keyring_file.c_str()))
+        {
+            RsErr() << "Cannot write public keyring tmp file. Disk full? Disk quota exceeded?" ;
+            return false ;
+        }
+        if(!RsDirUtil::renameFile(tmp_keyring_file,_pubring_path))
+        {
+            RsErr() << "Cannot rename tmp pubring file " << tmp_keyring_file << " into actual pubring file " << _pubring_path << ". Check writing permissions?!?" ;
+            return false ;
+        }
+
+#ifdef DEBUG_PGPHANDLER
+        RsErr() << "Done." ;
+#endif
+        _pubring_last_update_time = time(NULL) ;	// should we get this value from the disk instead??
+        _pubring_changed = false ;
+    }
+    return true ;
+}
+
 bool PGPHandler::extract_name_and_comment(const char *uid,std::string& name,std::string& comment,std::string& email)
 {
     name ="";

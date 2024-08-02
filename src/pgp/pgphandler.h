@@ -147,7 +147,7 @@ public:
         // 3 - look into memory modification flags
         // 		- if flag says keyring has changed, write to disk
         //
-        virtual bool syncDatabase() =0;
+        virtual bool syncDatabase();
 
 
         //=======================================================================================//
@@ -162,8 +162,6 @@ public:
 
 		void updateOwnSignatureFlag(const RsPgpId& ownId) ;
 		void updateOwnSignatureFlag(const RsPgpId& pgp_id,const RsPgpId& ownId) ;
-
-		void locked_updateOwnSignatureFlag(PGPCertificateInfo&, const RsPgpId&, PGPCertificateInfo&, const RsPgpId&) ;
 
 		//bool isKeySupported(const RsPgpId& id) const ;
 
@@ -203,7 +201,13 @@ public:
 		virtual bool printKeys() const ;
 
     protected:
-		void locked_readPrivateTrustDatabase() ;
+        virtual bool locked_updateKeyringFromDisk(bool secret,const std::string& path) =0;
+        virtual bool locked_writeKeyringToDisk(bool secret,const std::string& path) =0;
+
+        void locked_updateOwnSignatureFlag(PGPCertificateInfo&, const RsPgpId&, PGPCertificateInfo&, const RsPgpId&) ;
+
+        bool locked_syncPublicKeyring();
+        void locked_readPrivateTrustDatabase() ;
 		bool locked_writePrivateTrustDatabase() ;
         bool locked_syncTrustDatabase() ;
 

@@ -57,6 +57,47 @@ static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_PASSWD_SIZE = 1024 ;
 #define DEBUG_RNP 1
 #define NOT_IMPLEMENTED RsErr() << " function " << __PRETTY_FUNCTION__ << " Not implemented yet." << std::endl; return false;
 
+// Helper structs to auto-delete after leaving current scope.
+
+template<class T,rnp_result_t(*destructor)(T*)>
+class t_ScopeGuard
+{
+public:
+    t_ScopeGuard(T *& out) : mOut(out)
+    {
+        RsErr() << "Creating RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
+    }
+    ~t_ScopeGuard()
+    {
+        if(mOut != nullptr)
+        {
+            RsErr() << "Autodeleting RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
+            destructor(mOut);
+        }
+    }
+    T *& mOut;
+};
+
+rnp_result_t myBufferClean(char *s) { rnp_buffer_destroy(s); return RNP_SUCCESS; }
+
+typedef t_ScopeGuard<rnp_output_st,    &rnp_output_destroy   >  rnp_output_autodelete;
+typedef t_ScopeGuard<rnp_input_st,     &rnp_input_destroy    >  rnp_input_autodelete;
+typedef t_ScopeGuard<rnp_op_verify_st, &rnp_op_verify_destroy>  rnp_op_verify_autodelete;
+typedef t_ScopeGuard<char            , &myBufferClean>          rnp_buffer_autodelete;
+typedef t_ScopeGuard<rnp_key_handle_st,&rnp_key_handle_destroy> rnp_key_handle_autodelete;
+
+#define RNP_INPUT_STRUCT(name)               rnp_input_t name=nullptr;      rnp_input_autodelete      name ## tmp_destructor(name);
+#define RNP_OUTPUT_STRUCT(name)              rnp_output_t name=nullptr;     rnp_output_autodelete     name ## tmp_destructor(name);
+#define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t name=nullptr;  rnp_op_verify_autodelete  name ## tmp_destructor(name);
+#define RNP_KEY_HANDLE_STRUCT(name)          rnp_key_handle_t name=nullptr; rnp_key_handle_autodelete name ## tmp_destructor(name);
+#define RNP_BUFFER_STRUCT(name)              char *name=nullptr;            rnp_buffer_autodelete     name ## tmp_destructor(name);
+
+// The following one misses a fnction to delete the pointer (problem in RNP lib???)
+
+#define RNP_OP_VERIFY_SIGNATURE_STRUCT(name) rnp_op_verify_signature_t name=nullptr;
+
+// Implementation of RNP pgp handler.
+
 RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secring,const std::string& trustdb,const std::string& pgp_lock_filename)
     : PGPHandler(pubring,secring,trustdb,pgp_lock_filename)
 {
@@ -77,7 +118,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
     //
     if(pubring_exist)
     {
-        rnp_input_t keyfile = nullptr;
+        RNP_INPUT_STRUCT(keyfile);
 
         /* load public keyring */
         if (rnp_input_from_path(&keyfile, pubring.c_str()) != RNP_SUCCESS)
@@ -85,15 +126,13 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
         if (rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
-
-        rnp_input_destroy(keyfile);
     }
     else
         RsInfo() << "  pubring file: " << pubring << " not found. Creating an empty one";
 
     if(secring_exist)
     {
-        rnp_input_t keyfile = nullptr;
+        RNP_INPUT_STRUCT(keyfile);
 
         /* load public keyring */
         if (rnp_input_from_path(&keyfile, secring.c_str()) != RNP_SUCCESS)
@@ -101,8 +140,6 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
         if (rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
-
-        rnp_input_destroy(keyfile);
     }
     else
         RsInfo() << "  secring file: " << secring << " not found. Creating an empty one";
@@ -121,11 +158,10 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
     while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
     {
-        rnp_key_handle_t key_handle;
+        RNP_KEY_HANDLE_STRUCT(key_handle);
         rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
 
         initCertificateInfo(key_handle) ;
-        rnp_key_handle_destroy(key_handle);
     }
 
     rnp_identifier_iterator_destroy(it);
@@ -241,10 +277,10 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
     // Parse certificate name
     //
 
-    char *key_fprint = nullptr;
-    char *key_uid = nullptr;
-    char *key_id = nullptr;
-    char *key_alg = nullptr;
+    RNP_BUFFER_STRUCT(key_fprint);
+    RNP_BUFFER_STRUCT(key_uid);
+    RNP_BUFFER_STRUCT(key_id);
+    RNP_BUFFER_STRUCT(key_alg);
     uint32_t key_bits = 0;
 
     rnp_key_get_fprint(key_handle, &key_fprint);
@@ -285,11 +321,6 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 
     if(have_secret)
         fill_cert(_secret_keyring_map[ RsPgpId(key_id)],key_uid) ;
-
-    rnp_buffer_destroy(key_fprint);
-    rnp_buffer_destroy(key_uid);
-    rnp_buffer_destroy(key_id);
-    rnp_buffer_destroy(key_alg);
 }
 
 #ifdef TODO
@@ -1370,12 +1401,10 @@ bool RNPPGPHandler::decryptDataBin(const RsPgpId& /*key_id*/,const void *encrypt
     /* set the password provider */
     rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
 
-    /* create file input and memory output objects for the encrypted message and decrypted
-     * message */
+    /* create file input and memory output objects for the encrypted message and decrypted messages */
 
-    rnp_input_t input;
-    rnp_output_t output;
-    bool result = false;
+    RNP_INPUT_STRUCT(input);
+    RNP_OUTPUT_STRUCT(output);
 
     try
     {
@@ -1400,18 +1429,13 @@ bool RNPPGPHandler::decryptDataBin(const RsPgpId& /*key_id*/,const void *encrypt
 
         memcpy(data,output_buf,output_len);
         *data_len = output_len;
-        result = true;
+        return true;
     }
     catch(std::exception& e)
     {
         RsErr() << "DecryptMemory: ERROR: " << e.what() ;
-        result = false;
+        return false;
     }
-
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
-    return result;
 }
 
 bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const std::string& inputfile)
@@ -1424,9 +1448,8 @@ bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const s
     /* create file input and memory output objects for the encrypted message and decrypted
      * message */
 
-    rnp_input_t input;
-    rnp_output_t output;
-    bool result = false;
+    RNP_INPUT_STRUCT(input);
+    RNP_OUTPUT_STRUCT(output);
 
     try
     {
@@ -1447,19 +1470,13 @@ bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const s
             throw std::runtime_error("decryption failed.");
 
         text = std::string((char *)output_buf,output_len);
-        result = true;
+        return true;
     }
     catch(std::exception& e)
     {
         RsErr() << "DecryptMemory: ERROR: " << e.what() ;
-        result = false;
+        return false;
     }
-
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
-    return result;
-
 }
 
 bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32_t len, unsigned char *sign, unsigned int *signlen,bool use_raw_signature, std::string reason /* = "" */)
@@ -1669,14 +1686,15 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    rnp_op_verify_t           verify;
-    rnp_input_t               literal_data_input;
-    rnp_input_t               signature_input;
-    rnp_op_verify_signature_t sig = nullptr;
+    RNP_OP_VERIFY_SIGNATURE_STRUCT(sig);
+    RNP_OP_VERIFY_STRUCT          (verify);
+    RNP_INPUT_STRUCT              (literal_data_input);
+    RNP_INPUT_STRUCT              (signature_input);
+    RNP_KEY_HANDLE_STRUCT         (key);
+    RNP_BUFFER_STRUCT             (keyid);
+    RNP_BUFFER_STRUCT             (key_fprint);
+
     rnp_result_t              sigstatus = RNP_SUCCESS;
-    rnp_key_handle_t          key = nullptr;
-    char *                    keyid = nullptr;
-    char *                    key_fprint = nullptr;
 
     bool signature_verification_result = false;
 
@@ -1690,7 +1708,6 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
 
         if(rnp_op_verify_detached_create(&verify, mRnpFfi, literal_data_input, signature_input) != RNP_SUCCESS)
             throw std::runtime_error("Cannot initialize signature verification structure");
-
 
         if (rnp_op_verify_execute(verify) != RNP_SUCCESS)
             throw std::runtime_error("failed to execute verification operation");
@@ -1731,21 +1748,14 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
         signature_verification_result = (sigstatus == RNP_SUCCESS) && (signer_fprint == key_fingerprint);
 
         RsInfo() << "Status for signature by key " << key_fingerprint.toStdString() << ": found key " << signer_fprint.toStdString() << " in keyring. Status = " << (int)signature_verification_result;
+
+        return signature_verification_result;
     }
     catch(std::exception& e)
     {
-            RsErr() << "Signature verification failed: " << e.what() ;
-            return false;
+        RsErr() << "Signature verification failed: " << e.what() ;
+        return false;
     }
-
-    rnp_buffer_destroy(keyid);
-    rnp_key_handle_destroy(key);
-    rnp_op_verify_destroy(verify);
-
-    rnp_input_destroy(literal_data_input);
-    rnp_input_destroy(signature_input);
-
-    return signature_verification_result;
 }
 
 
@@ -1810,79 +1820,30 @@ bool OpenPGPSDKHandler::mergeKeySignatures(ops_keydata_t *dst,const ops_keydata_
 }
 #endif
 
-bool RNPPGPHandler::syncDatabase()
+bool RNPPGPHandler::locked_writeKeyringToDisk(bool secret, const std::string& keyring_file)
 {
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-	RsStackFileLock flck(_pgp_lock_filename) ;	// lock access to PGP directory.
+    RNP_OUTPUT_STRUCT(keyring_output);
 
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "Sync-ing keyrings." ;
-#endif
-	locked_syncPublicKeyring() ;
-	//locked_syncSecretKeyring() ;
-	
-	// Now sync the trust database as well.
-	//
-	locked_syncTrustDatabase() ;
+    /* create file output object and save public keyring with generated keys, overwriting
+     * previous file if any. You may use rnp_output_to_memory() here as well. */
 
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "Done. " ;
-#endif
-	return true ;
+    if (rnp_output_to_path(&keyring_output, keyring_file.c_str()) != RNP_SUCCESS)
+    {
+        RsErr() << "failed to initialize keyring writing structure" ;
+        return false;
+    }
+    if (rnp_save_keys(mRnpFfi, "GPG", keyring_output, secret?RNP_LOAD_SAVE_SECRET_KEYS:RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+    {
+        RsErr() << "failed to save keyring" ;
+        return false;
+    }
+    return true;
 }
 
-bool RNPPGPHandler::locked_syncPublicKeyring()
+bool RNPPGPHandler::locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file)
 {
-	struct stat64 buf ;
-#ifdef WINDOWS_SYS
-	std::wstring wfullname;
-	librs::util::ConvertUtf8ToUtf16(_pubring_path, wfullname);
-	if(-1 == _wstati64(wfullname.c_str(), &buf))
-#else
-	if(-1 == stat64(_pubring_path.c_str(), &buf))
-#endif
-    {
-        RsErr() << "OpenPGPSDKHandler::syncDatabase(): can't stat file " << _pubring_path << ". Can't sync public keyring." ;
-        buf.st_mtime = 0;
-    }
-
     NOT_IMPLEMENTED;
-#ifdef TODO
-	if(_pubring_last_update_time < buf.st_mtime)
-	{
-        RsErr() << "Detected change on disk of public keyring. Merging!" << std::endl ;
-
-		locked_mergeKeyringFromDisk(_pubring,_public_keyring_map,_pubring_path) ;
-		_pubring_last_update_time = buf.st_mtime ;
-	}
-
-	// Now check if the pubring was locally modified, which needs saving it again
-	if(_pubring_changed && RsDiscSpace::checkForDiscSpace(RS_PGP_DIRECTORY))
-	{
-		std::string tmp_keyring_file = _pubring_path + ".tmp" ;
-
-#ifdef DEBUG_PGPHANDLER
-        RsErr() << "Local changes in public keyring. Writing to disk..." ;
-#endif
-		if(!ops_write_keyring_to_file(_pubring,ops_false,tmp_keyring_file.c_str(),ops_true)) 
-		{
-            RsErr() << "Cannot write public keyring tmp file. Disk full? Disk quota exceeded?" ;
-			return false ;
-		}
-		if(!RsDirUtil::renameFile(tmp_keyring_file,_pubring_path))
-		{
-            RsErr() << "Cannot rename tmp pubring file " << tmp_keyring_file << " into actual pubring file " << _pubring_path << ". Check writing permissions?!?" ;
-			return false ;
-		}
-
-#ifdef DEBUG_PGPHANDLER
-        RsErr() << "Done." ;
-#endif
-		_pubring_last_update_time = time(NULL) ;	// should we get this value from the disk instead??
-		_pubring_changed = false ;
-	}
-	return true ;
-#endif
+    return false;
 }
 
 #ifdef TO_REMOVE

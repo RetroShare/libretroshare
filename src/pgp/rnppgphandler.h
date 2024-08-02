@@ -70,12 +70,13 @@ public:
         virtual bool VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const RsPgpFingerprint &key_fingerprint) override;
         virtual bool getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) const override;
         virtual bool haveSecretKey(const RsPgpId& id) const override;
-        virtual bool syncDatabase() override;
 
     private:
 
-        bool locked_syncPublicKeyring() ;
         bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) ;
+
+        bool locked_writeKeyringToDisk(bool secret, const std::string& keyring_file) override;
+        bool locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file) override;
 
         // RNP structures
 

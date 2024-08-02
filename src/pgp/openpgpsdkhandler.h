@@ -74,10 +74,7 @@ public:
         virtual bool VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const PGPFingerprintType& key_fingerprint) override;
         virtual bool getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) const override;
         virtual bool haveSecretKey(const RsPgpId& id) const override;
-        virtual bool syncDatabase() override;
     private:
-        bool locked_syncPublicKeyring() ;
-
         void initCertificateInfo(PGPCertificateInfo& cert,const ops_keydata_t *keydata,uint32_t i) ;
         bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) ;
 
@@ -96,8 +93,10 @@ public:
 		const ops_keydata_t *locked_getPublicKey(const RsPgpId&,bool stamp_the_key) const;
 		const ops_keydata_t *locked_getSecretKey(const RsPgpId&) const ;
 
-		void locked_mergeKeyringFromDisk(ops_keyring_t *keyring, std::map<RsPgpId,PGPCertificateInfo>& kmap, const std::string& keyring_file) ;
-		bool locked_addOrMergeKey(ops_keyring_t *keyring,std::map<RsPgpId,PGPCertificateInfo>& kmap,const ops_keydata_t *keydata) ;
+        bool locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file) override ;
+        bool locked_writeKeyringToDisk(bool secret, const std::string& keyring_file) override ;
+
+        bool locked_addOrMergeKey(ops_keyring_t *keyring,std::map<RsPgpId,PGPCertificateInfo>& kmap,const ops_keydata_t *keydata) ;
 
 		// Members.
 		//
