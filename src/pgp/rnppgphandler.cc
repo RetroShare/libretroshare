@@ -80,21 +80,23 @@ public:
 
 rnp_result_t myBufferClean(char *s) { rnp_buffer_destroy(s); return RNP_SUCCESS; }
 
-typedef t_ScopeGuard<rnp_output_st,    &rnp_output_destroy   >  rnp_output_autodelete;
-typedef t_ScopeGuard<rnp_input_st,     &rnp_input_destroy    >  rnp_input_autodelete;
-typedef t_ScopeGuard<rnp_op_verify_st, &rnp_op_verify_destroy>  rnp_op_verify_autodelete;
-typedef t_ScopeGuard<char            , &myBufferClean>          rnp_buffer_autodelete;
-typedef t_ScopeGuard<rnp_key_handle_st,&rnp_key_handle_destroy> rnp_key_handle_autodelete;
-typedef t_ScopeGuard<rnp_op_sign_st,   &rnp_op_sign_destroy>    rnp_op_sign_autodelete;
-typedef t_ScopeGuard<rnp_op_encrypt_st,&rnp_op_encrypt_destroy> rnp_op_encrypt_autodelete;
+typedef t_ScopeGuard<rnp_output_st,          &rnp_output_destroy   >        rnp_output_autodelete;
+typedef t_ScopeGuard<rnp_input_st,           &rnp_input_destroy    >        rnp_input_autodelete;
+typedef t_ScopeGuard<rnp_op_verify_st,       &rnp_op_verify_destroy>        rnp_op_verify_autodelete;
+typedef t_ScopeGuard<char            ,       &myBufferClean>                rnp_buffer_autodelete;
+typedef t_ScopeGuard<rnp_key_handle_st,      &rnp_key_handle_destroy>       rnp_key_handle_autodelete;
+typedef t_ScopeGuard<rnp_op_sign_st,         &rnp_op_sign_destroy>          rnp_op_sign_autodelete;
+typedef t_ScopeGuard<rnp_op_encrypt_st,      &rnp_op_encrypt_destroy>       rnp_op_encrypt_autodelete;
+typedef t_ScopeGuard<rnp_signature_handle_st,&rnp_signature_handle_destroy> rnp_signature_handle_autodelete;
 
-#define RNP_INPUT_STRUCT(name)               rnp_input_t      name=nullptr; rnp_input_autodelete      name ## tmp_destructor(name);
-#define RNP_OUTPUT_STRUCT(name)              rnp_output_t     name=nullptr; rnp_output_autodelete     name ## tmp_destructor(name);
-#define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t  name=nullptr; rnp_op_verify_autodelete  name ## tmp_destructor(name);
-#define RNP_KEY_HANDLE_STRUCT(name)          rnp_key_handle_t name=nullptr; rnp_key_handle_autodelete name ## tmp_destructor(name);
-#define RNP_OP_SIGN_STRUCT(name)             rnp_op_sign_t    name=nullptr; rnp_op_sign_autodelete    name ## tmp_destructor(name);
-#define RNP_OP_ENCRYPT_STRUCT(name)          rnp_op_encrypt_t name=nullptr; rnp_op_encrypt_autodelete    name ## tmp_destructor(name);
-#define RNP_BUFFER_STRUCT(name)              char            *name=nullptr; rnp_buffer_autodelete     name ## tmp_destructor(name);
+#define RNP_INPUT_STRUCT(name)               rnp_input_t             name=nullptr; rnp_input_autodelete             name ## tmp_destructor(name);
+#define RNP_OUTPUT_STRUCT(name)              rnp_output_t            name=nullptr; rnp_output_autodelete            name ## tmp_destructor(name);
+#define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t         name=nullptr; rnp_op_verify_autodelete         name ## tmp_destructor(name);
+#define RNP_KEY_HANDLE_STRUCT(name)          rnp_key_handle_t        name=nullptr; rnp_key_handle_autodelete        name ## tmp_destructor(name);
+#define RNP_OP_SIGN_STRUCT(name)             rnp_op_sign_t           name=nullptr; rnp_op_sign_autodelete           name ## tmp_destructor(name);
+#define RNP_OP_ENCRYPT_STRUCT(name)          rnp_op_encrypt_t        name=nullptr; rnp_op_encrypt_autodelete        name ## tmp_destructor(name);
+#define RNP_SIGNATURE_HANDLE_STRUCT(name)    rnp_signature_handle_t  name=nullptr; rnp_signature_handle_autodelete  name ## tmp_destructor(name);
+#define RNP_BUFFER_STRUCT(name)              char            *       name=nullptr; rnp_buffer_autodelete            name ## tmp_destructor(name);
 
 // The following one misses a fnction to delete the pointer (problem in RNP lib???)
 
@@ -643,61 +645,43 @@ std::string RNPPGPHandler::SaveCertificateToString(const RsPgpId& id,bool includ
 
 bool RNPPGPHandler::exportPublicKey( const RsPgpId& id, unsigned char*& mem_block, size_t& mem_size, bool armoured, bool include_signatures ) const
 {
-	mem_block = nullptr; mem_size = 0; // clear just in case
+    RS_STACK_MUTEX(pgphandlerMtx);
 
-	if(armoured)
-	{
-		RsErr() << __PRETTY_FUNCTION__ << " should not be used with "
-		        << "armoured=true, because there's a bug in the armoured export"
-                << " of OPS" ;
-		print_stacktrace();
-		return false;
-	}
+    mem_block = nullptr; mem_size = 0; // clear just in case
 
-	RS_STACK_MUTEX(pgphandlerMtx);
+    RNP_OUTPUT_STRUCT(output);
+    RNP_KEY_HANDLE_STRUCT(key_handle);
 
-    NOT_IMPLEMENTED;
-    return false;
-#ifdef TODO
-	const ops_keydata_t* key = locked_getPublicKey(id,false);
+    try
+    {
+        if(rnp_output_to_memory(&output,0) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot create output structure");
 
-	if(!key)
-	{
-		RsErr() << __PRETTY_FUNCTION__ << " key id: " << id
-                << " not found in keyring." ;
-		return false;
-	}
+        if(rnp_locate_key(mRnpFfi,"keyid",id.toStdString().c_str(),&key_handle))
+            throw std::runtime_error("Cannot find PGP key " + id.toStdString() + " to export.");
 
-	ops_create_info_t* cinfo;
-	ops_memory_t *buf = nullptr;
-	ops_setup_memory_write(&cinfo, &buf, 0);
+        uint32_t flags = armoured? RNP_KEY_EXPORT_ARMORED : 0;
+        flags |= RNP_KEY_EXPORT_PUBLIC;
 
-	if(ops_write_transferable_public_key_from_packet_data(
-	            key, armoured, cinfo ) != ops_true)
-	{
-		RsErr() << __PRETTY_FUNCTION__ << "  This key id " << id
-		        << " cannot be processed by RetroShare because DSA certificates"
-                << " support is not implemented yet." ;
-		return false;
-	}
+        if(rnp_key_export(key_handle, output, flags) != RNP_SUCCESS)
+            throw std::runtime_error("Key export failed ID=" + id.toStdString() + " to export.");
 
-	ops_writer_close(cinfo);
+        if(rnp_output_memory_get_buf(output, &mem_block, &mem_size, true) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot extract key data from output structure.");
 
-	mem_size = ops_memory_get_length(buf);
-	mem_block = reinterpret_cast<unsigned char*>(malloc(mem_size));
-	memcpy(mem_block,ops_memory_get_data(buf),mem_size);
-
-	ops_teardown_memory_write(cinfo,buf);
-
-	if(!include_signatures)
-	{
-		size_t new_size;
-		PGPKeyManagement::findLengthOfMinimalKey(mem_block, mem_size, new_size);
-		mem_size = new_size;
-	}
-
-	return true;
-#endif
+        if(!include_signatures)
+        {
+            size_t new_size;
+            PGPKeyManagement::findLengthOfMinimalKey(mem_block, mem_size, new_size);
+            mem_size = new_size;
+        }
+        return true;
+    }
+    catch (std::exception& e)
+    {
+        RS_ERR(std::string("Cannot export key: ")+e.what());
+        return false;
+    }
 }
 
 bool RNPPGPHandler::exportGPGKeyPair(const std::string& filename,const RsPgpId& exported_key_id) const
@@ -771,7 +755,73 @@ bool RNPPGPHandler::exportGPGKeyPairToString( std::string& data, const RsPgpId& 
 
 bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,size_t mem_size,RsPgpId& key_id, std::string& name, std::list<RsPgpId>& signers) const
 {
-    NOT_IMPLEMENTED;
+    try
+    {
+        rnp_input_t input; 	// no need to delete since we don't copy
+        if(rnp_input_from_memory(&input,(uint8_t*)mem_block,mem_size,false) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot open supplied memory block. Memory access error.") ;
+
+        rnp_ffi_t tmp_ffi;
+        rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+
+        if(rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot interpret supplied memory block as public key.") ;
+
+        size_t pub_count;
+        rnp_get_public_key_count(tmp_ffi,&pub_count);
+
+        if(pub_count == 0)
+            throw std::runtime_error("Supplied memory block does not contain any key");
+        else if(pub_count > 1)
+            throw std::runtime_error("Supplied memory block contain more than one key (" + RsUtil::NumberToString(pub_count) + " found)");
+
+        rnp_identifier_iterator_t it;
+        rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
+
+        const char *key_identifier = nullptr;
+        if(rnp_identifier_iterator_next(it,&key_identifier) != RNP_SUCCESS)
+            throw std::runtime_error("Error while reaching first key");
+
+        rnp_identifier_iterator_destroy(it);
+
+        key_id = RsPgpId(key_identifier);
+
+        RNP_KEY_HANDLE_STRUCT(key_handle);
+        if(rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle) != RNP_SUCCESS)
+            throw std::runtime_error("Error while reaching first key data");
+
+        RNP_BUFFER_STRUCT(uid);
+
+        if(rnp_key_get_primary_uid(key_handle,&uid) != RNP_SUCCESS)
+            throw std::runtime_error("Error while getting key uid");
+
+        name = std::string(uid);
+        size_t signature_count = 0;
+
+        if(rnp_key_get_signature_count(key_handle,&signature_count) != RNP_SUCCESS)
+            throw std::runtime_error("Error getting signature count");
+
+        for(size_t i=0;i<signature_count;++i)
+        {
+            RNP_SIGNATURE_HANDLE_STRUCT(sig);
+
+            if(rnp_key_get_signature_at(key_handle,i,&sig) != RNP_SUCCESS)
+                throw std::runtime_error("Error getting signature data");
+
+            RNP_BUFFER_STRUCT(suid);
+
+            if(rnp_signature_get_keyid(sig,&suid) != RNP_SUCCESS)
+                throw std::runtime_error("Error getting signature key id");
+
+            signers.push_back(RsPgpId(suid));
+        }
+        return true;
+    }
+    catch(std::exception& e)
+    {
+        RS_ERR("ERROR: ",e.what());
+        return false;
+    }
 #ifdef TODO
 	ops_keyring_t *tmp_keyring = allocateOPSKeyring();
 	ops_memory_t *mem = ops_memory_new() ;
@@ -1293,50 +1343,6 @@ bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& t
         throw std::runtime_error("Encryption operation failed.");
 
     return true;
-
-#ifdef TODO
-	const ops_keydata_t *public_key = locked_getPublicKey(key_id,true) ;
-
-	if(public_key == NULL)
-	{
-        RsErr() << "Cannot get public key of id " << key_id.toStdString() ;
-		return false ;
-	}
-
-	if(public_key->type != OPS_PTAG_CT_PUBLIC_KEY)
-	{
-        RsErr() << "OpenPGPSDKHandler::encryptTextToFile(): ERROR: supplied id did not return a public key!" ;
-		return false ;
-	}
-
-	std::string outfile_tmp = outfile + ".tmp" ;
-
-	ops_create_info_t *info;
-	int fd = ops_setup_file_write(&info, outfile_tmp.c_str(), ops_true);
-
-	if (fd < 0)
-	{
-        RsErr() << "OpenPGPSDKHandler::encryptTextToFile(): ERROR: Cannot write to " << outfile_tmp ;
-		return false ;
-	}
-
-	if(!ops_encrypt_stream(info, public_key, NULL, ops_false, ops_true))
-	{
-        RsErr() << "OpenPGPSDKHandler::encryptTextToFile(): ERROR: encryption failed." ;
-		return false ;
-	}
-
-	ops_write(text.c_str(), text.length(), info);
-	ops_teardown_file_write(info, fd);
-
-	if(!RsDirUtil::renameFile(outfile_tmp,outfile))
-	{
-        RsErr() << "OpenPGPSDKHandler::encryptTextToFile(): ERROR: Cannot rename " + outfile_tmp + " to " + outfile + ". Disk error?" ;
-		return false ;
-	}
-
-	return true ;
-#endif
 }
 
 bool RNPPGPHandler::encryptDataBin(const RsPgpId& key_id,const void *data, const uint32_t len, unsigned char *encrypted_data, unsigned int *encrypted_data_len)
