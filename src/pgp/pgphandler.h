@@ -114,8 +114,7 @@ public:
 
         virtual	bool importGPGKeyPairFromString(const std::string& data,RsPgpId& imported_id,std::string& import_error) =0;
 
-        virtual bool LoadCertificateFromString(const std::string& pem, RsPgpId& gpg_id, std::string& error_string)=0;
-        virtual bool LoadCertificateFromBinaryData(const unsigned char *bin_data,uint32_t bin_data_len, RsPgpId& gpg_id, std::string& error_string)=0;
+        virtual bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)=0;
 
         virtual bool encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile) =0;
         virtual bool decryptTextFromFile(const RsPgpId& key_id,std::string& text,const std::string& encrypted_inputfile) =0;
@@ -139,6 +138,10 @@ public:
 
         virtual bool haveSecretKey(const RsPgpId& id) const =0;
 
+        //=======================================================================================//
+        //                              Common methods to PGPHandler                             //
+        //=======================================================================================//
+
         // Syncs the keyrings and trust database between memory and disk. The algorithm is:
         // 1 - lock the keyrings
         // 2 - compare file modification dates with last writing date
@@ -148,11 +151,8 @@ public:
         //
         virtual bool syncDatabase();
 
-
-        //=======================================================================================//
-        //                              Common methods to PGPHandler                             //
-        //=======================================================================================//
-
+        virtual bool LoadCertificateFromString(const std::string& pem, RsPgpId& gpg_id, std::string& error_string);
+        virtual bool LoadCertificateFromBinaryData(const unsigned char *bin_data,uint32_t bin_data_len, RsPgpId& gpg_id, std::string& error_string);
         bool availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids);
         bool getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(const PGPCertificateInfo&) = NULL) const ;
 

@@ -200,6 +200,17 @@ bool PGPHandler::getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(cons
 	return true ;
 }
 
+bool PGPHandler::LoadCertificateFromBinaryData(const unsigned char *data,uint32_t data_len,RsPgpId& id,std::string& error_string)
+{
+    return LoadCertificate(data,data_len,false,id,error_string);
+}
+
+bool PGPHandler::LoadCertificateFromString(const std::string& pgp_cert,RsPgpId& id,std::string& error_string)
+{
+    return LoadCertificate((unsigned char*)(pgp_cert.c_str()),pgp_cert.length(),true,id,error_string);
+}
+
+
 bool PGPHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
 {
     RsStackMutex mtx(pgphandlerMtx) ;	// lock access to PGP memory structures.

@@ -58,8 +58,6 @@ public:
         virtual bool getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,size_t mem_size,RsPgpId& key_id, std::string& name, std::list<RsPgpId>& signers) const override;
         virtual bool importGPGKeyPair(const std::string& filename,RsPgpId& imported_key_id,std::string& import_error) override;
         virtual bool importGPGKeyPairFromString(const std::string &data, RsPgpId &imported_key_id, std::string &import_error) override;
-        virtual bool LoadCertificateFromBinaryData(const unsigned char *data,uint32_t data_len,RsPgpId& id,std::string& error_string) override;
-        virtual bool LoadCertificateFromString(const std::string& pgp_cert,RsPgpId& id,std::string& error_string) override;
         virtual bool encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile) override;
         virtual bool encryptDataBin(const RsPgpId& key_id,const void *data, const uint32_t len, unsigned char *encrypted_data, unsigned int *encrypted_data_len) override;
         virtual bool decryptDataBin(const RsPgpId& /*key_id*/,const void *encrypted_data, const uint32_t encrypted_len, unsigned char *data, unsigned int *data_len) override;
@@ -72,7 +70,7 @@ public:
 
     private:
 
-        bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) ;
+        bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) override;
 
         bool locked_writeKeyringToDisk(bool secret, const std::string& keyring_file) override;
         bool locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file) override;

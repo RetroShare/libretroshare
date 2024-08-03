@@ -950,16 +950,6 @@ void OpenPGPSDKHandler::addNewKeyToOPSKeyring(ops_keyring_t *kr,const ops_keydat
 	kr->nkeys++ ;
 }
 
-bool OpenPGPSDKHandler::LoadCertificateFromBinaryData(const unsigned char *data,uint32_t data_len,RsPgpId& id,std::string& error_string)
-{
-    return LoadCertificate(data,data_len,ops_false,id,error_string);
-}
-
-bool OpenPGPSDKHandler::LoadCertificateFromString(const std::string& pgp_cert,RsPgpId& id,std::string& error_string)
-{
-    return LoadCertificate((unsigned char*)(pgp_cert.c_str()),pgp_cert.length(),ops_true,id,error_string);
-}
-
 bool OpenPGPSDKHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.

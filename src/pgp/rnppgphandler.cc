@@ -822,83 +822,6 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
         RS_ERR("ERROR: ",e.what());
         return false;
     }
-#ifdef TODO
-	ops_keyring_t *tmp_keyring = allocateOPSKeyring();
-	ops_memory_t *mem = ops_memory_new() ;
-	ops_memory_add(mem,mem_block,mem_size);
-
-	if(!ops_keyring_read_from_mem(tmp_keyring,ops_false,mem))
-	{
-		ops_keyring_free(tmp_keyring) ;
-		free(tmp_keyring) ;
-		ops_memory_release(mem) ;
-		free(mem) ;
-
-        RsErr() << "Could not read key. Format error?" ;
-		//error_string = std::string("Could not read key. Format error?") ;
-		return false ;
-	}
-	ops_memory_release(mem) ;
-	free(mem) ;
-	//error_string.clear() ;
-
-	if(tmp_keyring->nkeys != 1)
-	{
-        RsErr() << "No or incomplete/invalid key in supplied pgp block." ;
-		return false ;
-	}
-	if(tmp_keyring->keys[0].uids == NULL)
-	{
-        RsErr() << "No uid in supplied key." ;
-		return false ;
-	}
-
-	key_id = RsPgpId(tmp_keyring->keys[0].key_id) ;
-	name = std::string((char *)tmp_keyring->keys[0].uids[0].user_id) ;
-
-	// now parse signatures.
-	//
-	ops_validate_result_t* result=(ops_validate_result_t*)ops_mallocz(sizeof *result);
-	ops_boolean_t res ;
-
-	{
-		RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-		res = ops_validate_key_signatures(result,&tmp_keyring->keys[0],_pubring,cb_get_passphrase) ;
-	}
-
-	if(res == ops_false)
-        RsErr() << "(WW) Error in OpenPGPSDKHandler::validateAndUpdateSignatures(). Validation failed for at least some signatures." ;
-
-	// also add self-signature if any (there should be!).
-	//
-	res = ops_validate_key_signatures(result,&tmp_keyring->keys[0],tmp_keyring,cb_get_passphrase) ;
-
-	if(res == ops_false)
-        RsErr() << "(WW) Error in OpenPGPSDKHandler::validateAndUpdateSignatures(). Validation failed for at least some signatures." ;
-
-	// Parse signers.
-	//
-
-	std::set<RsPgpId> signers_set ;	// Use a set to remove duplicates.
-
-	if(result != NULL)
-		for(size_t i=0;i<result->valid_count;++i)
-			signers_set.insert(RsPgpId(result->valid_sigs[i].signer_id)) ;
-
-	ops_validate_result_free(result) ;
-
-	ops_keyring_free(tmp_keyring) ;
-	free(tmp_keyring) ;
-
-	// write to the output variable
-	
-	signers.clear() ;
-
-	for(std::set<RsPgpId>::const_iterator it(signers_set.begin());it!=signers_set.end();++it)
-		signers.push_back(*it) ;
-
-	return true ;
-#endif
 }
 
 bool RNPPGPHandler::importGPGKeyPair(const std::string& filename,RsPgpId& imported_key_id,std::string& import_error)
@@ -1127,18 +1050,6 @@ void OpenPGPSDKHandler::addNewKeyToOPSKeyring(ops_keyring_t *kr,const ops_keydat
 	kr->nkeys++ ;
 }
 #endif
-
-bool RNPPGPHandler::LoadCertificateFromBinaryData(const unsigned char *data,uint32_t data_len,RsPgpId& id,std::string& error_string)
-{
-    NOT_IMPLEMENTED;
-    //return LoadCertificate(data,data_len,ops_false,id,error_string);
-}
-
-bool RNPPGPHandler::LoadCertificateFromString(const std::string& pgp_cert,RsPgpId& id,std::string& error_string)
-{
-    NOT_IMPLEMENTED;
-    //return LoadCertificate((unsigned char*)(pgp_cert.c_str()),pgp_cert.length(),ops_true,id,error_string);
-}
 
 bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)
 {
