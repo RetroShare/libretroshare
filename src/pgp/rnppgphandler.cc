@@ -735,41 +735,36 @@ bool RNPPGPHandler::exportPublicKey( const RsPgpId& id, unsigned char*& mem_bloc
     }
 }
 
-bool RNPPGPHandler::exportGPGKeyPair(const std::string& filename,const RsPgpId& exported_key_id) const
+bool RNPPGPHandler::exportGPGKeyPair(const std::string& filename,const RsPgpId& id) const
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    NOT_IMPLEMENTED;
-    return false;
-#ifdef TODO
-	const ops_keydata_t *pubkey = locked_getPublicKey(exported_key_id,false) ;
+    RNP_OUTPUT_STRUCT(output);
+    RNP_KEY_HANDLE_STRUCT(key_handle);
 
-	if(pubkey == NULL)
-	{
-        RsErr() << "Cannot output key " << exported_key_id.toStdString() << ": not found in public keyring." ;
-		return false ;
-	}
-	const ops_keydata_t *seckey = locked_getSecretKey(exported_key_id) ;
+    try
+    {
+        if(rnp_output_to_path(&output,filename.c_str()) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot create output structure");
 
-	if(seckey == NULL)
-	{
-        RsErr() << "Cannot output key " << exported_key_id.toStdString() << ": not found in secret keyring." ;
-		return false ;
-	}
+        if(rnp_locate_key(mRnpFfi,"keyid",id.toStdString().c_str(),&key_handle))
+            throw std::runtime_error("Cannot find PGP key " + id.toStdString() + " to export.");
 
-	FILE *f = RsDirUtil::rs_fopen(filename.c_str(),"w") ;
-	if(f == NULL)
-	{
-        RsErr() << "Cannot output key " << exported_key_id.toStdString() << ": file " << filename << " cannot be written. Please check for permissions, quotas, disk space." ;
-		return false ;
-	}
+        uint32_t flags = RNP_KEY_EXPORT_ARMORED ;
 
-	fprintf(f,"%s\n", makeRadixEncodedPGPKey(pubkey,true).c_str()) ; 
-	fprintf(f,"%s\n", makeRadixEncodedPGPKey(seckey,true).c_str()) ; 
+        if(rnp_key_export(key_handle, output, flags | RNP_KEY_EXPORT_PUBLIC) != RNP_SUCCESS)
+            throw std::runtime_error("Key export failed ID=" + id.toStdString() + " to export.");
 
-	fclose(f) ;
-	return true ;
-#endif
+        if(rnp_key_export(key_handle, output, flags | RNP_KEY_EXPORT_SECRET) != RNP_SUCCESS)
+            throw std::runtime_error("Private key export failed ID=" + id.toStdString() + " to export.");
+
+        return true;
+    }
+    catch (std::exception& e)
+    {
+        RS_ERR(std::string("Cannot export key pair: ")+e.what());
+        return false;
+    }
 }
 
 bool RNPPGPHandler::exportGPGKeyPairToString( std::string& data, const RsPgpId& exportedKeyId, bool includeSignatures, std::string& errorMsg ) const
