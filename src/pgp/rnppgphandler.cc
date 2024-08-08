@@ -485,6 +485,9 @@ bool RNPPGPHandler::GeneratePGPCertificate(const std::string& name, const std::s
     initCertificateInfo(key);
     privateTrustCertificate(pgpId,PGPCertificateInfo::PGP_CERTIFICATE_TRUST_ULTIMATE) ;
 
+    locked_writeKeyringToDisk(true,_secring_path);
+    syncDatabase();
+
     return true;
 #ifdef TODO
 	// 1 - generate keypair - RSA-2048
@@ -1610,8 +1613,18 @@ bool RNPPGPHandler::locked_writeKeyringToDisk(bool secret, const std::string& ke
 
 bool RNPPGPHandler::locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file)
 {
-    NOT_IMPLEMENTED;
-    return false;
+    RNP_INPUT_STRUCT(input);
+
+    rnp_input_from_path(&input,keyring_file.c_str());
+
+    uint32_t flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
+
+    if(rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, input, flags) != RNP_SUCCESS)
+    {
+        RS_ERR("Cannot sync keyring file " + keyring_file);
+        return false;
+    }
+    return true;
 }
 
 #ifdef TO_REMOVE
