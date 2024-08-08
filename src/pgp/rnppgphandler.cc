@@ -946,6 +946,8 @@ bool RNPPGPHandler::checkAndImportKey(rnp_input_t input,RsPgpId& imported_key_id
     if(!checkGPGKeyPair(tmp_ffi,imported_key_id,key_fingerprint,key_username,key_algorithm,key_size))
         return false;
 
+    RS_STACK_MUTEX(pgphandlerMtx);
+
     RsInfo() << "Imported " << key_algorithm << "-" << key_size << " key pair. Key id: " << imported_key_id << " fingerprint: " << key_fingerprint << " Username: \"" << key_username << "\"" ;
 
     // Import the key in the actual keyring.
@@ -1179,24 +1181,14 @@ bool OpenPGPSDKHandler::locked_addOrMergeKey(ops_keyring_t *keyring,std::map<RsP
 }
 #endif
 
-bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile)
+bool RNPPGPHandler::encryptData(const RsPgpId& key_id,bool armored,rnp_input_t input,rnp_output_t output)
 {
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-
-    rnp_input_t input ;
-    RNP_OUTPUT_STRUCT(output);
     RNP_OP_ENCRYPT_STRUCT(encrypt);
-
-    if(rnp_input_from_memory(&input, (uint8_t*)text.c_str(),text.size(),false) != RNP_SUCCESS)
-        throw std::runtime_error("Cannot create input memory structure");
-
-    if(rnp_output_to_path(&output, outfile.c_str()) != RNP_SUCCESS)
-        throw std::runtime_error("Cannot create output structure");
 
     if(rnp_op_encrypt_create(&encrypt, mRnpFfi, input, output) != RNP_SUCCESS)
         throw std::runtime_error("Cannot create encryption structure");
 
-    rnp_op_encrypt_set_armor(encrypt, true);
+    rnp_op_encrypt_set_armor(encrypt, armored);
     rnp_op_encrypt_set_file_name(encrypt, nullptr);
     rnp_op_encrypt_set_file_mtime(encrypt, (uint32_t) time(NULL));
     rnp_op_encrypt_set_compression(encrypt, "ZIP", 6);
@@ -1219,67 +1211,66 @@ bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& t
     return true;
 }
 
+bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile)
+{
+    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+
+    try
+    {
+        rnp_input_t input ;
+        RNP_OUTPUT_STRUCT(output);
+
+        if(rnp_input_from_memory(&input, (uint8_t*)text.c_str(),text.size(),false) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot create input memory structure");
+
+        if(rnp_output_to_path(&output, outfile.c_str()) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot create output structure");
+
+        return encryptData(key_id,true,input,output);
+    }
+    catch(std::exception& e)
+    {
+        RS_ERR("Encryption failed with key " + key_id.toStdString() + ": "+e.what());
+        return false;
+    }
+}
+
 bool RNPPGPHandler::encryptDataBin(const RsPgpId& key_id,const void *data, const uint32_t len, unsigned char *encrypted_data, unsigned int *encrypted_data_len)
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    NOT_IMPLEMENTED;
-#ifdef TODO
-	const ops_keydata_t *public_key = locked_getPublicKey(key_id,true) ;
+    try
+    {
+        rnp_input_t input ;
+        RNP_OUTPUT_STRUCT(output);
 
-	if(public_key == NULL)
-	{
-        RsErr() << "Cannot get public key of id " << key_id.toStdString() ;
-		return false ;
-	}
+        if(rnp_input_from_memory(&input, (uint8_t*)data,len,false) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot create input memory structure");
 
-	if(public_key->type != OPS_PTAG_CT_PUBLIC_KEY)
-	{
-        RsErr() << "OpenPGPSDKHandler::encryptTextToFile(): ERROR: supplied id did not return a public key!" ;
-		return false ;
-	}
-	if(public_key->key.pkey.algorithm != OPS_PKA_RSA)
-	{
-        RsErr() << "OpenPGPSDKHandler::encryptTextToFile(): ERROR: supplied key id " << key_id.toStdString() << " is not an RSA key (DSA for instance, is not supported)!" ;
-		return false ;
-	}
-	ops_create_info_t *info;
-	ops_memory_t *buf = NULL ;
-   ops_setup_memory_write(&info, &buf, 0);
-	bool res = true;
+        if(rnp_output_to_memory(&output,0) != RNP_SUCCESS)
+            throw std::runtime_error("Cannot create output structure");
 
-	if(!ops_encrypt_stream(info, public_key, NULL, ops_false, ops_false))
-	{
-        RsErr() << "Encryption failed." ;
-		res = false ;
-	}
+        if(!encryptData(key_id,false,input,output))
+            return false;
 
-	ops_write(data,len,info);
-	ops_writer_close(info);
-	ops_create_info_delete(info);
+        uint8_t *buf=nullptr;
+        size_t size=0;
 
-	int tlen = ops_memory_get_length(buf) ;
+        rnp_output_memory_get_buf(output,&buf,&size,false);
 
-	if( (int)*encrypted_data_len >= tlen)
-	{
-		if(res)
-		{
-			memcpy(encrypted_data,ops_memory_get_data(buf),tlen) ;
-			*encrypted_data_len = tlen ;
-			res = true ;
-		}
-	}
-	else
-	{
-        RsErr() << "Not enough room to fit encrypted data. Size given=" << *encrypted_data_len << ", required=" << tlen ;
-		res = false ;
-	}
+        if(size > *encrypted_data_len)
+            throw std::runtime_error("Cannot encrypt because output data length exceeds buffer size ("+RsUtil::NumberToString(size)+">"+RsUtil::NumberToString(*encrypted_data_len));
 
-	ops_memory_release(buf) ;
-	free(buf) ;
+        *encrypted_data_len = size;
+        memcpy(encrypted_data,buf,size);
 
-	return res ;
-#endif
+        return true;
+    }
+    catch(std::exception& e)
+    {
+        RS_ERR("Encryption failed with key " + key_id.toStdString() + ": "+e.what());
+        return false;
+    }
 }
 
 bool RNPPGPHandler::decryptDataBin(const RsPgpId& /*key_id*/,const void *encrypted_data, const uint32_t encrypted_len, unsigned char *data, unsigned int *data_len)
@@ -1450,72 +1441,10 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
+    // This has been left unimplemented because it's not used in RS UI anymore. The expected behavior of
+    // this function was to sign the supplied key using our own key  with ID "ownid".
+
     NOT_IMPLEMENTED;
-#ifdef TODO
-	ops_keydata_t *key_to_sign = const_cast<ops_keydata_t*>(locked_getPublicKey(id_of_key_to_sign,true)) ;
-
-	if(key_to_sign == NULL)
-	{
-        RsErr() << "Cannot sign: no public key with id " << id_of_key_to_sign.toStdString() ;
-		return false ;
-	}
-
-	// 1 - get decrypted secret key
-	//
-	const ops_keydata_t *skey = locked_getSecretKey(ownId) ;
-
-	if(!skey)
-	{
-        RsErr() << "Cannot sign: no secret key with id " << ownId.toStdString() ;
-		return false ;
-	}
-	const ops_keydata_t *pkey = locked_getPublicKey(ownId,true) ;
-
-	if(!pkey)
-	{
-        RsErr() << "Cannot sign: no public key with id " << ownId.toStdString() ;
-		return false ;
-	}
-
-	bool cancelled = false;
-	std::string passphrase = _passphrase_callback(NULL,"",RsPgpId(skey->key_id).toStdString().c_str(),"Please enter passwd for encrypting your key : ",false,&cancelled) ;
-
-	ops_secret_key_t *secret_key = ops_decrypt_secret_key_from_data(skey,passphrase.c_str()) ;
-
-    if(cancelled)
-    {
-        RsErr() << "Key cancelled by used." ;
-        return false ;
-    }
-    if(!secret_key)
-	{
-        RsErr() << "Key decryption went wrong. Wrong passwd?" ;
-		return false ;
-	}
-
-	// 2 - then do the signature.
-
-	if(!ops_sign_key(key_to_sign,pkey->key_id,secret_key)) 
-	{
-        RsErr() << "Key signature went wrong. Wrong passwd?" ;
-		return false ;
-	}
-
-	// 3 - free memory
-	//
-	ops_secret_key_free(secret_key) ;
-	free(secret_key) ;
-
-	_pubring_changed = true ;
-
-	// 4 - update signatures.
-	//
-	PGPCertificateInfo& cert(_public_keyring_map[ id_of_key_to_sign ]) ;
-	validateAndUpdateSignatures(cert,key_to_sign) ;
-	cert._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_HAS_OWN_SIGNATURE ;
-
-	return true ;
-#endif
 }
 
 bool RNPPGPHandler::getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) const
@@ -1618,25 +1547,6 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
 
 
 #ifdef TO_REMOVE
-// Lexicographic order on signature packets
-//
-bool operator<(const ops_packet_t& p1,const ops_packet_t& p2)
-{
-	if(p1.length < p2.length)
-		return true ;
-	if(p1.length > p2.length)
-		return false ;
-
-	for(uint32_t i=0;i<p1.length;++i)
-	{
-		if(p1.raw[i] < p2.raw[i])
-			return true ;
-		if(p1.raw[i] > p2.raw[i])
-			return false ;
-	}
-	return false ;
-}
-
 bool OpenPGPSDKHandler::mergeKeySignatures(ops_keydata_t *dst,const ops_keydata_t *src)
 {
 	// First sort all signatures into lists to see which is new, which is not new
