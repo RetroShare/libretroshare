@@ -89,6 +89,7 @@ typedef t_ScopeGuard<rnp_op_sign_st,         &rnp_op_sign_destroy>          rnp_
 typedef t_ScopeGuard<rnp_op_encrypt_st,      &rnp_op_encrypt_destroy>       rnp_op_encrypt_autodelete;
 typedef t_ScopeGuard<rnp_signature_handle_st,&rnp_signature_handle_destroy> rnp_signature_handle_autodelete;
 typedef t_ScopeGuard<rnp_op_generate_st     ,&rnp_op_generate_destroy>      rnp_op_generate_autodelete;
+typedef t_ScopeGuard<rnp_ffi_st             ,&rnp_ffi_destroy>              rnp_ffi_autodelete;
 
 #define RNP_INPUT_STRUCT(name)               rnp_input_t             name=nullptr; rnp_input_autodelete             name ## tmp_destructor(name);
 #define RNP_OUTPUT_STRUCT(name)              rnp_output_t            name=nullptr; rnp_output_autodelete            name ## tmp_destructor(name);
@@ -98,6 +99,7 @@ typedef t_ScopeGuard<rnp_op_generate_st     ,&rnp_op_generate_destroy>      rnp_
 #define RNP_OP_ENCRYPT_STRUCT(name)          rnp_op_encrypt_t        name=nullptr; rnp_op_encrypt_autodelete        name ## tmp_destructor(name);
 #define RNP_SIGNATURE_HANDLE_STRUCT(name)    rnp_signature_handle_t  name=nullptr; rnp_signature_handle_autodelete  name ## tmp_destructor(name);
 #define RNP_OP_GENERATE_STRUCT(name)         rnp_op_generate_t       name=nullptr; rnp_op_generate_autodelete       name ## tmp_destructor(name);
+#define RNP_FFI_STRUCT(name)                 rnp_ffi_t               name=nullptr; rnp_ffi_autodelete               name ## tmp_destructor(name);
 #define RNP_BUFFER_STRUCT(name)              char            *       name=nullptr; rnp_buffer_autodelete            name ## tmp_destructor(name);
 
 // The following one misses a fnction to delete the pointer (problem in RNP lib???)
@@ -374,6 +376,8 @@ bool OpenPGPSDKHandler::validateAndUpdateSignatures(PGPCertificateInfo& cert,con
 RNPPGPHandler::~RNPPGPHandler()
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+
+    rnp_ffi_destroy(mRnpFfi);
 #ifdef DEBUG_PGPHANDLER
     RsErr() << "Freeing OpenPGPSDKHandler. Deleting keyrings." ;
 #endif
@@ -870,232 +874,145 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
     }
 }
 
+// static in order to make sure we're not using members from the RNPPGPHandler class.
+static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
+                            RsPgpId& imported_key_id,
+                            RsPgpFingerprint& fprint,
+                            std::string& username,
+                            std::string& key_algorithm,
+                            uint32_t& key_size)
+{
+    size_t pub_count;
+    size_t sec_count;
+
+    rnp_get_public_key_count(tmp_ffi,&pub_count);
+    rnp_get_secret_key_count(tmp_ffi,&sec_count);
+
+    if(pub_count != 1) throw std::runtime_error("Expected 1 public key: found "+RsUtil::NumberToString(pub_count));
+    if(sec_count != 1) throw std::runtime_error("Expected 1 secret key: found "+RsUtil::NumberToString(sec_count));
+
+    rnp_identifier_iterator_t it;
+    rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
+    const char *key_identifier = nullptr;
+
+    rnp_identifier_iterator_next(it,&key_identifier);
+    rnp_identifier_iterator_destroy(it);
+
+    imported_key_id = RsPgpId(key_identifier);
+
+    // check that the key has public and secret key for the same key
+
+    RNP_KEY_HANDLE_STRUCT(key_handle);
+    RNP_BUFFER_STRUCT(key_fprint);
+    RNP_BUFFER_STRUCT(key_uid);
+    RNP_BUFFER_STRUCT(key_alg);
+    uint32_t key_bits;
+
+    rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
+
+    if(key_identifier == nullptr)
+        throw std::runtime_error("no key identifier found in this keypair");
+
+    rnp_key_get_fprint(key_handle, &key_fprint);
+    rnp_key_get_primary_uid(key_handle, &key_uid);
+    rnp_key_get_alg(key_handle, &key_alg);
+    rnp_key_get_bits(key_handle, &key_bits);
+
+    key_size = key_bits;
+    username = std::string(key_uid);
+    fprint = RsPgpFingerprint(key_fprint);
+    key_algorithm = std::string(key_alg);
+
+    bool have_secret = false;
+    rnp_key_have_secret(key_handle,&have_secret);
+
+    return have_secret; // there's exactly 1 sec/pub key each, so if that key has secret part, it matches the public one.
+}
+
+bool RNPPGPHandler::checkAndImportKey(rnp_input_t input,RsPgpId& imported_key_id,std::string& import_error)
+{
+    // First, check how many keys we have, tht there is a secret key, etc.
+
+    RNP_FFI_STRUCT(tmp_ffi);
+
+    if (rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+        throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
+
+    RsPgpFingerprint key_fingerprint;
+    std::string key_username;
+    std::string key_algorithm;
+    uint32_t key_size;
+
+    if(!checkGPGKeyPair(tmp_ffi,imported_key_id,key_fingerprint,key_username,key_algorithm,key_size))
+        return false;
+
+    RsInfo() << "Imported " << key_algorithm << "-" << key_size << " key pair. Key id: " << imported_key_id << " fingerprint: " << key_fingerprint << " Username: \"" << key_username << "\"" ;
+
+    // Import the key in the actual keyring.
+
+    if(rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+        throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
+
+    // check that the key was actually imported
+
+    RNP_KEY_HANDLE_STRUCT(key_handle);
+
+    if(!rnp_locate_key(mRnpFfi,"keyid",imported_key_id.toStdString().c_str(),&key_handle))
+        throw std::runtime_error("Key import check failed.");
+
+    import_error.clear();
+
+    // sync the keyring.
+
+#warning TODO
+
+    return true;
+}
+
 bool RNPPGPHandler::importGPGKeyPair(const std::string& filename,RsPgpId& imported_key_id,std::string& import_error)
 {
-	import_error = "" ;
+    try
+    {
+        if(!RsDirUtil::fileExists(filename))
+            throw std::runtime_error("File " + filename + " does not exist.");
 
-	// 1 - Test for file existance
-	//
-	FILE *ftest = RsDirUtil::rs_fopen(filename.c_str(),"r") ;
+        RNP_INPUT_STRUCT(keyfile);
 
-	if(ftest == NULL)
-	{
-		import_error = "Cannot open file " + filename + " for read. Please check access permissions." ;
-		return false ;
-	}
+        /* load public keyring */
+        if (rnp_input_from_path(&keyfile, filename.c_str()) != RNP_SUCCESS)
+            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot create input structure.") ;
 
-	fclose(ftest) ;
-
-    NOT_IMPLEMENTED;
-#ifdef TODO
-	// 2 - Read keyring from supplied file.
-	//
-	ops_keyring_t *tmp_keyring = allocateOPSKeyring();
-
-	if(ops_false == ops_keyring_read_from_file(tmp_keyring, ops_true, filename.c_str()))
-	{
-        import_error = "OpenPGPSDKHandler::readKeyRing(): cannot read key file. File corrupted?" ;
-        free(tmp_keyring);
-		return false ;
-	}
-
-    return checkAndImportKeyPair(tmp_keyring, imported_key_id, import_error);
-#endif
+        checkAndImportKey(keyfile,imported_key_id,import_error);
+        return true;
+    }
+    catch(std::exception& e)
+    {
+        import_error = e.what();
+        RS_ERR("Cannot import GPG keypair. ERROR: "+std::string(e.what()))   ;
+        return false;
+    }
 }
 
 bool RNPPGPHandler::importGPGKeyPairFromString(const std::string &data, RsPgpId &imported_key_id, std::string &import_error)
 {
-    NOT_IMPLEMENTED;
-#ifdef TODO
-    import_error = "" ;
-
-    ops_memory_t* mem = ops_memory_new();
-    ops_memory_add(mem, (unsigned char*)data.data(), data.length());
-
-    ops_keyring_t *tmp_keyring = allocateOPSKeyring();
-
-    if(ops_false == ops_keyring_read_from_mem(tmp_keyring, ops_true, mem))
+    try
     {
-        import_error = "OpenPGPSDKHandler::importGPGKeyPairFromString(): cannot parse key data" ;
-        free(tmp_keyring);
-        return false ;
+        RNP_INPUT_STRUCT(keyfile);
+
+        /* load public keyring */
+        if (rnp_input_from_memory(&keyfile, (uint8_t*)data.c_str(),data.size(),false) != RNP_SUCCESS)
+            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot create input structure.") ;
+
+        checkAndImportKey(keyfile,imported_key_id,import_error);
+        return true;
     }
-    return checkAndImportKeyPair(tmp_keyring, imported_key_id, import_error);
-#endif
-}
-
-#ifdef TO_REMOVE
-bool OpenPGPSDKHandler::checkAndImportKeyPair(ops_keyring_t *tmp_keyring, RsPgpId &imported_key_id, std::string &import_error)
-{
-    if(tmp_keyring == 0)
+    catch(std::exception& e)
     {
-        import_error = "OpenPGPSDKHandler::checkAndImportKey(): keyring is null" ;
+        import_error = e.what();
+        RS_ERR("Cannot import GPG keypair. ERROR: "+std::string(e.what()))   ;
         return false;
     }
-
-	if(tmp_keyring->nkeys != 2)
-	{
-        import_error = "OpenPGPSDKHandler::importKeyPair(): file does not contain a valid keypair." ;
-		if(tmp_keyring->nkeys > 2)
-			import_error += "\nMake sure that your key is a RSA key (DSA is not yet supported) and does not contain subkeys (not supported yet).";
-		return false ;
-	}
-
-	// 3 - Test that keyring contains a valid keypair.
-	//
-	const ops_keydata_t *pubkey = NULL ;
-	const ops_keydata_t *seckey = NULL ;
-
-	if(tmp_keyring->keys[0].type == OPS_PTAG_CT_PUBLIC_KEY) 
-		pubkey = &tmp_keyring->keys[0] ;
-	else if(tmp_keyring->keys[0].type == OPS_PTAG_CT_ENCRYPTED_SECRET_KEY) 
-		seckey = &tmp_keyring->keys[0] ;
-	else
-	{
-		import_error = "Unrecognised key type in key file for key #0. Giving up." ;
-        RsErr() << "Unrecognised key type " << tmp_keyring->keys[0].type << " in key file for key #0. Giving up." ;
-		return false ;
-	}
-	if(tmp_keyring->keys[1].type == OPS_PTAG_CT_PUBLIC_KEY) 
-		pubkey = &tmp_keyring->keys[1] ;
-	else if(tmp_keyring->keys[1].type == OPS_PTAG_CT_ENCRYPTED_SECRET_KEY) 
-		seckey = &tmp_keyring->keys[1] ;
-	else
-	{
-		import_error = "Unrecognised key type in key file for key #1. Giving up." ;
-        RsErr() << "Unrecognised key type " << tmp_keyring->keys[1].type << " in key file for key #1. Giving up." ;
-		return false ;
-	}
-
-	if(pubkey == nullptr || seckey == nullptr || pubkey == seckey)
-	{
-		import_error = "File does not contain a public and a private key. Sorry." ;
-		return false ;
-	}
-	if(memcmp( pubkey->fingerprint.fingerprint,
-	           seckey->fingerprint.fingerprint,
-	           RsPgpFingerprint::SIZE_IN_BYTES ) != 0)
-	{
-		import_error = "Public and private keys do nt have the same fingerprint. Sorry!" ;
-		return false ;
-	}
-	if(pubkey->key.pkey.version != 4)
-	{
-		import_error = "Public key is not version 4. Rejected!" ;
-		return false ;
-	}
-
-	// 4 - now check self-signature for this keypair. For this we build a dummy keyring containing only the key.
-	//
-	ops_validate_result_t *result=(ops_validate_result_t*)ops_mallocz(sizeof *result);
-
-	ops_keyring_t dummy_keyring ;
-	dummy_keyring.nkeys=1 ;
-	dummy_keyring.nkeys_allocated=1 ;
-	dummy_keyring.keys=const_cast<ops_keydata_t*>(pubkey) ;
-
-	ops_validate_key_signatures(result, const_cast<ops_keydata_t*>(pubkey), &dummy_keyring, cb_get_passphrase) ;
-	
-	// Check that signatures contain at least one certification from the user id.
-	//
-	bool found = false ;
-
-	for(uint32_t i=0;i<result->valid_count;++i)
-		if(!memcmp(
-		            static_cast<uint8_t*>(result->valid_sigs[i].signer_id),
-		            pubkey->key_id,
-		            RsPgpId::SIZE_IN_BYTES ))
-		{
-			found = true ;
-			break ;
-		}
-
-	if(!found)
-	{
-		import_error = "Cannot validate self signature for the imported key. Sorry." ;
-		return false ;
-	}
-	ops_validate_result_free(result);
-
-	if(!RsDiscSpace::checkForDiscSpace(RS_PGP_DIRECTORY))
-	{
-		import_error = std::string("(EE) low disc space in pgp directory. Can't write safely to keyring.") ;
-		return false ;
-	}
-	// 5 - All test passed. Adding key to keyring.
-	//
-	{
-		RsStackMutex mtx(pgphandlerMtx) ;					// lock access to PGP memory structures.
-
-		imported_key_id = RsPgpId(pubkey->key_id) ;
-
-		if(locked_getSecretKey(imported_key_id) == NULL)
-		{
-			RsStackFileLock flck(_pgp_lock_filename) ;	// lock access to PGP directory.
-
-			ops_create_info_t *cinfo = NULL ;
-
-			// Make a copy of the secret keyring
-			//
-			std::string secring_path_tmp = _secring_path + ".tmp" ;
-			if(RsDirUtil::fileExists(_secring_path) && !RsDirUtil::copyFile(_secring_path,secring_path_tmp)) 
-			{
-				import_error = "(EE) Cannot write secret key to disk!! Disk full? Out of disk quota. Keyring will be left untouched." ;
-				return false ;
-			}
-
-			// Append the new key
-
-			int fd=ops_setup_file_append(&cinfo, secring_path_tmp.c_str());
-
-			if(!ops_write_transferable_secret_key_from_packet_data(seckey,ops_false,cinfo))
-			{
-				import_error = "(EE) Cannot encode secret key to disk!! Disk full? Out of disk quota?" ;
-				return false ;
-			}
-			ops_teardown_file_write(cinfo,fd) ;
-
-			// Rename the new keyring to overwrite the old one.
-			//
-			if(!RsDirUtil::renameFile(secring_path_tmp,_secring_path))
-			{
-				import_error = "  (EE) Cannot move temp file " + secring_path_tmp + ". Bad write permissions?" ;
-				return false ;
-			}
-
-			addNewKeyToOPSKeyring(_secring,*seckey) ;
-			initCertificateInfo(_secret_keyring_map[ imported_key_id ],seckey,_secring->nkeys-1) ;
-		}
-		else
-			import_error = "Private key already exists! Not importing it again." ;
-
-		if(locked_addOrMergeKey(_pubring,_public_keyring_map,pubkey))
-			_pubring_changed = true ;
-	}
-
-	// 6 - clean
-	//
-	ops_keyring_free(tmp_keyring) ;
-    free(tmp_keyring);
-
-    // write public key to disk
-    syncDatabase();
-
-	return true ;
 }
-
-void OpenPGPSDKHandler::addNewKeyToOPSKeyring(ops_keyring_t *kr,const ops_keydata_t& key)
-{
-	if(kr->nkeys >= kr->nkeys_allocated)
-	{
-		kr->keys = (ops_keydata_t *)realloc(kr->keys,(kr->nkeys+1)*sizeof(ops_keydata_t)) ; 
-		kr->nkeys_allocated = kr->nkeys+1;
-	}
-	memset(&kr->keys[kr->nkeys],0,sizeof(ops_keydata_t)) ;
-	ops_keydata_copy(&kr->keys[kr->nkeys],&key) ;
-	kr->nkeys++ ;
-}
-#endif
 
 bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)
 {

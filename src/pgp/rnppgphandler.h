@@ -75,6 +75,8 @@ public:
         bool locked_writeKeyringToDisk(bool secret, const std::string& keyring_file) override;
         bool locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file) override;
 
+        bool checkAndImportKey(rnp_input_t input,RsPgpId& imported_key_id,std::string& import_error);
+
         // RNP structures
 
         rnp_ffi_t mRnpFfi;
