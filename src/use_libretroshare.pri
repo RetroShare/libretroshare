@@ -99,6 +99,8 @@ rs_sam3_libsam3 {
     LIBS *= -L$$clean_path($${LIBSAM3_BUILD_PATH}) -lsam3
 }
 
+LIBS *= -lrnp
+
 static {
     sLibs *= $$mLibs
 } else {
