@@ -19,8 +19,6 @@ equals(TARGET, retroshare):equals(TEMPLATE, lib){
     PRE_TARGETDEPS *= $$clean_path($${RS_BUILD_PATH}/libretroshare/src/lib/$${LIBRETROSHARE_TARGET})
 }
 
-!include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
-
 bitdht {
     !include("../../libbitdht/src/use_libbitdht.pri"):error("Including")
 }
@@ -36,6 +34,12 @@ isEmpty(RAPIDJSON_AVAILABLE) {
     message("using system rapidjson")
 }
 
+rs_rnplib {
+        LIBS += -lrnp -lbz2
+        DEFINES *= USE_RNP_LIB
+} else {
+        !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
+}
 
 sLibs =
 mLibs = $$RS_SQL_LIB ssl crypto $$RS_THREAD_LIB $$RS_UPNP_LIB
@@ -98,8 +102,6 @@ rs_sam3_libsam3 {
     QMAKE_LIBDIR *= $$clean_path($${LIBSAM3_BUILD_PATH})
     LIBS *= -L$$clean_path($${LIBSAM3_BUILD_PATH}) -lsam3
 }
-
-LIBS *= -lrnp
 
 static {
     sLibs *= $$mLibs
