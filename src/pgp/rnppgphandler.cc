@@ -839,8 +839,10 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
 
         key_id = RsPgpId(key_identifier);
 
+        RsDbg() << "Binary block contains key ID " << key_id.toStdString() ;
+
         RNP_KEY_HANDLE_STRUCT(key_handle);
-        if(rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle) != RNP_SUCCESS)
+        if(rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle) != RNP_SUCCESS)
             throw std::runtime_error("Error while reaching first key data");
 
         RNP_BUFFER_STRUCT(uid);
