@@ -1587,46 +1587,35 @@ bool RNPPGPHandler::removeKeysFromPGPKeyring(const std::set<RsPgpId>& keys_to_re
 
 	error_code = PGP_KEYRING_REMOVAL_ERROR_NO_ERROR ;
 
-    NOT_IMPLEMENTED;
-#ifdef TODO
-    for(std::set<RsPgpId>::const_iterator it(keys_to_remove.begin());it!=keys_to_remove.end();++it)
-		if(locked_getSecretKey(*it) != NULL)
-		{
-            RsErr() << "(EE) OpenPGPSDKHandler:: can't remove key " << (*it).toStdString() << " since its shared by a secret key! Operation cancelled." ;
-			error_code = PGP_KEYRING_REMOVAL_ERROR_CANT_REMOVE_SECRET_KEYS ;
-			return false ;
-		}
-
 	// 2 - sync everything.
 	//
 	locked_syncPublicKeyring() ;
 
-	// 3 - make a backup of the public keyring
-	//
-	char template_name[_pubring_path.length()+8] ;
-	sprintf(template_name,"%s.XXXXXX",_pubring_path.c_str()) ;
-	
+    // 3 - make a backup of the public keyring
+    //
+    char template_name[_pubring_path.length()+8] ;
+    sprintf(template_name,"%s.XXXXXX",_pubring_path.c_str()) ;
+
 #if defined __USE_XOPEN_EXTENDED || defined __USE_XOPEN2K8
-	int fd_keyring_backup(mkstemp(template_name));
-	if (fd_keyring_backup == -1)
+    int fd_keyring_backup(mkstemp(template_name));
+    if (fd_keyring_backup == -1)
 #else
-	if(mktemp(template_name) == NULL)
+    if(mktemp(template_name) == NULL)
 #endif
-	{
+    {
         RsErr() << "OpenPGPSDKHandler::removeKeysFromPGPKeyring(): cannot create keyring backup file. Giving up." ;
-		error_code = PGP_KEYRING_REMOVAL_ERROR_CANNOT_CREATE_BACKUP ;
-		return false ;
-	}
+        error_code = PGP_KEYRING_REMOVAL_ERROR_CANNOT_CREATE_BACKUP ;
+        return false ;
+    }
 #if defined __USE_XOPEN_EXTENDED || defined __USE_XOPEN2K8
-	close(fd_keyring_backup);	// TODO: keep the file open and use the fd
+    close(fd_keyring_backup);	// TODO: keep the file open and use the fd
 #endif
 
-	if(!ops_write_keyring_to_file(_pubring,ops_false,template_name,ops_true)) 
-	{
-        RsErr() << "OpenPGPSDKHandler::removeKeysFromPGPKeyring(): cannot write keyring backup file. Giving up." ;
-		error_code = PGP_KEYRING_REMOVAL_ERROR_CANNOT_WRITE_BACKUP ;
-		return false ;
-	}
+    if(!locked_writeKeyringToDisk(false, template_name))
+    {
+        RsErr() << "Cannot backup public keyring before removing keys. Operation cancelled." ;
+        return false;
+    }
 	backup_file = std::string(template_name,_pubring_path.length()+7) ;
 
     RsErr() << "Keyring was backed up to file " << backup_file ;
@@ -1635,9 +1624,21 @@ bool RNPPGPHandler::removeKeysFromPGPKeyring(const std::set<RsPgpId>& keys_to_re
 	//
     for(std::set<RsPgpId>::const_iterator it(keys_to_remove.begin());it!=keys_to_remove.end();++it)
 	{
-		if(locked_getSecretKey(*it) != NULL)
+        RNP_KEY_HANDLE_STRUCT(key_handle);
+        rnp_locate_key(mRnpFfi,"keyid",(*it).toStdString().c_str(),&key_handle);
+
+        if(!key_handle)
+        {
+            RsErr() << "Cannot find key " << it->toStdString() << " into keyring." ;
+            continue;
+        }
+
+        bool have_secret = false;
+        rnp_key_have_secret(key_handle,&have_secret);
+
+        if(have_secret)
 		{
-            RsErr() << "(EE) OpenPGPSDKHandler:: can't remove key " << (*it).toStdString() << " since its shared by a secret key!" ;
+            RsErr() << "Can't remove key " << (*it).toStdString() << " since its a secret key!" ;
 			continue ;
 		}
 
@@ -1645,36 +1646,21 @@ bool RNPPGPHandler::removeKeysFromPGPKeyring(const std::set<RsPgpId>& keys_to_re
 
 		if(res == _public_keyring_map.end())
 		{
-            RsErr() << "(EE) OpenPGPSDKHandler:: can't remove key " << (*it).toStdString() << " from keyring: key not found." ;
+            RsErr() << "Can't remove key " << (*it).toStdString() << " from keyring: key not found in keyring map." ;
 			continue ;
-		}
-
-		if(res->second._key_index >= (unsigned int)_pubring->nkeys || RsPgpId(_pubring->keys[res->second._key_index].key_id) != *it)
-		{
-            RsErr() << "(EE) OpenPGPSDKHandler:: can't remove key " << (*it).toStdString() << ". Inconsistency found." ;
-			error_code = PGP_KEYRING_REMOVAL_ERROR_DATA_INCONSISTENCY ;
-			return false ;
 		}
 
 		// Move the last key to the freed place. This deletes the key in place.
 		//
-		ops_keyring_remove_key(_pubring,res->second._key_index) ;
+        if(rnp_key_remove(key_handle,RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SUBKEYS) != RNP_SUCCESS)
+        {
+            RsErr() << "Failed to remove key " << (*it).toStdString() << ": rnp_key_remove failed." ;
+            continue ;
+        }
 
 		// Erase the info from the keyring map.
 		//
 		_public_keyring_map.erase(res) ;
-
-		// now update all indices back. This internal look is very costly, but it avoids deleting the wrong keys, since the keyring structure is
-		// changed by ops_keyring_remove_key and therefore indices don't point to the correct location anymore.
-
-		int i=0 ;
-		const ops_keydata_t *keydata ;
-		while( (keydata = ops_keyring_get_key_by_index(_pubring,i)) != NULL )
-		{
-			PGPCertificateInfo& cert(_public_keyring_map[ RsPgpId(keydata->key_id) ]) ;
-			cert._key_index = i ;
-			++i ;
-		}
 	}
 
 	// Everything went well, sync back the keyring on disk
@@ -1686,5 +1672,4 @@ bool RNPPGPHandler::removeKeysFromPGPKeyring(const std::set<RsPgpId>& keys_to_re
 	locked_syncTrustDatabase() ;
 
 	return true ;
-#endif
 }
