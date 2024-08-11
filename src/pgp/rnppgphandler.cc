@@ -687,6 +687,7 @@ std::string RNPPGPHandler::SaveCertificateToString(const RsPgpId& id,bool includ
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
     RsErr() << " function " << __PRETTY_FUNCTION__ << " Not implemented yet." << std::endl;
+    assert(false);
     return std::string();
 #ifdef TODO
 	const ops_keydata_t *key = locked_getPublicKey(id,false) ;
@@ -971,7 +972,8 @@ bool RNPPGPHandler::checkAndImportKeyPair(rnp_input_t input,RsPgpId& imported_ke
 
     // sync the keyring.
 
-#warning TODO
+    _pubring_changed = true;
+    locked_writeKeyringToDisk(true,_secring_path);
 
     return true;
 }
