@@ -64,7 +64,8 @@ PGPHandler::PGPHandler(const std::string& pubring, const std::string& secring,co
 	_pgp_lock_filename(pgp_lock_filename),
 	_trustdb_changed(false),
 	_pubring_changed(false),
-	_pubring_last_update_time(time(NULL))
+    _pubring_last_update_time(time(NULL)),
+    _trustdb_last_update_time(0)
 {
 }
 
@@ -498,6 +499,12 @@ bool PGPHandler::locked_syncPublicKeyring()
 
 bool PGPHandler::extract_name_and_comment(const char *uid,std::string& name,std::string& comment,std::string& email)
 {
+    if(!uid)
+    {
+        RS_ERR("Missing uid! No valid string supplied");
+        return false;
+    }
+
     name ="";
     const std::string namestring(uid);
 
@@ -525,6 +532,8 @@ bool PGPHandler::extract_name_and_comment(const char *uid,std::string& name,std:
         next2 = "" ;
         while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next2 += namestring[i] ; ++i ;}
     }
+
+    return true;
 }
 
 
