@@ -932,7 +932,7 @@ static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
     return have_secret; // there's exactly 1 sec/pub key each, so if that key has secret part, it matches the public one.
 }
 
-bool RNPPGPHandler::checkAndImportKey(rnp_input_t input,RsPgpId& imported_key_id,std::string& import_error)
+bool RNPPGPHandler::checkAndImportKeyPair(rnp_input_t input,RsPgpId& imported_key_id,std::string& import_error)
 {
     // First, check how many keys we have, tht there is a secret key, etc.
 
@@ -987,7 +987,7 @@ bool RNPPGPHandler::importGPGKeyPair(const std::string& filename,RsPgpId& import
         if (rnp_input_from_path(&keyfile, filename.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot create input structure.") ;
 
-        checkAndImportKey(keyfile,imported_key_id,import_error);
+        checkAndImportKeyPair(keyfile,imported_key_id,import_error);
         return true;
     }
     catch(std::exception& e)
@@ -1008,7 +1008,7 @@ bool RNPPGPHandler::importGPGKeyPairFromString(const std::string &data, RsPgpId 
         if (rnp_input_from_memory(&keyfile, (uint8_t*)data.c_str(),data.size(),false) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot create input structure.") ;
 
-        checkAndImportKey(keyfile,imported_key_id,import_error);
+        checkAndImportKeyPair(keyfile,imported_key_id,import_error);
         return true;
     }
     catch(std::exception& e)
@@ -1025,104 +1025,26 @@ bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,
 #ifdef DEBUG_PGPHANDLER
     RsErr() << "Reading new key from string: " ;
 #endif
-    NOT_IMPLEMENTED;
-#ifdef TODO
-	ops_keyring_t *tmp_keyring = allocateOPSKeyring();
-	ops_memory_t *mem = ops_memory_new() ;
-	ops_memory_add(mem,data,data_len) ;
 
-	if(!ops_keyring_read_from_mem(tmp_keyring,armoured,mem))
-	{
-		ops_keyring_free(tmp_keyring) ;
-		free(tmp_keyring) ;
-		ops_memory_release(mem) ;
-		free(mem) ;
+    rnp_input_t input;
 
-        RsErr() << "Could not read key. Format error?" ;
-		error_string = std::string("Could not read key. Format error?") ;
-		return false ;
-	}
-	ops_memory_release(mem) ;
-	free(mem) ;
-	error_string.clear() ;
+    if(rnp_input_from_memory(&input,(uint8_t*)data,data_len,false) != RNP_SUCCESS)
+        return false;
 
-	// Check that there is exactly one key in this data packet.
-	//
-	if(tmp_keyring->nkeys != 1)
-	{
-        RsErr() << "Loaded certificate contains more than one PGP key. This is not allowed." ;
-		error_string = "Loaded certificate contains more than one PGP key. This is not allowed." ;
-		return false ;
-	}
+    size_t old_key_count = 0;
+    size_t new_key_count = 0;
 
-	const ops_keydata_t *keydata = ops_keyring_get_key_by_index(tmp_keyring,0);
+    rnp_get_public_key_count(mRnpFfi,&old_key_count);
 
-	// Check that the key is a version 4 key
-	//
-	if(keydata->key.pkey.version != 4)
-	{
-		error_string = "Public key is not version 4. Rejected!" ;
-        RsErr() << "Received a key with unhandled version number (" << keydata->key.pkey.version << ")" ;
-		return false ;
-	}
+    if(rnp_load_keys(mRnpFfi,RNP_KEYSTORE_GPG,input,RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+        return false;
 
-	// Check that the key is correctly self-signed.
-	//
-	ops_validate_result_t* result=(ops_validate_result_t*)ops_mallocz(sizeof *result);
+    rnp_get_public_key_count(mRnpFfi,&new_key_count);
 
-    ops_validate_key_signatures(result,keydata,tmp_keyring,cb_get_passphrase) ;
+    RsInfo() << "Loaded " << new_key_count - old_key_count <<  " new keys." << std::endl;
 
-	bool found = false ;
-
-	for(uint32_t i=0;i<result->valid_count;++i)
-		if(!memcmp(
-		            static_cast<uint8_t*>(result->valid_sigs[i].signer_id),
-		            keydata->key_id,
-		            RsPgpId::SIZE_IN_BYTES ))
-		{
-			found = true ;
-			break ;
-		}
-
-	if(!found)
-	{
-		error_string = "This key is not self-signed. This is required by Retroshare." ;
-        RsErr() <<   "This key is not self-signed. This is required by Retroshare." ;
-		ops_validate_result_free(result);
-		return false ;
-	}
-	ops_validate_result_free(result);
-
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "  Key read correctly: " ;
-	ops_keyring_list(tmp_keyring) ;
-#endif
-
-	int i=0 ;
-
-	while( (keydata = ops_keyring_get_key_by_index(tmp_keyring,i++)) != NULL )
-		if(locked_addOrMergeKey(_pubring,_public_keyring_map,keydata)) 
-		{
-			_pubring_changed = true ;
-#ifdef DEBUG_PGPHANDLER
-            RsErr() << "  Added the key in the main public keyring." ;
-#endif
-		}
-		else
-            RsErr() << "Key already in public keyring." ;
-	
-	if(tmp_keyring->nkeys > 0)
-		id = RsPgpId(tmp_keyring->keys[0].key_id) ;
-	else
-		return false ;
-
-	ops_keyring_free(tmp_keyring) ;
-	free(tmp_keyring) ;
-
-	_pubring_changed = true ;
-
-	return true ;
-#endif
+    _pubring_changed = true;
+    return true;
 }
 
 #ifdef TO_REMOVE
