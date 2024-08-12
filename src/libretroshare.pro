@@ -568,8 +568,6 @@ SOURCES += chat/distantchat.cc \
 SOURCES +=	pqi/authgpg.cc \
 			pqi/authssl.cc \
 			pgp/pgphandler.cc \
-			pgp/openpgpsdkhandler.cc \
-			pgp/rnppgphandler.cc \
 			pgp/pgpkeyutil.cc \
 			pgp/rscertificate.cc \
 			pgp/pgpauxutils.cc \
@@ -1112,6 +1110,11 @@ rs_broadcast_discovery {
     }
 }
 
+rs_rnplib {
+        SOURCES += pgp/rnppgphandler.cc
+} else {
+        SOURCES += pgp/openpgpsdkhandler.cc
+}
 rs_sam3 {
     SOURCES += \
         services/autoproxy/p3i2psam3.cpp \
