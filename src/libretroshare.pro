@@ -334,8 +334,10 @@ openbsd-* {
 haiku-* {
 
 	QMAKE_CXXFLAGS *= -Dfseeko64=fseeko -Dftello64=ftello -Dstat64=stat -Dstatvfs64=statvfs -Dfopen64=fopen
-	OPENPGPSDK_DIR = ../../openpgpsdk/src
-	INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+        !rs_rnplib {
+                OPENPGPSDK_DIR = ../../openpgpsdk/src
+                INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+        }
 	DEFINES *= NO_SQLCIPHER
 	CONFIG += release
 	DESTDIR = lib
@@ -343,12 +345,14 @@ haiku-* {
 
 ################################### COMMON stuff ##################################
 
-# openpgpsdk
-OPENPGPSDK_DIR = ../../openpgpsdk/src
-DEPENDPATH *= $${OPENPGPSDK_DIR}
-INCLUDEPATH *= $${OPENPGPSDK_DIR}
-PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
-LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+!rs_rnplib {
+        # openpgpsdk
+        OPENPGPSDK_DIR = ../../openpgpsdk/src
+        DEPENDPATH *= $${OPENPGPSDK_DIR}
+        INCLUDEPATH *= $${OPENPGPSDK_DIR}
+        PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
+        LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+}
 
 ################################### HEADERS & SOURCES #############################
 
