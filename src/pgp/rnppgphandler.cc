@@ -135,7 +135,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         if (rnp_input_from_path(&keyfile, pubring.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
-        if (rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+        if (rnp_import_keys(mRnpFfi, keyfile, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE,nullptr) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
     }
     else
@@ -149,7 +149,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
         if (rnp_input_from_path(&keyfile, secring.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
 
-        if (rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, keyfile, RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+        if (rnp_import_keys(mRnpFfi, keyfile, RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_PERMISSIVE,nullptr) != RNP_SUCCESS)
             throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read secret keyring. File access error.") ;
     }
     else
@@ -843,7 +843,7 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
         if(rnp_input_from_memory(&input,(uint8_t*)mem_block,mem_size,false) != RNP_SUCCESS)
             throw std::runtime_error("Cannot open supplied memory block. Memory access error.") ;
 
-        rnp_ffi_t tmp_ffi;
+        RNP_FFI_STRUCT(tmp_ffi);
         rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
 
         if(rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
@@ -968,8 +968,13 @@ bool RNPPGPHandler::checkAndImportKeyPair(rnp_input_t input,RsPgpId& imported_ke
     // First, check how many keys we have, tht there is a secret key, etc.
 
     RNP_FFI_STRUCT(tmp_ffi);
+    RNP_BUFFER_STRUCT(result);
 
-    if (rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+    rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+
+    uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS ;
+
+    if (rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, flags) != RNP_SUCCESS)
         throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
     RsPgpFingerprint key_fingerprint;
@@ -986,8 +991,10 @@ bool RNPPGPHandler::checkAndImportKeyPair(rnp_input_t input,RsPgpId& imported_ke
 
     // Import the key in the actual keyring.
 
-    if(rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS) != RNP_SUCCESS)
+    if(rnp_import_keys(mRnpFfi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS,&result) != RNP_SUCCESS)
         throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
+
+    RsInfo() << "Loaded keypair. Info is: " << result;
 
     // check that the key was actually imported
 
@@ -1068,12 +1075,41 @@ bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,
 
     rnp_get_public_key_count(mRnpFfi,&old_key_count);
 
-    if(rnp_load_keys(mRnpFfi,RNP_KEYSTORE_GPG,input,RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
+    uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE;
+    RNP_BUFFER_STRUCT(result);
+
+    if(rnp_import_keys(mRnpFfi,input,flags,&result) != RNP_SUCCESS)
         return false;
 
+    // parse the json output. This is extremely coarse parsing work. Using jsoncpp would be much cleaner.
+    std::string resultstr(result);
+    const std::string fprint_str("\"fingerprint\":\"");
+    auto pos = resultstr.find(fprint_str);
+
+    if(pos == std::string::npos)
+    {
+        RsErr() << "Cannot find fingerprint of loaded key in the following text: " << result;
+        RsErr() << "Is this a bug?";
+        return false;
+    }
+    if(resultstr.find(fprint_str,pos+1) != std::string::npos)	// check that there's only one fingerprint
+    {
+        RsErr() << "Multiple fingerprints in the following text: " << result;
+        RsErr() << "This is inconsistent.";
+        return false;
+    }
+    id = RsPgpId(resultstr.substr(pos+16+23,16));
+
+    if(id.isNull())
+    {
+        RsErr()<< "Error while parsing fingerprint from result string." ;
+        return false;
+    }
     rnp_get_public_key_count(mRnpFfi,&new_key_count);
 
-    RsInfo() << "Loaded " << new_key_count - old_key_count <<  " new keys." << std::endl;
+    RsInfo() << "Loaded " << new_key_count - old_key_count <<  " new keys." ;
+    RsInfo() << "Loaded information: " << result ;
+    RsInfo() << "Loaded key ID: " << id.toStdString() ;
 
     _pubring_changed = true;
     return true;
@@ -1595,12 +1631,19 @@ bool RNPPGPHandler::locked_updateKeyringFromDisk(bool secret, const std::string&
     rnp_input_from_path(&input,keyring_file.c_str());
 
     uint32_t flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
+    flags |= RNP_LOAD_SAVE_PERMISSIVE;
 
-    if(rnp_load_keys(mRnpFfi, RNP_KEYSTORE_GPG, input, flags) != RNP_SUCCESS)
+    RNP_BUFFER_STRUCT(result);
+
+    if(rnp_import_keys(mRnpFfi, input, flags, &result) != RNP_SUCCESS)
     {
         RS_ERR("Cannot sync keyring file " + keyring_file);
         return false;
     }
+
+    if(result)
+        RsInfo() << "Updated keyring with the following keys: " << result ;
+
     return true;
 }
 
