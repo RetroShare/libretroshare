@@ -21,6 +21,7 @@
  *******************************************************************************/
 #include <stdint.h>
 #include <util/radix64.h>
+#include <util/rsprint.h>
 #include <crypto/hashstream.h>
 #include "pgpkeyutil.h"
 
@@ -66,6 +67,99 @@ bool PGPKeyManagement::createMinimalKey(const std::string& pgp_certificate,std::
 		return false ;
 	}
 }
+
+#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_005
+
+// Removes the packets and returns the new total length, including headers, that may be used to update a parent packet
+
+void PGPKeyManagement::removeSignatureSubPacketTag33(unsigned char *keydata,size_t len,size_t& new_len)
+{
+    // 1 - allocate some memory buffer to store the result
+
+    unsigned char *newkeydata = (unsigned char *)malloc(len);
+
+    // Create 2 new pointers to parse/write buffers.
+    unsigned char *dataptr = (unsigned char *)keydata ;
+    unsigned char *newdataptr = newkeydata;
+    new_len = 0;
+
+#ifdef DEBUG_PGPUTIL
+    std::cerr << "Total size: " << len << std::endl;
+#endif
+
+    // The top level can be multiple packets. So we cannot directly call the recursive method.
+
+    size_t read_len = 0;
+
+    while(read_len < len)
+    {
+        uint8_t packet_tag;
+        uint32_t packet_length;
+
+        PGPKeyParser::read_packetHeader(dataptr,packet_tag,packet_length) ;
+
+        std::cerr << "Read packet type " << (int)packet_tag << " of size " << packet_length << std::endl;
+            std::cerr << "Packet is : " << RsUtil::BinToHex(dataptr,packet_length) << std::endl;
+
+        if(packet_tag == PGPKeyParser::PGP_PACKET_TAG_SIGNATURE && dataptr[0] == 4 && dataptr[8] == 4 && dataptr[7] == PGPKeyParser::PGP_PACKET_TAG_SUBPACKET_SIGNATURE_ISSUER_FINGERPRINT)
+        {
+            std::cerr << "  Packet is a v4 signature with a issuer fingerprint. This subpacket will be removed." << std::endl;
+
+            std::cerr << "Packet is : " << RsUtil::BinToHex(dataptr,packet_length) << std::endl;
+
+            // It's not possible to write directly to the packet buffer since we do not know the final
+            // packet size after trimming the subpacket 33.
+
+            RsTemporaryMemory temp_sign_packet_mem(packet_length);
+
+            uint8_t *subpacket_buffer_ptr = temp_sign_packet_mem;
+
+            memcpy(subpacket_buffer_ptr,dataptr,7);	// skip Version, Sig type, Pub alg and Hash alg.
+            subpacket_buffer_ptr += 7;
+            dataptr += 7; // jump to the subpacket
+
+            assert(dataptr[0] == 33);
+
+            uint32_t subpacket_33_total_size = 1 + 1 + 20;// packet tag, packet version (4), fprint of length 20. C.f. RFC9850.
+            dataptr += subpacket_33_total_size;
+
+            uint32_t remaining_length = packet_length - 7 - subpacket_33_total_size;
+
+            memcpy(subpacket_buffer_ptr,dataptr,remaining_length);	// skip Version, Sig type, Pub alg and Hash alg.
+            dataptr += remaining_length;
+
+            // all subpackets read. We write the new signature packet and its header
+
+            auto new_sign_packet_size = packet_length - subpacket_33_total_size;
+
+            PGPKeyParser::write_packetHeader(newdataptr,PGPKeyParser::PGP_PACKET_TAG_SIGNATURE,new_sign_packet_size);
+            memcpy(newdataptr,temp_sign_packet_mem,new_sign_packet_size);
+            newdataptr += new_sign_packet_size;
+
+            std::cerr << "Trimmed packet is : " << RsUtil::BinToHex(temp_sign_packet_mem,new_sign_packet_size) << std::endl;
+        }
+        else
+        {
+            std::cerr << "  Copying" << std::endl;
+            PGPKeyParser::write_packetHeader(newdataptr,packet_tag,packet_length);
+            memcpy(newdataptr,dataptr,packet_length);
+
+            dataptr += packet_length;
+            newdataptr += packet_length;
+        }
+
+        // copy the packet data to the destination, possibly forming a new size
+
+        read_len = (uint64_t)dataptr - (uint64_t)keydata;	// packet_length doesn't include the size encoding bytes and packet tag
+    }
+
+    // copy back to original
+
+    new_len = (uint64_t)newdataptr - (uint64_t)newkeydata;
+    memcpy(keydata,newkeydata,new_len);
+    free(newkeydata);
+}
+#endif
 
 void PGPKeyManagement::findLengthOfMinimalKey(const unsigned char *keydata,size_t len,size_t& new_len)
 {
@@ -378,6 +472,21 @@ uint32_t PGPKeyParser::read_partialBodyLength(unsigned char *& data)
 	return 1 << (b1 & 0x1F) ;
 }
 
+
+uint32_t PGPKeyParser::write_packetHeader(unsigned char *& data,uint8_t packet_tag,uint32_t packet_length)
+{
+    // write in new format
+
+    assert(packet_tag < 0x40);
+
+    *data = packet_tag | 0x40;
+    ++data;
+
+    auto written = write_125Size(data,packet_length);
+    data += written;
+
+    return 1 + written;
+}
 
 void PGPKeyParser::read_packetHeader(unsigned char *& data,uint8_t& packet_tag,uint32_t& packet_length)
 {

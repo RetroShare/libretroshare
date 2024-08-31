@@ -112,7 +112,14 @@ class PGPKeyManagement
 		static void findLengthOfMinimalKey(const unsigned char *keydata,size_t key_len,size_t& minimal_key_len) ;
 		static std::string makeArmouredKey(const unsigned char *keydata,size_t key_size,const std::string& version_string) ;
 
-		// Computes the 24 bits CRC checksum necessary to all PGP data.
+#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_005
+        // Removes the signature subpacket 33, which causes incompatibility with OpenPGP-SDK since it is a RFC9580 packet.
+        // This function will only need to be called to ensure compatibility with users still using OpenPGP-SDK.
+        //
+        static void removeSignatureSubPacketTag33(unsigned char *keydata,size_t len,size_t& new_len);
+#endif
+
+        // Computes the 24 bits CRC checksum necessary to all PGP data.
 		// 
 		static uint32_t compute24bitsCRC(unsigned char *data,size_t len) ;
         
@@ -126,12 +133,16 @@ class PGPKeyManagement
 class PGPKeyParser
 {
 	public:
-		// These constants correspond to packet tags from RFC4880
+        // These constants correspond to packet tags from RFC4880
 
 		static const uint8_t PGP_PACKET_TAG_PUBLIC_KEY  =  6 ;
 		static const uint8_t PGP_PACKET_TAG_USER_ID     = 13 ;
 		static const uint8_t PGP_PACKET_TAG_SIGNATURE   =  2 ;
 		static const uint8_t PGP_PACKET_TAG_ISSUER      = 16 ;
+
+        // These constants correspond to packet tags from RFC9580
+
+        static const uint8_t PGP_PACKET_TAG_SUBPACKET_SIGNATURE_ISSUER_FINGERPRINT = 33;
 
 		// These functions read and move the data pointer to the next byte after the read section.
 		//
@@ -143,6 +154,7 @@ class PGPKeyParser
 		// These functions write, and indicate how many bytes where written.
 		//
 		static uint32_t write_125Size(unsigned char *data,uint32_t size) ;
+        static uint32_t	write_packetHeader(unsigned char *& data,uint8_t packet_tag,uint32_t packet_length);
 
 		// Helper functions
 		//

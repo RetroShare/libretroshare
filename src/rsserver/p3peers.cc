@@ -1521,6 +1521,12 @@ std::string p3Peers::GetRetroshareInvite( const RsPeerId& sslId, RetroshareInvit
 			          << "\". Sorry." << std::endl;
 			return "";
 		}
+#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_005
+        // remove signature subpacket tag 33 for backward compatibility
+        size_t new_size = 0;
+        PGPKeyManagement::removeSignatureSubPacketTag33(mem_block,mem_block_size,new_size);
+        mem_block_size = new_size;
+#endif
 
 		RsCertificate cert(detail, mem_block, mem_block_size);
 		free(mem_block);
