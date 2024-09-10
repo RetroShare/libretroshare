@@ -314,6 +314,7 @@ void DistributedChatService::locked_printDebugInfo() const
 		std::cerr << "   Lobby id\t\t: " << std::hex << it->first << std::dec << std::endl;
 		std::cerr << "   Lobby name\t\t: " << it->second.lobby_name << std::endl;
 		std::cerr << "   Lobby topic\t\t: " << it->second.lobby_topic << std::endl;
+		std::cerr << "   Lobby description\t\t: " << it->second.lobby_description << std::endl;
 		std::cerr << "   nick name\t\t: " << it->second.gxs_id << std::endl;
 		std::cerr << "   Lobby type\t\t: " << ((IS_PUBLIC_LOBBY(it->second.lobby_flags))?"Public":"Private") << std::endl;
 		std::cerr << "   Lobby security\t\t: " << ((IS_PGP_SIGNED_LOBBY(it->second.lobby_flags))?"PGP-signed IDs required":"Anon IDs accepted") << std::endl;
@@ -341,7 +342,7 @@ void DistributedChatService::locked_printDebugInfo() const
 
 	for( std::map<ChatLobbyId,VisibleChatLobbyRecord>::const_iterator it(_visible_lobbies.begin()) ;it!=_visible_lobbies.end();++it)
 	{
-		std::cerr << "   " << std::hex << it->first << " name = " << std::dec << it->second.lobby_name << it->second.lobby_topic << std::endl;
+		std::cerr << "   " << std::hex << it->first << " name = " << std::dec << it->second.lobby_name << it->second.lobby_topic << it->second.lobby_description << std::endl;
 		for(std::set<RsPeerId>::const_iterator it2(it->second.participating_friends.begin());it2!=it->second.participating_friends.end();++it2)
 			std::cerr << "    With friend: " << *it2 << std::endl;
 	}
@@ -476,7 +477,7 @@ void DistributedChatService::handleRecvChatLobbyListRequest(RsChatLobbyListReque
 			{
 #ifdef DEBUG_CHAT_LOBBIES
         std::cerr << "  Adding lobby " << std::hex << it->first << std::dec << " \""
-                  << it->second.lobby_name << it->second.lobby_topic << "\" count=" << it->second.gxs_ids.size() << std::endl;
+                  << it->second.lobby_name << it->second.lobby_topic << it->second.lobby_description << "\" count=" << it->second.gxs_ids.size() << std::endl;
 #endif
 
                 VisibleChatLobbyInfo info ;
@@ -484,6 +485,7 @@ void DistributedChatService::handleRecvChatLobbyListRequest(RsChatLobbyListReque
                 info.id    = it->first ;
                 info.name  = it->second.lobby_name ;
                 info.topic = it->second.lobby_topic ;
+                info.description = it->second.lobby_description ;
                 info.count = it->second.gxs_ids.size() ;
                 info.flags = ChatLobbyFlags(EXTRACT_PRIVACY_FLAGS(it->second.lobby_flags)) ;
 
@@ -527,6 +529,7 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
             rec.lobby_id = item->lobbies[i].id ;
             rec.lobby_name = item->lobbies[i].name ;
             rec.lobby_topic = item->lobbies[i].topic ;
+            rec.lobby_description = item->lobbies[i].description ;
 			rec.participating_friends.insert(item->PeerId()) ;
 
 			if(_should_reset_lobby_counts)
@@ -1290,6 +1293,7 @@ void DistributedChatService::invitePeerToLobby(const ChatLobbyId& lobby_id, cons
 	item->lobby_id    =  lobby_id ;
 	item->lobby_name  =  it->second.lobby_name ;
 	item->lobby_topic =  it->second.lobby_topic ;
+	item->lobby_description =  it->second.lobby_description ;
 	item->lobby_flags =  connexion_challenge?RS_CHAT_LOBBY_FLAGS_CHALLENGE:(it->second.lobby_flags) ;
 	item->PeerId(peer_id) ;
 
@@ -1302,6 +1306,7 @@ void DistributedChatService::invitePeerToLobby(const ChatLobbyId& lobby_id, cons
 		item->lobby_id    =  lobby_id ;
 		item->lobby_name  =  it->second.lobby_name ;
 		item->lobby_topic =  it->second.lobby_topic ;
+		item->lobby_description =  it->second.lobby_description ;
 		item->lobby_flags =  connexion_challenge?RS_CHAT_LOBBY_FLAGS_CHALLENGE:(it->second.lobby_flags) ;
 		item->PeerId(peer_id) ;
 
@@ -1320,6 +1325,7 @@ void DistributedChatService::handleRecvLobbyInvite_Deprecated(RsChatLobbyInviteI
 	newItem.lobby_id = item->lobby_id ;
 	newItem.lobby_name = item->lobby_name ;
 	newItem.lobby_topic = item->lobby_topic ;
+	newItem.lobby_description = item->lobby_description ;
 	newItem.lobby_flags = item->lobby_flags ;
 	newItem.PeerId( item->PeerId() );
 
@@ -1364,6 +1370,12 @@ void DistributedChatService::handleRecvLobbyInvite(RsChatLobbyInviteItem *item)
 				if(it->second.lobby_topic.empty() && !item->lobby_topic.empty())
 					it->second.lobby_topic = item->lobby_topic;
 			}
+			
+			
+			{ //Update Description if have received deprecated before (without desc)
+				if(it->second.lobby_description.empty() && !item->lobby_description.empty())
+					it->second.lobby_description = item->lobby_description;
+			}
 
 			it->second.participating_friends.insert(item->PeerId()) ;
 			return ;
@@ -1387,6 +1399,7 @@ void DistributedChatService::handleRecvLobbyInvite(RsChatLobbyInviteItem *item)
 		invite.peer_id = item->PeerId() ;
 		invite.lobby_name = item->lobby_name ;
 		invite.lobby_topic = item->lobby_topic ;
+		invite.lobby_description = item->lobby_description ;
 		invite.lobby_flags = item->lobby_flags ;
 
 		_lobby_invites_queue[item->lobby_id] = invite ;
@@ -1463,6 +1476,7 @@ bool DistributedChatService::acceptLobbyInvite(const ChatLobbyId& lobby_id,const
 		entry.lobby_id = lobby_id ;
 		entry.lobby_name = it->second.lobby_name ;
 		entry.lobby_topic = it->second.lobby_topic ;
+		entry.lobby_description = it->second.lobby_description ;
 		entry.virtual_peer_id = makeVirtualPeerId(lobby_id) ;
 		entry.connexion_challenge_count = 0 ;
 		entry.last_activity = now ;
@@ -1591,6 +1605,7 @@ bool DistributedChatService::joinVisibleChatLobby(const ChatLobbyId& lobby_id,co
 		entry.lobby_id = lobby_id ;
 		entry.lobby_name = it->second.lobby_name ;
 		entry.lobby_topic = it->second.lobby_topic ;
+		entry.lobby_description = it->second.lobby_description ;
 		entry.virtual_peer_id = makeVirtualPeerId(lobby_id) ;
 		entry.connexion_challenge_count = 0 ;
 		entry.last_activity = now ; 
@@ -1619,7 +1634,7 @@ bool DistributedChatService::joinVisibleChatLobby(const ChatLobbyId& lobby_id,co
 	return true ;
 }
 
-ChatLobbyId DistributedChatService::createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags lobby_flags)
+ChatLobbyId DistributedChatService::createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::string& lobby_description,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags lobby_flags)
 {
 #ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "Creating a new Chat lobby !!" << std::endl;
@@ -1650,6 +1665,7 @@ ChatLobbyId DistributedChatService::createChatLobby(const std::string& lobby_nam
 		entry.lobby_id = lobby_id ;
 		entry.lobby_name = lobby_name ;
 		entry.lobby_topic = lobby_topic ;
+		entry.lobby_description = lobby_description ;
 		entry.virtual_peer_id = makeVirtualPeerId(lobby_id) ;
 		entry.connexion_challenge_count = 0 ;
 		entry.last_activity = now ;
@@ -2170,6 +2186,7 @@ bool DistributedChatService::processLoadListItem(const RsItem *item)
 			rec.lobby_id = scli->info.lobby_id ;
 			rec.lobby_name = scli->info.lobby_name ;
 			rec.lobby_topic = scli->info.lobby_topic ;
+			rec.lobby_description = scli->info.lobby_description ;
 			rec.participating_friends = scli->info.participating_friends;
 			rec.total_number_of_peers = 0;
 			rec.last_report_time = now ;

@@ -74,7 +74,7 @@ class DistributedChatService
 		void sendLobbyStatusString(const ChatLobbyId& id,const std::string& status_string) ;
 		void sendLobbyStatusPeerLeaving(const ChatLobbyId& lobby_id) ;
 
-		ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic, const std::set<RsPeerId>& invited_friends,ChatLobbyFlags flags) ;
+		ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::string& lobby_description,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags flags) ;
 
 		void getListOfNearbyChatLobbies(std::vector<VisibleChatLobbyRecord>& public_lobbies) ;
 		bool joinVisibleChatLobby(const ChatLobbyId& id, const RsGxsId &gxs_id) ;

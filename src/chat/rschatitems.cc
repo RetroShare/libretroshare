@@ -131,6 +131,7 @@ void RsChatLobbyInviteItem_Deprecated::serial_process(RsGenericSerializer::Seria
     RsTypeSerializer::serial_process<uint64_t>(j,ctx,                  lobby_id,   "lobby_id") ;
     RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,lobby_name, "lobby_name") ;
     RsTypeSerializer::serial_process          (j,ctx,                  lobby_flags,"lobby_flags") ;
+    RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,lobby_topic,"lobby_topic") ;
 }
 
 void RsChatLobbyInviteItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
@@ -138,6 +139,7 @@ void RsChatLobbyInviteItem::serial_process(RsGenericSerializer::SerializeJob j,R
     RsTypeSerializer::serial_process<uint64_t>(j,ctx,                  lobby_id,   "lobby_id") ;
     RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,lobby_name, "lobby_name") ;
     RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,lobby_topic,"lobby_topic") ;
+    RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,lobby_description,"lobby_description") ;
     RsTypeSerializer::serial_process          (j,ctx,                  lobby_flags,"lobby_flags") ;
 }
 

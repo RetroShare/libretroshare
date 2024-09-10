@@ -170,7 +170,7 @@ public:
       virtual void getDefaultIdentityForChatLobby(RsGxsId& nick) override ;
     virtual void setLobbyAutoSubscribe(const ChatLobbyId& lobby_id, const bool autoSubscribe)override ;
     virtual bool getLobbyAutoSubscribe(const ChatLobbyId& lobby_id)override ;
-      virtual ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags privacy_type) override ;
+      virtual ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::string& lobby_description,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags privacy_type) override ;
 
 	virtual bool initiateDistantChatConnexion(
 		          const RsGxsId& to_gxs_id, const RsGxsId& from_gxs_id,

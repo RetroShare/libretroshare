@@ -203,6 +203,7 @@ struct VisibleChatLobbyInfo
     ChatLobbyId id ;
     std::string name ;
     std::string topic ;
+    std::string description ;
     uint32_t    count ;
     ChatLobbyFlags flags ;
 };
@@ -254,6 +255,7 @@ class RsChatLobbyInviteItem_Deprecated : public RsChatItem
 		ChatLobbyId lobby_id ;
 		std::string lobby_name ;
 		std::string lobby_topic ;
+		std::string lobby_description ;
 		ChatLobbyFlags lobby_flags ;
 };
 
@@ -268,6 +270,7 @@ class RsChatLobbyInviteItem: public RsChatItem
 		ChatLobbyId lobby_id ;
 		std::string lobby_name ;
 		std::string lobby_topic ;
+		std::string lobby_description ;
 		ChatLobbyFlags lobby_flags ;
 };
 

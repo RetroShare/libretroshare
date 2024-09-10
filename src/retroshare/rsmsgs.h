@@ -523,6 +523,7 @@ public:
 	RsPeerId peer_id ;
 	std::string lobby_name ;
 	std::string lobby_topic ;
+	std::string lobby_description ;
 	ChatLobbyFlags lobby_flags ;
 
 	// RsSerializable interface
@@ -532,6 +533,7 @@ public:
 		RS_SERIAL_PROCESS(peer_id);
 		RS_SERIAL_PROCESS(lobby_name);
 		RS_SERIAL_PROCESS(lobby_topic);
+		RS_SERIAL_PROCESS(lobby_description);
 		RS_SERIAL_PROCESS(lobby_flags);
 	}
 };
@@ -544,6 +546,7 @@ struct VisibleChatLobbyRecord : RsSerializable
 	ChatLobbyId lobby_id ;						// unique id of the lobby
 	std::string lobby_name ;					// name to use for this lobby
 	std::string lobby_topic ;					// topic to use for this lobby
+	std::string lobby_description ;				// description to use for this lobby
 	std::set<RsPeerId> participating_friends ;	// list of direct friend who participate.
 
 	uint32_t total_number_of_peers ;			// total number of particpating peers. Might not be
@@ -558,6 +561,7 @@ struct VisibleChatLobbyRecord : RsSerializable
 		RS_SERIAL_PROCESS(lobby_id);
 		RS_SERIAL_PROCESS(lobby_name);
 		RS_SERIAL_PROCESS(lobby_topic);
+		RS_SERIAL_PROCESS(lobby_description);
 		RS_SERIAL_PROCESS(participating_friends);
 
 		RS_SERIAL_PROCESS(total_number_of_peers);
@@ -576,6 +580,7 @@ public:
 	ChatLobbyId lobby_id ;						// unique id of the lobby
 	std::string lobby_name ;					// name to use for this lobby
 	std::string lobby_topic ;					// topic to use for this lobby
+	std::string lobby_description ;				// desc to use for this lobby
 	std::set<RsPeerId> participating_friends ;	// list of direct friend who participate. Used to broadcast sent messages.
 	RsGxsId gxs_id ;							// ID to sign messages
 
@@ -583,7 +588,7 @@ public:
 	std::map<RsGxsId, rstime_t> gxs_ids ;			// list of non direct friend who participate. Used to display only.
 	rstime_t last_activity ;						// last recorded activity. Useful for removing dead lobbies.
 
-    virtual void clear() { gxs_ids.clear(); lobby_id = 0; lobby_name.clear(); lobby_topic.clear(); participating_friends.clear(); }
+    virtual void clear() { gxs_ids.clear(); lobby_id = 0; lobby_name.clear(); lobby_topic.clear(); lobby_description.clear(); participating_friends.clear(); }
 
 	// RsSerializable interface
 public:
@@ -591,6 +596,8 @@ public:
 		RS_SERIAL_PROCESS(lobby_id);
 		RS_SERIAL_PROCESS(lobby_name);
 		RS_SERIAL_PROCESS(lobby_topic);
+		RS_SERIAL_PROCESS(lobby_description);
+
 		RS_SERIAL_PROCESS(participating_friends);
 		RS_SERIAL_PROCESS(gxs_id);
 
@@ -1041,11 +1048,12 @@ virtual void getOwnAvatarData(unsigned char *& data,int& size) = 0 ;
 	 * @param[in] lobby_name lobby name
 	 * @param[in] lobby_identity chat id to use for new lobby
 	 * @param[in] lobby_topic lobby toppic
+	 * @param[in] lobby_description lobby description
 	 * @param[in] invited_friends list of friends to invite
 	 * @param[in] lobby_privacy_type flag for new chat lobby
 	 * @return chat id of new lobby
 	 */
-	virtual ChatLobbyId createChatLobby(const std::string &lobby_name, const RsGxsId &lobby_identity, const std::string &lobby_topic, const std::set<RsPeerId> &invited_friends, ChatLobbyFlags lobby_privacy_type) = 0 ;
+	virtual ChatLobbyId createChatLobby(const std::string &lobby_name, const RsGxsId &lobby_identity, const std::string &lobby_topic, const std::string &lobby_description, const std::set<RsPeerId> &invited_friends, ChatLobbyFlags lobby_privacy_type) = 0 ;
 
 /****************************************/
 /*            Distant chat              */
