@@ -98,6 +98,7 @@ template<> void RsTypeSerializer::serial_process(RsGenericSerializer::SerializeJ
 
 	RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,info.name, "info.name") ;
 	RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,info.topic,"info.topic") ;
+	RsTypeSerializer::serial_process          (j,ctx,TLV_TYPE_STR_NAME,info.description,"info.description") ;
 	RsTypeSerializer::serial_process<uint32_t>(j,ctx,                  info.count,"info.count") ;
 	RsTypeSerializer::serial_process          (j,ctx,                  info.flags,"info.flags") ;
 }
