@@ -108,6 +108,9 @@ public:
     static bool isPGPId(const RsPgpId& id) ;
     static bool isPGPAccepted(const RsPgpId& id) ;
 
+    // Allocates a PGP handler, using the right paths depending on whether we use RNP or OpenPGP-SDK.
+    static PGPHandler *allocatePGPHandler();
+
 		/**
 		 * @param ids list of gpg certificate ids (note, not the actual certificates)
 		 */
