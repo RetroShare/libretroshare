@@ -956,7 +956,7 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
 
     // This was added on Sept 20, 2024. It is here to fix errors following a bug that caused duplication of
     // some message ids. This should be kept because it also creates the list that is stored in mAllMessageIds,
-    // that is further used by getNewUniqueId() to create a unique message Id.
+    // that is further used by getNewUniqueId() to create unique message Ids in a more robust way than before.
 
     locked_checkForDuplicates();
     return true;
@@ -1011,6 +1011,8 @@ void p3MsgService::locked_checkForDuplicates()
                 uint32_t new_id;
                 do { new_id = RsRandom::random_u32() ; } while(already_known_ids.find(new_id)!=already_known_ids.end());
 
+                already_known_ids.insert(new_id);
+
                 RsWarn() << "Duplicate ID " << it->first << " found in message box " << name << ". Will be replaced by new ID " << new_id << std::endl;
 
                 // replace the old ID by the new, everywhere
@@ -1024,6 +1026,9 @@ void p3MsgService::locked_checkForDuplicates()
                 tmp++;
                 mp.erase(it);
                 it = tmp;
+
+                // Next, we replace the old id by the new, everywhere it is mentionned. Of course this may not be correct, since
+                // the actual old id may be mentionned on purpose. Still, there is absolutely no way to know which is the right one.
 
                 // 2 - everywhere it is designated as parent
 
@@ -1073,6 +1078,7 @@ void p3MsgService::locked_checkForDuplicates()
 
                 to_switch[sit.first] = new_id;
                 changed=true;
+                already_known_ids.insert(new_id);
             }
             else
                 already_known_ids.insert(sit.first);
