@@ -983,8 +983,8 @@ template<class T> void replace_second(std::map<T,uint32_t>& mp,uint32_t old_id,u
 }
 void p3MsgService::locked_checkForDuplicates()
 {
-    bool changed = false;
     std::set<uint32_t> already_known_ids;
+    std::set<RsMailMessageId> changed_msg_ids;
 
     auto replace_parent = [](std::map<uint32_t,RsMailStorageItem*>& mp,uint32_t old_id,uint32_t new_id)
     {
@@ -996,7 +996,7 @@ void p3MsgService::locked_checkForDuplicates()
             }
     };
 
-    auto check = [&already_known_ids,&changed,this,replace_parent](std::map<uint32_t,RsMailStorageItem*>& mp,const std::string& name)
+    auto check = [&already_known_ids,&changed_msg_ids,this,replace_parent](std::map<uint32_t,RsMailStorageItem*>& mp,const std::string& name)
     {
         std::map<uint32_t,RsMailStorageItem*> new_mp;
 
@@ -1004,14 +1004,13 @@ void p3MsgService::locked_checkForDuplicates()
         {
             if(already_known_ids.find(it->first)!=already_known_ids.end())
             {
-                changed=true;
-
                 // generate a new ID
                 uint32_t old_id = it->first;
                 uint32_t new_id;
                 do { new_id = RsRandom::random_u32() ; } while(already_known_ids.find(new_id)!=already_known_ids.end());
 
                 already_known_ids.insert(new_id);
+                changed_msg_ids.insert(std::to_string(new_id));
 
                 RsWarn() << "Duplicate ID " << it->first << " found in message box " << name << ". Will be replaced by new ID " << new_id << std::endl;
 
@@ -1076,8 +1075,10 @@ void p3MsgService::locked_checkForDuplicates()
                 uint32_t new_id;
                 do { new_id = RsRandom::random_u32() ; } while(already_known_ids.find(new_id)!=already_known_ids.end());
 
+                RsWarn() << "Duplicate ID " << sit.first << " found in msgOutgoing. Will be replaced by new ID " << new_id << std::endl;
+
                 to_switch[sit.first] = new_id;
-                changed=true;
+                changed_msg_ids.insert(std::to_string(new_id));
                 already_known_ids.insert(new_id);
             }
             else
@@ -1089,8 +1090,15 @@ void p3MsgService::locked_checkForDuplicates()
 
     mAllMessageIds = already_known_ids;
 
-    if(changed)
+    if(!changed_msg_ids.empty())
+    {
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+
+        auto pEvent = std::make_shared<RsMailStatusEvent>();
+        pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_CHANGED;
+        pEvent->mChangedMsgIds = changed_msg_ids;
+        rsEvents->postEvent(pEvent);
+    }
 }
 void p3MsgService::loadWelcomeMsg()
 {
