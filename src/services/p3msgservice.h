@@ -158,6 +158,7 @@ public:
 private:
     void locked_sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from, uint32_t msgId);
     bool locked_getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
+    void locked_checkForDuplicates();
     RsMailStorageItem *locked_getMessageData(uint32_t mid) const;
 
 	/** This contains the ongoing tunnel handling contacts.
@@ -242,7 +243,9 @@ private:
 
     std::map<uint32_t, RsMsgTagType*> mTags;
 
-	uint32_t mMsgUniqueId;
+    // Set of messages ids used. Any new msg id generated will be checked against this set and added to it.
+    std::set<uint32_t> mAllMessageIds;
+
 	std::map<Sha1CheckSum, uint32_t> mRecentlyReceivedMessageHashes;
 	RsMutex recentlyReceivedMutex;
 
