@@ -65,13 +65,17 @@ class t_ScopeGuard
 public:
     t_ScopeGuard(T *& out) : mOut(out)
     {
+#ifdef DEBUG_RNP
         RsErr() << "Creating RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
+#endif
     }
     ~t_ScopeGuard()
     {
         if(mOut != nullptr)
         {
+#ifdef DEBUG_RNP
             RsErr() << "Autodeleting RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
+#endif
             destructor(mOut);
         }
     }
@@ -1110,6 +1114,19 @@ bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,
     RsInfo() << "Loaded " << new_key_count - old_key_count <<  " new keys." ;
     RsInfo() << "Loaded information: " << result ;
     RsInfo() << "Loaded key ID: " << id.toStdString() ;
+
+    // try to locate the key in the keyring, to check that it's been imported correctly
+
+    RNP_KEY_HANDLE_STRUCT(key_handle);
+
+    if(RNP_SUCCESS != rnp_locate_key(mRnpFfi,"keyid",id.toStdString().c_str(),&key_handle))
+    {
+        RsErr() << "Something went wrong: cannot locate key ID " << id << " in public keyring." ;
+        return false;
+    }
+    RsInfo() << "Key ID " << id << " is in public keyring." ;
+
+    initCertificateInfo(key_handle) ;
 
     _pubring_changed = true;
     return true;
