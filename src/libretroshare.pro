@@ -343,7 +343,7 @@ haiku-* {
 	DESTDIR = lib
 }
 
-################################### COMMON stuff ##################################
+################################### OpenPGP-SDK stuff ##################################
 
 !rs_rnplib {
         # openpgpsdk
@@ -386,8 +386,6 @@ HEADERS += chat/distantchat.h \
 HEADERS +=	pqi/authssl.h \
 			pqi/authgpg.h \
 			pgp/pgphandler.h \
-			pgp/openpgpsdkhandler.h \
-			pgp/rnppgphandler.h \
 			pgp/pgpkeyutil.h \
 			pqi/pqifdbin.h \
 			pqi/rstcpsocket.h \
@@ -1112,8 +1110,10 @@ rs_broadcast_discovery {
 
 rs_rnplib {
         SOURCES += pgp/rnppgphandler.cc
+        HEADERS += pgp/rnppgphandler.h
 } else {
         SOURCES += pgp/openpgpsdkhandler.cc
+        HEADERS += pgp/openpgpsdkhandler.h \
 }
 rs_sam3 {
     SOURCES += \
