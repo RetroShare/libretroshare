@@ -68,7 +68,7 @@ bool PGPKeyManagement::createMinimalKey(const std::string& pgp_certificate,std::
 	}
 }
 
-#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_005
+#ifdef V06_EXPERIMENTAL_CHANGE_001
 
 // Removes the packets and returns the new total length, including headers, that may be used to update a parent packet
 

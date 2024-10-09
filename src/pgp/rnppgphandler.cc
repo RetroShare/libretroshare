@@ -1451,8 +1451,8 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    // This has been left unimplemented because it's not used in RS UI anymore. The expected behavior of
-    // this function was to sign the supplied key using our own key  with ID "ownid".
+    // This has been left unimplemented because RNP doesn't handle this already. The expected behavior of
+    // this function is to sign the supplied key using our own key  with ID "ownid".
 
     try
     {

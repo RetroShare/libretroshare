@@ -112,9 +112,11 @@ class PGPKeyManagement
 		static void findLengthOfMinimalKey(const unsigned char *keydata,size_t key_len,size_t& minimal_key_len) ;
 		static std::string makeArmouredKey(const unsigned char *keydata,size_t key_size,const std::string& version_string) ;
 
-#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_005
+#ifdef V06_EXPERIMENTAL_CHANGE_001
         // Removes the signature subpacket 33, which causes incompatibility with OpenPGP-SDK since it is a RFC9580 packet.
         // This function will only need to be called to ensure compatibility with users still using OpenPGP-SDK.
+        // Since signature subpacket 33 is part of the hashed section of the signature, this also invalidates the signature.
+        // Depending on the implementation, certificates with self-signature that miss this subpacket may not be accepted.
         //
         static void removeSignatureSubPacketTag33(unsigned char *keydata,size_t len,size_t& new_len);
 #endif
