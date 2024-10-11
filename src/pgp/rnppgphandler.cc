@@ -66,7 +66,7 @@ public:
     t_ScopeGuard(T *& out) : mOut(out)
     {
 #ifdef DEBUG_RNP
-        RsErr() << "Creating RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
+//        RsErr() << "Creating RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
 #endif
     }
     ~t_ScopeGuard()
@@ -74,7 +74,7 @@ public:
         if(mOut != nullptr)
         {
 #ifdef DEBUG_RNP
-            RsErr() << "Autodeleting RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
+//            RsErr() << "Autodeleting RNP structure pointer " << (void*)&mOut << " value: " << (void*)mOut;
 #endif
             destructor(mOut);
         }
@@ -967,47 +967,52 @@ static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
     return have_secret; // there's exactly 1 sec/pub key each, so if that key has secret part, it matches the public one.
 }
 
-bool RNPPGPHandler::checkAndImportKeyPair(rnp_input_t input,RsPgpId& imported_key_id,std::string& import_error)
+static bool testKeyPairInput(rnp_input_t keyfile,RsPgpId& imported_key_id)
 {
-    // First, check how many keys we have, tht there is a secret key, etc.
+        RNP_FFI_STRUCT(tmp_ffi);
 
-    RNP_FFI_STRUCT(tmp_ffi);
-    RNP_BUFFER_STRUCT(result);
+        rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
 
-    rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+        uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS ;
 
-    uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS ;
+        if (rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, keyfile, flags) != RNP_SUCCESS)
+        {
+            RsErr() << "RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error." ;
+            return false;
+        }
 
-    if (rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, flags) != RNP_SUCCESS)
-        throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
+        RsPgpFingerprint key_fingerprint;
+        std::string key_username;
+        std::string key_algorithm;
+        uint32_t key_size;
 
-    RsPgpFingerprint key_fingerprint;
-    std::string key_username;
-    std::string key_algorithm;
-    uint32_t key_size;
+        if(!checkGPGKeyPair(tmp_ffi,imported_key_id,key_fingerprint,key_username,key_algorithm,key_size))
+            return false;
 
-    if(!checkGPGKeyPair(tmp_ffi,imported_key_id,key_fingerprint,key_username,key_algorithm,key_size))
-        return false;
+        RsInfo() << "Imported " << key_algorithm << "-" << key_size << " key pair. Key id: " << imported_key_id
+                 << " fingerprint: " << key_fingerprint << " Username: \"" << key_username << "\"" ;
 
+        return true;
+}
+
+bool RNPPGPHandler::importKeyData(rnp_input_t input)
+{
     RS_STACK_MUTEX(pgphandlerMtx);
 
-    RsInfo() << "Imported " << key_algorithm << "-" << key_size << " key pair. Key id: " << imported_key_id << " fingerprint: " << key_fingerprint << " Username: \"" << key_username << "\"" ;
-
     // Import the key in the actual keyring.
+
+    RNP_BUFFER_STRUCT(result);
+    size_t old_public_key_count = 0;
+    rnp_get_public_key_count(mRnpFfi,&old_public_key_count);
 
     if(rnp_import_keys(mRnpFfi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS,&result) != RNP_SUCCESS)
         throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot read public keyring. File access error.") ;
 
+    size_t new_public_key_count = 0;
+    rnp_get_public_key_count(mRnpFfi,&new_public_key_count);
+
     RsInfo() << "Loaded keypair. Info is: " << result;
-
-    // check that the key was actually imported
-
-    RNP_KEY_HANDLE_STRUCT(key_handle);
-
-    if(!rnp_locate_key(mRnpFfi,"keyid",imported_key_id.toStdString().c_str(),&key_handle))
-        throw std::runtime_error("Key import check failed.");
-
-    import_error.clear();
+    RsInfo() << "Old key count: " << old_public_key_count << ", new key count:" << new_public_key_count ;
 
     // sync the keyring.
 
@@ -1019,21 +1024,46 @@ bool RNPPGPHandler::checkAndImportKeyPair(rnp_input_t input,RsPgpId& imported_ke
 
 bool RNPPGPHandler::importGPGKeyPair(const std::string& filename,RsPgpId& imported_key_id,std::string& import_error)
 {
+    if(!RsDirUtil::fileExists(filename))
+        throw std::runtime_error("File " + filename + " does not exist.");
+
+    // First, check how many keys we have, tht there is a secret key, etc.
+
     try
     {
-        if(!RsDirUtil::fileExists(filename))
-            throw std::runtime_error("File " + filename + " does not exist.");
+        {
+            RNP_INPUT_STRUCT(keyfile);
+
+            /* load public keyring */
+            if (rnp_input_from_path(&keyfile, filename.c_str()) != RNP_SUCCESS)
+                throw std::runtime_error("Cannot create input structure.") ;
+
+            if(!testKeyPairInput(keyfile,imported_key_id))
+                return false;
+        }
+
+        // Then input the file in actual keyring
 
         RNP_INPUT_STRUCT(keyfile);
 
-        /* load public keyring */
         if (rnp_input_from_path(&keyfile, filename.c_str()) != RNP_SUCCESS)
-            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot create input structure.") ;
+            throw std::runtime_error("Cannot create input structure.") ;
 
-        checkAndImportKeyPair(keyfile,imported_key_id,import_error);
+        if(!importKeyData(keyfile))
+            throw std::runtime_error("Data inport failed.") ;
+
+        // check that the key was actually imported
+
+        RNP_KEY_HANDLE_STRUCT(key_handle);
+
+        if(RNP_SUCCESS != rnp_locate_key(mRnpFfi,"keyid",imported_key_id.toStdString().c_str(),&key_handle))
+            throw std::runtime_error("Key import check failed: imported key is missing from keyring.");
+
+        initCertificateInfo(key_handle) ;
+        import_error.clear();
         return true;
     }
-    catch(std::exception& e)
+    catch (std::exception& e)
     {
         import_error = e.what();
         RS_ERR("Cannot import GPG keypair. ERROR: "+std::string(e.what()))   ;
@@ -1045,13 +1075,36 @@ bool RNPPGPHandler::importGPGKeyPairFromString(const std::string &data, RsPgpId 
 {
     try
     {
+        {
+            RNP_INPUT_STRUCT(keyfile);
+
+            /* load public keyring */
+            if (rnp_input_from_memory(&keyfile, (uint8_t*)data.c_str(),data.size(),false) != RNP_SUCCESS)
+                throw std::runtime_error("Cannot create input structure.") ;
+
+            if(!testKeyPairInput(keyfile,imported_key_id))
+                return false;
+        }
+
+        // Then input the file in actual keyring
+
         RNP_INPUT_STRUCT(keyfile);
 
-        /* load public keyring */
         if (rnp_input_from_memory(&keyfile, (uint8_t*)data.c_str(),data.size(),false) != RNP_SUCCESS)
-            throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot create input structure.") ;
+            throw std::runtime_error("Cannot create input structure.") ;
 
-        checkAndImportKeyPair(keyfile,imported_key_id,import_error);
+        if(!importKeyData(keyfile))
+            throw std::runtime_error("Data inport failed.") ;
+
+        // check that the key was actually imported
+
+        RNP_KEY_HANDLE_STRUCT(key_handle);
+
+        if(RNP_SUCCESS != rnp_locate_key(mRnpFfi,"keyid",imported_key_id.toStdString().c_str(),&key_handle))
+            throw std::runtime_error("Key import check failed: imported key is missing from keyring.");
+
+        initCertificateInfo(key_handle) ;
+        import_error.clear();
         return true;
     }
     catch(std::exception& e)
