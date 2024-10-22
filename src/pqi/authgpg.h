@@ -35,10 +35,10 @@
 #include "util/rsthreads.h"
 #include "pqi/p3cfgmgr.h"
 
-#ifdef USE_RNP_LIB
-#include "pgp/rnppgphandler.h"
-#else
+#ifdef USE_OPENPGPSDK
 #include "pgp/openpgpsdkhandler.h"
+#else
+#include "pgp/rnppgphandler.h"
 #endif
 
 #define MAX_GPG_SIGNATURE_SIZE  4096

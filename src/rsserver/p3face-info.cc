@@ -23,10 +23,10 @@
 #include "rsserver/p3face.h"
 #include <bzlib.h>
 #include <openssl/ssl.h>
-#ifdef USE_RNP_LIB
-#include <rnp/rnp.h>
-#else
+#ifdef USE_OPENPGPSDK
 #include <openpgpsdk/version.h>
+#else
+#include <rnp/rnp.h>
 #endif
 #include <zlib.h>
 
@@ -99,9 +99,9 @@ void RsServer::getLibraries(std::list<RsLibraryInfo> &libraries)
 #endif // def RS_USE_LIBUPNP
 
 	libraries.push_back(RsLibraryInfo("Zlib", ZLIB_VERSION));
-#ifdef USE_RNP_LIB
-    libraries.push_back(RsLibraryInfo("libRNP", rnp_version_string()));
-#else
+#ifdef USE_OPENPGPSDK
     libraries.push_back(RsLibraryInfo("OpenPGP-SDK", OPS_VERSION_STRING));
+#else
+    libraries.push_back(RsLibraryInfo("libRNP", rnp_version_string()));
 #endif
 }

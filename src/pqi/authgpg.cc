@@ -39,7 +39,9 @@
 #include <algorithm>
 #include "rsitems/rsconfigitems.h"
 
-#ifdef USE_RNP_LIB
+#ifdef USE_OPENPGPSDK
+#include "pgp/openpgpsdkhandler.h"
+#else
 #include "pgp/rnppgphandler.h"
 #endif
 
@@ -151,10 +153,10 @@ AuthPGP::AuthPGP(const std::string& path_to_public_keyring,const std::string& pa
 	_force_sync_database(false),
 	mCount(0)
 {
-#ifdef USE_RNP_LIB
-    mPgpHandler = new RNPPGPHandler(path_to_public_keyring,path_to_secret_keyring,path_to_trustdb,pgp_lock_file);
-#else
+#ifdef USE_OPENPGPSDK
     mPgpHandler = new OpenPGPSDKHandler(path_to_public_keyring,path_to_secret_keyring,path_to_trustdb,pgp_lock_file);
+#else
+    mPgpHandler = new RNPPGPHandler(path_to_public_keyring,path_to_secret_keyring,path_to_trustdb,pgp_lock_file);
 #endif
 
 

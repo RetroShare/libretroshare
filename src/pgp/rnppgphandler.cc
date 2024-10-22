@@ -995,7 +995,7 @@ static bool testKeyPairInput(rnp_input_t keyfile,RsPgpId& imported_key_id)
         return true;
 }
 
-bool RNPPGPHandler::importKeyData(rnp_input_t input)
+bool RNPPGPHandler::importKeyPairData(rnp_input_t input)
 {
     RS_STACK_MUTEX(pgphandlerMtx);
 
@@ -1028,6 +1028,7 @@ bool RNPPGPHandler::importGPGKeyPair(const std::string& filename,RsPgpId& import
         throw std::runtime_error("File " + filename + " does not exist.");
 
     // First, check how many keys we have, tht there is a secret key, etc.
+    // We have to create twice the rnp_input_t structure, because once we read it, the next read will get nothing.
 
     try
     {
@@ -1049,7 +1050,7 @@ bool RNPPGPHandler::importGPGKeyPair(const std::string& filename,RsPgpId& import
         if (rnp_input_from_path(&keyfile, filename.c_str()) != RNP_SUCCESS)
             throw std::runtime_error("Cannot create input structure.") ;
 
-        if(!importKeyData(keyfile))
+        if(!importKeyPairData(keyfile))
             throw std::runtime_error("Data inport failed.") ;
 
         // check that the key was actually imported
@@ -1093,7 +1094,7 @@ bool RNPPGPHandler::importGPGKeyPairFromString(const std::string &data, RsPgpId 
         if (rnp_input_from_memory(&keyfile, (uint8_t*)data.c_str(),data.size(),false) != RNP_SUCCESS)
             throw std::runtime_error("Cannot create input structure.") ;
 
-        if(!importKeyData(keyfile))
+        if(!importKeyPairData(keyfile))
             throw std::runtime_error("Data inport failed.") ;
 
         // check that the key was actually imported
@@ -1138,7 +1139,9 @@ bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,
     if(rnp_import_keys(mRnpFfi,input,flags,&result) != RNP_SUCCESS)
         return false;
 
-    // parse the json output. This is extremely coarse parsing work. Using jsoncpp would be much cleaner.
+    // Parse the json output. This is extremely coarse parsing work. Using jsoncpp would be much cleaner.
+    // Another way to go would be to importe into a tmp keyring and parse the key.
+
     std::string resultstr(result);
     const std::string fprint_str("\"fingerprint\":\"");
     auto pos = resultstr.find(fprint_str);

@@ -334,7 +334,7 @@ openbsd-* {
 haiku-* {
 
 	QMAKE_CXXFLAGS *= -Dfseeko64=fseeko -Dftello64=ftello -Dstat64=stat -Dstatvfs64=statvfs -Dfopen64=fopen
-        !rs_rnplib {
+        rs_openpgpsdk {
                 OPENPGPSDK_DIR = ../../openpgpsdk/src
                 INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
         }
@@ -345,7 +345,7 @@ haiku-* {
 
 ################################### OpenPGP-SDK stuff ##################################
 
-!rs_rnplib {
+rs_openpgpsdk {
         # openpgpsdk
         OPENPGPSDK_DIR = ../../openpgpsdk/src
         DEPENDPATH *= $${OPENPGPSDK_DIR}
@@ -1108,12 +1108,12 @@ rs_broadcast_discovery {
     }
 }
 
-rs_rnplib {
-        SOURCES += pgp/rnppgphandler.cc
-        HEADERS += pgp/rnppgphandler.h
-} else {
+rs_openpgpsdk {
         SOURCES += pgp/openpgpsdkhandler.cc
         HEADERS += pgp/openpgpsdkhandler.h \
+} else {
+        SOURCES += pgp/rnppgphandler.cc
+        HEADERS += pgp/rnppgphandler.h
 }
 rs_sam3 {
     SOURCES += \

@@ -34,11 +34,11 @@ isEmpty(RAPIDJSON_AVAILABLE) {
     message("using system rapidjson")
 }
 
-rs_rnplib {
+rs_openpgpsdk {
+        !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
+} else {
         LIBS += -lrnp -lbz2
         DEFINES *= USE_RNP_LIB
-} else {
-        !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
 }
 
 sLibs =

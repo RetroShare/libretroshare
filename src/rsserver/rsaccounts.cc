@@ -217,10 +217,10 @@ std::string RsAccountsDetail::PathPGPDirectory_OpenPGPSDK()
 }
 std::string RsAccountsDetail::PathPGPDirectory()
 {
-#ifdef USE_RNP_LIB
-    return mBaseDirectory + "/" + kPathPGPDirectoryRNP;
-#else
+#ifdef USE_OPENPGPSDK
     return mBaseDirectory + "/" + kPathPGPDirectoryOPENPGPSDK;
+#else
+    return mBaseDirectory + "/" + kPathPGPDirectoryRNP;
 #endif
 }
 
@@ -1318,7 +1318,7 @@ bool RsAccounts::init(const std::string& opt_base_dir,int& error_code)
     std::string     pubring_pgp_file = rsAccountsDetails->PathPGPDirectory()            + "/retroshare_public_keyring.gpg";
     std::string     secring_pgp_file = rsAccountsDetails->PathPGPDirectory()            + "/retroshare_secret_keyring.gpg";
 
-#ifdef USE_RNP_LIB
+#ifndef USE_OPENPGPSDK
     // In this case we need to check if the keyrings exist. If not, we possibly copy them from the old openpgp-sdk system
 
     std::string old_pubring_pgp_file = rsAccountsDetails->PathPGPDirectory_OpenPGPSDK() + "/retroshare_public_keyring.gpg";
