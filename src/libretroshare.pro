@@ -347,6 +347,7 @@ haiku-* {
 
 rs_openpgpsdk {
         # openpgpsdk
+        DEFINES *= USE_OPENPGPSDK
         OPENPGPSDK_DIR = ../../openpgpsdk/src
         DEPENDPATH *= $${OPENPGPSDK_DIR}
         INCLUDEPATH *= $${OPENPGPSDK_DIR}
