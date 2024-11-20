@@ -36,9 +36,21 @@ isEmpty(RAPIDJSON_AVAILABLE) {
 
 rs_openpgpsdk {
         !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
-} else {
-        LIBS += -lrnp -lbz2
-        DEFINES *= USE_RNP_LIB
+}
+
+rs_rnplib {
+        LIBRNP_SRC_PATH=$$clean_path($${RS_SRC_PATH}/supportlibs/librnp)
+        LIBRNP_BUILD_PATH=$$clean_path($${RS_BUILD_PATH}/supportlibs/librnp/Build)
+        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/include/)
+        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/src/lib/)
+        DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/include/)
+        QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/)
+        # Using sLibs would fail as librestbed.a is generated at compile-time
+        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/) -lrnp -lbz2
+
+        message("Using librnp. Configuring paths for submodule.")
+        message("      LIBRNP_SRC_PATH   = "$${LIBRNP_SRC_PATH})
+        message("      LIBRNP_BUILD_PATH = "$${LIBRNP_BUILD_PATH})
 }
 
 sLibs =
