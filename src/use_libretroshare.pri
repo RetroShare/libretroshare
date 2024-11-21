@@ -46,7 +46,8 @@ rs_rnplib {
         DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/include/)
         QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/)
         # Using sLibs would fail as librestbed.a is generated at compile-time
-        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/) -lrnp -lbz2
+        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/lib) -lrnp -lbz2 -lz
+        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/libsexpp) -lsexpp -lbotan-2 -ljsoncpp -ljson-c
 
         message("Using librnp. Configuring paths for submodule.")
         message("      LIBRNP_SRC_PATH   = "$${LIBRNP_SRC_PATH})
