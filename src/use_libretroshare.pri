@@ -46,14 +46,14 @@ rs_rnplib {
         LIBRNP_SRC_PATH=$$clean_path($${RS_SRC_PATH}/supportlibs/librnp)
         LIBRNP_BUILD_PATH=$$clean_path($${RS_BUILD_PATH}/supportlibs/librnp/Build)
         INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/include/)
-        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/src/lib/)
+        INCLUDEPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
         DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH})
         QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
 
         LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/lib) -lrnp -lbz2 -lz
         LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/libsexpp) -lsexpp -lbotan-2 -ljsoncpp -ljson-c
 
-	PRE_TARGETDEPS += $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
+	#PRE_TARGETDEPS += $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
 
         message("Using librnp. Configuring paths for submodule.")
         message("      LIBRNP_SRC_PATH   = "$${LIBRNP_SRC_PATH})

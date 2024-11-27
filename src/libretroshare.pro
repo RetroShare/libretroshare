@@ -1153,19 +1153,17 @@ message("In rnp_rnplib precompilation code")
             cd $${RS_SRC_PATH} && \
             (git submodule update --init supportlibs/librnp || true ) && \
             cd $${LIBRNP_SRC_PATH} && git submodule update --init src/libsexpp && \
-            mkdir -p $${LIBRNP_BUILD_PATH}
+            mkdir -p $${LIBRNP_BUILD_PATH} 
     }
-    librnp.commands += \
-            cd $${LIBRNP_BUILD_PATH} && \
-            cmake -DCMAKE_C_COMPILER=$$fixQmakeCC($$QMAKE_CC) \
-                -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
-                \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
-                $${CMAKE_GENERATOR_OVERRIDE} \
-                -DENABLE_COVERAGE=Off \
-                -DCMAKE_INSTALL_PREFIX=. -B. ..
+    librnp.commands += && cd $${LIBRNP_BUILD_PATH} && \
+		            cmake -DCMAKE_C_COMPILER=$$fixQmakeCC($$QMAKE_CC) \
+			    -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
+			    \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
+			    $${CMAKE_GENERATOR_OVERRIDE} \
+			    -DENABLE_COVERAGE=Off \
+			    -DCMAKE_INSTALL_PREFIX=. -B. ..
 
-    librnp.commands += \
-    		cd $$shell_path($${LIBRNP_BUILD_PATH}) && $(MAKE) $${LIBRNP_MAKE_PARAMS} rnp
+    librnp.commands += && cd $$shell_path($${LIBRNP_BUILD_PATH}) && $(MAKE) $${LIBRNP_MAKE_PARAMS} rnp
 
     QMAKE_EXTRA_COMPILERS += librnp
 }
