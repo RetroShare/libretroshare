@@ -3,6 +3,8 @@
 
 !include("../../retroshare.pri"): error("Could not include file ../../retroshare.pri")
 
+message("CONFIG = "$$CONFIG)
+
 TEMPLATE = lib
 CONFIG -= qt
 libretroshare_shared {
@@ -1130,6 +1132,7 @@ rs_sam3 {
 }
 
 rs_rnplib {
+message("In rnp_rnplib precompilation code")
     DUMMYQMAKECOMPILERINPUT = FORCE
 
     librnp.name = Generating librnp.
@@ -1161,7 +1164,8 @@ rs_rnplib {
                 -DENABLE_COVERAGE=Off \
                 -DCMAKE_INSTALL_PREFIX=. -B. ..
 
-    librnp.commands += \ cd $$shell_path($${LIBRNP_BUILD_PATH}) && $(MAKE) $${LIBRNP_MAKE_PARAMS} rnp
+    librnp.commands += \
+    		cd $$shell_path($${LIBRNP_BUILD_PATH}) && $(MAKE) $${LIBRNP_MAKE_PARAMS} rnp
 
     QMAKE_EXTRA_COMPILERS += librnp
 }
