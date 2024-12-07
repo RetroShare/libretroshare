@@ -1512,14 +1512,14 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
-    // This has been left unimplemented because RNP doesn't handle this already. The expected behavior of
-    // this function is to sign the supplied key using our own key  with ID "ownid".
-
     try
     {
         RNP_KEY_HANDLE_STRUCT(signed_key);
         RNP_KEY_HANDLE_STRUCT(signing_key);
         RNP_UID_HANDLE_STRUCT(signed_key_uid);
+        RNP_SIGNATURE_HANDLE_STRUCT(signature_handle);
+
+        rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
 
         if(rnp_locate_key(mRnpFfi,"keyid",id_of_key_to_sign.toStdString().c_str(),&signed_key) != RNP_SUCCESS)
             throw std::runtime_error("Key not found: "+id_of_key_to_sign.toStdString());
@@ -1530,8 +1530,11 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
         if(rnp_key_get_uid_handle_at(signed_key,0,&signed_key_uid) != RNP_SUCCESS)
             throw std::runtime_error("Subkey of index 0 in key not found: "+id_of_key_to_sign.toStdString());
 
-        if(rnp_key_certification_create(signing_key,signed_key_uid, RNP_CERTIFICATION_GENERIC, NULL) != RNP_SUCCESS)
+        if(rnp_key_certification_create(signing_key,signed_key_uid, RNP_CERTIFICATION_GENERIC, &signature_handle) != RNP_SUCCESS)
             throw std::runtime_error("Adding signature failed.");
+
+        if(rnp_key_signature_sign(signature_handle) != RNP_SUCCESS)
+            throw std::runtime_error("Creating signature failed.");
 
         _pubring_changed = true;
         return true;
