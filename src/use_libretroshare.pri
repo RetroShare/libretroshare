@@ -49,6 +49,9 @@ rs_rnplib {
         INCLUDEPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
         DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH})
         QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
+#        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/src/lib/)
+#        DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/include/)
+#        QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/)
 
         LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/lib) -lrnp -lbz2 -lz
         LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/libsexpp) -lsexpp -lbotan-2 -ljsoncpp -ljson-c

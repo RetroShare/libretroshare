@@ -89,6 +89,7 @@ typedef t_ScopeGuard<rnp_input_st,           &rnp_input_destroy    >        rnp_
 typedef t_ScopeGuard<rnp_op_verify_st,       &rnp_op_verify_destroy>        rnp_op_verify_autodelete;
 typedef t_ScopeGuard<char            ,       &myBufferClean>                rnp_buffer_autodelete;
 typedef t_ScopeGuard<rnp_key_handle_st,      &rnp_key_handle_destroy>       rnp_key_handle_autodelete;
+typedef t_ScopeGuard<rnp_uid_handle_st,      &rnp_uid_handle_destroy>       rnp_uid_handle_autodelete;
 typedef t_ScopeGuard<rnp_op_sign_st,         &rnp_op_sign_destroy>          rnp_op_sign_autodelete;
 typedef t_ScopeGuard<rnp_op_encrypt_st,      &rnp_op_encrypt_destroy>       rnp_op_encrypt_autodelete;
 typedef t_ScopeGuard<rnp_signature_handle_st,&rnp_signature_handle_destroy> rnp_signature_handle_autodelete;
@@ -99,6 +100,7 @@ typedef t_ScopeGuard<rnp_ffi_st             ,&rnp_ffi_destroy>              rnp_
 #define RNP_OUTPUT_STRUCT(name)              rnp_output_t            name=nullptr; rnp_output_autodelete            name ## tmp_destructor(name);
 #define RNP_OP_VERIFY_STRUCT(name)           rnp_op_verify_t         name=nullptr; rnp_op_verify_autodelete         name ## tmp_destructor(name);
 #define RNP_KEY_HANDLE_STRUCT(name)          rnp_key_handle_t        name=nullptr; rnp_key_handle_autodelete        name ## tmp_destructor(name);
+#define RNP_UID_HANDLE_STRUCT(name)          rnp_uid_handle_t        name=nullptr; rnp_uid_handle_autodelete        name ## tmp_destructor(name);
 #define RNP_OP_SIGN_STRUCT(name)             rnp_op_sign_t           name=nullptr; rnp_op_sign_autodelete           name ## tmp_destructor(name);
 #define RNP_OP_ENCRYPT_STRUCT(name)          rnp_op_encrypt_t        name=nullptr; rnp_op_encrypt_autodelete        name ## tmp_destructor(name);
 #define RNP_SIGNATURE_HANDLE_STRUCT(name)    rnp_signature_handle_t  name=nullptr; rnp_signature_handle_autodelete  name ## tmp_destructor(name);
@@ -715,7 +717,7 @@ const ops_keydata_t *OpenPGPSDKHandler::locked_getPublicKey(const RsPgpId& id,bo
 }
 #endif
 
-std::string RNPPGPHandler::SaveCertificateToString(const RsPgpId& id,bool include_signatures) const
+std::string RNPPGPHandler::SaveCertificateToString(const RsPgpId& /* id */,bool /* include_signatures */) const
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
     RsErr() << " function " << __PRETTY_FUNCTION__ << " Not implemented yet." << std::endl;
@@ -807,7 +809,7 @@ bool RNPPGPHandler::exportGPGKeyPair(const std::string& filename,const RsPgpId& 
     }
 }
 
-bool RNPPGPHandler::exportGPGKeyPairToString( std::string& data, const RsPgpId& exportedKeyId, bool includeSignatures, std::string& errorMsg ) const
+bool RNPPGPHandler::exportGPGKeyPairToString( std::string& /* data */, const RsPgpId& /* exportedKeyId */, bool /* includeSignatures */, std::string& /* errorMsg */ ) const
 {
 	RS_STACK_MUTEX(pgphandlerMtx);
 
@@ -1116,7 +1118,8 @@ bool RNPPGPHandler::importGPGKeyPairFromString(const std::string &data, RsPgpId 
     }
 }
 
-bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)
+bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,
+                                    bool /* armoured */,RsPgpId& id,std::string& /* error_string */)
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 #ifdef DEBUG_PGPHANDLER
@@ -1424,7 +1427,9 @@ bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const s
     }
 }
 
-bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32_t len, unsigned char *sign, unsigned int *signlen,bool use_raw_signature, std::string reason /* = "" */)
+bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32_t len,
+                                unsigned char *sign, unsigned int *signlen,
+                                bool /* use_raw_signature */, std::string /* reason = "" */)
 {
     // passwd provider function.
 
@@ -1512,22 +1517,24 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
 
     try
     {
-#ifdef TODO
-        if(rnp_version_major(rnp_version()) == 0 && rnp_version_minor(rnp_version()) < 16)
-#endif
-            throw std::runtime_error("Key certification is not implemented in this version of libRNP (expected version  >= 0.16.0)");
-#ifdef TODO
-        RNP_KEY_HANDLE_STRUCT(key);
+        RNP_KEY_HANDLE_STRUCT(signed_key);
         RNP_KEY_HANDLE_STRUCT(signing_key);
+        RNP_UID_HANDLE_STRUCT(signed_key_uid);
 
-        if(rnp_locate_key(mRnpFfi,"keyid",id_of_key_to_sign.toStdString().c_str(),&key) != RNP_SUCCESS)
+        if(rnp_locate_key(mRnpFfi,"keyid",id_of_key_to_sign.toStdString().c_str(),&signed_key) != RNP_SUCCESS)
             throw std::runtime_error("Key not found: "+id_of_key_to_sign.toStdString());
 
-        if(rnp_key_add_signature(key, signing_key, RNP_SIG_SUBPACKET_CREATION_TIME, NULL) != RNP_SUCCESS)
+        if(rnp_locate_key(mRnpFfi,"keyid",ownId.toStdString().c_str(),&signing_key) != RNP_SUCCESS)
+            throw std::runtime_error("Key not found: "+id_of_key_to_sign.toStdString());
+
+        if(rnp_key_get_uid_handle_at(signed_key,0,&signed_key_uid) != RNP_SUCCESS)
+            throw std::runtime_error("Subkey of index 0 in key not found: "+id_of_key_to_sign.toStdString());
+
+        if(rnp_key_certification_create(signing_key,signed_key_uid, RNP_CERTIFICATION_GENERIC, NULL) != RNP_SUCCESS)
             throw std::runtime_error("Adding signature failed.");
 
         _pubring_changed = true;
-#endif
+        return true;
     }
     catch(std::exception& e)
     {
