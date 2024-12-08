@@ -1207,7 +1207,7 @@ bool p3MsgService::getMessageSummaries(BoxName box,std::list<MsgInfoSummary>& ms
 
 bool p3MsgService::getMessage(const std::string& mId, MessageInfo& msg)
 {
-    uint32_t msgId = atoi(mId.c_str());
+    uint32_t msgId = strtoul(mId.c_str(), NULL, 10);
 
     RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
 
@@ -1299,7 +1299,7 @@ void p3MsgService::getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32
 /* remove based on the unique mid (stored in sid) */
 bool    p3MsgService::deleteMessage(const std::string& mid)
 {
-    uint32_t msgId = atoi(mid.c_str());
+    uint32_t msgId = strtoul(mid.c_str(), 0, 10);
 
     if (msgId == 0) {
         std::cerr << "p3MsgService::removeMsgId: Unknown msgId " << msgId << std::endl;
@@ -1379,7 +1379,7 @@ end_deleteMessage:
 
 bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
 {
-    uint32_t msgId = atoi(mid.c_str());
+    uint32_t msgId = strtoul(mid.c_str(), NULL, 10);
 
     {
         RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
@@ -1422,7 +1422,7 @@ bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
 
 bool    p3MsgService::setMsgFlag(const std::string &mid, uint32_t flag, uint32_t mask)
 {
-    uint32_t msgId = atoi(mid.c_str());
+    uint32_t msgId = strtoul(mid.c_str(), NULL, 10);
 
     {
         RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
@@ -1457,7 +1457,7 @@ bool    p3MsgService::setMsgFlag(const std::string &mid, uint32_t flag, uint32_t
 
 bool    p3MsgService::getMsgParentId(const std::string& msgId, std::string& msgParentId)
 {
-    uint32_t mId = atoi(msgId.c_str());
+    uint32_t mId = strtoul(msgId.c_str(), NULL, 10);
     msgParentId.clear();
 
 	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
@@ -1776,7 +1776,7 @@ bool p3MsgService::MessageToDraft(MessageInfo& info, const std::string& msgParen
     if (!msg)
         return false;
 
-    msg->parentId = atoi(msgParentId.c_str());
+    msg->parentId = strtoul(msgParentId.c_str(), NULL, 10);
 
     uint32_t msgId = getNewUniqueMsgId(); /* grabs Mtx as well */
     msg->msg.msgId = msgId;
@@ -1965,7 +1965,7 @@ RsMailStorageItem *p3MsgService::locked_getMessageData(uint32_t mid) const
 
 bool 	p3MsgService::locked_getMessageTag(const std::string &msgId, MsgTagInfo& info)
 {
-    uint32_t mid = atoi(msgId.c_str());
+    uint32_t mid = strtoul(msgId.c_str(), NULL, 10);
 
     if(!mid)
     {
@@ -1986,7 +1986,7 @@ bool 	p3MsgService::locked_getMessageTag(const std::string &msgId, MsgTagInfo& i
 /* set == false && tagId == 0 --> remove all */
 bool p3MsgService::setMessageTag(const std::string& msgId, uint32_t tagId, bool set)
 {
-	uint32_t mid = atoi(msgId.c_str());
+	uint32_t mid = strtoul(msgId.c_str(), NULL, 10);
     if (mid == 0)
     {
         RsErr() << "p3MsgService::MessageSetMsgTag: Unknown msgId " << msgId ;
@@ -2052,7 +2052,7 @@ bool    p3MsgService::resetMessageStandardTagTypes(MsgTagType& tags)
 /* move message to trash based on the unique mid */
 bool p3MsgService::MessageToTrash(const std::string& mid, bool bTrash)
 {
-    uint32_t msgId = atoi(mid.c_str());
+    uint32_t msgId = strtoul(mid.c_str(), NULL, 10);
 
     bool bFound = false;
     auto pEvent = std::make_shared<RsMailStatusEvent>();
