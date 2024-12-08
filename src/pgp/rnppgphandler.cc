@@ -360,10 +360,12 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 
     signers.insert(RsPgpId(key_id)); // in libRNP the signer of self-signed certificates is not reported in signers.
 
-    fill_cert(_public_keyring_map[ RsPgpId(key_id)],key_uid,signers) ;
+    auto& cert(_public_keyring_map[ RsPgpId(key_id)]);
+
+    fill_cert(cert,key_uid,signers) ;
 
     if(have_secret)
-        fill_cert(_secret_keyring_map[ RsPgpId(key_id)],key_uid,signers) ;
+        fill_cert(cert,key_uid,signers) ;
 }
 
 #ifdef TODO
@@ -1515,7 +1517,7 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
     try
     {
         RNP_KEY_HANDLE_STRUCT(signed_key);
-        RNP_KEY_HANDLE_STRUCT(signing_key);
+        RNP_KEY_HANDLE_STRUCT(signer_key);
         RNP_UID_HANDLE_STRUCT(signed_key_uid);
         RNP_SIGNATURE_HANDLE_STRUCT(signature_handle);
 
@@ -1524,19 +1526,18 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
         if(rnp_locate_key(mRnpFfi,"keyid",id_of_key_to_sign.toStdString().c_str(),&signed_key) != RNP_SUCCESS)
             throw std::runtime_error("Key not found: "+id_of_key_to_sign.toStdString());
 
-        if(rnp_locate_key(mRnpFfi,"keyid",ownId.toStdString().c_str(),&signing_key) != RNP_SUCCESS)
+        if(rnp_locate_key(mRnpFfi,"keyid",ownId.toStdString().c_str(),&signer_key) != RNP_SUCCESS)
             throw std::runtime_error("Key not found: "+id_of_key_to_sign.toStdString());
 
-        if(rnp_key_get_uid_handle_at(signed_key,0,&signed_key_uid) != RNP_SUCCESS)
-            throw std::runtime_error("Subkey of index 0 in key not found: "+id_of_key_to_sign.toStdString());
-
-        if(rnp_key_certification_create(signing_key,signed_key_uid, RNP_CERTIFICATION_GENERIC, &signature_handle) != RNP_SUCCESS)
+        if(rnp_key_direct_signature_create(signer_key,signed_key, &signature_handle) != RNP_SUCCESS)
             throw std::runtime_error("Adding signature failed.");
 
         if(rnp_key_signature_sign(signature_handle) != RNP_SUCCESS)
             throw std::runtime_error("Creating signature failed.");
 
+        initCertificateInfo(signed_key);	// update signatures
         _pubring_changed = true;
+        _public_keyring_map[id_of_key_to_sign]._flags |= PGPCertificateInfo::PGP_CERTIFICATE_FLAG_HAS_OWN_SIGNATURE ;
         return true;
     }
     catch(std::exception& e)
