@@ -391,7 +391,7 @@ bool OpenPGPSDKHandler::GeneratePGPCertificate(const std::string& name, const st
 	uid.user_id = (unsigned char *)s ;
 	unsigned long int e = 65537 ; // some prime number
 
-	ops_keydata_t *key = ops_rsa_create_selfsigned_keypair(keynumbits, e, &uid) ;
+    ops_keydata_t *key = ops_rsa_create_selfsigned_keypair(keynumbits, e, &uid,OPS_HASH_SHA256) ;
 
 	free(s) ;
 
@@ -1487,7 +1487,7 @@ bool OpenPGPSDKHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpI
 
 	// 2 - then do the signature.
 
-	if(!ops_sign_key(key_to_sign,pkey->key_id,secret_key)) 
+    if(!ops_sign_key(key_to_sign,pkey->key_id,secret_key,OPS_HASH_SHA256))
 	{
         RsErr() << "Key signature went wrong. Wrong passwd?" ;
 		return false ;
