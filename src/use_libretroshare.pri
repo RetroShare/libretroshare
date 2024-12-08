@@ -19,8 +19,6 @@ equals(TARGET, retroshare):equals(TEMPLATE, lib){
     PRE_TARGETDEPS *= $$clean_path($${RS_BUILD_PATH}/libretroshare/src/lib/$${LIBRETROSHARE_TARGET})
 }
 
-!include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
-
 bitdht {
     !include("../../libbitdht/src/use_libbitdht.pri"):error("Including")
 }
@@ -36,10 +34,36 @@ isEmpty(RAPIDJSON_AVAILABLE) {
     message("using system rapidjson")
 }
 
+rs_openpgpsdk {
+        !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
+}
 
 sLibs =
 mLibs = $$RS_SQL_LIB ssl crypto $$RS_THREAD_LIB $$RS_UPNP_LIB
 dLibs =
+
+rs_rnplib {
+        LIBRNP_SRC_PATH=$$clean_path($${RS_SRC_PATH}/supportlibs/librnp)
+        LIBRNP_BUILD_PATH=$$clean_path($${RS_BUILD_PATH}/supportlibs/librnp/Build)
+        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/include/)
+        INCLUDEPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
+        DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH})
+        QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
+#        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/src/lib/)
+#        DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/include/)
+#        QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/)
+
+        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/lib) -lrnp -lbz2 -lz
+        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/libsexpp) -lsexpp -lbotan-2 -ljsoncpp -ljson-c
+
+	#PRE_TARGETDEPS += $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
+
+        message("Using librnp. Configuring paths for submodule.")
+        message("      LIBRNP_SRC_PATH   = "$${LIBRNP_SRC_PATH})
+        message("      LIBRNP_BUILD_PATH = "$${LIBRNP_BUILD_PATH})
+        message("      INCLUDEPATH      *= "$$clean_path($${LIBRNP_SRC_PATH}/include/))
+        message("      INCLUDEPATH      *= "$$clean_path($${LIBRNP_SRC_PATH}/src/lib/))
+}
 
 rs_jsonapi {
     no_rs_cross_compiling {

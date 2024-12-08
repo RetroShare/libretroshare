@@ -3,6 +3,8 @@
 
 !include("../../retroshare.pri"): error("Could not include file ../../retroshare.pri")
 
+message("CONFIG = "$$CONFIG)
+
 TEMPLATE = lib
 CONFIG -= qt
 libretroshare_shared {
@@ -334,21 +336,26 @@ openbsd-* {
 haiku-* {
 
 	QMAKE_CXXFLAGS *= -Dfseeko64=fseeko -Dftello64=ftello -Dstat64=stat -Dstatvfs64=statvfs -Dfopen64=fopen
-	OPENPGPSDK_DIR = ../../openpgpsdk/src
-	INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+        rs_openpgpsdk {
+                OPENPGPSDK_DIR = ../../openpgpsdk/src
+                INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+        }
 	DEFINES *= NO_SQLCIPHER
 	CONFIG += release
 	DESTDIR = lib
 }
 
-################################### COMMON stuff ##################################
+################################### OpenPGP-SDK stuff ##################################
 
-# openpgpsdk
-OPENPGPSDK_DIR = ../../openpgpsdk/src
-DEPENDPATH *= $${OPENPGPSDK_DIR}
-INCLUDEPATH *= $${OPENPGPSDK_DIR}
-PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
-LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+rs_openpgpsdk {
+        # openpgpsdk
+        DEFINES *= USE_OPENPGPSDK
+        OPENPGPSDK_DIR = ../../openpgpsdk/src
+        DEPENDPATH *= $${OPENPGPSDK_DIR}
+        INCLUDEPATH *= $${OPENPGPSDK_DIR}
+        PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
+        LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+}
 
 ################################### HEADERS & SOURCES #############################
 
@@ -382,7 +389,6 @@ HEADERS += chat/distantchat.h \
 HEADERS +=	pqi/authssl.h \
 			pqi/authgpg.h \
 			pgp/pgphandler.h \
-			pgp/openpgpsdkhandler.h \
 			pgp/pgpkeyutil.h \
 			pqi/pqifdbin.h \
 			pqi/rstcpsocket.h \
@@ -563,7 +569,6 @@ SOURCES += chat/distantchat.cc \
 SOURCES +=	pqi/authgpg.cc \
 			pqi/authssl.cc \
 			pgp/pgphandler.cc \
-			pgp/openpgpsdkhandler.cc \
 			pgp/pgpkeyutil.cc \
 			pgp/rscertificate.cc \
 			pgp/pgpauxutils.cc \
@@ -1106,6 +1111,16 @@ rs_broadcast_discovery {
     }
 }
 
+rs_openpgpsdk {
+        SOURCES += pgp/openpgpsdkhandler.cc
+        HEADERS += pgp/openpgpsdkhandler.h \
+}
+
+rs_rnplib {
+        SOURCES += pgp/rnppgphandler.cc
+        HEADERS += pgp/rnppgphandler.h
+}
+
 rs_sam3 {
     SOURCES += \
         services/autoproxy/p3i2psam3.cpp \
@@ -1114,6 +1129,43 @@ rs_sam3 {
     HEADERS += \
         services/autoproxy/p3i2psam3.h \
         pqi/pqissli2psam3.h \
+}
+
+rs_rnplib {
+message("In rnp_rnplib precompilation code")
+    DUMMYQMAKECOMPILERINPUT = FORCE
+
+    librnp.name = Generating librnp.
+    librnp.input = DUMMYQMAKECOMPILERINPUT
+    librnp.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
+    librnp.CONFIG += target_predeps combine
+    librnp.variable_out = PRE_TARGETDEPS
+
+    win32-g++:isEmpty(QMAKE_SH) {
+        LIBRNP_MAKE_PARAMS = CC=gcc
+        librnp.commands = \
+            cd /D $$shell_path($${RS_SRC_PATH}) && git submodule update --init supportlibs/librnp || cd . $$escape_expand(\\n\\t) \
+            $(CHK_DIR_EXISTS) $$shell_path($$LIBRNP_BUILD_PATH) $(MKDIR) $$shell_path($${LIBRNP_BUILD_PATH}) $$escape_expand(\\n\\t) \
+            $(COPY_DIR) $$shell_path($${LIBRNP_SRC_PATH}) $$shell_path($${LIBRNP_BUILD_PATH}) || cd . $$escape_expand(\\n\\t)
+    } else {
+        LIBRNP_MAKE_PARAMS =
+        librnp.commands = \
+            cd $${RS_SRC_PATH} && \
+            (git submodule update --init supportlibs/librnp || true ) && \
+            cd $${LIBRNP_SRC_PATH} && git submodule update --init src/libsexpp && \
+            mkdir -p $${LIBRNP_BUILD_PATH} 
+    }
+    librnp.commands += && cd $${LIBRNP_BUILD_PATH} && \
+		            cmake -DCMAKE_C_COMPILER=$$fixQmakeCC($$QMAKE_CC) \
+			    -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
+			    \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
+			    $${CMAKE_GENERATOR_OVERRIDE} \
+			    -DENABLE_COVERAGE=Off \
+			    -DCMAKE_INSTALL_PREFIX=. -B. ..
+
+    librnp.commands += && cd $$shell_path($${LIBRNP_BUILD_PATH}) && $(MAKE) $${LIBRNP_MAKE_PARAMS} rnp
+
+    QMAKE_EXTRA_COMPILERS += librnp
 }
 
 rs_sam3_libsam3 {

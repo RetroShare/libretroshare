@@ -83,7 +83,8 @@ class RsAccountsDetail
 		static std::string PathBaseDirectory();
 
 		// PGP Path is only dependent on BaseDirectory.
-		std::string 	PathPGPDirectory();
+        std::string PathPGPDirectory();						// returns the correct path depending on which PGP lib is used
+        std::string PathPGPDirectory_OpenPGPSDK();			// returns the old path used by openpgp-sdk
 
         // Generate a new account based on a given PGP key returns its SSL id and sets it to be the preferred account.
 
