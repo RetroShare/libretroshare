@@ -19,8 +19,6 @@ equals(TARGET, retroshare):equals(TEMPLATE, lib){
     PRE_TARGETDEPS *= $$clean_path($${RS_BUILD_PATH}/libretroshare/src/lib/$${LIBRETROSHARE_TARGET})
 }
 
-!include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
-
 bitdht {
     !include("../../libbitdht/src/use_libbitdht.pri"):error("Including")
 }
@@ -36,6 +34,12 @@ isEmpty(RAPIDJSON_AVAILABLE) {
     message("using system rapidjson")
 }
 
+rs_openpgpsdk {
+        !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
+} else {
+        LIBS += -lrnp -lbz2
+        DEFINES *= USE_RNP_LIB
+}
 
 sLibs =
 mLibs = $$RS_SQL_LIB ssl crypto $$RS_THREAD_LIB $$RS_UPNP_LIB
