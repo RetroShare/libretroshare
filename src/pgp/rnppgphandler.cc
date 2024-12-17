@@ -360,12 +360,16 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
 
     signers.insert(RsPgpId(key_id)); // in libRNP the signer of self-signed certificates is not reported in signers.
 
-    auto& cert(_public_keyring_map[ RsPgpId(key_id)]);
-
-    fill_cert(cert,key_uid,signers) ;
+    {
+        auto& cert(_public_keyring_map[ RsPgpId(key_id)]);
+        fill_cert(cert,key_uid,signers) ;
+    }
 
     if(have_secret)
+    {
+        auto& cert(_secret_keyring_map[ RsPgpId(key_id)]);
         fill_cert(cert,key_uid,signers) ;
+    }
 }
 
 #ifdef TODO
