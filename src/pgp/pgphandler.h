@@ -93,7 +93,6 @@ public:
         virtual bool removeKeysFromPGPKeyring(const std::set<RsPgpId>& key_ids,std::string& backup_file,uint32_t& error_code) =0;
         //virtual std::string makeRadixEncodedPGPKey(uint32_t key_index,bool include_signatures) =0;
 
-        virtual bool availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)=0;
         virtual bool GeneratePGPCertificate(const std::string& name, const std::string& email, const std::string& passwd, RsPgpId& pgpId, const int keynumbits, std::string& errString) =0;
 
         virtual std::string SaveCertificateToString(const RsPgpId& id,bool include_signatures) const=0;
@@ -115,8 +114,7 @@ public:
 
         virtual	bool importGPGKeyPairFromString(const std::string& data,RsPgpId& imported_id,std::string& import_error) =0;
 
-        virtual bool LoadCertificateFromString(const std::string& pem, RsPgpId& gpg_id, std::string& error_string)=0;
-        virtual bool LoadCertificateFromBinaryData(const unsigned char *bin_data,uint32_t bin_data_len, RsPgpId& gpg_id, std::string& error_string)=0;
+        virtual bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)=0;
 
         virtual bool encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile) =0;
         virtual bool decryptTextFromFile(const RsPgpId& key_id,std::string& text,const std::string& encrypted_inputfile) =0;
@@ -140,6 +138,10 @@ public:
 
         virtual bool haveSecretKey(const RsPgpId& id) const =0;
 
+        //=======================================================================================//
+        //                              Common methods to PGPHandler                             //
+        //=======================================================================================//
+
         // Syncs the keyrings and trust database between memory and disk. The algorithm is:
         // 1 - lock the keyrings
         // 2 - compare file modification dates with last writing date
@@ -147,14 +149,12 @@ public:
         // 3 - look into memory modification flags
         // 		- if flag says keyring has changed, write to disk
         //
-        virtual bool syncDatabase() =0;
+        virtual bool syncDatabase();
 
-
-        //=======================================================================================//
-        //                              Common methods to PGPHandler                             //
-        //=======================================================================================//
-
-		bool getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(const PGPCertificateInfo&) = NULL) const ;
+        virtual bool LoadCertificateFromString(const std::string& pem, RsPgpId& gpg_id, std::string& error_string);
+        virtual bool LoadCertificateFromBinaryData(const unsigned char *bin_data,uint32_t bin_data_len, RsPgpId& gpg_id, std::string& error_string);
+        bool availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids);
+        bool getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(const PGPCertificateInfo&) = NULL) const ;
 
         bool parseSignature(unsigned char *sign, unsigned int signlen,RsPgpId& issuer_id) ;
 
@@ -162,8 +162,6 @@ public:
 
 		void updateOwnSignatureFlag(const RsPgpId& ownId) ;
 		void updateOwnSignatureFlag(const RsPgpId& pgp_id,const RsPgpId& ownId) ;
-
-		void locked_updateOwnSignatureFlag(PGPCertificateInfo&, const RsPgpId&, PGPCertificateInfo&, const RsPgpId&) ;
 
 		//bool isKeySupported(const RsPgpId& id) const ;
 
@@ -203,11 +201,19 @@ public:
 		virtual bool printKeys() const ;
 
     protected:
-		void locked_readPrivateTrustDatabase() ;
+        virtual bool locked_updateKeyringFromDisk(bool secret,const std::string& path) =0;
+        virtual bool locked_writeKeyringToDisk(bool secret,const std::string& path) =0;
+
+        void locked_updateOwnSignatureFlag(PGPCertificateInfo&, const RsPgpId&, PGPCertificateInfo&, const RsPgpId&) ;
+
+        bool locked_syncPublicKeyring();
+        void locked_readPrivateTrustDatabase() ;
 		bool locked_writePrivateTrustDatabase() ;
         bool locked_syncTrustDatabase() ;
 
-		// Members.
+        static bool extract_name_and_comment(const char *uid,std::string& name,std::string& comment,std::string& email);
+
+        // Members.
 		//
 		mutable RsMutex pgphandlerMtx ;
 

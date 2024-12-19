@@ -3,6 +3,8 @@
 
 !include("../../retroshare.pri"): error("Could not include file ../../retroshare.pri")
 
+message("CONFIG = "$$CONFIG)
+
 TEMPLATE = lib
 CONFIG -= qt
 libretroshare_shared {
@@ -334,21 +336,26 @@ openbsd-* {
 haiku-* {
 
 	QMAKE_CXXFLAGS *= -Dfseeko64=fseeko -Dftello64=ftello -Dstat64=stat -Dstatvfs64=statvfs -Dfopen64=fopen
-	OPENPGPSDK_DIR = ../../openpgpsdk/src
-	INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+        rs_openpgpsdk {
+                OPENPGPSDK_DIR = ../../openpgpsdk/src
+                INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+        }
 	DEFINES *= NO_SQLCIPHER
 	CONFIG += release
 	DESTDIR = lib
 }
 
-################################### COMMON stuff ##################################
+################################### OpenPGP-SDK stuff ##################################
 
-# openpgpsdk
-OPENPGPSDK_DIR = ../../openpgpsdk/src
-DEPENDPATH *= $${OPENPGPSDK_DIR}
-INCLUDEPATH *= $${OPENPGPSDK_DIR}
-PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
-LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+rs_openpgpsdk {
+        # openpgpsdk
+        DEFINES *= USE_OPENPGPSDK
+        OPENPGPSDK_DIR = ../../openpgpsdk/src
+        DEPENDPATH *= $${OPENPGPSDK_DIR}
+        INCLUDEPATH *= $${OPENPGPSDK_DIR}
+        PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
+        LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+}
 
 ################################### HEADERS & SOURCES #############################
 
@@ -382,7 +389,6 @@ HEADERS += chat/distantchat.h \
 HEADERS +=	pqi/authssl.h \
 			pqi/authgpg.h \
 			pgp/pgphandler.h \
-			pgp/openpgpsdkhandler.h \
 			pgp/pgpkeyutil.h \
 			pqi/pqifdbin.h \
 			pqi/rstcpsocket.h \
@@ -563,7 +569,6 @@ SOURCES += chat/distantchat.cc \
 SOURCES +=	pqi/authgpg.cc \
 			pqi/authssl.cc \
 			pgp/pgphandler.cc \
-			pgp/openpgpsdkhandler.cc \
 			pgp/pgpkeyutil.cc \
 			pgp/rscertificate.cc \
 			pgp/pgpauxutils.cc \
@@ -969,6 +974,7 @@ rs_jsonapi {
         genrestbedlib.commands += \
             cd $$shell_path($${RESTBED_BUILD_PATH}) && \
             cmake \
+                -Wno-dev \
                 -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
                 \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
                 $${CMAKE_GENERATOR_OVERRIDE} -DBUILD_SSL=OFF \
@@ -1094,7 +1100,7 @@ rs_broadcast_discovery {
         }
         udpdiscoverycpplib.commands += \
             cd $$shell_path($${UDP_DISCOVERY_BUILD_PATH}) && \
-            cmake -DCMAKE_C_COMPILER=$$fixQmakeCC($$QMAKE_CC) \
+            cmake -Wno-dev -DCMAKE_C_COMPILER=$$fixQmakeCC($$QMAKE_CC) \
                 -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
                 \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
                 $${CMAKE_GENERATOR_OVERRIDE} \
@@ -1106,6 +1112,16 @@ rs_broadcast_discovery {
     }
 }
 
+rs_openpgpsdk {
+        SOURCES += pgp/openpgpsdkhandler.cc
+        HEADERS += pgp/openpgpsdkhandler.h \
+}
+
+rs_rnplib {
+        SOURCES += pgp/rnppgphandler.cc
+        HEADERS += pgp/rnppgphandler.h
+}
+
 rs_sam3 {
     SOURCES += \
         services/autoproxy/p3i2psam3.cpp \
@@ -1114,6 +1130,96 @@ rs_sam3 {
     HEADERS += \
         services/autoproxy/p3i2psam3.h \
         pqi/pqissli2psam3.h \
+}
+
+rs_rnplib {
+message("In rnp_rnplib precompilation code")
+    DUMMYQMAKECOMPILERINPUT = FORCE
+
+    # Generate header file rnp_export.h
+    librnp_header.name = Generating librnp header.
+    librnp_header.input = DUMMYQMAKECOMPILERINPUT
+    librnp_header.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/rnp/rnp_export.h)
+    librnp_header.variable_out = HEADERS
+
+    LIBRNP_CMAKE_CXXFLAGS =
+    LIBRNP_CMAKE_PARAMS =
+
+    CONFIG(debug, debug|release) {
+        # Debug
+        LIBRNP_CMAKE_CXXFLAGS *= $${QMAKE_CXXFLAGS_DEBUG}
+        LIBRNP_CMAKE_PARAMS *= -DCMAKE_BUILD_TYPE=Debug
+    } else {
+        # Release
+        LIBRNP_CMAKE_CXXFLAGS *= $${QMAKE_CXXFLAGS_RELEASE}
+        LIBRNP_CMAKE_PARAMS *= -DCMAKE_BUILD_TYPE=Release
+    }
+
+    librnp_shared {
+        # Use librnp as shared library
+        LIBRNP_CMAKE_PARAMS += -DBUILD_SHARED_LIBS=yes
+    }
+
+    win32-g++:isEmpty(QMAKE_SH) {
+        # Windows native build
+        !isEmpty(EXTERNAL_LIB_DIR) {
+            LIBRNP_CMAKE_CXXFLAGS *= -D__MINGW_USE_VC2005_COMPAT -D__STDC_FORMAT_MACROS
+            # Causes compilation error
+            LIBRNP_CMAKE_CXXFLAGS -= -fno-omit-frame-pointer
+            # bzip2
+            LIBRNP_CMAKE_PARAMS *= "-DBZIP2_INCLUDE_DIR=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/include))"
+            LIBRNP_CMAKE_PARAMS *= "-DBZIP2_LIBRARY_RELEASE=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/lib/libbz2.a))"
+            # zlib
+            LIBRNP_CMAKE_PARAMS *= "-DZLIB_INCLUDE_DIR=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/include))"
+            LIBRNP_CMAKE_PARAMS *= "-DZLIB_LIBRARY=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/lib/libz.a))"
+            # json-c
+            LIBRNP_CMAKE_PARAMS *= "-DJSON-C_INCLUDE_DIR=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/include/json-c))"
+            LIBRNP_CMAKE_PARAMS *= "-DJSON-C_LIBRARY=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/lib/libjson-c.a))"
+            # botan
+            LIBRNP_CMAKE_PARAMS *= "-DBOTAN_INCLUDE_DIR=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/include/botan-2))"
+            LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$escape_expand($$clean_path($$EXTERNAL_LIB_DIR/lib/libbotan-2.a))"
+        }
+
+        librnp_header.commands = \
+            cd /D $$shell_path($${RS_SRC_PATH}) && git submodule update --init supportlibs/librnp || cd . $$escape_expand(\\n\\t) \
+            cd /D $$shell_path($${LIBRNP_SRC_PATH}) && git submodule update --init src/libsexpp || cd . $$escape_expand(\\n\\t) \
+            $(CHK_DIR_EXISTS) $$shell_path($$LIBRNP_BUILD_PATH) $(MKDIR) $$shell_path($${LIBRNP_BUILD_PATH}) $$escape_expand(\\n\\t)
+    } else {
+        librnp_header.commands = \
+            cd $${RS_SRC_PATH} && \
+            (git submodule update --init supportlibs/librnp || true ) && \
+            cd $${LIBRNP_SRC_PATH} && git submodule update --init src/libsexpp && \
+            mkdir -p $${LIBRNP_BUILD_PATH} &&
+    }
+    librnp_header.commands += cd $$shell_path($${LIBRNP_BUILD_PATH}) && \
+        cmake \
+        -Wno-dev \
+        -DCMAKE_C_COMPILER=$$fixQmakeCC($$QMAKE_CC) \
+        -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
+        $${LIBRNP_CMAKE_PARAMS} \
+        -DBUILD_TESTING=off \
+        -DCMAKE_CXX_FLAGS=\"$${LIBRNP_CMAKE_CXXFLAGS}\" \
+        $${CMAKE_GENERATOR_OVERRIDE} \
+        -DENABLE_COVERAGE=Off \
+        -DCMAKE_INSTALL_PREFIX=. -B. \
+        -H$$shell_path($${LIBRNP_SRC_PATH})
+
+    QMAKE_EXTRA_COMPILERS += librnp_header
+
+    librnp.name = Generating librnp.
+    librnp.input = DUMMYQMAKECOMPILERINPUT
+    librnp.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
+    librnp.CONFIG += target_predeps combine
+    librnp.variable_out = PRE_TARGETDEPS
+    librnp.depends = $${librnp_header.output}
+    librnp.commands += cd $$shell_path($${LIBRNP_BUILD_PATH}) && $(MAKE) rnp
+
+    QMAKE_EXTRA_COMPILERS += librnp
+
+    libretroshare_shared {
+        # libretroshare is used as a shared library. Link the external libraries to libretroshare only.
+        LIBS *= $${LIBRNP_LIBS}
+    }
 }
 
 rs_sam3_libsam3 {
