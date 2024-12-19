@@ -43,26 +43,45 @@ mLibs = $$RS_SQL_LIB ssl crypto $$RS_THREAD_LIB $$RS_UPNP_LIB
 dLibs =
 
 rs_rnplib {
-        LIBRNP_SRC_PATH=$$clean_path($${RS_SRC_PATH}/supportlibs/librnp)
-        LIBRNP_BUILD_PATH=$$clean_path($${RS_BUILD_PATH}/supportlibs/librnp/Build)
-        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/include/)
-        INCLUDEPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
-        DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH})
-        QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
-#        INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/src/lib/)
-#        DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/include/)
-#        QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/)
+    LIBRNP_SRC_PATH=$$clean_path($${RS_SRC_PATH}/supportlibs/librnp)
+    LIBRNP_BUILD_PATH=$$clean_path($${RS_BUILD_PATH}/supportlibs/librnp/Build)
+    INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/include/)
+    INCLUDEPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
+    DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH})
+    QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/)
+#    INCLUDEPATH *= $$clean_path($${LIBRNP_SRC_PATH}/src/lib/)
+#    DEPENDPATH *= $$clean_path($${LIBRNP_BUILD_PATH}/include/)
+#    QMAKE_LIBDIR *= $$clean_path($${LIBRNP_BUILD_PATH}/)
 
-        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/lib) -lrnp -lbz2 -lz
-        LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/libsexpp) -lsexpp -lbotan-2 -ljsoncpp -ljson-c
+    LIBRNP_LIBS = -L$$clean_path($${LIBRNP_BUILD_PATH}/src/lib) -lrnp
+    LIBRNP_LIBS *= -L$$clean_path($${LIBRNP_BUILD_PATH}/src/libsexpp) -lsexpp
+    LIBRNP_LIBS *= -lbz2 -lz -ljson-c
+
+    # botan
+    win32-g++|win32-clang-g++:!isEmpty(QMAKE_SH) {
+        # Windows msys2
+        LIBRNP_LIBS *= -lbotan-3
+    } else {
+        LIBRNP_LIBS *= -lbotan-2
+    }
+
+    win32-g++|win32-clang-g++ {
+        # Use librnp as shared library for Windows
+        CONFIG += librnp_shared
+    }
+
+    !libretroshare_shared {
+        # libretroshare is used as a static library. Link the external libraries to the executable.
+        LIBS *= $${LIBRNP_LIBS}
+    }
 
 	#PRE_TARGETDEPS += $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
 
-        message("Using librnp. Configuring paths for submodule.")
-        message("      LIBRNP_SRC_PATH   = "$${LIBRNP_SRC_PATH})
-        message("      LIBRNP_BUILD_PATH = "$${LIBRNP_BUILD_PATH})
-        message("      INCLUDEPATH      *= "$$clean_path($${LIBRNP_SRC_PATH}/include/))
-        message("      INCLUDEPATH      *= "$$clean_path($${LIBRNP_SRC_PATH}/src/lib/))
+    message("Using librnp. Configuring paths for submodule.")
+    message("      LIBRNP_SRC_PATH   = "$${LIBRNP_SRC_PATH})
+    message("      LIBRNP_BUILD_PATH = "$${LIBRNP_BUILD_PATH})
+    message("      INCLUDEPATH      *= "$$clean_path($${LIBRNP_SRC_PATH}/include/))
+    message("      INCLUDEPATH      *= "$$clean_path($${LIBRNP_SRC_PATH}/src/lib/))
 }
 
 rs_jsonapi {
