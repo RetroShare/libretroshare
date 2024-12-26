@@ -64,7 +64,8 @@ PGPHandler::PGPHandler(const std::string& pubring, const std::string& secring,co
 	_pgp_lock_filename(pgp_lock_filename),
 	_trustdb_changed(false),
 	_pubring_changed(false),
-	_pubring_last_update_time(time(NULL))
+    _pubring_last_update_time(time(NULL)),
+    _trustdb_last_update_time(0)
 {
 }
 
@@ -199,6 +200,30 @@ bool PGPHandler::getGPGFilteredList(std::list<RsPgpId>& list,bool (*filter)(cons
 
 	return true ;
 }
+
+bool PGPHandler::LoadCertificateFromBinaryData(const unsigned char *data,uint32_t data_len,RsPgpId& id,std::string& error_string)
+{
+    return LoadCertificate(data,data_len,false,id,error_string);
+}
+
+bool PGPHandler::LoadCertificateFromString(const std::string& pgp_cert,RsPgpId& id,std::string& error_string)
+{
+    return LoadCertificate((unsigned char*)(pgp_cert.c_str()),pgp_cert.length(),true,id,error_string);
+}
+
+
+bool PGPHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
+{
+    RsStackMutex mtx(pgphandlerMtx) ;	// lock access to PGP memory structures.
+
+    ids.clear();
+
+    for(auto it:_secret_keyring_map)
+        ids.push_back(it.first);
+
+    return !ids.empty();
+}
+
 
 bool PGPHandler::isPgpPubKeyAvailable(const RsPgpId &id)
 { return _public_keyring_map.find(id) != _public_keyring_map.end(); }
@@ -400,5 +425,115 @@ bool PGPHandler::locked_syncTrustDatabase()
 	return true ;
 }
 
+bool PGPHandler::syncDatabase()
+{
+    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+    RsStackFileLock flck(_pgp_lock_filename) ;	// lock access to PGP directory.
+
+#ifdef DEBUG_PGPHANDLER
+    RsErr() << "Sync-ing keyrings." ;
+#endif
+    locked_syncPublicKeyring() ;
+    //locked_syncSecretKeyring() ;
+
+    // Now sync the trust database as well.
+    //
+    locked_syncTrustDatabase() ;
+
+#ifdef DEBUG_PGPHANDLER
+    RsErr() << "Done. " ;
+#endif
+    return true ;
+}
+
+bool PGPHandler::locked_syncPublicKeyring()
+{
+    struct stat64 buf ;
+#ifdef WINDOWS_SYS
+    std::wstring wfullname;
+    librs::util::ConvertUtf8ToUtf16(_pubring_path, wfullname);
+    if(-1 == _wstati64(wfullname.c_str(), &buf))
+#else
+    if(-1 == stat64(_pubring_path.c_str(), &buf))
+#endif
+    {
+        RsErr() << "PGPHandler::syncPublicKeyring(): can't stat file " << _pubring_path << ". Can't sync public keyring." ;
+        buf.st_mtime = 0;
+    }
+
+    if(_pubring_last_update_time < buf.st_mtime)
+    {
+        RsErr() << "Detected change on disk of public keyring. Merging!" << std::endl ;
+
+        locked_updateKeyringFromDisk(false,_pubring_path) ;
+        _pubring_last_update_time = buf.st_mtime ;
+    }
+
+    // Now check if the pubring was locally modified, which needs saving it again
+    if(_pubring_changed && RsDiscSpace::checkForDiscSpace(RS_PGP_DIRECTORY))
+    {
+        std::string tmp_keyring_file = _pubring_path + ".tmp" ;
+
+#ifdef DEBUG_PGPHANDLER
+        RsErr() << "Local changes in public keyring. Writing to disk..." ;
+#endif
+        if(!locked_writeKeyringToDisk(false,tmp_keyring_file.c_str()))
+        {
+            RsErr() << "Cannot write public keyring tmp file. Disk full? Disk quota exceeded?" ;
+            return false ;
+        }
+        if(!RsDirUtil::renameFile(tmp_keyring_file,_pubring_path))
+        {
+            RsErr() << "Cannot rename tmp pubring file " << tmp_keyring_file << " into actual pubring file " << _pubring_path << ". Check writing permissions?!?" ;
+            return false ;
+        }
+
+#ifdef DEBUG_PGPHANDLER
+        RsErr() << "Done." ;
+#endif
+        _pubring_last_update_time = time(NULL) ;	// should we get this value from the disk instead??
+        _pubring_changed = false ;
+    }
+    return true ;
+}
+
+bool PGPHandler::extract_name_and_comment(const char *uid,std::string& name,std::string& comment,std::string& email)
+{
+    if(!uid)
+    {
+        RS_ERR("Missing uid! No valid string supplied");
+        return false;
+    }
+
+    name ="";
+    const std::string namestring(uid);
+
+    uint32_t i=0;
+    while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { name += namestring[i] ; ++i ;}
+
+    // trim right spaces
+    std::string::size_type found = name.find_last_not_of(' ');
+    if (found != std::string::npos)
+        name.erase(found + 1);
+    else
+        name.clear(); // all whitespace
+
+    std::string& next = (namestring[i] == '(')?comment:email ;
+    ++i ;
+    next = "" ;
+    while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next += namestring[i] ; ++i ;}
+
+    while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { next += namestring[i] ; ++i ;}
+
+    if(i< namestring.length())
+    {
+        std::string& next2 = (namestring[i] == '(')?comment:email ;
+        ++i ;
+        next2 = "" ;
+        while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next2 += namestring[i] ; ++i ;}
+    }
+
+    return true;
+}
 
 
