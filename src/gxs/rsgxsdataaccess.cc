@@ -372,6 +372,10 @@ RsTokenService::GxsRequestStatus RsGxsDataAccess::requestStatus(uint32_t token)
 	uint32_t anstype;
 	rstime_t ts;
 
+    // TODO: when the token doesn't exist, it shouldn't return FAILED, but UNKNOWN instead !! Otherwise this is going to cause
+    // some ambiguity in situations where the token has been removed after an operation succeeded, such as when deleting groups
+    // or messages. Unfortunately now, FAILED is also used because operations that fail are instantly removed from the token queue.
+
 	if (!checkRequestStatus(token, status, reqtype, anstype, ts))
 		return RsTokenService::FAILED;
 
