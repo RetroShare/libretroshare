@@ -966,6 +966,10 @@ rs_jsonapi {
             }
         }
 
+        linux-* {
+            RESTBED_CMAKE_PARAMS += -DCMAKE_INCLUDE_PATH=$$escape_expand($$shell_path($$PWD/../../../lib/libs/include))
+        }
+
         genrestbedlib.name = Generating librestbed.
         genrestbedlib.input = DUMMYRESTBEDINPUT
         genrestbedlib.output = $$clean_path($${RESTBED_BUILD_PATH}/librestbed.a)
@@ -1219,6 +1223,17 @@ message("In rnp_rnplib precompilation code")
             $(CHK_DIR_EXISTS) $$shell_path($$LIBRNP_BUILD_PATH) $(MKDIR) $$shell_path($${LIBRNP_BUILD_PATH}) $$escape_expand(\\n\\t)
     } else {
         LIBRNP_OUTPUT_LIBRARY = librnp.a
+
+        linux-* {
+            # json-c
+            LIBRNP_CMAKE_PARAMS *= "-DJSON-C_INCLUDE_DIR=$$escape_expand($$clean_path($$PWD/../../../lib/libs/include/json-c))"
+            LIBRNP_CMAKE_PARAMS *= "-DJSON-C_LIBRARY=$$escape_expand($$clean_path($$PWD/../../../lib/libs/lib/libjson-c.a))"
+            # botan
+            LIBRNP_CMAKE_PARAMS *= "-DBOTAN_INCLUDE_DIR=$$escape_expand($$clean_path($$PWD/../../../lib/libs/include/botan-2))"
+            LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$escape_expand($$clean_path($$PWD/../../../lib/libs/lib/libbotan-2.a))"
+            # link pthread
+            LIBRNP_CMAKE_PARAMS *= "-DCMAKE_CXX_STANDARD_LIBRARIES=-lpthread"
+        }
 
         librnp_header.commands = \
             cd $${RS_SRC_PATH} && \
