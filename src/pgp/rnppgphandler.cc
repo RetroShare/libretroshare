@@ -869,21 +869,22 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
         else if(pub_count > 1)
             throw std::runtime_error("Supplied memory block contain more than one key (" + RsUtil::NumberToString(pub_count) + " found)");
 
-        rnp_identifier_iterator_t it;
-        rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
+        {
+            rnp_identifier_iterator_t it;
+            rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
 
-        const char *key_identifier = nullptr;
-        if(rnp_identifier_iterator_next(it,&key_identifier) != RNP_SUCCESS)
-            throw std::runtime_error("Error while reaching first key");
+            const char *key_identifier = nullptr;
+            if(rnp_identifier_iterator_next(it,&key_identifier) != RNP_SUCCESS)
+                throw std::runtime_error("Error while reaching first key");
 
-        rnp_identifier_iterator_destroy(it);
-
-        key_id = RsPgpId(key_identifier);
+            key_id = RsPgpId(key_identifier);
+            rnp_identifier_iterator_destroy(it);
+        }
 
         RsDbg() << "Binary block contains key ID " << key_id.toStdString() ;
 
         RNP_KEY_HANDLE_STRUCT(key_handle);
-        if(rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle) != RNP_SUCCESS)
+        if(rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_id.toStdString().c_str(),&key_handle) != RNP_SUCCESS)
             throw std::runtime_error("Error while reaching first key data");
 
         RNP_BUFFER_STRUCT(uid);
