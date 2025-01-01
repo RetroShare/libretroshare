@@ -384,7 +384,7 @@ std::error_condition ftServer::requestFiles(
 	return std::error_condition();
 }
 
-bool ftServer::activateTunnels(const RsFileHash& hash,uint32_t encryption_policy,TransferRequestFlags flags,bool onoff)
+bool ftServer::activateTunnels(const RsFileHash& hash,TransferRequestFlags /* flags */,bool onoff)
 {
 	RsFileHash hash_of_hash ;
 
@@ -396,26 +396,11 @@ bool ftServer::activateTunnels(const RsFileHash& hash,uint32_t encryption_policy
 #ifdef SERVER_DEBUG
 		FTSERVER_DEBUG() << "Activating tunnels for hash " << hash << std::endl;
 #endif
-		if(flags & RS_FILE_REQ_ENCRYPTED)
-		{
-#ifdef SERVER_DEBUG
-			FTSERVER_DEBUG() << "  flags require end-to-end encryption. Requesting hash of hash " << hash_of_hash << std::endl;
-#endif
-			mTurtleRouter->monitorTunnels(hash_of_hash,this,true) ;
-		}
-		if((flags & RS_FILE_REQ_UNENCRYPTED) && (encryption_policy != RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT))
-		{
-#ifdef SERVER_DEBUG
-			FTSERVER_DEBUG() << "  flags require no end-to-end encryption. Requesting hash " << hash << std::endl;
-#endif
-			mTurtleRouter->monitorTunnels(hash,this,true) ;
-		}
+        mTurtleRouter->monitorTunnels(hash_of_hash,this,true) ;
 	}
 	else
-	{
 		mTurtleRouter->stopMonitoringTunnels(hash_of_hash);
-		mTurtleRouter->stopMonitoringTunnels(hash);
-	}
+
 	return true ;
 }
 
@@ -454,6 +439,7 @@ void ftServer::setFreeDiskSpaceLimit(uint32_t s)
 	mFtController->setFreeDiskSpaceLimit(s) ;
 }
 
+#ifdef TO_REMOVE
 void ftServer::setDefaultEncryptionPolicy(uint32_t s)
 {
 	mFtController->setDefaultEncryptionPolicy(s) ;
@@ -462,6 +448,7 @@ uint32_t ftServer::defaultEncryptionPolicy()
 {
 	return mFtController->defaultEncryptionPolicy() ;
 }
+#endif
 
 void ftServer::setMaxUploadSlotsPerFriend(uint32_t n)
 {
@@ -761,7 +748,7 @@ bool ftServer::handleTunnelRequest(const RsFileHash& hash,const RsPeerId& peer_i
 		}
 	}
 
-	if(found && mFtController->defaultEncryptionPolicy() == RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT && hash == real_hash)
+    if(found && hash == real_hash)
 	{
 #ifdef SERVER_DEBUG
 		std::cerr << "(WW) rejecting file transfer for hash " << hash << " because the hash is not encrypted and encryption policy requires it." << std::endl;
@@ -1577,6 +1564,9 @@ bool ftServer::decryptItem(const RsTurtleGenericDataItem *encrypted_item,const R
 #endif
 }
 
+// This doesn't "encrypt" the hash. It just uses a one way function to make the real hash impossible to
+// figure out from the hash of the hash.
+//
 bool ftServer::encryptHash(const RsFileHash& hash, RsFileHash& hash_of_hash)
 {
 	hash_of_hash = RsDirUtil::sha1sum(hash.toByteArray(),hash.SIZE_IN_BYTES);
