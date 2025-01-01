@@ -142,8 +142,8 @@ public:
         FileChunksInfo::ChunkStrategy	defaultChunkStrategy();
 		void setFreeDiskSpaceLimit(uint32_t size_in_mb) ;
 		uint32_t freeDiskSpaceLimit() const ;
-        void 	setDefaultEncryptionPolicy(uint32_t s);
-        uint32_t defaultEncryptionPolicy();
+        //void 	setDefaultEncryptionPolicy(uint32_t s);
+        //uint32_t defaultEncryptionPolicy();
 
         void setMaxUploadsPerFriend(uint32_t m) ;
         uint32_t getMaxUploadsPerFriend() ;
@@ -240,7 +240,6 @@ public:
 		ftServer *mFtServer ;
 		p3ServiceControl *mServiceCtrl;
 		uint32_t mFtServiceType;
-		uint32_t mDefaultEncryptionPolicy;
 		uint32_t mFilePermDirectDLPolicy;
 
         uint32_t cnt ;

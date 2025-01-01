@@ -182,30 +182,30 @@ public:
     /**
          * @see RsFiles::getFileData
          */
-    bool getFileData(const RsFileHash& hash, uint64_t offset, uint32_t& requested_size,uint8_t *data);
+    bool getFileData(const RsFileHash& hash, uint64_t offset, uint32_t& requested_size,uint8_t *data) override;
 
     /***
          * Control of Downloads
          ***/
-    virtual bool alreadyHaveFile(const RsFileHash& hash, FileInfo &info);
-    virtual bool FileRequest(const std::string& fname, const RsFileHash& hash, uint64_t size, const std::string& dest, TransferRequestFlags flags, const std::list<RsPeerId>& srcIds);
-    virtual bool FileCancel(const RsFileHash& hash);
-    virtual bool FileControl(const RsFileHash& hash, uint32_t flags);
-    virtual bool FileClearCompleted();
-    virtual bool setDestinationDirectory(const RsFileHash& hash,const std::string& new_path) ;
-    virtual bool setDestinationName(const RsFileHash& hash,const std::string& new_name) ;
-    virtual bool setChunkStrategy(const RsFileHash& hash,FileChunksInfo::ChunkStrategy s) ;
-    virtual bool getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s) ;
-    virtual void setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy) ;
-    virtual FileChunksInfo::ChunkStrategy defaultChunkStrategy() ;
-    virtual uint32_t freeDiskSpaceLimit() const ;
-    virtual void setFreeDiskSpaceLimit(uint32_t size_in_mb) ;
-    virtual void setDefaultEncryptionPolicy(uint32_t policy) ;	// RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT/PERMISSIVE
-    virtual uint32_t defaultEncryptionPolicy() ;
-	virtual void setMaxUploadSlotsPerFriend(uint32_t n) ;
-	virtual uint32_t getMaxUploadSlotsPerFriend() ;
-	virtual void setFilePermDirectDL(uint32_t perm) ;
-	virtual uint32_t filePermDirectDL() ;
+    virtual bool alreadyHaveFile(const RsFileHash& hash, FileInfo &info) override;
+    virtual bool FileRequest(const std::string& fname, const RsFileHash& hash, uint64_t size, const std::string& dest, TransferRequestFlags flags, const std::list<RsPeerId>& srcIds) override;
+    virtual bool FileCancel(const RsFileHash& hash) override;
+    virtual bool FileControl(const RsFileHash& hash, uint32_t flags) override;
+    virtual bool FileClearCompleted() override;
+    virtual bool setDestinationDirectory(const RsFileHash& hash,const std::string& new_path)  override;
+    virtual bool setDestinationName(const RsFileHash& hash,const std::string& new_name)  override;
+    virtual bool setChunkStrategy(const RsFileHash& hash,FileChunksInfo::ChunkStrategy s)  override;
+    virtual bool getChunkStrategy(const RsFileHash& hash, FileChunksInfo::ChunkStrategy& s)  override;
+    virtual void setDefaultChunkStrategy(FileChunksInfo::ChunkStrategy)  override;
+    virtual FileChunksInfo::ChunkStrategy defaultChunkStrategy()  override;
+    virtual uint32_t freeDiskSpaceLimit() const  override;
+    virtual void setFreeDiskSpaceLimit(uint32_t size_in_mb)  override;
+    //virtual void setDefaultEncryptionPolicy(uint32_t policy) ;	// RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT/PERMISSIVE
+    //virtual uint32_t defaultEncryptionPolicy() ;
+    virtual void setMaxUploadSlotsPerFriend(uint32_t n)  override;
+    virtual uint32_t getMaxUploadSlotsPerFriend()  override;
+    virtual void setFilePermDirectDL(uint32_t perm)  override;
+    virtual uint32_t filePermDirectDL()  override;
 
 	/// @see RsFiles
 	std::error_condition requestFiles(
@@ -350,7 +350,7 @@ public:
     /*************** Data Transfer Interface ***********************/
     /***************************************************************/
 public:
-    virtual bool activateTunnels(const RsFileHash& hash,uint32_t default_encryption_policy,TransferRequestFlags flags,bool onoff);
+    virtual bool activateTunnels(const RsFileHash& hash, TransferRequestFlags flags, bool onoff);
 
     virtual bool sendData(const RsPeerId& peerId, const RsFileHash& hash, uint64_t size, uint64_t offset, uint32_t chunksize, void *data);
     virtual bool sendDataRequest(const RsPeerId& peerId, const RsFileHash& hash, uint64_t size, uint64_t offset, uint32_t chunksize);
