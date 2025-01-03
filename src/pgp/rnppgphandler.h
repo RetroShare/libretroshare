@@ -31,26 +31,22 @@
 #include "pgp/pgphandler.h"
 #include "retroshare/rstypes.h"
 
-extern "C" {
-    // we should make sure later on to get rid of these structures in the .h
-    #include "openpgpsdk/keyring.h"
-}
+#include "rnp/rnp.h"
 
-class OpenPGPSDKHandler: public PGPHandler
+class RNPPGPHandler: public PGPHandler
 {
 public:
-        OpenPGPSDKHandler(	const std::string& path_to_public_keyring,
+        RNPPGPHandler(	const std::string& path_to_public_keyring,
 						const std::string& path_to_secret_keyring, 
 						const std::string& path_to_trust_database, 
 						const std::string& pgp_lock_file) ;
 
-        virtual ~OpenPGPSDKHandler() ;
+        virtual ~RNPPGPHandler() ;
 
         //================================================================================================//
         //                                Implemented API from PGPHandler                                 //
         //================================================================================================//
 
-        //virtual std::string makeRadixEncodedPGPKey(uint32_t key_index,bool include_signatures) override;
         virtual bool removeKeysFromPGPKeyring(const std::set<RsPgpId>& key_ids,std::string& backup_file,uint32_t& error_code) override;
         virtual bool GeneratePGPCertificate(const std::string& name, const std::string& email, const std::string& passphrase, RsPgpId& pgpId, const int keynumbits, std::string& errString) override;
 
@@ -68,12 +64,27 @@ public:
         virtual bool decryptTextFromFile(const RsPgpId&,std::string& text,const std::string& inputfile) override;
         virtual bool SignDataBin(const RsPgpId& id,const void *data, const uint32_t len, unsigned char *sign, unsigned int *signlen,bool use_raw_signature, std::string reason /* = "" */) override;
         virtual bool privateSignCertificate(const RsPgpId& ownId,const RsPgpId& id_of_key_to_sign) override;
-        virtual bool VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const PGPFingerprintType& key_fingerprint) override;
+        virtual bool VerifySignBin(const void *literal_data, uint32_t literal_data_length, unsigned char *sign, unsigned int sign_len, const RsPgpFingerprint &key_fingerprint) override;
         virtual bool getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) const override;
         virtual bool haveSecretKey(const RsPgpId& id) const override;
+
     private:
-        void initCertificateInfo(PGPCertificateInfo& cert,const ops_keydata_t *keydata,uint32_t i) ;
+
         bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) override;
+
+        bool locked_writeKeyringToDisk(bool secret, const std::string& keyring_file) override;
+        bool locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file) override;
+
+        bool importKeyPairData(rnp_input_t input);
+        bool encryptData(const RsPgpId& key_id, bool armored, rnp_input_t input, rnp_output_t output);
+
+        // RNP structures
+
+        rnp_ffi_t mRnpFfi;
+
+        void initCertificateInfo(const rnp_key_handle_t& key_handle);
+#ifdef TO_REMOVE
+
 
 		// Returns true if the signatures have been updated
 		//
@@ -90,10 +101,8 @@ public:
 		const ops_keydata_t *locked_getPublicKey(const RsPgpId&,bool stamp_the_key) const;
 		const ops_keydata_t *locked_getSecretKey(const RsPgpId&) const ;
 
-        bool locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file) override ;
-        bool locked_writeKeyringToDisk(bool secret, const std::string& keyring_file) override ;
-
-        bool locked_addOrMergeKey(ops_keyring_t *keyring,std::map<RsPgpId,PGPCertificateInfo>& kmap,const ops_keydata_t *keydata) ;
+		void locked_mergeKeyringFromDisk(ops_keyring_t *keyring, std::map<RsPgpId,PGPCertificateInfo>& kmap, const std::string& keyring_file) ;
+		bool locked_addOrMergeKey(ops_keyring_t *keyring,std::map<RsPgpId,PGPCertificateInfo>& kmap,const ops_keydata_t *keydata) ;
 
 		// Members.
 		//
@@ -108,4 +117,5 @@ public:
 		static ops_keyring_t *allocateOPSKeyring() ;
 		static void addNewKeyToOPSKeyring(ops_keyring_t*, const ops_keydata_t&) ;
 		static bool mergeKeySignatures(ops_keydata_t *dst,const ops_keydata_t *src) ;	// returns true if signature lists are different
+#endif
 };

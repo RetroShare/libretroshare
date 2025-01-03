@@ -34,7 +34,12 @@
 
 #include "util/rsthreads.h"
 #include "pqi/p3cfgmgr.h"
+
+#ifdef USE_OPENPGPSDK
 #include "pgp/openpgpsdkhandler.h"
+#else
+#include "pgp/rnppgphandler.h"
+#endif
 
 #define MAX_GPG_SIGNATURE_SIZE  4096
 
@@ -102,6 +107,9 @@ public:
 
     static bool isPGPId(const RsPgpId& id) ;
     static bool isPGPAccepted(const RsPgpId& id) ;
+
+    // Allocates a PGP handler, using the right paths depending on whether we use RNP or OpenPGP-SDK.
+    static PGPHandler *allocatePGPHandler();
 
 		/**
 		 * @param ids list of gpg certificate ids (note, not the actual certificates)

@@ -1522,6 +1522,16 @@ std::string p3Peers::GetRetroshareInvite( const RsPeerId& sslId, RetroshareInvit
 			return "";
 		}
 
+#ifdef V06_EXPERIMENTAL_CHANGE_001
+        // This code is invalid, because it will make the signature invalid since subpacket 33 is inside the hashed section
+        // of the signature.
+        //
+        // remove signature subpacket tag 33 for backward compatibility
+        size_t new_size = 0;
+        PGPKeyManagement::removeSignatureSubPacketTag33(mem_block,mem_block_size,new_size);
+        mem_block_size = new_size;
+#endif
+
 		RsCertificate cert(detail, mem_block, mem_block_size);
 		free(mem_block);
 
