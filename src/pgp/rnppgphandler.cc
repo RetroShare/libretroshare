@@ -112,6 +112,17 @@ typedef t_ScopeGuard<rnp_ffi_st             ,&rnp_ffi_destroy>              rnp_
 
 #define RNP_OP_VERIFY_SIGNATURE_STRUCT(name) rnp_op_verify_signature_t name=nullptr;
 
+// This overrides SHA1 security rules, so that certs signed with sha1 alg are still accepted as friends and profiles signed with sha1 still load.
+
+#ifdef V07_NON_BACKWARD_COMPATIBLE_CHANGE_006
+#define FFI_CREATE(ffi) \
+    rnp_ffi_create(&ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+#else
+#define FFI_CREATE(ffi) \
+    rnp_ffi_create(&ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);\
+    rnp_add_security_rule(ffi,RNP_FEATURE_HASH_ALG,"SHA1",RNP_SECURITY_OVERRIDE,0,RNP_SECURITY_DEFAULT);
+#endif
+
 // Implementation of RNP pgp handler.
 
 RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secring,const std::string& trustdb,const std::string& pgp_lock_filename)
@@ -122,9 +133,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
     RsInfo() << "Using RNP lib version " << rnp_version_string() ;
     RsInfo() << "RNP-PGPHandler: Initing pgp keyrings";
 
-    /* initialize FFI object */
-    if (rnp_ffi_create(&mRnpFfi, "GPG", "GPG") != RNP_SUCCESS)
-        throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot initialize ffi object.");
+    FFI_CREATE(mRnpFfi);
 
     // Check that the file exists. If not, create a void keyring.
 
@@ -858,7 +867,7 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
             throw std::runtime_error("Cannot open supplied memory block. Memory access error.") ;
 
         RNP_FFI_STRUCT(tmp_ffi);
-        rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+        FFI_CREATE(tmp_ffi);
 
         if(rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("Cannot interpret supplied memory block as public key.") ;
@@ -983,8 +992,7 @@ static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
 static bool testKeyPairInput(rnp_input_t keyfile,RsPgpId& imported_key_id)
 {
         RNP_FFI_STRUCT(tmp_ffi);
-
-        rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+        FFI_CREATE(tmp_ffi);
 
         uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS ;
 
