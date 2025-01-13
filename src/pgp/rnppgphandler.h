@@ -68,6 +68,12 @@ public:
         virtual bool getKeyFingerprint(const RsPgpId& id, RsPgpFingerprint& fp) const override;
         virtual bool haveSecretKey(const RsPgpId& id) const override;
 
+        //================================================================================================//
+        //                                Local methods to RNPPGPHandler                                  //
+        //================================================================================================//
+
+        void locked_timeStampKey(const RsPgpId& key_id);
+
     private:
 
         bool LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string) override;
