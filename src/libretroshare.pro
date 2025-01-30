@@ -355,6 +355,8 @@ rs_openpgpsdk {
         INCLUDEPATH *= $${OPENPGPSDK_DIR}
         PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
         LIBS *= $${OPENPGPSDK_DIR}/lib/libops.a -lbz2
+} else {
+        DEFINES -= USE_OPENPGPSDK
 }
 
 ################################### HEADERS & SOURCES #############################
