@@ -1160,6 +1160,22 @@ message("In rnp_rnplib precompilation code")
         LIBRNP_CMAKE_PARAMS += -DBUILD_SHARED_LIBS=yes
     }
 
+	macx-* {
+		# bzip2
+		LIBRNP_CMAKE_PARAMS *= "-DBZIP2_INCLUDE_DIR=$$clean_path(/usr/local/opt/bzip2/include)"
+		LIBRNP_CMAKE_PARAMS *= "-DBZIP2_LIBRARY_RELEASE=$$clean_path(/usr/local/opt/bzip2/lib/libbz2.a)"
+		# zlib
+		LIBRNP_CMAKE_PARAMS *= "-DZLIB_INCLUDE_DIR=$$clean_path(/usr/local/opt/zlib/include)"
+		LIBRNP_CMAKE_PARAMS *= "-DZLIB_LIBRARY=$$clean_path(/usr/local/opt/zlib/lib/libz.a)"
+		# json-c
+		LIBRNP_CMAKE_PARAMS *= "-DJSON-C_INCLUDE_DIR=$$clean_path(/usr/local/opt/json-c/include/json-c)"
+		LIBRNP_CMAKE_PARAMS *= "-DJSON-C_LIBRARY=$$clean_path(/usr/local/opt/json-c/lib/libjson-c.a)"
+		LIBRNP_CMAKE_PARAMS *= "-DJSON-C_VERSION=0.18"
+		# botan
+		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_INCLUDE_DIR=$$clean_path(/usr/local/opt/botan@2/include/botan-2)"
+		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$clean_path(/usr/local/opt/botan@2/lib/libbotan-2.a)"
+	}
+
     win32-g++:isEmpty(QMAKE_SH) {
         # Windows native build
         !isEmpty(EXTERNAL_LIB_DIR) {
