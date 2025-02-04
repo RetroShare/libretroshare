@@ -173,7 +173,7 @@ class RsTurtleGenericSearchRequestItem: public RsTurtleSearchRequestItem
               request_type(0),
               search_data(nullptr)
         {}
-        virtual ~RsTurtleGenericSearchRequestItem() { clear(); }
+        virtual ~RsTurtleGenericSearchRequestItem() { free(search_data); }
 
         uint16_t service_id ;		// service to search
         uint32_t search_data_len ;
@@ -232,7 +232,7 @@ class RsTurtleGenericSearchResultItem: public RsTurtleSearchResultItem
 		      result_data(nullptr),
 		      result_data_len(0)
         {}
-        virtual ~RsTurtleGenericSearchResultItem() {}
+        virtual ~RsTurtleGenericSearchResultItem() { free(result_data); }
 
         uint32_t count() const { return result_data_len/50 ; }	// This is a blind size estimate. We should probably use the actual size to limit search results.
         virtual void pop() {}
