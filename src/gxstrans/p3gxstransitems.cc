@@ -25,10 +25,10 @@
 const RsGxsId RsGxsTransMailItem::allRecipientsHint("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
 
 OutgoingRecord_deprecated::OutgoingRecord_deprecated()
-    : RsItem( RS_PKT_VERSION_SERVICE, RS_SERVICE_TYPE_GXS_TRANS, static_cast<uint8_t>(GxsTransItemsSubtypes::OUTGOING_RECORD_ITEM_deprecated) ) { clear();}
+    : RsItem( RS_PKT_VERSION_SERVICE, RS_SERVICE_TYPE_GXS_TRANS, static_cast<uint8_t>(GxsTransItemsSubtypes::OUTGOING_RECORD_ITEM_deprecated) ) { OutgoingRecord_deprecated::clear();}
 
 OutgoingRecord::OutgoingRecord()
-    : RsItem( RS_PKT_VERSION_SERVICE, RS_SERVICE_TYPE_GXS_TRANS, static_cast<uint8_t>(GxsTransItemsSubtypes::OUTGOING_RECORD_ITEM) ) { clear();}
+    : RsItem( RS_PKT_VERSION_SERVICE, RS_SERVICE_TYPE_GXS_TRANS, static_cast<uint8_t>(GxsTransItemsSubtypes::OUTGOING_RECORD_ITEM) ) {}
 
 OutgoingRecord::OutgoingRecord( RsGxsId rec, GxsTransSubServices cs,
                                 const uint8_t* data, uint32_t size ) :

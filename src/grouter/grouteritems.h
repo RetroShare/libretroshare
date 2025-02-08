@@ -116,7 +116,7 @@ public:
 	    data_size(0), data_bytes(nullptr), duplication_factor(0)
 	{ setPriorityLevel(QOS_PRIORITY_RS_GROUTER); }
 
-	virtual ~RsGRouterGenericDataItem() { clear(); }
+    virtual ~RsGRouterGenericDataItem() { RsGRouterGenericDataItem::clear(); }
 	virtual void clear() 
 	{ 
 		free(data_bytes); 
@@ -265,7 +265,7 @@ class RsGRouterRoutingInfoItem: public RsGRouterItem, public GRouterRoutingInfo,
         RsGRouterRoutingInfoItem() : RsGRouterItem(RS_PKT_SUBTYPE_GROUTER_ROUTING_INFO)
 		{ setPriorityLevel(0) ; }	// this item is never sent through the network
 
-		virtual ~RsGRouterRoutingInfoItem() { clear() ; }
+        virtual ~RsGRouterRoutingInfoItem() { RsGRouterRoutingInfoItem::clear() ; }
 		
 		virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 

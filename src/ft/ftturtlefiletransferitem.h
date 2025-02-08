@@ -46,7 +46,7 @@ class RsTurtleFileDataItem: public RsTurtleGenericTunnelItem
 {
 	public:
 		RsTurtleFileDataItem() : RsTurtleGenericTunnelItem(RS_TURTLE_SUBTYPE_FILE_DATA), chunk_offset(0), chunk_size(0), chunk_data(NULL) { setPriorityLevel(QOS_PRIORITY_RS_TURTLE_FILE_DATA) ;}
-        ~RsTurtleFileDataItem() { clear() ; }
+        ~RsTurtleFileDataItem() { RsTurtleFileDataItem::clear() ; }
 
 		virtual bool shouldStampTunnel() const { return true ; }
 		virtual Direction travelingDirection() const { return DIRECTION_CLIENT ; }
