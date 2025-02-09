@@ -386,6 +386,9 @@ bool RsGxsDataAccess::cancelRequest(const uint32_t& token)
 {
 	RsStackMutex stack(mDataMutex); /****** LOCKED *****/
 
+    std::cerr << "Cancelling request " << token << ": marking as CANCELLED in mPublicToken" << std::endl;
+    mPublicToken[token] = CANCELLED;
+
     GxsRequest* req = locked_retrieveCompletedRequest(token);
 	if (!req)
 	{
@@ -874,7 +877,15 @@ void RsGxsDataAccess::processRequests()
 		{
 			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
 
-			if(ok)
+            if(mPublicToken[req->token] == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
+            {
+                std::cerr << "Deleting request result for token " << req->token << " because the request has been cancelled." << std::endl;
+                mPublicToken.erase(req->token);
+                delete req;
+                continue;
+            }
+
+            if(ok)
 			{
 				// When the request is complete, we move it to the complete list, so that the caller can easily retrieve the request data
 
