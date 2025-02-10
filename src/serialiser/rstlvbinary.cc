@@ -50,7 +50,7 @@ RsTlvBinaryData::RsTlvBinaryData(const RsTlvBinaryData &b)
 
 RsTlvBinaryData::~RsTlvBinaryData()
 {
-	TlvClear();
+    RsTlvBinaryData::TlvClear();
 }
 
 void RsTlvBinaryData::operator =(const RsTlvBinaryData& b){
@@ -63,7 +63,7 @@ void RsTlvBinaryData::operator =(const RsTlvBinaryData& b){
 bool     RsTlvBinaryData::setBinData(const void *data, uint32_t size)
 {
 	/* ready to load */
-	TlvClear();
+    RsTlvBinaryData::TlvClear();
 
 	/* get mandatory */
 	/* the rest of the TLV size binary data */
@@ -86,7 +86,7 @@ bool     RsTlvBinaryData::setBinData(const void *data, uint32_t size)
 void RsTlvBinaryData::TlvClear()
 {
 	free(bin_data);
-	TlvShallowClear();
+    RsTlvBinaryData::TlvShallowClear();
 }
 
 void RsTlvBinaryData::TlvShallowClear()
