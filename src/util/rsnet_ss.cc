@@ -722,12 +722,17 @@ bool sockaddr_storage_isValidNet(const struct sockaddr_storage &addr)
 	return false;
 }
 
-bool sockaddr_storage_isLoopbackNet(const struct sockaddr_storage &addr)
+bool sockaddr_storage_isLoopbackNet(const struct sockaddr_storage &pAddr)
 {
 #ifdef SS_DEBUG
 	std::cerr << "sockaddr_storage_isLoopbackNet()";
 	std::cerr << std::endl;
 #endif
+
+	// Needed to detect correctly IPv6 mapped 127.0.0.1
+	sockaddr_storage addr;
+	sockaddr_storage_copy(pAddr, addr);
+	sockaddr_storage_ipv6_to_ipv4(addr);
 
 	switch(addr.ss_family)
 	{

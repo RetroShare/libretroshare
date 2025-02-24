@@ -372,6 +372,10 @@ RsTokenService::GxsRequestStatus RsGxsDataAccess::requestStatus(uint32_t token)
 	uint32_t anstype;
 	rstime_t ts;
 
+    // TODO: when the token doesn't exist, it shouldn't return FAILED, but UNKNOWN instead !! Otherwise this is going to cause
+    // some ambiguity in situations where the token has been removed after an operation succeeded, such as when deleting groups
+    // or messages. Unfortunately now, FAILED is also used because operations that fail are instantly removed from the token queue.
+
 	if (!checkRequestStatus(token, status, reqtype, anstype, ts))
 		return RsTokenService::FAILED;
 
@@ -381,6 +385,9 @@ RsTokenService::GxsRequestStatus RsGxsDataAccess::requestStatus(uint32_t token)
 bool RsGxsDataAccess::cancelRequest(const uint32_t& token)
 {
 	RsStackMutex stack(mDataMutex); /****** LOCKED *****/
+
+    std::cerr << "Cancelling request " << token << ": marking as CANCELLED in mPublicToken" << std::endl;
+    mPublicToken[token] = CANCELLED;
 
     GxsRequest* req = locked_retrieveCompletedRequest(token);
 	if (!req)
@@ -870,7 +877,15 @@ void RsGxsDataAccess::processRequests()
 		{
 			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
 
-			if(ok)
+            if(mPublicToken[req->token] == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
+            {
+                std::cerr << "Deleting request result for token " << req->token << " because the request has been cancelled." << std::endl;
+                mPublicToken.erase(req->token);
+                delete req;
+                continue;
+            }
+
+            if(ok)
 			{
 				// When the request is complete, we move it to the complete list, so that the caller can easily retrieve the request data
 

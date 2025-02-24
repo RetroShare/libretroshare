@@ -176,7 +176,7 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 			RS_ERR("Cannot read secring. File seems corrupted");
 			print_stacktrace();
 
-			// We should not use exceptions they are terrible for embedded platforms
+            // We should not use exceptions they are terrible for embedded platforms
 			throw std::runtime_error("OpenPGPSDKHandler::readKeyRing(): cannot read secring. File corrupted.") ;
 		}
 	}
@@ -185,10 +185,14 @@ OpenPGPSDKHandler::OpenPGPSDKHandler(const std::string& pubring, const std::stri
 
 	i=0 ;
 	while( (keydata = ops_keyring_get_key_by_index(_secring,i)) != NULL )
-	{
-		initCertificateInfo(_secret_keyring_map[ RsPgpId(keydata->key_id) ],keydata,i) ;
-		++i ;
-	}
+        if(keydata->key.pkey.algorithm == OPS_PKA_RSA)
+        {
+            initCertificateInfo(_secret_keyring_map[ RsPgpId(keydata->key_id) ],keydata,i) ;
+            ++i ;
+        }
+        else
+            RsErr() << "  Skipping key with unsupported algorithm";
+
 	_secring_last_update_time = time(NULL) ;
 
     RsInfo() << "  Secring read successfully";
@@ -203,35 +207,7 @@ void OpenPGPSDKHandler::initCertificateInfo(PGPCertificateInfo& cert,const ops_k
 	//
 
 	if(keydata->uids != NULL)
-	{
-		std::string namestring( (char *)keydata->uids[0].user_id ) ;
-
-		cert._name = "" ;
-		uint32_t i=0;
-		while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { cert._name += namestring[i] ; ++i ;}
-
-		// trim right spaces
-		std::string::size_type found = cert._name.find_last_not_of(' ');
-		if (found != std::string::npos)
-			cert._name.erase(found + 1);
-		else
-			cert._name.clear(); // all whitespace
-
-		std::string& next = (namestring[i] == '(')?cert._comment:cert._email ;
-		++i ;
-		next = "" ;
-		while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next += namestring[i] ; ++i ;}
-
-		while(i < namestring.length() && namestring[i] != '(' && namestring[i] != '<') { next += namestring[i] ; ++i ;}
-
-		if(i< namestring.length())
-		{
-			std::string& next2 = (namestring[i] == '(')?cert._comment:cert._email ;
-			++i ;
-			next2 = "" ;
-			while(i < namestring.length() && namestring[i] != ')' && namestring[i] != '>') { next2 += namestring[i] ; ++i ;}
-		}
-	}
+        extract_name_and_comment((char *)keydata->uids[0].user_id,cert._name,cert._comment,cert._email);
 
 	cert._trustLvl = 1 ;	// to be setup accordingly
 	cert._validLvl = 1 ;	// to be setup accordingly
@@ -323,33 +299,6 @@ bool OpenPGPSDKHandler::haveSecretKey(const RsPgpId& id) const
 	return locked_getSecretKey(id) != NULL ;
 }
 
-bool OpenPGPSDKHandler::availableGPGCertificatesWithPrivateKeys(std::list<RsPgpId>& ids)
-{
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-	// go through secret keyring, and check that we have the pubkey as well.
-	//
-	
-	const ops_keydata_t *keydata = NULL ;
-	int i=0 ;
-
-	while( (keydata = ops_keyring_get_key_by_index(_secring,i++)) != NULL )
-		if(ops_keyring_find_key_by_id(_pubring,keydata->key_id) != NULL) // check that the key is in the pubring as well
-		{
-#ifdef PGPHANDLER_DSA_SUPPORT
-			if(keydata->key.pkey.algorithm == OPS_PKA_RSA || keydata->key.pkey.algorithm == OPS_PKA_DSA)
-#else
-			if(keydata->key.pkey.algorithm == OPS_PKA_RSA)
-#endif
-				ids.push_back(RsPgpId(keydata->key_id)) ;
-#ifdef DEBUG_PGPHANDLER
-			else
-                RsErr() << "Skipping keypair " << RsPgpId(keydata->key_id).toStdString() << ", unsupported algorithm: " <<  keydata->key.pkey.algorithm ;
-#endif
-		}
-
-	return true ;
-}
-
 bool OpenPGPSDKHandler::GeneratePGPCertificate(const std::string& name, const std::string& email, const std::string& passphrase, RsPgpId& pgpId, const int keynumbits, std::string& errString)
 {
 	// Some basic checks
@@ -391,7 +340,7 @@ bool OpenPGPSDKHandler::GeneratePGPCertificate(const std::string& name, const st
 	uid.user_id = (unsigned char *)s ;
 	unsigned long int e = 65537 ; // some prime number
 
-	ops_keydata_t *key = ops_rsa_create_selfsigned_keypair(keynumbits, e, &uid) ;
+    ops_keydata_t *key = ops_rsa_create_selfsigned_keypair(keynumbits, e, &uid,OPS_HASH_SHA256) ;
 
 	free(s) ;
 
@@ -1001,16 +950,6 @@ void OpenPGPSDKHandler::addNewKeyToOPSKeyring(ops_keyring_t *kr,const ops_keydat
 	kr->nkeys++ ;
 }
 
-bool OpenPGPSDKHandler::LoadCertificateFromBinaryData(const unsigned char *data,uint32_t data_len,RsPgpId& id,std::string& error_string)
-{
-    return LoadCertificate(data,data_len,ops_false,id,error_string);
-}
-
-bool OpenPGPSDKHandler::LoadCertificateFromString(const std::string& pgp_cert,RsPgpId& id,std::string& error_string)
-{
-    return LoadCertificate((unsigned char*)(pgp_cert.c_str()),pgp_cert.length(),ops_true,id,error_string);
-}
-
 bool OpenPGPSDKHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,bool armoured,RsPgpId& id,std::string& error_string)
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
@@ -1487,7 +1426,7 @@ bool OpenPGPSDKHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpI
 
 	// 2 - then do the signature.
 
-	if(!ops_sign_key(key_to_sign,pkey->key_id,secret_key)) 
+    if(!ops_sign_key(key_to_sign,pkey->key_id,secret_key,OPS_HASH_SHA256))
 	{
         RsErr() << "Key signature went wrong. Wrong passwd?" ;
 		return false ;
@@ -1621,103 +1560,39 @@ bool OpenPGPSDKHandler::mergeKeySignatures(ops_keydata_t *dst,const ops_keydata_
 	return to_add.size() > 0 ;
 }
 
-bool OpenPGPSDKHandler::syncDatabase()
+bool OpenPGPSDKHandler::locked_writeKeyringToDisk(bool secret, const std::string& keyring_file)
 {
-	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-	RsStackFileLock flck(_pgp_lock_filename) ;	// lock access to PGP directory.
-
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "Sync-ing keyrings." ;
-#endif
-	locked_syncPublicKeyring() ;
-	//locked_syncSecretKeyring() ;
-	
-	// Now sync the trust database as well.
-	//
-	locked_syncTrustDatabase() ;
-
-#ifdef DEBUG_PGPHANDLER
-    RsErr() << "Done. " ;
-#endif
-	return true ;
+    return ops_write_keyring_to_file(secret?_secring:_pubring,ops_false,keyring_file.c_str(),ops_true) ;
 }
-
-bool OpenPGPSDKHandler::locked_syncPublicKeyring()
-{
-	struct stat64 buf ;
-#ifdef WINDOWS_SYS
-	std::wstring wfullname;
-	librs::util::ConvertUtf8ToUtf16(_pubring_path, wfullname);
-	if(-1 == _wstati64(wfullname.c_str(), &buf))
-#else
-	if(-1 == stat64(_pubring_path.c_str(), &buf))
-#endif
-    {
-        RsErr() << "OpenPGPSDKHandler::syncDatabase(): can't stat file " << _pubring_path << ". Can't sync public keyring." ;
-        buf.st_mtime = 0;
-    }
-
-	if(_pubring_last_update_time < buf.st_mtime)
-	{
-        RsErr() << "Detected change on disk of public keyring. Merging!" << std::endl ;
-
-		locked_mergeKeyringFromDisk(_pubring,_public_keyring_map,_pubring_path) ;
-		_pubring_last_update_time = buf.st_mtime ;
-	}
-
-	// Now check if the pubring was locally modified, which needs saving it again
-	if(_pubring_changed && RsDiscSpace::checkForDiscSpace(RS_PGP_DIRECTORY))
-	{
-		std::string tmp_keyring_file = _pubring_path + ".tmp" ;
-
-#ifdef DEBUG_PGPHANDLER
-        RsErr() << "Local changes in public keyring. Writing to disk..." ;
-#endif
-		if(!ops_write_keyring_to_file(_pubring,ops_false,tmp_keyring_file.c_str(),ops_true)) 
-		{
-            RsErr() << "Cannot write public keyring tmp file. Disk full? Disk quota exceeded?" ;
-			return false ;
-		}
-		if(!RsDirUtil::renameFile(tmp_keyring_file,_pubring_path))
-		{
-            RsErr() << "Cannot rename tmp pubring file " << tmp_keyring_file << " into actual pubring file " << _pubring_path << ". Check writing permissions?!?" ;
-			return false ;
-		}
-
-#ifdef DEBUG_PGPHANDLER
-        RsErr() << "Done." ;
-#endif
-		_pubring_last_update_time = time(NULL) ;	// should we get this value from the disk instead??
-		_pubring_changed = false ;
-	}
-	return true ;
-}
-
-void OpenPGPSDKHandler::locked_mergeKeyringFromDisk(ops_keyring_t *keyring,
-													std::map<RsPgpId,PGPCertificateInfo>& kmap,
-													const std::string& keyring_file)
+bool OpenPGPSDKHandler::locked_updateKeyringFromDisk(bool secret, const std::string& keyring_file)
 {
 #ifdef DEBUG_PGPHANDLER
     RsErr() << "Merging keyring " << keyring_file << " from disk to memory." ;
 #endif
 
-	// 1 - load keyring into a temporary keyring list.
+    std::map<RsPgpId,PGPCertificateInfo>& kmap(secret?_secret_keyring_map:_public_keyring_map);
+
+    // 1 - load keyring into a temporary keyring list.
     ops_keyring_t *tmp_keyring = OpenPGPSDKHandler::allocateOPSKeyring() ;
 
 	if(ops_false == ops_keyring_read_from_file(tmp_keyring, false, keyring_file.c_str()))
 	{
         RsErr() << "OpenPGPSDKHandler::locked_mergeKeyringFromDisk(): cannot read keyring. File corrupted?" ;
 		ops_keyring_free(tmp_keyring) ;
-		return ;
+        return false ;
 	}
 
 	// 2 - load new keys and merge existing key signatures
+
+    ops_keyring_t *keyring = secret?_secring:_pubring;
 
 	for(int i=0;i<tmp_keyring->nkeys;++i)
 		locked_addOrMergeKey(keyring,kmap,&tmp_keyring->keys[i]) ;// we dont' account for the return value. This is disk merging, not local changes.	
 
 	// 4 - clean
 	ops_keyring_free(tmp_keyring) ;
+
+    return true;
 }
 
 bool OpenPGPSDKHandler::removeKeysFromPGPKeyring(const std::set<RsPgpId>& keys_to_remove,std::string& backup_file,uint32_t& error_code)

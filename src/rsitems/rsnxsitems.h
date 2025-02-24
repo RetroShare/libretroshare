@@ -92,7 +92,7 @@ public:
 	static const uint8_t FLAG_USE_SYNC_HASH;
 	static const uint8_t FLAG_ONLY_CURRENT; // only send most current version of grps / ignores sync hash
 
-	explicit RsNxsSyncGrpReqItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_GRP_REQ_ITEM) { clear();}
+    explicit RsNxsSyncGrpReqItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_GRP_REQ_ITEM) { RsNxsSyncGrpReqItem::clear();}
 	virtual void clear() override;
 
 	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
@@ -136,7 +136,7 @@ public:
 class RsNxsGroupPublishKeyItem : public RsNxsItem
 {
 public:
-	explicit RsNxsGroupPublishKeyItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_GRP_PUBLISH_KEY_ITEM) { clear(); }
+    explicit RsNxsGroupPublishKeyItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_GRP_PUBLISH_KEY_ITEM) { RsNxsGroupPublishKeyItem::clear(); }
 
     virtual void clear() override;
 
@@ -179,7 +179,7 @@ public:
     static const uint16_t FLAG_TYPE_MSGS;
     static const uint16_t FLAG_TYPE_ENCRYPTED_DATA;
 
-    explicit RsNxsTransacItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_TRANSAC_ITEM) { clear(); }
+    explicit RsNxsTransacItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_TRANSAC_ITEM) { RsNxsTransacItem::clear(); }
     virtual ~RsNxsTransacItem() {}
 
     virtual void clear() override;
@@ -207,7 +207,7 @@ public:
     static const uint8_t FLAG_RESPONSE;
     static const uint8_t FLAG_USE_SYNC_HASH;
 
-    explicit RsNxsSyncGrpItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_GRP_ITEM) { clear();}
+    explicit RsNxsSyncGrpItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_GRP_ITEM) { RsNxsSyncGrpItem::clear();}
     virtual ~RsNxsSyncGrpItem() {}
 
     virtual void clear() override;
@@ -223,27 +223,6 @@ public:
 
 };
 
-#ifdef SUSPENDED_CODE_27042017
-/*!
- * Use to send to peer list of grps
- * held by server peer
- */
-class RsNxsSessionKeyItem : public RsNxsItem
-{
-
-public:
-
-    explicit RsNxsSessionKeyItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SESSION_KEY_ITEM) { clear(); }
-    virtual ~RsNxsSessionKeyItem() {}
-
-    virtual void clear() override;
-
-    /// Session key encrypted for the whole group
-    /// 
-    uint8_t iv[EVP_MAX_IV_LENGTH] ;					// initialisation vector
-    std::map<RsGxsId, RsTlvBinaryData> encrypted_session_keys;	// encrypted session keys
-};
-#endif
 /*!
  * Use to send to peer list of grps
  * held by server peer
@@ -256,7 +235,7 @@ public:
 	explicit RsNxsEncryptedDataItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_ENCRYPTED_DATA_ITEM),encrypted_data(servtype)
 	{
 		encrypted_data.tlvtype = TLV_TYPE_BIN_ENCRYPTED ;
-		clear();
+        RsNxsEncryptedDataItem::clear();
 	}
     virtual ~RsNxsEncryptedDataItem() {}
     virtual void clear() override;
@@ -282,7 +261,7 @@ public:
 	explicit RsNxsGrp(uint16_t servtype)
 	    : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_GRP_ITEM)
 	    , pos(0), count(0), meta(servtype), grp(servtype), metaData(NULL)
-	{ clear(); }
+    { RsNxsGrp::clear(); }
 	virtual ~RsNxsGrp() { delete metaData; }
 
 	RsNxsGrp* clone() const;
@@ -326,7 +305,7 @@ public:
 #endif
     static const uint8_t FLAG_USE_HASHED_GROUP_ID;
 
-    explicit RsNxsSyncMsgReqItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_MSG_REQ_ITEM) { clear(); }
+    explicit RsNxsSyncMsgReqItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_MSG_REQ_ITEM) { RsNxsSyncMsgReqItem::clear(); }
 
     virtual void clear() override;
 
@@ -350,7 +329,7 @@ public:
     static const uint8_t FLAG_REQUEST;
     static const uint8_t FLAG_RESPONSE;
     static const uint8_t FLAG_USE_SYNC_HASH;
-    explicit RsNxsSyncMsgItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_MSG_ITEM) { clear(); }
+    explicit RsNxsSyncMsgItem(uint16_t servtype) : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_SYNC_MSG_ITEM) { RsNxsSyncMsgItem::clear(); }
 
     virtual void clear() override;
 
@@ -387,7 +366,7 @@ public:
 	explicit RsNxsMsg(uint16_t servtype)
 	  : RsNxsItem(servtype, RS_PKT_SUBTYPE_NXS_MSG_ITEM)
 	  , pos(0), count(0), meta(servtype), msg(servtype), metaData(NULL)
-	{ clear(); }
+    { RsNxsMsg::clear(); }
 	virtual ~RsNxsMsg() { delete metaData; }
 
 	virtual void clear() override;

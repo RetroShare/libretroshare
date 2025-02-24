@@ -98,8 +98,8 @@ const uint32_t RS_FILE_CTRL_PAUSE	 		= 0x00000100;
 const uint32_t RS_FILE_CTRL_START	 		= 0x00000200;
 const uint32_t RS_FILE_CTRL_FORCE_CHECK	    = 0x00000400;
 
-const uint32_t RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT     = 0x00000001 ;
-const uint32_t RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE = 0x00000002 ;
+//const uint32_t RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT     = 0x00000001 ;
+//const uint32_t RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE = 0x00000002 ;
 
 const uint32_t RS_FILE_PERM_DIRECT_DL_YES      = 0x00000001 ;
 const uint32_t RS_FILE_PERM_DIRECT_DL_NO       = 0x00000002 ;
@@ -759,6 +759,7 @@ public:
 	 */
 	virtual bool FileClearCompleted() = 0;
 
+#ifdef TO_REMOVE
     /**
      * @brief Set Default Encryption Policy
      * @jsonapi{development}
@@ -772,6 +773,7 @@ public:
      * @return mDefaultEncryptionPolicy 
      */
 		virtual uint32_t defaultEncryptionPolicy()=0;
+#endif
 
     /**
      * @brief Set Number of Maximum Uploads per friend

@@ -126,8 +126,8 @@ public:
 		PARTIAL   = 2,
 		COMPLETE  = 3,
 		DONE      = 4, /// Once all data has been retrived
-		CANCELLED = 5
-	};
+        CANCELLED = 5
+    };
 
 	RsTokenService() {}
 	virtual ~RsTokenService() {}
