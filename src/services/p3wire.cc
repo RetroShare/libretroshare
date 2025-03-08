@@ -57,7 +57,8 @@ uint32_t RsWirePulse::ImageCount()
 
 p3Wire::p3Wire(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs *gixs)
 	:RsGenExchange(gds, nes, new RsGxsWireSerialiser(), RS_SERVICE_GXS_TYPE_WIRE, gixs, wireAuthenPolicy()),
-	RsWire(static_cast<RsGxsIface&>(*this)), mWireMtx("WireMtx")
+    RsWire(static_cast<RsGxsIface&>(*this)), mWireMtx("WireMtx"),
+    mKnownWireMutex("KnownWireMutex")
 {
 
 }
@@ -115,23 +116,115 @@ RsTokenService* p3Wire::getTokenService() {
 	return RsGenExchange::getTokenService();
 }
 
+static const uint32_t WIRE_CONFIG_MAX_TIME_NOTIFY_STORAGE = 86400*30*2 ; // ignore notifications for 2 months
+static const uint8_t  WIRE_CONFIG_SUBTYPE_NOTIFY_RECORD   = 0x01 ;
+
+struct RsWireNotifyRecordsItem: public RsItem
+{
+
+    RsWireNotifyRecordsItem()
+        : RsItem(RS_PKT_VERSION_SERVICE,RS_SERVICE_GXS_TYPE_WIRE_CONFIG,WIRE_CONFIG_SUBTYPE_NOTIFY_RECORD)
+    {}
+
+    virtual ~RsWireNotifyRecordsItem() {}
+
+    void serial_process( RsGenericSerializer::SerializeJob j,
+                         RsGenericSerializer::SerializeContext& ctx )
+    { RS_SERIAL_PROCESS(records); }
+
+    void clear() {}
+
+    std::map<RsGxsGroupId,rstime_t> records;
+};
+
+class WireConfigSerializer : public RsServiceSerializer
+{
+public:
+    WireConfigSerializer() : RsServiceSerializer(RS_SERVICE_GXS_TYPE_WIRE_CONFIG) {}
+    virtual ~WireConfigSerializer() {}
+
+    RsItem* create_item(uint16_t service_id, uint8_t item_sub_id) const
+    {
+        if(service_id != RS_SERVICE_GXS_TYPE_WIRE_CONFIG)
+            return NULL;
+
+        switch(item_sub_id)
+        {
+        case WIRE_CONFIG_SUBTYPE_NOTIFY_RECORD: return new RsWireNotifyRecordsItem();
+        default:
+            return NULL;
+        }
+    }
+};
+
+bool p3Wire::saveList(bool &cleanup, std::list<RsItem *>&saveList)
+{
+    cleanup = true ;
+
+    RsWireNotifyRecordsItem *item = new RsWireNotifyRecordsItem ;
+
+    {
+        RS_STACK_MUTEX(mKnownWireMutex);
+        item->records = mKnownWire ;
+    }
+
+    saveList.push_back(item) ;
+    return true;
+}
+
+bool p3Wire::loadList(std::list<RsItem *>& loadList)
+{
+    while(!loadList.empty())
+    {
+        RsItem *item = loadList.front();
+        loadList.pop_front();
+
+        rstime_t now = time(NULL);
+
+        RsWireNotifyRecordsItem *fnr = dynamic_cast<RsWireNotifyRecordsItem*>(item) ;
+
+        if(fnr != NULL)
+        {
+            RS_STACK_MUTEX(mKnownWireMutex);
+
+            mKnownWire.clear();
+
+            for(auto it(fnr->records.begin());it!=fnr->records.end();++it)
+                if( now < it->second + WIRE_CONFIG_MAX_TIME_NOTIFY_STORAGE)
+                    mKnownWire.insert(*it) ;
+        }
+
+        delete item ;
+    }
+    return true;
+}
+
+RsSerialiser* p3Wire::setupSerialiser()
+{
+    RsSerialiser* rss = new RsSerialiser;
+    rss->addSerialType(new WireConfigSerializer());
+
+    return rss;
+}
+
 void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
 {
     std::cerr << "p3Wire::notifyChanges() New stuff";
     std::cerr << std::endl;
 
+    int sizer = changes.size();
+
     #ifdef GXSWIRE_DEBUG
         RsDbg() << " Processing " << changes.size() << " wire changes..." << std::endl;
     #endif
         /* iterate through and grab any new messages */
-        std::set<RsGxsGroupId> unprocessedGroups;
+//        std::set<RsGxsGroupId> unprocessedGroups;
 
         std::vector<RsGxsNotify *>::iterator it;
         for(it = changes.begin(); it != changes.end(); ++it)
         {
             // here the changes are for the message
             RsGxsMsgChange *msgChange = dynamic_cast<RsGxsMsgChange *>(*it);
-
             if (msgChange)
             {
                 if (msgChange->getType() == RsGxsNotify::TYPE_RECEIVED_NEW|| msgChange->getType() == RsGxsNotify::TYPE_PUBLISHED)
@@ -142,7 +235,7 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                         auto ev = std::make_shared<RsWireEvent>();
                         ev->mWireMsgId = msgChange->mMsgId;
                         ev->mWireGroupId = msgChange->mGroupId;
-
+                        std::cout<<"################################## the message ##########################"<<std::endl;
                         auto temp =dynamic_cast<RsGxsWirePulseItem*>(msgChange->mNewMsgItem);
                         if(nullptr != temp)
                         {
@@ -151,24 +244,34 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                             {
                                 ev->mWireEventCode = RsWireEventCode::NEW_REPLY;
                                 ev->mWireThreadId = msgChange->mNewMsgItem->meta.mThreadId;
+                                rsEvents->postEvent(ev);
+                                std::cout << "new reply"<<std::endl;
                             }
-                            else
-                                // this condition checks for any new likes
-                                if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_LIKE)
+                            // this condition checks for any new likes
+                            else if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_LIKE)
                                 {
                                     ev->mWireEventCode = RsWireEventCode::NEW_LIKE;
                                     ev->mWireThreadId = msgChange->mNewMsgItem->meta.mThreadId;
                                     ev->mWireParentId = msgChange->mNewMsgItem->meta.mParentId;
+                                    rsEvents->postEvent(ev);
+                                    std::cout << "new like"<<std::endl;
                                 }
-
-                            else
-                                // this condition checks for any new posts and republishes
-                                if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_ORIGINAL||(temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_REPUBLISH)
+                            // this condition checks for any new pulses and republishes
+                            else if((temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_ORIGINAL||(temp->pulse.mPulseType & ~WIRE_PULSE_TYPE_RESPONSE)==WIRE_PULSE_TYPE_REPUBLISH)
                                 {
                                     ev->mWireEventCode = RsWireEventCode::NEW_POST;
+                                    rsEvents->postEvent(ev);
+                                    std::cout << "new post"<<std::endl;
                                 }
+
+                            else{
+                                RS_WARN("Got unknown gxs message subtype: ", temp->pulse.mPulseType);
+                                std::cout<<"the number is "<<WIRE_PULSE_TYPE_RESPONSE<<std::endl;
+                                std::cout<<"the negation is "<<~WIRE_PULSE_TYPE_RESPONSE<<std::endl;
+                                std::cout << "_((((((((((((((((((((((((((((((((((((((((((((((("<<std::endl;
+                            }
                         }
-                        rsEvents->postEvent(ev);
+
                     }
                 }
 
@@ -178,7 +281,7 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                     std::cerr << "p3GxsWire::notifyChanges() Found Message Change Notification";
                     std::cerr << std::endl;
 #endif
-                    unprocessedGroups.insert(msgChange->mGroupId);
+//                    unprocessedGroups.insert(msgChange->mGroupId);
                 }
             }
 
@@ -190,38 +293,73 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
 #ifdef GXSWIRE_DEBUG
                 RsDbg() << " Grp Change Event or type " << grpChange->getType() << ":" << std::endl;
 #endif
+
+                std::cout<<"$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ the type $$$$$$$$$$$$$$$$$$"<<std::endl;
                 switch (grpChange->getType())
                 {
-                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
-                {
-                    auto ev = std::make_shared<RsWireEvent>();
-                    ev->mWireGroupId = grpChange->mGroupId;
-                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
-                    rsEvents->postEvent(ev);
 
-                    unprocessedGroups.insert(grpChange->mGroupId);
-                }
-                    break;
+//                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
+//                {
+//                    auto ev = std::make_shared<RsWireEvent>();
+//                    ev->mWireGroupId = grpChange->mGroupId;
+//                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+//                    rsEvents->postEvent(ev);
+
+//                    unprocessedGroups.insert(grpChange->mGroupId);
+//                }
+//                    break;
+
                 case RsGxsNotify::TYPE_PROCESSED:	// happens when the post is updated
-                {
-                    auto ev = std::make_shared<RsWireEvent>();
-                    ev->mWireGroupId = grpChange->mGroupId;
-                    ev->mWireEventCode = RsWireEventCode::POST_UPDATED;
-                    rsEvents->postEvent(ev);
-
-                    unprocessedGroups.insert(grpChange->mGroupId);
-                }
+                    std::cout << "type processed"<<std::endl;
                     break;
+//                case RsGxsNotify::TYPE_PROCESSED:	// happens when the post is updated
+//                {
+//                    auto ev = std::make_shared<RsWireEvent>();
+//                    ev->mWireGroupId = grpChange->mGroupId;
+//                    ev->mWireEventCode = RsWireEventCode::POST_UPDATED;
+//                    rsEvents->postEvent(ev);
+
+////                    unprocessedGroups.insert(grpChange->mGroupId);
+//                }
+//                    break;
                 case RsGxsNotify::TYPE_UPDATED:	// happens when the wire is updated
                 {
                     auto ev = std::make_shared<RsWireEvent>();
                     ev->mWireGroupId = grpChange->mGroupId;
                     ev->mWireEventCode = RsWireEventCode::WIRE_UPDATED;
                     rsEvents->postEvent(ev);
+                    std::cout << "type updated"<<std::endl;
 
-                    unprocessedGroups.insert(grpChange->mGroupId);
+//                    unprocessedGroups.insert(grpChange->mGroupId);
                 }
                     break;
+
+                case RsGxsNotify::TYPE_PUBLISHED:
+                    std::cout << "type publish"<<std::endl;
+                case RsGxsNotify::TYPE_RECEIVED_NEW:	// happens when the wire is updated
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::NEW_WIRE;
+                    rsEvents->postEvent(ev);
+                    std::cout << "type received new"<<std::endl;
+//                    unprocessedGroups.insert(grpChange->mGroupId);
+                }
+                    break;
+
+                case RsGxsNotify::TYPE_STATISTICS_CHANGED:
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::STATISTICS_CHANGED;
+                    rsEvents->postEvent(ev);
+                    std::cout << "type stat changed"<<std::endl;
+                    RS_STACK_MUTEX(mKnownWireMutex);
+                    mKnownWire[grpChange->mGroupId] = time(nullptr);
+                    IndicateConfigChanged();
+                }
+                    break;
+
                 default:
                     RsErr() << " Got a GXS event of type " << grpChange->getType() << " Currently not handled." << std::endl;
                     break;
@@ -1495,3 +1633,231 @@ bool p3Wire::fetchGroupPtrs(const std::list<RsGxsGroupId> &groupIds,
 	return getGroupPtrData(token, groups);
 }
 
+bool p3Wire::getWireGroupStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat)
+{
+    uint32_t token;
+    if(!RsGxsIfaceHelper::requestGroupStatistic(token, groupId) || waitToken(token) != RsTokenService::COMPLETE)
+        return false;
+
+    return RsGenExchange::getGroupStatistic(token,stat);
+}
+
+bool p3Wire::getContentSummaries(
+        const RsGxsGroupId& groupId, std::vector<RsMsgMetaData>& summaries )
+{
+    uint32_t token;
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_META;
+
+    std::list<RsGxsGroupId> groupIds;
+    groupIds.push_back(groupId);
+
+    if( !requestMsgInfo(token, opts, groupIds) ||
+            waitToken(token, std::chrono::seconds(5)) != RsTokenService::COMPLETE )
+        return false;
+
+    GxsMsgMetaMap metaMap;
+    bool res = RsGenExchange::getMsgMeta(token, metaMap);
+    summaries = metaMap[groupId];
+
+    return res;
+}
+
+
+template<class T> void sortPostMetas(std::vector<T>& pulses,
+                                     const std::function< RsMsgMetaData& (T&) > get_meta,
+                                     std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > >& original_versions)
+{
+    // The hierarchy of pulses may contain edited pulses. In the new model (03/2023), mOrigMsgId points to the original
+    // top-level post in the hierarchy of edited pulses. However, in the old model, mOrigMsgId points to the edited post.
+    // Therefore the algorithm below is made to cope with both models at once.
+    //
+    // In the future, using the new model, it will be possible to delete old versions from the db, and detect new versions
+    // because they all share the same mOrigMsgId.
+    //
+    // We proceed as follows:
+    //
+    //	1 - create a search map to convert post IDs into their index in the pulses tab
+    //  2 - recursively climb up the post mOrigMsgId until no parent is found. At top level, create the original post, and add all previous elements as newer versions.
+    //	3 - go through the list of original pulses, select among them the most recent version, and set all others as older versions.
+    //
+    // The algorithm handles the case where some parent has been deleted.
+
+    // Output: original_version is a map containing for each most ancient parent, the index of the most recent version in pulses array,
+    //         and the set of all versions of that oldest post.
+
+#ifdef DEBUG_WIRE_MODEL
+    std::cerr << "Inserting wire pulses" << std::endl;
+#endif
+
+    //	1 - create a search map to convert post IDs into their index in the pulses tab
+
+#ifdef DEBUG_WIRE_MODEL
+    std::cerr << "  Given list: " << std::endl;
+#endif
+    std::map<RsGxsMessageId,uint32_t> search_map ;
+
+    for (uint32_t i=0;i<pulses.size();++i)
+    {
+#ifdef DEBUG_WIRE_MODEL
+        std::cerr << "    " << i << ": " << get_meta(pulses[i]).mMsgId << " orig=" << get_meta(pulses[i]).mOrigMsgId << " publish TS =" << get_meta(pulses[i]).mPublishTs << std::endl;
+#endif
+        search_map[get_meta(pulses[i]).mMsgId] = i ;
+    }
+
+    //  2 - recursively climb up the post mOrigMsgId until no parent is found. At top level, create the original post, and add all previous elements as newer versions.
+
+#ifdef DEBUG_WIRE_MODEL
+    std::cerr << "  Searching for top-level pulses..." << std::endl;
+#endif
+
+    for (uint32_t i=0;i<pulses.size();++i)
+    {
+#ifdef DEBUG_WIRE_MODEL
+        std::cerr << "    Post " << i;
+#endif
+
+        // We use a recursive function here, so as to collect versions when climbing up to the top level post, and
+        // set the top level as the orig for all visited pulses on the way back.
+
+        std::function<RsGxsMessageId (uint32_t,std::set<RsGxsMessageId>& versions,rstime_t newest_time,uint32_t newest_index,int depth)> recurs_find_top_level
+                = [&pulses,&search_map,&recurs_find_top_level,&original_versions,&get_meta](uint32_t index,
+                                                                                std::set<RsGxsMessageId>& collected_versions,
+                                                                                rstime_t newest_time,
+                                                                                uint32_t newest_index,
+                                                                                int depth)
+                -> RsGxsMessageId
+        {
+            const auto& m(get_meta(pulses[index]));
+
+            if(m.mPublishTs > newest_time)
+            {
+                newest_index = index;
+                newest_time = m.mPublishTs;
+            }
+            collected_versions.insert(m.mMsgId);
+
+            RsGxsMessageId top_level_id;
+            std::map<RsGxsMessageId,uint32_t>::const_iterator it;
+
+            if(m.mOrigMsgId.isNull() || m.mOrigMsgId==m.mMsgId)	// we have a top-level post.
+                top_level_id = m.mMsgId;
+            else if( (it = search_map.find(m.mOrigMsgId)) == search_map.end())	// we don't have the post. Never mind, we store the
+            {
+                top_level_id = m.mOrigMsgId;
+                collected_versions.insert(m.mOrigMsgId);	// this one will never be added to the set by the previous call
+            }
+            else
+            {
+                top_level_id = recurs_find_top_level(it->second,collected_versions,newest_time,newest_index,depth+1);
+                get_meta(pulses[index]).mOrigMsgId = top_level_id;	// this fastens calculation because it will skip already seen pulses.
+
+                return top_level_id;
+            }
+
+#ifdef DEBUG_WIRE_MODEL
+            std::cerr << std::string(2*depth,' ') << "  top level = " << top_level_id ;
+#endif
+            auto vit = original_versions.find(top_level_id);
+
+            if(vit != original_versions.end())
+            {
+                if(get_meta(pulses[vit->second.first]).mPublishTs < newest_time)
+                    vit->second.first = newest_index;
+
+#ifdef DEBUG_WIRE_MODEL
+                std::cerr << "  already existing. " << std::endl;
+#endif
+            }
+            else
+            {
+                original_versions[top_level_id].first = newest_index;
+#ifdef DEBUG_WIRE_MODEL
+                std::cerr << "  new. " << std::endl;
+#endif
+            }
+            original_versions[top_level_id].second.insert(collected_versions.begin(),collected_versions.end());
+
+            return top_level_id;
+        };
+
+        auto versions_set = std::set<RsGxsMessageId>();
+        recurs_find_top_level(i,versions_set,get_meta(pulses[i]).mPublishTs,i,0);
+    }
+}
+
+
+bool p3Wire::getWireStatistics(const RsGxsGroupId& groupId, RsWireStatistics& stat)
+{
+    std::vector<RsMsgMetaData> metas;
+
+    if(!getContentSummaries(groupId,metas))
+        return false;
+
+    std::vector<RsMsgMetaData> post_metas;
+
+    stat.mNumberOfRepliesAndLikes = 0;
+    stat.mNumberOfPulses = 0;
+    stat.mNumberOfNewPulses = 0;
+    stat.mNumberOfUnreadPulses = 0;
+
+    for(uint32_t i=0;i<metas.size();++i)
+        if(metas[i].mThreadId.isNull() && metas[i].mParentId.isNull())	// make sure we have a pulse and not a reply or like
+            post_metas.push_back(metas[i]);
+        else
+            ++stat.mNumberOfRepliesAndLikes;
+
+        // now, remove old pulses,
+
+    std::vector<RsWirePulse> mPulses;
+    std::function< RsMsgMetaData& (RsMsgMetaData&) > get_meta = [](RsMsgMetaData& p)->RsMsgMetaData& { return p; };
+    std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > > original_versions;
+
+    sortPostMetas(post_metas, get_meta, original_versions);
+
+    for(const auto& ov_entry:original_versions)
+    {
+        auto& m( post_metas[ov_entry.second.first] );
+
+        ++stat.mNumberOfPulses;
+
+        if(m.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_GUI_NEW)
+            ++stat.mNumberOfNewPulses;
+
+        if(m.mMsgStatus & GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD)
+            ++stat.mNumberOfUnreadPulses;
+    }
+
+    return true;
+}
+
+/********************************************************************************************/
+/********************************************************************************************/
+
+void p3Wire::setMessageReadStatus(uint32_t &token, const RsGxsGrpMsgIdPair &msgId, bool read)
+{
+#ifdef GXSWIRE_DEBUG
+    std::cerr << "p3Wire::setMessageReadStatus()";
+    std::cerr << std::endl;
+#endif
+
+    /* Always remove status unprocessed */
+    uint32_t mask = GXS_SERV::GXS_MSG_STATUS_GUI_NEW | GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+    uint32_t status = GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+    if (read) status = 0;
+
+    setMsgStatusFlags(token, msgId, status, mask);
+
+    if (rsEvents)
+    {
+        auto ev = std::make_shared<RsWireEvent>();
+
+        ev->mWireMsgId = msgId.second;
+        ev->mWireGroupId = msgId.first;
+        ev->mWireEventCode = RsWireEventCode::READ_STATUS_CHANGED;
+        rsEvents->postEvent(ev);
+    }
+}
+
+/********************************************************************************************/
+/********************************************************************************************/
