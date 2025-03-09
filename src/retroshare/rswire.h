@@ -39,6 +39,25 @@ class RsWireGroup;
 typedef std::shared_ptr<RsWireGroup> RsWireGroupSPtr;
 typedef std::shared_ptr<const RsWireGroup> RsWireGroupConstSPtr;
 
+struct RsWireStatistics: RsSerializable
+{
+    uint32_t mNumberOfPulses;
+    uint32_t mNumberOfRepliesAndLikes;
+    uint32_t mNumberOfUnreadPulses;
+    uint32_t mNumberOfNewPulses;
+
+    /// @see RsSerializable
+    virtual void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RS_SERIAL_PROCESS(mNumberOfPulses);
+        RS_SERIAL_PROCESS(mNumberOfRepliesAndLikes);
+        RS_SERIAL_PROCESS(mNumberOfUnreadPulses);
+        RS_SERIAL_PROCESS(mNumberOfNewPulses);
+    }
+};
+
 class RsWireGroup: public RsGxsGenericGroupData
 {
 	public:
@@ -46,6 +65,7 @@ class RsWireGroup: public RsGxsGenericGroupData
 
 	std::string mTagline;
 	std::string mLocation;
+    std::string mDescription;
 
 	// Images max size should be enforced.
 	RsGxsImage  mHeadshot; // max size?
@@ -244,6 +264,15 @@ virtual bool getPulsesForGroups(const std::list<RsGxsGroupId> &groupIds,
 virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId,
 				int type, RsWirePulseSPtr &pPulse) = 0;
 
+    // Retrieve statistics about the given wire
+    virtual bool getWireStatistics(const RsGxsGroupId& wireId, RsWireStatistics& stat) = 0;
+    virtual bool getWireGroupStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) = 0;
+
+    virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+
+    virtual bool getContentSummaries( const RsGxsGroupId& groupId,
+                                      std::vector<RsMsgMetaData>& summaries ) = 0;
+
 };
 
 
@@ -258,6 +287,8 @@ enum class RsWireEventCode: uint8_t
     NEW_LIKE                        = 0x06, // this event happens when there is a new like to a post
     NEW_REPUBLISH                   = 0x07, // this event happens when there is a new republish of a post
     WIRE_UPDATED                    = 0x08, // this event happens when there is any change to the wire account
+    READ_STATUS_CHANGED             = 0x09, // existing message has been read or set to unread
+    STATISTICS_CHANGED              = 0x10  // statistics changed
 };
 
 struct RsWireEvent: RsEvent
