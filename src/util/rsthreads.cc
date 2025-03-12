@@ -242,7 +242,7 @@ RsQueueThread::RsQueueThread(uint32_t min, uint32_t max, double relaxFactor )
     :mMinSleep(min), mMaxSleep(max), mRelaxFactor(relaxFactor)
 {
     mLastSleep = (uint32_t)mMinSleep ;
-    mLastWork = 1000 * getCurrentTS() ;
+    mLastWork_ms = 1000 * getCurrentTS() ;
 }
 
 void RsQueueThread::threadTick()
@@ -252,10 +252,10 @@ void RsQueueThread::threadTick()
     {
         doneWork = true;
     }
-    uint64_t now = 1000 * getCurrentTS();
+    uint64_t now_ms = 1000 * getCurrentTS();
     if (doneWork)
     {
-        mLastWork = now;
+        mLastWork_ms = now_ms;
         mLastSleep = (uint32_t) (mMinSleep + (mLastSleep - mMinSleep) / 2.0);
 #ifdef DEBUG_TICKING
         THREAD_DEBUG << "RsQueueThread::data_tick() done work: sleeping for: " << mLastSleep << " ms" << std::endl;
@@ -264,8 +264,8 @@ void RsQueueThread::threadTick()
     }
     else
     {
-        uint64_t deltaT = now - mLastWork;
-        double frac = (deltaT / 1000) / mRelaxFactor;
+        uint64_t deltaT = now_ms - mLastWork_ms;
+        double frac = deltaT / (1000 * mRelaxFactor);
 
         mLastSleep += (uint32_t)
                         ((mMaxSleep-mMinSleep) * (frac + 0.05));

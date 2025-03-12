@@ -338,6 +338,6 @@ private:
     uint32_t mMinSleep; /* ms */
     uint32_t mMaxSleep; /* ms */
     uint32_t mLastSleep; /* ms */
-    uint64_t mLastWork;  /* ms */
+    uint64_t mLastWork_ms; /* ms */
     float    mRelaxFactor;
 };
