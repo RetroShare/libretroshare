@@ -36,6 +36,7 @@ isEmpty(RAPIDJSON_AVAILABLE) {
 
 rs_openpgpsdk {
         !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
+        DEFINES *= USE_OPENPGPSDK
 }
 
 sLibs =

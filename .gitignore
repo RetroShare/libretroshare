@@ -13,3 +13,4 @@ CMakeLists.txt.user
 # Build artifacts
 Makefile.libretroshare
 *.a
+*.o
