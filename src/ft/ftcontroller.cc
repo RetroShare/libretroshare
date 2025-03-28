@@ -75,7 +75,7 @@ static const int32_t MAX_TIME_INACTIVE_REQUEUED 	= 120 ; // time after which an 
 static const int32_t FT_FILECONTROL_QUEUE_ADD_END 			= 0 ;
 static const int32_t FT_FILECONTROL_MAX_UPLOAD_SLOTS_DEFAULT= 0 ;
 
-const uint32_t FT_CNTRL_STANDARD_RATE = 10 * 1024 * 1024;
+const uint32_t FT_CNTRL_STANDARD_RATE = 100 * 1024 * 1024; // 100 MB/s
 const uint32_t FT_CNTRL_SLOW_RATE     = 100   * 1024;
 
 ftFileControl::ftFileControl()
