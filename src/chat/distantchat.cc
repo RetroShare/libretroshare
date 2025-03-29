@@ -192,6 +192,7 @@ void DistantChatService::notifyTunnelStatus( const RsGxsTunnelId& tunnel_id, uin
         
     case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_CAN_TALK:    	RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(tunnel_id)),"Tunnel is secured. You can talk!") ;
         								RsServer::notify()->notifyPeerStatusChanged(tunnel_id.toStdString(),RS_STATUS_ONLINE) ;
+        								RsServer::notify()->notifyDistantChatStatus(ChatId(DistantChatPeerId(tunnel_id))) ;
                             						break ;
                             
     case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_TUNNEL_DN:    	RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(tunnel_id)),"Tunnel is down...") ;
