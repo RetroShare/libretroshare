@@ -75,7 +75,7 @@ static const int32_t MAX_TIME_INACTIVE_REQUEUED 	= 120 ; // time after which an 
 static const int32_t FT_FILECONTROL_QUEUE_ADD_END 			= 0 ;
 static const int32_t FT_FILECONTROL_MAX_UPLOAD_SLOTS_DEFAULT= 0 ;
 
-const uint32_t FT_CNTRL_STANDARD_RATE = 10 * 1024 * 1024;
+const uint32_t FT_CNTRL_STANDARD_RATE = 100 * 1024 * 1024; // 100 MB/s
 const uint32_t FT_CNTRL_SLOW_RATE     = 100   * 1024;
 
 ftFileControl::ftFileControl()
@@ -104,7 +104,6 @@ ftController::ftController(ftDataMultiplex *dm, p3ServiceControl *sc, uint32_t f
     mFtServer(NULL),
     mServiceCtrl(sc),
     mFtServiceType(ftServiceId),
-    mDefaultEncryptionPolicy(RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE),
     mFilePermDirectDLPolicy(RS_FILE_PERM_DIRECT_DL_PER_USER),
     cnt(0),
     ctrlMutex("ftController"),
@@ -622,7 +621,7 @@ void ftController::locked_checkQueueElement(uint32_t pos)
 		mDownloadQueue[pos]->mState = ftFileControl::DOWNLOADING ;
 
 		if(mDownloadQueue[pos]->mFlags & RS_FILE_REQ_ANONYMOUS_ROUTING)
-            mFtServer->activateTunnels(mDownloadQueue[pos]->mHash,mDefaultEncryptionPolicy,mDownloadQueue[pos]->mFlags,true);
+            mFtServer->activateTunnels(mDownloadQueue[pos]->mHash,mDownloadQueue[pos]->mFlags,true);
 	}
 
 	if(pos >= _max_active_downloads && mDownloadQueue[pos]->mState != ftFileControl::QUEUED && mDownloadQueue[pos]->mState != ftFileControl::PAUSED)
@@ -631,7 +630,7 @@ void ftController::locked_checkQueueElement(uint32_t pos)
 		mDownloadQueue[pos]->mCreator->closeFile() ;
 
 		if(mDownloadQueue[pos]->mFlags & RS_FILE_REQ_ANONYMOUS_ROUTING)
-            mFtServer->activateTunnels(mDownloadQueue[pos]->mHash,mDefaultEncryptionPolicy,mDownloadQueue[pos]->mFlags,false);
+            mFtServer->activateTunnels(mDownloadQueue[pos]->mHash,mDownloadQueue[pos]->mFlags,false);
     }
 }
 
@@ -787,7 +786,7 @@ bool ftController::completeFile(const RsFileHash& hash)
 		mDownloads.erase(it);
 
 		if(flags & RS_FILE_REQ_ANONYMOUS_ROUTING)
-            mFtServer->activateTunnels(hash_to_suppress,mDefaultEncryptionPolicy,flags,false);
+            mFtServer->activateTunnels(hash_to_suppress,flags,false);
 
 	} // UNLOCK: RS_STACK_MUTEX(ctrlMutex);
 
@@ -941,23 +940,10 @@ bool ftController::FileRequest(
 	if(alreadyHaveFile(hash, info))
 		return false ;
 
-    // the strategy for requesting encryption is the following:
+    // All FT are now encrypted (dec.2024) so the flags are hard-coded as follows.
     //
-    // if policy is STRICT
-    //	- disable clear, enforce encryption
-    // else
-    //  - if not specified, use both
-    //
-    if(mDefaultEncryptionPolicy == RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT)
-    {
-        flags |=  RS_FILE_REQ_ENCRYPTED ;
-        flags &= ~RS_FILE_REQ_UNENCRYPTED ;
-    }
-    else if(!(flags & ( RS_FILE_REQ_ENCRYPTED |  RS_FILE_REQ_UNENCRYPTED )))
-    {
-        flags |= RS_FILE_REQ_ENCRYPTED ;
-		flags |= RS_FILE_REQ_UNENCRYPTED ;
-    }
+    flags |=  RS_FILE_REQ_ENCRYPTED ;
+    flags &= ~RS_FILE_REQ_UNENCRYPTED ;
 
 	if(size == 0)	// we treat this special case because
 	{
@@ -1180,7 +1166,7 @@ bool ftController::FileRequest(
   // We check that flags are consistent.  
   
   	if(flags & RS_FILE_REQ_ANONYMOUS_ROUTING)
-        mFtServer->activateTunnels(hash,mDefaultEncryptionPolicy,flags,true);
+        mFtServer->activateTunnels(hash,flags,true);
 
     bool assume_availability = false;
 
@@ -1292,7 +1278,7 @@ bool ftController::getChunkStrategy(const RsFileHash& hash, FileChunksInfo::Chun
 
 bool 	ftController::FileCancel(const RsFileHash& hash)
 {
-    mFtServer->activateTunnels(hash,mDefaultEncryptionPolicy,TransferRequestFlags(0),false);
+    mFtServer->activateTunnels(hash,TransferRequestFlags(0),false);
 
 #ifdef CONTROL_DEBUG
 	std::cerr << "ftController::FileCancel" << std::endl;
@@ -1904,7 +1890,7 @@ bool ftController::saveList(bool &cleanup, std::list<RsItem *>& saveData)
 	rs_sprintf(s,"%lu",_max_uploads_per_friend) ;
     configMap[max_uploads_per_friend_ss] = s ;
 
-    configMap[default_encryption_policy_ss] = (mDefaultEncryptionPolicy==RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE)?"PERMISSIVE":"STRICT" ;
+    //configMap[default_encryption_policy_ss] = (mDefaultEncryptionPolicy==RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE)?"PERMISSIVE":"STRICT" ;
 
 	switch (mFilePermDirectDLPolicy) {
 		case RS_FILE_PERM_DIRECT_DL_YES: configMap[file_perm_direct_dl_ss] = "YES" ;
@@ -2151,7 +2137,7 @@ bool  ftController::loadConfigMap(std::map<std::string, std::string> &configMap)
 	{
 		setPartialsDirectory(mit->second);
 	}
-
+#ifdef TO_REMOVE
     if (configMap.end() != (mit = configMap.find(default_encryption_policy_ss)))
     {
         if(mit->second == "STRICT")
@@ -2170,6 +2156,7 @@ bool  ftController::loadConfigMap(std::map<std::string, std::string> &configMap)
             mDefaultEncryptionPolicy = RS_FILE_CTRL_ENCRYPTION_POLICY_PERMISSIVE ;
         }
     }
+#endif
 
     if (configMap.end() != (mit = configMap.find(default_chunk_strategy_ss)))
 	{
@@ -2244,6 +2231,7 @@ uint32_t ftController::getMaxUploadsPerFriend()
 	RsStackMutex stack(ctrlMutex); /******* LOCKED ********/
 	return _max_uploads_per_friend ;
 }
+#ifdef TO_REMOVE
 void ftController::setDefaultEncryptionPolicy(uint32_t p)
 {
     RsStackMutex stack(ctrlMutex); /******* LOCKED ********/
@@ -2255,6 +2243,7 @@ uint32_t ftController::defaultEncryptionPolicy()
     RsStackMutex stack(ctrlMutex); /******* LOCKED ********/
     return mDefaultEncryptionPolicy ;
 }
+#endif
 
 void ftController::setFilePermDirectDL(uint32_t perm)
 {

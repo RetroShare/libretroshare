@@ -86,7 +86,7 @@ class RsFileTransferDataItem: public RsFileTransferItem
 	{ 
 		setPriorityLevel(QOS_PRIORITY_RS_FILE_DATA) ;	
 	}
-	virtual ~RsFileTransferDataItem() { clear() ; }
+    virtual ~RsFileTransferDataItem() { RsFileTransferDataItem::clear() ; }
 
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 
