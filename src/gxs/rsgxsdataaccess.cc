@@ -79,7 +79,7 @@ bool operator<(const std::pair<uint32_t,GxsRequest*>& p1,const std::pair<uint32_
 }
 
 RsGxsDataAccess::RsGxsDataAccess(RsGeneralDataService* ds) :
-    mDataStore(ds), mDataMutex("RsGxsDataAccess"), mNextToken(0) {}
+    mDataStore(ds), mDataMutex("RsGxsDataAccess"), mNextToken(10) {}
 
 
 RsGxsDataAccess::~RsGxsDataAccess()
@@ -785,7 +785,7 @@ void RsGxsDataAccess::processRequests()
                 token = it->first;
                 TokenInfo& info(it->second);
 
-                GXSDATADEBUG << "      Token " << token << ": Status=" << tokenStatusString[(int)info.status] ;
+                GXSDATADEBUG << "      Token " << token << ": Status=" << tokenStatusString[(int)info.status] << "  " ;
 
                 // Delete very old request that shouldn't be here anymore, probably because of some bug.
 
@@ -867,7 +867,7 @@ void RsGxsDataAccess::processRequests()
 
             // check that the request is still here
 
-            std::cerr << "Request result is " << ok << std::endl;
+            GXSDATADEBUG << "Request result is " << ok << std::endl;
 
             auto it = mTokenQueue.find(token);
 
@@ -889,6 +889,7 @@ void RsGxsDataAccess::processRequests()
 			{
 				// When the request is complete, we move it to the complete list, so that the caller can easily retrieve the request data
 
+                GXSDATADEBUG << "Setting request token " << token << " as COMPLETE." << std::endl;
 #ifdef DATA_DEBUG
                 GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": Request completed successfully. Marking as COMPLETE." << std::endl;
 #endif
@@ -1711,7 +1712,7 @@ bool RsGxsDataAccess::checkRequestStatus( uint32_t token, GxsRequestStatus& stat
 
     anstype = it->second.request->clientAnswerType;
     reqtype = it->second.request->reqType;
-    status = COMPLETE;
+    status = it->second.status;
     ts = it->second.request->reqTime;
 
     return true;
