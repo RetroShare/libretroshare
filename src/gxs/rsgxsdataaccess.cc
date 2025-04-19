@@ -355,12 +355,8 @@ void RsGxsDataAccess::storeRequest(uint32_t token,GxsRequest *req)
 
     mTokenQueue.insert(std::make_pair(token,info));
 
-#ifdef DATA_DEBUG
-    GXSDATADEBUG << "Stored request token=" << req->token << " priority = " << static_cast<int>(req->Options.mPriority) << " Current request Queue is:" ;
-    for(auto it(mRequestQueue.begin());it!=mRequestQueue.end();++it)
-        GXSDATADEBUG << it->first << " (p=" << static_cast<int>(req->Options.mPriority) << ") ";
-    GXSDATADEBUG << std::endl;
-    GXSDATADEBUG << "PublicToken size: " << mPublicToken.size() << " Completed requests waiting for client: " << mCompletedRequests.size() << std::endl;
+#ifndef DATA_DEBUG
+    GXSDATADEBUG << "Stored request token=" << token << " priority = " << static_cast<int>(req->Options.mPriority) << " Current request Queue size is:"  << mTokenQueue.size() << std::endl;
 #endif
 }
 
@@ -754,7 +750,7 @@ GxsRequest *RsGxsDataAccess::locked_retrieveCompletedRequest(const uint32_t& tok
 
     if(it->second.status != COMPLETE)
     {
-        RsErr() << "Trying to retrieve an request result for token=" << token << " but the request is not COMPLETE yet. State=" << (int)it->second.status;
+        RsErr() << "Trying to retrieve an request result for token=" << token << " but the request is not COMPLETE yet. State=" << tokenStatusString[(int)it->second.status];
         return nullptr;
     }
 
@@ -768,12 +764,14 @@ void RsGxsDataAccess::processRequests()
     dumpTokenQueues();
     // process requests
 
-    while (!mTokenQueue.empty())
+    if(!mTokenQueue.empty())
 	{
 #ifdef DATA_DEBUG
         dumpTokenQueues();
 #endif
         // Extract the first elements from the request queue. cleanup all other elements marked at terminated.
+
+        GXSDATADEBUG << "  Processing token list: Service " << std::hex << mDataStore->serviceType() << std::dec << std::endl;
 
 		GxsRequest* req = nullptr;
         uint32_t token;
@@ -782,48 +780,43 @@ void RsGxsDataAccess::processRequests()
 			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
 			rstime_t now = time(nullptr); // this is ok while in the loop below
 
-            while(!mTokenQueue.empty() && req == nullptr)
+            for(std::map<uint32_t,TokenInfo>::iterator it(mTokenQueue.begin());it!=mTokenQueue.end();)
 			{
-                TokenInfo& info(mTokenQueue.begin()->second);
-                token = mTokenQueue.begin()->first;
+                token = it->first;
+                TokenInfo& info(it->second);
+
+                GXSDATADEBUG << "      Token " << token << ": Status=" << tokenStatusString[(int)info.status] ;
 
                 // Delete very old request that shouldn't be here anymore, probably because of some bug.
 
-                if(now > info.last_activity + MAX_REQUEST_AGE)
+                if(now > info.last_activity + MAX_REQUEST_AGE || info.status == FAILED || info.status == CANCELLED)
 				{
-                    RsInfo() << "Deleting non-handled request, inactive after " << MAX_REQUEST_AGE << " seconds. status=" << info.status ;
+                    GXSDATADEBUG << " Deleting non-handled request, inactive for " << now - info.last_activity << " seconds. " ;
 
-                    delete mTokenQueue.begin()->second.request;
-                    mTokenQueue.erase(mTokenQueue.begin());
+                    delete it->second.request;
+                    auto tmp_it = it;
+                    ++tmp_it;
+                    mTokenQueue.erase(it);
+                    it = tmp_it;
 					continue;
 				}
 
-                switch( info.status )
-				{
-					case COMPLETE:
-					case DONE:
-					case FAILED:
-					case CANCELLED:
-#ifdef DATA_DEBUG
-                        GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": request " << mRequestQueue.begin()->second->token << ": status = " << mRequestQueue.begin()->second->status << ": removing from the RequestQueue" << std::endl;
+                if(info.status == PENDING)
+                {
+#ifndef DATA_DEBUG
+                    GXSDATADEBUG << "  will be handled now. Setting status as PARTIAL." << std::endl;
 #endif
-                        delete mTokenQueue.begin()->second.request;
-                        mTokenQueue.erase(mTokenQueue.begin());
-					continue;
-                default:
-					break;
-
-                    case PENDING:
-                        req = mTokenQueue.begin()->second.request;
-                        info.status = PARTIAL;
-					break;
-				}
-
+                    req = mTokenQueue.begin()->second.request;
+                    info.status = PARTIAL;
+                    info.last_activity = now;
+                    break;
+                }
+                ++it;
 			}
 		} // END OF MUTEX.
 
 		if (!req)
-			break;
+            return;
 
 		GroupMetaReq* gmr;
 		GroupDataReq* gdr;
@@ -874,12 +867,14 @@ void RsGxsDataAccess::processRequests()
 
             // check that the request is still here
 
+            std::cerr << "Request result is " << ok << std::endl;
+
             auto it = mTokenQueue.find(token);
 
             if(it == mTokenQueue.end())
             {
                 RsErr() << "Token " << token << " has disappeared from the list while being treated. This is unexpected!" ;
-                continue;
+                return;
             }
 
             if(it->second.status == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
@@ -887,7 +882,7 @@ void RsGxsDataAccess::processRequests()
                 std::cerr << "Deleting request result for token " << token << " because the request has been cancelled." << std::endl;
                 delete req;
                 mTokenQueue.erase(token);
-                continue;
+                return;
             }
 
             if(ok)
@@ -1799,10 +1794,9 @@ uint32_t RsGxsDataAccess::generatePublicToken()
 	{
 		RS_STACK_MUTEX(mDataMutex);
         mTokenQueue[token].status = PENDING ;
-#ifdef DATA_DEBUG
-        GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Adding new public token " << token << " in PENDING state. Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
-        if(mDataStore->serviceType() == 0x218 && token==19)
-            print_stacktrace();
+        mTokenQueue[token].last_activity = time(nullptr) ;
+#ifndef DATA_DEBUG
+        GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Adding new public token " << token << " in PENDING state. Size of mTokenQueue: " << mTokenQueue.size() << std::endl;
 #endif
     }
 
@@ -1823,7 +1817,7 @@ bool RsGxsDataAccess::updatePublicRequestStatus( uint32_t token, RsTokenService:
         return false;
     }
 
-#ifdef DATA_DEBUG
+#ifndef DATA_DEBUG
         GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": updating public token " << token << " to state  " << tokenStatusString[status] << std::endl;
 #endif
     mit->second.status = status;
@@ -1854,6 +1848,9 @@ bool RsGxsDataAccess::disposeOfPublicToken(uint32_t token)
 void RsGxsDataAccess::dumpTokenQueues()
 {
     RS_STACK_MUTEX(mDataMutex);
+
+    if(mTokenQueue.empty())
+        return;
 
     GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": dumping token list."<< std::endl;
 
