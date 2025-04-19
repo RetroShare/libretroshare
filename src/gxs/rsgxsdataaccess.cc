@@ -32,7 +32,7 @@
 
 // Debug system to allow to print only for some services (group, Peer, etc)
 
-#if defined(DATA_DEBUG)
+#if! defined(DATA_DEBUG)
 static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_FORUMS;// use this to allow to this service id only, or 0 for all services
                                                                             // warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
 
@@ -84,8 +84,6 @@ RsGxsDataAccess::RsGxsDataAccess(RsGeneralDataService* ds) :
 
 RsGxsDataAccess::~RsGxsDataAccess()
 {
-    for(auto& it:mRequestQueue)
-		delete it.second;
 }
 bool RsGxsDataAccess::requestGroupInfo( uint32_t &token, uint32_t ansType, const RsTokReqOptions &opts, const std::list<RsGxsGroupId> &groupIds )
 {
@@ -135,8 +133,8 @@ bool RsGxsDataAccess::requestGroupInfo( uint32_t &token, uint32_t ansType, const
     GXSDATADEBUG << "RsGxsDataAccess::requestGroupInfo() gets token: " << token << std::endl;
 #endif
 
-    setReq(req, token, ansType, opts);
-    storeRequest(req);
+    setReq(req, ansType, opts);
+    storeRequest(token,req);
 
     return true;
 }
@@ -166,8 +164,8 @@ bool RsGxsDataAccess::requestGroupInfo(uint32_t &token, uint32_t ansType, const 
     GXSDATADEBUG << "RsGxsDataAccess::requestGroupInfo() gets Token: " << token << std::endl;
 #endif
 
-    setReq(req, token, ansType, opts);
-    storeRequest(req);
+    setReq(req, ansType, opts);
+    storeRequest(token,req);
 
     return true;
 }
@@ -182,61 +180,60 @@ void RsGxsDataAccess::generateToken(uint32_t &token)
 bool RsGxsDataAccess::requestMsgInfo(uint32_t &token, uint32_t ansType, const RsTokReqOptions &opts, const GxsMsgReq &msgIds)
 {
 
-	GxsRequest* req = nullptr;
-	uint32_t reqType = opts.mReqType;
+    GxsRequest* req = nullptr;
+    uint32_t reqType = opts.mReqType;
 
-        // remove all empty grpId entries
-        GxsMsgReq::const_iterator mit = msgIds.begin();
-        std::vector<RsGxsGroupId> toRemove;
+    // remove all empty grpId entries
+    GxsMsgReq::const_iterator mit = msgIds.begin();
+    std::vector<RsGxsGroupId> toRemove;
 
-        for(; mit != msgIds.end(); ++mit)
-        {
-            if(mit->second.empty())
-                toRemove.push_back(mit->first);
-        }
+    for(; mit != msgIds.end(); ++mit)
+    {
+        if(mit->second.empty())
+            toRemove.push_back(mit->first);
+    }
 
-        std::vector<RsGxsGroupId>::const_iterator vit = toRemove.begin();
+    std::vector<RsGxsGroupId>::const_iterator vit = toRemove.begin();
 
-        GxsMsgReq filteredMsgIds = msgIds;
+    GxsMsgReq filteredMsgIds = msgIds;
 
-        for(; vit != toRemove.end(); ++vit)
-            filteredMsgIds.erase(*vit);
+    for(; vit != toRemove.end(); ++vit)
+        filteredMsgIds.erase(*vit);
 
-        if(reqType & GXS_REQUEST_TYPE_MSG_META)
-	{
-		MsgMetaReq* mmr = new MsgMetaReq();
-		mmr->mMsgIds = filteredMsgIds;
-		req = mmr;
+    if(reqType & GXS_REQUEST_TYPE_MSG_META)
+    {
+        MsgMetaReq* mmr = new MsgMetaReq();
+        mmr->mMsgIds = filteredMsgIds;
+        req = mmr;
 
-        }else if(reqType & GXS_REQUEST_TYPE_MSG_DATA)
-	{
-		MsgDataReq* mdr = new MsgDataReq();
-		mdr->mMsgIds = filteredMsgIds;
-		req = mdr;
+    }else if(reqType & GXS_REQUEST_TYPE_MSG_DATA)
+    {
+        MsgDataReq* mdr = new MsgDataReq();
+        mdr->mMsgIds = filteredMsgIds;
+        req = mdr;
 
-        }else if(reqType & GXS_REQUEST_TYPE_MSG_IDS)
-	{
-		MsgIdReq* mir = new MsgIdReq();
-		mir->mMsgIds = filteredMsgIds;
-		req = mir;
+    }else if(reqType & GXS_REQUEST_TYPE_MSG_IDS)
+    {
+        MsgIdReq* mir = new MsgIdReq();
+        mir->mMsgIds = filteredMsgIds;
+        req = mir;
 
-	}
+    }
 
-	if(req == nullptr)
-	{
-		RsErr() << "RsGxsDataAccess::requestMsgInfo() request type not recognised, type " << reqType << std::endl;
-		return false;
-	}else
-	{
-		generateToken(token);
+    if(req == nullptr)
+    {
+        RsErr() << "RsGxsDataAccess::requestMsgInfo() request type not recognised, type " << reqType << std::endl;
+        return false;
+    }
+
+    generateToken(token);
 #ifdef DATA_DEBUG
         GXSDATADEBUG << "RsGxsDataAccess::requestMsgInfo() gets Token: " << token << std::endl;
 #endif
-	}
 
-	setReq(req, token, ansType, opts);
-	storeRequest(req);
-	return true;
+    setReq(req, ansType, opts);
+    storeRequest(token,req);
+    return true;
 }
 
 bool RsGxsDataAccess::requestMsgInfo(uint32_t &token, uint32_t ansType, const RsTokReqOptions &opts, const std::list<RsGxsGroupId>& grpIds)
@@ -286,8 +283,8 @@ bool RsGxsDataAccess::requestMsgInfo(uint32_t &token, uint32_t ansType, const Rs
 #endif
         }
 
-        setReq(req, token, ansType, opts);
-        storeRequest(req);
+        setReq(req, ansType, opts);
+        storeRequest(token,req);
         return true;
 }
 
@@ -304,8 +301,8 @@ void RsGxsDataAccess::requestServiceStatistic(uint32_t& token,const RsTokReqOpti
         return;
     }
 
-    setReq(req, token, 0, opts);
-    storeRequest(req);
+    setReq(req, 0, opts);
+    storeRequest(token,req);
 }
 
 void RsGxsDataAccess::requestGroupStatistic(uint32_t& token, const RsGxsGroupId& grpId,const RsTokReqOptions& opts)
@@ -321,8 +318,8 @@ void RsGxsDataAccess::requestGroupStatistic(uint32_t& token, const RsGxsGroupId&
 
     generateToken(token);
 
-    setReq(req, token,0, opts);
-    storeRequest(req);
+    setReq(req, 0, opts);
+    storeRequest(token,req);
 }
 
 bool RsGxsDataAccess::requestMsgRelatedInfo(uint32_t &token, uint32_t ansType, const RsTokReqOptions &opts, const std::vector<RsGxsGrpMsgIdPair> &msgIds)
@@ -333,28 +330,30 @@ bool RsGxsDataAccess::requestMsgRelatedInfo(uint32_t &token, uint32_t ansType, c
 
     generateToken(token);
 
-    setReq(req, token, ansType, opts);
-    storeRequest(req);
+    setReq(req, ansType, opts);
+    storeRequest(token,req);
 
     return true;
 }
 
 
-void RsGxsDataAccess::setReq(GxsRequest* req, uint32_t token, uint32_t ansType, const RsTokReqOptions& opts) const
+void RsGxsDataAccess::setReq(GxsRequest* req, uint32_t ansType, const RsTokReqOptions& opts) const
 {
-	req->token = token;
 	req->clientAnswerType = ansType;
 	req->Options = opts;
 	return;
 }
-void RsGxsDataAccess::storeRequest(GxsRequest* req)
+void RsGxsDataAccess::storeRequest(uint32_t token,GxsRequest *req)
 {
 	RS_STACK_MUTEX(mDataMutex);
-	req->status = PENDING;
-	req->reqTime = time(nullptr);
 
-	mRequestQueue.insert(std::make_pair(req->token,req));
-    mPublicToken[req->token] = PENDING;
+    TokenInfo info;
+	req->reqTime = time(nullptr);
+    info.status = PENDING;
+    info.last_activity = req->reqTime;
+    info.request = req;
+
+    mTokenQueue.insert(std::make_pair(token,info));
 
 #ifdef DATA_DEBUG
     GXSDATADEBUG << "Stored request token=" << req->token << " priority = " << static_cast<int>(req->Options.mPriority) << " Current request Queue is:" ;
@@ -386,16 +385,17 @@ bool RsGxsDataAccess::cancelRequest(const uint32_t& token)
 {
 	RsStackMutex stack(mDataMutex); /****** LOCKED *****/
 
+    auto it = mTokenQueue.find(token);
+
+    if(it == mTokenQueue.end())
+    {
+        RsErr() << "Trying to cancel request " << token << " but this request is not in the queue!" ;
+        return false;
+    }
     std::cerr << "Cancelling request " << token << ": marking as CANCELLED in mPublicToken" << std::endl;
-    mPublicToken[token] = CANCELLED;
 
-    GxsRequest* req = locked_retrieveCompletedRequest(token);
-	if (!req)
-	{
-		return false;
-	}
-
-	req->status = CANCELLED;
+    it->second.status = CANCELLED;
+    it->second.last_activity = time(nullptr);
 
 	return true;
 }
@@ -408,17 +408,15 @@ bool RsGxsDataAccess::clearRequest(const uint32_t& token)
 
 bool RsGxsDataAccess::locked_clearRequest(const uint32_t& token)
 {
-    auto it = mCompletedRequests.find(token);
+    auto it = mTokenQueue.find(token);
 
-    if(it == mCompletedRequests.end())
+    if(it == mTokenQueue.end())
+    {
+        RsErr() << "Trying to clear a non-existing request: token=" << token ;
         return false;
+    }
 
-    delete it->second;
-    mCompletedRequests.erase(it);
-
-    auto it2 = mPublicToken.find(token);
-    if(it2 != mPublicToken.end())
-        mPublicToken.erase(it2);
+    mTokenQueue.erase(it);
 
 #ifdef DATA_DEBUG
     GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Removing public token " << token << ". Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
@@ -744,23 +742,33 @@ bool RsGxsDataAccess::getServiceStatistic(const uint32_t &token, GxsServiceStati
 	locked_clearRequest(token);
     return true;
 }
-GxsRequest* RsGxsDataAccess::locked_retrieveCompletedRequest(const uint32_t& token)
+GxsRequest *RsGxsDataAccess::locked_retrieveCompletedRequest(const uint32_t& token)
 {
-	auto it = mCompletedRequests.find(token) ;
+    auto it = mTokenQueue.find(token) ;
 
-	if(it == mCompletedRequests.end())
+    if(it == mTokenQueue.end())
+    {
+        RsErr() << "Trying to retrieve an non-existing request result: token=" << token ;
 		return nullptr;
+    }
 
-	return it->second;
+    if(it->second.status != COMPLETE)
+    {
+        RsErr() << "Trying to retrieve an request result for token=" << token << " but the request is not COMPLETE yet. State=" << (int)it->second.status;
+        return nullptr;
+    }
+
+    return it->second.request;
 }
 
 #define MAX_REQUEST_AGE 120 // 2 minutes
 
 void RsGxsDataAccess::processRequests()
 {
-	// process requests
+    dumpTokenQueues();
+    // process requests
 
-	while (!mRequestQueue.empty())
+    while (!mTokenQueue.empty())
 	{
 #ifdef DATA_DEBUG
         dumpTokenQueues();
@@ -768,24 +776,30 @@ void RsGxsDataAccess::processRequests()
         // Extract the first elements from the request queue. cleanup all other elements marked at terminated.
 
 		GxsRequest* req = nullptr;
+        uint32_t token;
+
 		{
 			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
 			rstime_t now = time(nullptr); // this is ok while in the loop below
 
-			while(!mRequestQueue.empty() && req == nullptr)
+            while(!mTokenQueue.empty() && req == nullptr)
 			{
-				if(now > mRequestQueue.begin()->second->reqTime + MAX_REQUEST_AGE)
+                TokenInfo& info(mTokenQueue.begin()->second);
+                token = mTokenQueue.begin()->first;
+
+                // Delete very old request that shouldn't be here anymore, probably because of some bug.
+
+                if(now > info.last_activity + MAX_REQUEST_AGE)
 				{
-					mPublicToken[mRequestQueue.begin()->second->token] = CANCELLED;
-					delete mRequestQueue.begin()->second;
-					mRequestQueue.erase(mRequestQueue.begin());
+                    RsInfo() << "Deleting non-handled request, inactive after " << MAX_REQUEST_AGE << " seconds. status=" << info.status ;
+
+                    delete mTokenQueue.begin()->second.request;
+                    mTokenQueue.erase(mTokenQueue.begin());
 					continue;
 				}
 
-				switch( mRequestQueue.begin()->second->status )
+                switch( info.status )
 				{
-					case PARTIAL:
-						RsErr() << "Found partial request in mRequestQueue. This is a bug." << std::endl;	// fallthrough
 					case COMPLETE:
 					case DONE:
 					case FAILED:
@@ -793,14 +807,15 @@ void RsGxsDataAccess::processRequests()
 #ifdef DATA_DEBUG
                         GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": request " << mRequestQueue.begin()->second->token << ": status = " << mRequestQueue.begin()->second->status << ": removing from the RequestQueue" << std::endl;
 #endif
-						delete mRequestQueue.begin()->second;
-						mRequestQueue.erase(mRequestQueue.begin());
+                        delete mTokenQueue.begin()->second.request;
+                        mTokenQueue.erase(mTokenQueue.begin());
 					continue;
+                default:
 					break;
-					case PENDING:
-						req = mRequestQueue.begin()->second;
-						req->status = PARTIAL;
-						mRequestQueue.erase(mRequestQueue.begin()); // remove it right away from the waiting queue.
+
+                    case PENDING:
+                        req = mTokenQueue.begin()->second.request;
+                        info.status = PARTIAL;
 					break;
 				}
 
@@ -830,58 +845,48 @@ void RsGxsDataAccess::processRequests()
 		bool ok = false;
 
 		if((gmr = dynamic_cast<GroupMetaReq*>(req)) != nullptr)
-		{
 			ok = getGroupSummary(gmr);
-		}
 		else if((gdr = dynamic_cast<GroupDataReq*>(req)) != nullptr)
-		{
 			ok = getGroupData(gdr);
-		}
 		else if((gir = dynamic_cast<GroupIdReq*>(req)) != nullptr)
-		{
 			ok = getGroupList(gir);
-		}
 		else if((mmr = dynamic_cast<MsgMetaReq*>(req)) != nullptr)
-		{
 			ok = getMsgSummary(mmr);
-		}
 		else if((mdr = dynamic_cast<MsgDataReq*>(req)) != nullptr)
-		{
 			ok = getMsgData(mdr);
-		}
 		else if((mir = dynamic_cast<MsgIdReq*>(req)) != nullptr)
-		{
 			ok = getMsgIdList(mir);
-		}
 		else if((mri = dynamic_cast<MsgRelatedInfoReq*>(req)) != nullptr)
-		{
 			ok = getMsgRelatedInfo(mri);
-		}
 		else if((gsr = dynamic_cast<GroupStatisticRequest*>(req)) != nullptr)
-		{
 			ok = getGroupStatistic(gsr);
-		}
 		else if((ssr = dynamic_cast<ServiceStatisticRequest*>(req)) != nullptr)
-		{
 			ok = getServiceStatistic(ssr);
-		}
 		else if((grr = dynamic_cast<GroupSerializedDataReq*>(req)) != nullptr)
-		{
 			ok = getGroupSerializedData(grr);
-		}
 		else
-			RsErr() << __PRETTY_FUNCTION__ << " Failed to process request, token: " << req->token << std::endl;
+            RsErr() << __PRETTY_FUNCTION__ << " Failed to process request, token: " << token << std::endl;
 
 		// We cannot easily remove the request here because the queue may have more elements now and mRequestQueue.begin() is not necessarily the same element.
 		// but we mark it as COMPLETE/FAILED so that it will be removed in the next loop.
 		{
 			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
 
-            if(mPublicToken[req->token] == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
+            // check that the request is still here
+
+            auto it = mTokenQueue.find(token);
+
+            if(it == mTokenQueue.end())
             {
-                std::cerr << "Deleting request result for token " << req->token << " because the request has been cancelled." << std::endl;
-                mPublicToken.erase(req->token);
+                RsErr() << "Token " << token << " has disappeared from the list while being treated. This is unexpected!" ;
+                continue;
+            }
+
+            if(it->second.status == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
+            {
+                std::cerr << "Deleting request result for token " << token << " because the request has been cancelled." << std::endl;
                 delete req;
+                mTokenQueue.erase(token);
                 continue;
             }
 
@@ -892,13 +897,11 @@ void RsGxsDataAccess::processRequests()
 #ifdef DATA_DEBUG
                 GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": Request completed successfully. Marking as COMPLETE." << std::endl;
 #endif
-				req->status = COMPLETE ;
-				mCompletedRequests[req->token] = req;
-				mPublicToken[req->token] = COMPLETE;
+                it->second.status = COMPLETE ;
 			}
 			else
 			{
-				mPublicToken[req->token] = FAILED;
+                it->second.status = FAILED;
 				delete req;//req belongs to no one now
 #ifdef DATA_DEBUG
                 GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": Request failed. Marking as FAILED." << std::endl;
@@ -1701,40 +1704,22 @@ bool RsGxsDataAccess::checkRequestStatus( uint32_t token, GxsRequestStatus& stat
 {
 	RS_STACK_MUTEX(mDataMutex);
 
-    GxsRequest* req = locked_retrieveCompletedRequest(token);
+    auto it = mTokenQueue.find(token);
 
+    if(it == mTokenQueue.end())
+    {
+        return false;
+    }
 #ifdef DATA_DEBUG
     GXSDATADEBUG << "CheckRequestStatus: token=" << token << std::endl ;
 #endif
 
-    if(req != nullptr)
-	{
-		anstype = req->clientAnswerType;
-		reqtype = req->reqType;
-		status = COMPLETE;
-		ts = req->reqTime;
-#ifdef DATA_DEBUG
-        GXSDATADEBUG << " Returning status = COMPLETE" << std::endl;
-#endif
-		return true;
-	}
+    anstype = it->second.request->clientAnswerType;
+    reqtype = it->second.request->reqType;
+    status = COMPLETE;
+    ts = it->second.request->reqTime;
 
-    auto it = mPublicToken.find(token);
-
-    if(it != mPublicToken.end())
-    {
-		status = it->second;
-#ifdef DATA_DEBUG
-        GXSDATADEBUG << " Returning status = " << status << std::endl;
-#endif
-        return true;
-    }
-
-    status = FAILED;
-#ifdef DATA_DEBUG
-    GXSDATADEBUG << " Token not found. Returning FAILED" << std::endl;
-#endif
-    return false;
+    return true;
 }
 
 bool RsGxsDataAccess::addGroupData(RsNxsGrp* grp) {
@@ -1788,20 +1773,21 @@ void RsGxsDataAccess::tokenList(std::list<uint32_t>& tokens)
 
 	RsStackMutex stack(mDataMutex);
 
-	for(auto& it:mRequestQueue)
-		tokens.push_back(it.second->token);
-
-	for(auto& it:mCompletedRequests)
+    for(auto& it:mTokenQueue)
         tokens.push_back(it.first);
 }
 
 bool RsGxsDataAccess::locked_updateRequestStatus( uint32_t token, RsTokenService::GxsRequestStatus status )
 {
-    GxsRequest* req = locked_retrieveCompletedRequest(token);
+    auto it = mTokenQueue.find(token);
 
-	if(req) req->status = status;
-	else return false;
+    if(it == mTokenQueue.end())
+    {
+        RsErr() << "Cannot find request for token " << token ;
+        return false;
+    }
 
+    it->second.status = status;
 	return true;
 }
 
@@ -1812,7 +1798,7 @@ uint32_t RsGxsDataAccess::generatePublicToken()
 
 	{
 		RS_STACK_MUTEX(mDataMutex);
-		mPublicToken[token] = PENDING ;
+        mTokenQueue[token].status = PENDING ;
 #ifdef DATA_DEBUG
         GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Adding new public token " << token << " in PENDING state. Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
         if(mDataStore->serviceType() == 0x218 && token==19)
@@ -1829,18 +1815,19 @@ bool RsGxsDataAccess::updatePublicRequestStatus( uint32_t token, RsTokenService:
 {
 	RS_STACK_MUTEX(mDataMutex);
 
-	auto mit = mPublicToken.find(token);
+    auto mit = mTokenQueue.find(token);
 
-	if(mit != mPublicToken.end())
+    if(mit == mTokenQueue.end())
     {
-        mit->second = status;
+        RsErr() << "Attempt to update request status for an non-existing token " << token ;
+        return false;
+    }
+
 #ifdef DATA_DEBUG
         GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": updating public token " << token << " to state  " << tokenStatusString[status] << std::endl;
 #endif
-        return true;
-    }
-	else
-        return false;
+    mit->second.status = status;
+    return true;
 }
 
 
@@ -1848,34 +1835,30 @@ bool RsGxsDataAccess::updatePublicRequestStatus( uint32_t token, RsTokenService:
 bool RsGxsDataAccess::disposeOfPublicToken(uint32_t token)
 {
 	RS_STACK_MUTEX(mDataMutex);
-	auto mit = mPublicToken.find(token);
-	if(mit != mPublicToken.end())
+
+    auto mit = mTokenQueue.find(token);
+    if(mit == mTokenQueue.end())
 	{
-		mPublicToken.erase(mit);
-#ifdef DATA_DEBUG
-        GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Deleting public token " << token << ". Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
-#endif
-        return true;
-	}
-	else
+        RsErr() << "trying to dispose of non-existing public token " << token ;
         return false;
+    }
+#ifdef DATA_DEBUG
+    GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Deleting public token " << token << ". Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
+#endif
+    delete mit->second.request;	// just in case
+    mTokenQueue.erase(mit);
+    return true;
 }
 
-#ifdef DATA_DEBUG
+#ifndef DATA_DEBUG
 void RsGxsDataAccess::dumpTokenQueues()
 {
     RS_STACK_MUTEX(mDataMutex);
 
     GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": dumping token list."<< std::endl;
 
-    for(auto tokenpair:mPublicToken)
-        GXSDATADEBUG << "    Public Token " << tokenpair.first << " : " << tokenStatusString[tokenpair.second] << std::endl;
-
-    for(auto tokenpair:mCompletedRequests)
-        GXSDATADEBUG << "    Completed Tokens: " << tokenpair.first << std::endl;
-
-    for(auto tokenpair:mRequestQueue)
-        GXSDATADEBUG << "    RequestQueue: " << tokenpair.first << " status " << tokenStatusString[tokenpair.second->status] << std::endl;
+    for(const auto& tokenpair:mTokenQueue)
+        GXSDATADEBUG << "    Public Token " << tokenpair.first << " : " << tokenStatusString[tokenpair.second.status] << std::endl;
 
     GXSDATADEBUG << std::endl;
 }

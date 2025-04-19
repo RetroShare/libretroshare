@@ -29,18 +29,14 @@
 struct GxsRequest
 {
 	GxsRequest() :
-	    token(0), reqTime(0), clientAnswerType(0), reqType(0),
-	    status(RsTokenService::FAILED) {}
+        reqTime(0), clientAnswerType(0), reqType(0)
+	     {}
 	virtual ~GxsRequest() {}
 
-	uint32_t token;
 	uint32_t reqTime;
-
 	uint32_t clientAnswerType; /// This is made available to the clients in order to keep track of why specific requests where sent..
 	uint32_t reqType;
 	RsTokReqOptions Options;
-
-	RsTokenService::GxsRequestStatus status;
 
     virtual std::ostream& print(std::ostream& o) const = 0;
 };

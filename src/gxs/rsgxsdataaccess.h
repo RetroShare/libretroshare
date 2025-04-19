@@ -276,13 +276,13 @@ private:
      * @param token the value of the token for the request object handle wanted
      * @return the request associated to this token
      */
-    GxsRequest* locked_retrieveCompletedRequest(const uint32_t& token);
+    GxsRequest *locked_retrieveCompletedRequest(const uint32_t& token);
 
     /*!
      * Add a gxs request to queue
      * @param req gxs request to add
      */
-    void storeRequest(GxsRequest* req);
+    void storeRequest(uint32_t token, GxsRequest* req);
 
     /*!
      * convenience function to setting members of request
@@ -291,7 +291,7 @@ private:
      * @param ansType
      * @param opts
      */
-	void setReq(GxsRequest* req, uint32_t token, uint32_t ansType, const RsTokReqOptions& opts) const;
+    void setReq(GxsRequest* req, uint32_t ansType, const RsTokReqOptions& opts) const;
 
     /*!
      * Remove request for request queue
@@ -508,10 +508,16 @@ private:
     RsMutex mDataMutex; /* protecting below */
 
     uint32_t mNextToken;
-	std::map<uint32_t, GxsRequestStatus> mPublicToken;
 
-    std::set<std::pair<uint32_t,GxsRequest*> > mRequestQueue;
-    std::map<uint32_t, GxsRequest*> mCompletedRequests;
+    struct TokenInfo {
+        TokenInfo() : status(FAILED),request(nullptr),last_activity(0) {}
+
+        GxsRequestStatus status;
+        GxsRequest *request;
+        rstime_t last_activity;
+    };
+
+    std::map<uint32_t, TokenInfo> mTokenQueue;
 
     bool mUseMetaCache;
 };
