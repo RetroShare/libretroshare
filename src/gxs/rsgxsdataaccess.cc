@@ -33,7 +33,7 @@
 // Debug system to allow to print only for some services (group, Peer, etc)
 
 #if! defined(DATA_DEBUG)
-static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_FORUMS;// use this to allow to this service id only, or 0 for all services
+static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_GXSID;// use this to allow to this service id only, or 0 for all services
                                                                             // warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
 
 class nullstream: public std::ostream {};
@@ -764,14 +764,18 @@ void RsGxsDataAccess::processRequests()
     dumpTokenQueues();
     // process requests
 
-    if(!mTokenQueue.empty())
+    bool at_least_one_request_processed = false;
+
+    do
 	{
+        at_least_one_request_processed = false;
 #ifdef DATA_DEBUG
         dumpTokenQueues();
 #endif
         // Extract the first elements from the request queue. cleanup all other elements marked at terminated.
 
-        GXSDATADEBUG << "  Processing token list: Service " << std::hex << mDataStore->serviceType() << std::dec << std::endl;
+        if(!mTokenQueue.empty())
+            GXSDATADEBUG << "  Processing token list: Service " << std::hex << mDataStore->serviceType() << std::dec << std::endl;
 
 		GxsRequest* req = nullptr;
         uint32_t token;
@@ -809,8 +813,10 @@ void RsGxsDataAccess::processRequests()
                     req = mTokenQueue.begin()->second.request;
                     info.status = PARTIAL;
                     info.last_activity = now;
+                    at_least_one_request_processed = true;
                     break;
                 }
+                GXSDATADEBUG << " Ignored." << std::endl;
                 ++it;
 			}
 		} // END OF MUTEX.
@@ -867,19 +873,19 @@ void RsGxsDataAccess::processRequests()
 
             // check that the request is still here
 
-            GXSDATADEBUG << "Request result is " << ok << std::endl;
+            GXSDATADEBUG << "        Request result is " << ok << std::endl;
 
             auto it = mTokenQueue.find(token);
 
             if(it == mTokenQueue.end())
             {
-                RsErr() << "Token " << token << " has disappeared from the list while being treated. This is unexpected!" ;
+                RsErr() << "        Token " << token << " has disappeared from the list while being treated. This is unexpected!" ;
                 return;
             }
 
             if(it->second.status == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
             {
-                std::cerr << "Deleting request result for token " << token << " because the request has been cancelled." << std::endl;
+                GXSDATADEBUG << "        Deleting request result for token " << token << " because the request has been cancelled." << std::endl;
                 delete req;
                 mTokenQueue.erase(token);
                 return;
@@ -889,7 +895,7 @@ void RsGxsDataAccess::processRequests()
 			{
 				// When the request is complete, we move it to the complete list, so that the caller can easily retrieve the request data
 
-                GXSDATADEBUG << "Setting request token " << token << " as COMPLETE." << std::endl;
+                GXSDATADEBUG << "        Setting request token " << token << " as COMPLETE." << std::endl;
 #ifdef DATA_DEBUG
                 GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": Request completed successfully. Marking as COMPLETE." << std::endl;
 #endif
@@ -904,8 +910,7 @@ void RsGxsDataAccess::processRequests()
 #endif
 			}
 		} // END OF MUTEX.
-
-	}
+    } while(at_least_one_request_processed);
 }
 
 
@@ -1710,10 +1715,14 @@ bool RsGxsDataAccess::checkRequestStatus( uint32_t token, GxsRequestStatus& stat
     GXSDATADEBUG << "CheckRequestStatus: token=" << token << std::endl ;
 #endif
 
-    anstype = it->second.request->clientAnswerType;
-    reqtype = it->second.request->reqType;
     status = it->second.status;
-    ts = it->second.request->reqTime;
+
+    if(it->second.request)
+    {
+        anstype = it->second.request->clientAnswerType;
+        reqtype = it->second.request->reqType;
+        ts = it->second.request->reqTime;
+    }
 
     return true;
 }
