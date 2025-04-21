@@ -33,7 +33,7 @@
 // Debug system to allow to print only for some services (group, Peer, etc)
 
 #if! defined(DATA_DEBUG)
-static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_GXSID;// use this to allow to this service id only, or 0 for all services
+static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_FORUMS;// use this to allow to this service id only, or 0 for all services
                                                                             // warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
 
 class nullstream: public std::ostream {};
@@ -69,6 +69,7 @@ static const std::vector<std::string> tokenStatusString( {
                                                                  std::string("COMPLETE"),
                                                                  std::string("DONE"),
                                                                  std::string("CANCELLED"),
+                                                                 std::string("TO_REMOVE"),
                                                          });
 
 #endif
@@ -757,7 +758,13 @@ GxsRequest *RsGxsDataAccess::locked_retrieveCompletedRequest(const uint32_t& tok
     return it->second.request;
 }
 
-#define MAX_REQUEST_AGE 120 // 2 minutes
+// requests are dropped after 30 seconds. These may correspond to
+//	- FAILED requests : something bad happenned, and the requests is marked as failed.
+//  - COMPLETE reqs.  : the request is complete but was dropped by the client who doesn't need it anymore.
+//  - CANCELLED       : request has been cancelled but wasn't removed from the list because of a bug.
+//  - DONE            : data has been retrieved but it still in the list.
+
+#define MAX_REQUEST_AGE 30
 
 void RsGxsDataAccess::processRequests()
 {
@@ -784,11 +791,15 @@ void RsGxsDataAccess::processRequests()
 
         // Delete very old request that shouldn't be here anymore, probably because of some bug.
 
-        if(now > info.last_activity + MAX_REQUEST_AGE || info.status == FAILED || info.status == CANCELLED)
+        if(now > info.last_activity + MAX_REQUEST_AGE
+                || info.status == FAILED
+                || info.status == DONE
+                || info.status == TO_REMOVE
+                || info.status == CANCELLED)
         {
             GXSDATADEBUG << " Deleting non-handled request, inactive for " << now - info.last_activity << " seconds. " ;
 
-            delete token_it->second.request;
+            delete token_it->second.request;	// this should be the only place in the code where GxsRequest is deleted.
             auto tmp_it = token_it;
             ++tmp_it;
             mTokenQueue.erase(token_it);
@@ -1153,14 +1164,12 @@ bool RsGxsDataAccess::getMsgMetaDataList( const GxsMsgReq& msgIds, const RsTokRe
 					/* if we are grabbing thread Head... then parentId == empty. */
 					if (onlyThreadHeadMsgs && !msgMeta->mParentId.isNull())
 					{
-						//delete msgMeta;
 						metaV[i] = nullptr;
 						continue;
 					}
 
 					if (onlyOrigMsgs && !msgMeta->mOrigMsgId.isNull() && msgMeta->mMsgId != msgMeta->mOrigMsgId)
 					{
-						//delete msgMeta;
 						metaV[i] = nullptr;
 						continue;
 					}
@@ -1183,13 +1192,6 @@ bool RsGxsDataAccess::getMsgMetaDataList( const GxsMsgReq& msgIds, const RsTokRe
         it->second.resize(j);	// normally all pointers have been moved forward so there is nothing to delete here.
     }
 
-    // filterMsgIdList(msgIdsOut, opts, metaFilter); // this call is absurd: we already have in metaFilter the content we want.
-
-    //metaFilter.clear();
-
-    // delete meta data
-    //cleanseMsgMetaMap(result);
-
     return true;
 }
 
@@ -1210,9 +1212,6 @@ bool RsGxsDataAccess::getMsgIdList( const GxsMsgReq& msgIds, const RsTokReqOptio
         for(uint32_t i=0;i<it->second.size();++i)
             id_set.insert(it->second[i]->mMsgId);
     }
-
-    // delete meta data
-    //cleanseMsgMetaMap(result);
 
     return true;
 }
@@ -1806,8 +1805,7 @@ bool RsGxsDataAccess::disposeOfPublicToken(uint32_t token)
 #ifdef DATA_DEBUG
     GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Deleting public token " << token << ". Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
 #endif
-    delete mit->second.request;	// just in case
-    mTokenQueue.erase(mit);
+    mit->second.status = TO_REMOVE;
     return true;
 }
 
