@@ -360,6 +360,8 @@ public:
 
 private:
 
+    bool locked_processToken(uint32_t token,GxsRequest *req);
+
     /* These perform the actual blocking retrieval of data */
 
     /*!

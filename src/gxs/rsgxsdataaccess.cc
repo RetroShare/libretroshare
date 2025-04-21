@@ -761,159 +761,116 @@ GxsRequest *RsGxsDataAccess::locked_retrieveCompletedRequest(const uint32_t& tok
 
 void RsGxsDataAccess::processRequests()
 {
-    dumpTokenQueues();
-    // process requests
+    // 1 - collect all tokens that should be treated, possibly remove the ones that are out of time
 
-    bool at_least_one_request_processed = false;
+    rstime_t now = time(nullptr); // this is ok while in the loop below
+    std::list<std::pair<uint32_t,GxsRequest*> > tokens_to_process;
 
-    do
-	{
-        at_least_one_request_processed = false;
+    RsStackMutex stack(mDataMutex); /******* LOCKED *******/
+
+    if(!mTokenQueue.empty())
+        GXSDATADEBUG << "  Processing token list: Service " << std::hex << mDataStore->serviceType() << std::dec << std::endl;
+
+    for(std::map<uint32_t,TokenInfo>::iterator token_it(mTokenQueue.begin());token_it!=mTokenQueue.end();)
+    {
 #ifdef DATA_DEBUG
         dumpTokenQueues();
 #endif
-        // Extract the first elements from the request queue. cleanup all other elements marked at terminated.
 
-        if(!mTokenQueue.empty())
-            GXSDATADEBUG << "  Processing token list: Service " << std::hex << mDataStore->serviceType() << std::dec << std::endl;
+        uint32_t token = token_it->first;
+        TokenInfo& info(token_it->second);
 
-		GxsRequest* req = nullptr;
-        uint32_t token;
+        GXSDATADEBUG << "      Token " << token << ": Status=" << tokenStatusString[(int)info.status] << "  " ;
 
-		{
-			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
-			rstime_t now = time(nullptr); // this is ok while in the loop below
+        // Delete very old request that shouldn't be here anymore, probably because of some bug.
 
-            for(std::map<uint32_t,TokenInfo>::iterator it(mTokenQueue.begin());it!=mTokenQueue.end();)
-			{
-                token = it->first;
-                TokenInfo& info(it->second);
+        if(now > info.last_activity + MAX_REQUEST_AGE || info.status == FAILED || info.status == CANCELLED)
+        {
+            GXSDATADEBUG << " Deleting non-handled request, inactive for " << now - info.last_activity << " seconds. " ;
 
-                GXSDATADEBUG << "      Token " << token << ": Status=" << tokenStatusString[(int)info.status] << "  " ;
+            delete token_it->second.request;
+            auto tmp_it = token_it;
+            ++tmp_it;
+            mTokenQueue.erase(token_it);
+            token_it = tmp_it;
+            continue;
+        }
 
-                // Delete very old request that shouldn't be here anymore, probably because of some bug.
-
-                if(now > info.last_activity + MAX_REQUEST_AGE || info.status == FAILED || info.status == CANCELLED)
-				{
-                    GXSDATADEBUG << " Deleting non-handled request, inactive for " << now - info.last_activity << " seconds. " ;
-
-                    delete it->second.request;
-                    auto tmp_it = it;
-                    ++tmp_it;
-                    mTokenQueue.erase(it);
-                    it = tmp_it;
-					continue;
-				}
-
-                if(info.status == PENDING)
-                {
+        if(info.status == PENDING)
+        {
 #ifndef DATA_DEBUG
-                    GXSDATADEBUG << "  will be handled now. Setting status as PARTIAL." << std::endl;
+            GXSDATADEBUG << "  will be handled now. Setting status as PARTIAL." << std::endl;
 #endif
-                    req = mTokenQueue.begin()->second.request;
-                    info.status = PARTIAL;
-                    info.last_activity = now;
-                    at_least_one_request_processed = true;
-                    break;
-                }
-                GXSDATADEBUG << " Ignored." << std::endl;
-                ++it;
-			}
-		} // END OF MUTEX.
+            info.status = PARTIAL;
+            info.last_activity = now;
 
-		if (!req)
-            return;
-
-		GroupMetaReq* gmr;
-		GroupDataReq* gdr;
-		GroupIdReq* gir;
-
-		MsgMetaReq* mmr;
-		MsgDataReq* mdr;
-		MsgIdReq* mir;
-		MsgRelatedInfoReq* mri;
-		GroupStatisticRequest* gsr;
-		GroupSerializedDataReq* grr;
-		ServiceStatisticRequest* ssr;
-
-#ifdef DATA_DEBUG
-        GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Processing request: " << req->token << " Status: " << req->status << " ReqType: " << req->reqType << " Age: " << time(nullptr) - req->reqTime << std::endl;
-#endif
-
-		/* PROCESS REQUEST! */
-		bool ok = false;
-
-		if((gmr = dynamic_cast<GroupMetaReq*>(req)) != nullptr)
-			ok = getGroupSummary(gmr);
-		else if((gdr = dynamic_cast<GroupDataReq*>(req)) != nullptr)
-			ok = getGroupData(gdr);
-		else if((gir = dynamic_cast<GroupIdReq*>(req)) != nullptr)
-			ok = getGroupList(gir);
-		else if((mmr = dynamic_cast<MsgMetaReq*>(req)) != nullptr)
-			ok = getMsgSummary(mmr);
-		else if((mdr = dynamic_cast<MsgDataReq*>(req)) != nullptr)
-			ok = getMsgData(mdr);
-		else if((mir = dynamic_cast<MsgIdReq*>(req)) != nullptr)
-			ok = getMsgIdList(mir);
-		else if((mri = dynamic_cast<MsgRelatedInfoReq*>(req)) != nullptr)
-			ok = getMsgRelatedInfo(mri);
-		else if((gsr = dynamic_cast<GroupStatisticRequest*>(req)) != nullptr)
-			ok = getGroupStatistic(gsr);
-		else if((ssr = dynamic_cast<ServiceStatisticRequest*>(req)) != nullptr)
-			ok = getServiceStatistic(ssr);
-		else if((grr = dynamic_cast<GroupSerializedDataReq*>(req)) != nullptr)
-			ok = getGroupSerializedData(grr);
-		else
-            RsErr() << __PRETTY_FUNCTION__ << " Failed to process request, token: " << token << std::endl;
-
-		// We cannot easily remove the request here because the queue may have more elements now and mRequestQueue.begin() is not necessarily the same element.
-		// but we mark it as COMPLETE/FAILED so that it will be removed in the next loop.
-		{
-			RsStackMutex stack(mDataMutex); /******* LOCKED *******/
-
-            // check that the request is still here
-
-            GXSDATADEBUG << "        Request result is " << ok << std::endl;
-
-            auto it = mTokenQueue.find(token);
-
-            if(it == mTokenQueue.end())
+            if(locked_processToken(token,token_it->second.request))
             {
-                RsErr() << "        Token " << token << " has disappeared from the list while being treated. This is unexpected!" ;
-                return;
+                info.status = COMPLETE;
+                GXSDATADEBUG << "          Finished. Setting status as COMPLETE." << std::endl;
             }
-
-            if(it->second.status == CANCELLED)	// if the request was cancelled while being treated, we just delete its entry.
+            else
             {
-                GXSDATADEBUG << "        Deleting request result for token " << token << " because the request has been cancelled." << std::endl;
-                delete req;
-                mTokenQueue.erase(token);
-                return;
+                info.status = FAILED;
+                GXSDATADEBUG << "          Failed. Setting status as FAILED." << std::endl;
             }
+        }
+        else
+            GXSDATADEBUG << " Ignored." << std::endl;
 
-            if(ok)
-			{
-				// When the request is complete, we move it to the complete list, so that the caller can easily retrieve the request data
+        ++token_it;
+    }
+} // END OF MUTEX.
 
-                GXSDATADEBUG << "        Setting request token " << token << " as COMPLETE." << std::endl;
+bool RsGxsDataAccess::locked_processToken(uint32_t token,GxsRequest *req)
+{
+    GroupMetaReq* gmr;
+    GroupDataReq* gdr;
+    GroupIdReq* gir;
+
+    MsgMetaReq* mmr;
+    MsgDataReq* mdr;
+    MsgIdReq* mir;
+    MsgRelatedInfoReq* mri;
+    GroupStatisticRequest* gsr;
+    GroupSerializedDataReq* grr;
+    ServiceStatisticRequest* ssr;
+
 #ifdef DATA_DEBUG
-                GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": Request completed successfully. Marking as COMPLETE." << std::endl;
+    GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Processing request: " << req->token << " Status: " << req->status << " ReqType: " << req->reqType << " Age: " << time(nullptr) - req->reqTime << std::endl;
 #endif
-                it->second.status = COMPLETE ;
-			}
-			else
-			{
-                it->second.status = FAILED;
-				delete req;//req belongs to no one now
-#ifdef DATA_DEBUG
-                GXSDATADEBUG << "  Service " << std::hex << mDataStore->serviceType() << std::dec << ": Request failed. Marking as FAILED." << std::endl;
-#endif
-			}
-		} // END OF MUTEX.
-    } while(at_least_one_request_processed);
+
+    /* PROCESS REQUEST! */
+    bool ok = false;
+
+    if((gmr = dynamic_cast<GroupMetaReq*>(req)) != nullptr)
+        ok = getGroupSummary(gmr);
+    else if((gdr = dynamic_cast<GroupDataReq*>(req)) != nullptr)
+        ok = getGroupData(gdr);
+    else if((gir = dynamic_cast<GroupIdReq*>(req)) != nullptr)
+        ok = getGroupList(gir);
+    else if((mmr = dynamic_cast<MsgMetaReq*>(req)) != nullptr)
+        ok = getMsgSummary(mmr);
+    else if((mdr = dynamic_cast<MsgDataReq*>(req)) != nullptr)
+        ok = getMsgData(mdr);
+    else if((mir = dynamic_cast<MsgIdReq*>(req)) != nullptr)
+        ok = getMsgIdList(mir);
+    else if((mri = dynamic_cast<MsgRelatedInfoReq*>(req)) != nullptr)
+        ok = getMsgRelatedInfo(mri);
+    else if((gsr = dynamic_cast<GroupStatisticRequest*>(req)) != nullptr)
+        ok = getGroupStatistic(gsr);
+    else if((ssr = dynamic_cast<ServiceStatisticRequest*>(req)) != nullptr)
+        ok = getServiceStatistic(ssr);
+    else if((grr = dynamic_cast<GroupSerializedDataReq*>(req)) != nullptr)
+        ok = getGroupSerializedData(grr);
+    else
+    {
+        RsErr() << __PRETTY_FUNCTION__ << " Failed to process request, token: " << token << std::endl;
+        return false;
+    }
+
+    return ok;
 }
-
-
 
 bool RsGxsDataAccess::getGroupSerializedData(GroupSerializedDataReq* req)
 {
