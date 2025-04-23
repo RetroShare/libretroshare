@@ -151,6 +151,10 @@ GroupMetaReq::~GroupMetaReq()
 	mGroupMetaData.clear();
 }
 
+GroupSerializedDataReq::~GroupSerializedDataReq()
+{
+    rsstd::delete_all(mGroupData.begin(), mGroupData.end());
+}
 GroupDataReq::~GroupDataReq()
 {
 	rsstd::delete_all(mGroupData.begin(), mGroupData.end());

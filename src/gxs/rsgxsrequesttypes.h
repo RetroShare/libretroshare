@@ -58,6 +58,7 @@ class GroupIdReq : public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupIdReq() {}
 
 	std::list<RsGxsGroupId> mGroupIds;
 	std::list<RsGxsGroupId> mGroupIdResult;
@@ -66,6 +67,7 @@ class GroupSerializedDataReq : public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupSerializedDataReq() ;
 
 	std::list<RsGxsGroupId> mGroupIds;
 	std::list<RsNxsGrp*> mGroupData;
@@ -87,7 +89,9 @@ class MsgIdReq : public GxsRequest
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
 
-	GxsMsgReq mMsgIds;
+    virtual ~MsgIdReq() {}
+
+    GxsMsgReq mMsgIds;
 	GxsMsgIdResult mMsgIdResult;
 };
 
@@ -118,6 +122,8 @@ class ServiceStatisticRequest: public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~ServiceStatisticRequest() = default;
+
 	GxsServiceStatistic mServiceStatistic;
 };
 
@@ -125,6 +131,7 @@ struct GroupStatisticRequest: public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupStatisticRequest() = default;
 
 	RsGxsGroupId mGrpId;
 	GxsGroupStatistic mGroupStatistic;
@@ -147,6 +154,7 @@ class GroupSetFlagReq : public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupSetFlagReq() = default;
 
 	const static uint32_t FLAG_SUBSCRIBE;
 	const static uint32_t FLAG_STATUS;
@@ -160,7 +168,8 @@ public:
 class MessageSetFlagReq : public GxsRequest
 {
 public:
-	const static uint32_t FLAG_STATUS;
+    virtual ~MessageSetFlagReq() = default;
+    const static uint32_t FLAG_STATUS;
 
     virtual std::ostream& print(std::ostream& o) const override ;
 	uint8_t type;
