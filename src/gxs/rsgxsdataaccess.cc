@@ -1757,12 +1757,16 @@ bool RsGxsDataAccess::locked_updateRequestStatus( uint32_t token, RsTokenService
 
 uint32_t RsGxsDataAccess::generatePublicToken()
 {
+    // This function generates a token for an external service (typically RsGenExchange),
+    // that is not treated in RsGxsDataAccess, so the token status
+    // is set as PARTIAL instead of PENDING, in order to not trigger locked_processToken()
+
 	uint32_t token;
 	generateToken(token);
 
 	{
 		RS_STACK_MUTEX(mDataMutex);
-        mTokenQueue[token].status = PENDING ;
+        mTokenQueue[token].status = PARTIAL ;
         mTokenQueue[token].last_activity = time(nullptr) ;
 #ifndef DATA_DEBUG
         GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Adding new public token " << token << " in PENDING state. Size of mTokenQueue: " << mTokenQueue.size() << std::endl;
