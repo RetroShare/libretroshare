@@ -175,6 +175,8 @@ void RsGxsDataAccess::generateToken(uint32_t &token)
 {
 	RS_STACK_MUTEX(mDataMutex);
 	token = mNextToken++;
+    GXSDATADEBUG << "Generated next token " << token << std::endl;
+    assert(mTokenQueue.find(token) == mTokenQueue.end());
 }
 
 
@@ -354,6 +356,8 @@ void RsGxsDataAccess::storeRequest(uint32_t token,GxsRequest *req)
     info.last_activity = req->reqTime;
     info.request = req;
 
+    assert(mTokenQueue.find(token) == mTokenQueue.end());
+
     mTokenQueue.insert(std::make_pair(token,info));
 
 #ifndef DATA_DEBUG
@@ -413,7 +417,7 @@ bool RsGxsDataAccess::locked_clearRequest(const uint32_t& token)
         return false;
     }
 
-    mTokenQueue.erase(it);
+    it->second.status = TO_REMOVE;
 
 #ifdef DATA_DEBUG
     GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Removing public token " << token << ". Completed tokens: " << mCompletedRequests.size() << " Size of mPublicToken: " << mPublicToken.size() << std::endl;
@@ -1664,9 +1668,8 @@ bool RsGxsDataAccess::checkRequestStatus( uint32_t token, GxsRequestStatus& stat
     auto it = mTokenQueue.find(token);
 
     if(it == mTokenQueue.end())
-    {
         return false;
-    }
+
 #ifdef DATA_DEBUG
     GXSDATADEBUG << "CheckRequestStatus: token=" << token << std::endl ;
 #endif
