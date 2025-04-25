@@ -1283,7 +1283,7 @@ rs_sam3_libsam3 {
     }
     libsam3.commands += \
         cd $$shell_path($${LIBSAM3_BUILD_PATH}) && \
-        $(MAKE) build $${LIBSAM3_MAKE_PARAMS}
+        $(MAKE) build CC=\"$$fixQmakeCC($$QMAKE_CC)\" $${LIBSAM3_MAKE_PARAMS}
     QMAKE_EXTRA_COMPILERS += libsam3
 }
 
