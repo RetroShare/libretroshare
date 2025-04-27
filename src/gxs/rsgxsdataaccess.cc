@@ -360,7 +360,7 @@ void RsGxsDataAccess::storeRequest(uint32_t token,GxsRequest *req)
 
     mTokenQueue.insert(std::make_pair(token,info));
 
-#ifndef DATA_DEBUG
+#ifdef DATA_DEBUG
     GXSDATADEBUG << "Stored request token=" << token << " priority = " << static_cast<int>(req->Options.mPriority) << " Current request Queue size is:"  << mTokenQueue.size() << std::endl;
 #endif
 }
@@ -393,7 +393,9 @@ bool RsGxsDataAccess::cancelRequest(const uint32_t& token)
         RsErr() << "Trying to cancel request " << token << " but this request is not in the queue!" ;
         return false;
     }
-    std::cerr << "Cancelling request " << token << ": marking as CANCELLED in mPublicToken" << std::endl;
+#ifdef DATA_DEBUG
+    GXSDATADEBUG << "Cancelling request " << token << ": marking as CANCELLED in mPublicToken" << std::endl;
+#endif
 
     it->second.status = CANCELLED;
     it->second.last_activity = time(nullptr);
@@ -813,7 +815,7 @@ void RsGxsDataAccess::processRequests()
 
         if(info.status == PENDING)
         {
-#ifndef DATA_DEBUG
+#ifdef DATA_DEBUG
             GXSDATADEBUG << "  will be handled now. Setting status as PARTIAL." << std::endl;
 #endif
             info.status = PARTIAL;
@@ -1768,7 +1770,7 @@ uint32_t RsGxsDataAccess::generatePublicToken()
 		RS_STACK_MUTEX(mDataMutex);
         mTokenQueue[token].status = PARTIAL ;
         mTokenQueue[token].last_activity = time(nullptr) ;
-#ifndef DATA_DEBUG
+#ifdef DATA_DEBUG
         GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": Adding new public token " << token << " in PENDING state. Size of mTokenQueue: " << mTokenQueue.size() << std::endl;
 #endif
     }
@@ -1790,7 +1792,7 @@ bool RsGxsDataAccess::updatePublicRequestStatus( uint32_t token, RsTokenService:
         return false;
     }
 
-#ifndef DATA_DEBUG
+#ifdef DATA_DEBUG
         GXSDATADEBUG << "Service " << std::hex << mDataStore->serviceType() << std::dec << ": updating public token " << token << " to state  " << tokenStatusString[status] << std::endl;
 #endif
     mit->second.status = status;
@@ -1816,7 +1818,7 @@ bool RsGxsDataAccess::disposeOfPublicToken(uint32_t token)
     return true;
 }
 
-#ifndef DATA_DEBUG
+#ifdef DATA_DEBUG
 void RsGxsDataAccess::dumpTokenQueues()
 {
     RS_STACK_MUTEX(mDataMutex);
