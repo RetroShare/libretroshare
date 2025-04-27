@@ -402,7 +402,7 @@ bool RsGenExchange::acknowledgeTokenMsg(const uint32_t& token, RsGxsGrpMsgIdPair
 
 	msgId = mit->second;
 
-	// no dump token as client has ackowledged its completion
+    // now dump token as client has ackowledged its completion
 	mDataAccess->disposeOfPublicToken(token);
     mMsgNotify.erase(mit);
 
