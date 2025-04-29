@@ -1287,6 +1287,37 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 	constexpr int verificationFailed = 0;
 	constexpr int verificationSuccess = 1;
 
+    // Function to recover the IP address of the caller in case it's needed
+
+    auto getCallersIP = [=]() -> std::string {
+        SSL *ssl = (SSL*)X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
+
+        if (!ssl) return std::string();
+
+        // Now you can get the underlying socket and peer IP
+        int fd = SSL_get_fd(ssl); // gets the underlying file descriptor
+        if (fd < 0) return std::string();
+
+        struct sockaddr_storage addr;
+
+        socklen_t len = sizeof(addr);
+
+        if(!!getpeername(fd, (struct sockaddr *)&addr, &len))
+            return std::string();
+
+        char ipstr[INET6_ADDRSTRLEN];
+        void *src = NULL;
+        if (addr.ss_family == AF_INET)
+            src = &((struct sockaddr_in *)&addr)->sin_addr;
+        else if (addr.ss_family == AF_INET6)
+            src = &((struct sockaddr_in6 *)&addr)->sin6_addr;
+
+        if (src && inet_ntop(addr.ss_family, src, ipstr, sizeof(ipstr)))
+            return std::string(ipstr);
+        else
+            return std::string();
+    };
+
 	using Evt_t = RsAuthSslConnectionAutenticationEvent;
 	std::unique_ptr<Evt_t> ev = std::unique_ptr<Evt_t>(new Evt_t);
 
@@ -1327,6 +1358,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			ev->mSslId = sslId;
 			ev->mPgpId = pgpId;
 			ev->mErrorMsg = errMsg;
+            ev->mLocator = RsUrl(getCallersIP());
 			ev->mErrorCode = RsAuthSslError::MISSING_AUTHENTICATION_INFO;
 
 			rsEvents->postEvent(std::move(ev));
@@ -1347,7 +1379,8 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
 			ev->mErrorMsg = errMsg;
-			ev->mErrorCode = RsAuthSslError::MISSING_AUTHENTICATION_INFO;
+            ev->mLocator = RsUrl(getCallersIP());
+            ev->mErrorCode = RsAuthSslError::MISSING_AUTHENTICATION_INFO;
 
 			rsEvents->postEvent(std::move(ev));
 		}
@@ -1377,7 +1410,8 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 				ev->mSslId = sslId;
 				ev->mSslCn = sslCn;
 				ev->mPgpId = pgpId;
-				ev->mErrorMsg = errorMsg;
+                ev->mLocator = RsUrl(getCallersIP());
+                ev->mErrorMsg = errorMsg;
 				ev->mErrorCode = RsAuthSslError::MISMATCHED_PGP_ID;
 				rsEvents->postEvent(std::move(ev));
 			}
@@ -1403,6 +1437,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
 			ev->mPgpId = pgpId;
+            ev->mLocator = RsUrl(getCallersIP());
 
 			switch(auth_diagnostic)
 			{
@@ -1443,7 +1478,8 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
 			ev->mPgpId = pgpId;
-			ev->mErrorMsg = errMsg;
+            ev->mLocator = RsUrl(getCallersIP());
+            ev->mErrorMsg = errMsg;
 			ev->mErrorCode = RsAuthSslError::NOT_A_FRIEND;
 			rsEvents->postEvent(std::move(ev));
 		}
