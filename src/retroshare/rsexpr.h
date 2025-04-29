@@ -24,10 +24,12 @@
 #include <string>
 #include <list>
 #include <stdint.h>
+#include <cctype>
 
 #include "util/rsprint.h"
 #include "retroshare/rstypes.h"
 #include "util/rstime.h"
+#include "util/rsstring.h"
 
 /******************************************************************************************
 Enumerations defining the Operators usable in the Boolean search expressions
@@ -255,8 +257,7 @@ Binary Predicate for Case Insensitive search
 /*TODOS:
  *Factor locales in the comparison
  */
-struct CompareCharIC :
-        public std::binary_function< char , char , bool> {
+struct CompareCharIC {
 
     bool operator () ( char ch1 , char ch2 ) const {
         return tolower( static_cast < unsigned char > (ch1) )
