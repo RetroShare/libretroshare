@@ -146,6 +146,8 @@ class ftFileCreator: public ftFileProvider
 
 		rstime_t _last_recv_time_t ;	/// last time stamp when data was received. Used for queue control.
 		rstime_t _creation_time ;		/// time at which the file creator was created. Used to spot long-inactive transfers.
+
+        RsMutex diskWriteMutex;
 };
 
 #endif // FT_FILE_CREATOR_HEADER
