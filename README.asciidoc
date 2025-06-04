@@ -23,3 +23,7 @@ https://elrepo.io/[elRepo.io]
 === Continuous integration
 
 image:https://gitlab.com/RetroShare/libretroshare/badges/master/pipeline.svg[link="https://gitlab.com/RetroShare/libretroshare/-/commits/master",title="pipeline status"]
+
+=== Developer Documentation 
+image:https://deepwiki.com/badge.svg[link="https://deepwiki.com/RetroShare/libretroshare",title="Ask DeepWiki"]
+
