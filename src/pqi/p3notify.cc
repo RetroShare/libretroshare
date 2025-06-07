@@ -217,15 +217,13 @@ void p3Notify::notifyChatLobbyEvent(uint64_t lobby_id, uint32_t event_type,const
 void p3Notify::notifyListPreChange(int list, int type) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyListPreChange(list,type) ; }
 void p3Notify::notifyListChange   (int list, int type) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyListChange   (list,type) ; }
 
-void p3Notify::notifyErrorMsg      (int list, int sev, std::string msg)                                                         { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyErrorMsg(list,sev,msg) ; }
+//void p3Notify::notifyErrorMsg      (int list, int sev, std::string msg)                                                         { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyErrorMsg(list,sev,msg) ; }
 void p3Notify::notifyChatMessage   (const ChatMessage &msg)                                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatMessage(msg) ; }
 void p3Notify::notifyChatStatus    (const ChatId&  chat_id, const std::string& status_string)                                   { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatStatus(chat_id,status_string) ; }
 void p3Notify::notifyChatCleared   (const ChatId&  chat_id)                                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatCleared(chat_id) ; }
 
 void p3Notify::notifyChatLobbyTimeShift     (int                time_shift)                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatLobbyTimeShift(time_shift) ; }
 void p3Notify::notifyCustomState            (const std::string& peer_id   , const std::string&               status_string )    { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyCustomState       (peer_id,status_string) ; }
-void p3Notify::notifyHashingInfo            (uint32_t           type      , const std::string&               fileinfo      )    { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyHashingInfo       (type,fileinfo) ; } 
-//void p3Notify::notifyTurtleSearchResult     (const RsPeerId& pid          , uint32_t search_id , const std::list<TurtleFileInfo>& files         )    { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyTurtleSearchResult(pid,search_id,files) ; }
 #warning MISSING CODE HERE
 //void p3Notify::notifyTurtleSearchResult     (uint32_t           search_id , const std::list<TurtleGxsInfo>&  groups        )    { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyTurtleSearchResult(search_id,groups) ; }
 void p3Notify::notifyPeerHasNewAvatar       (std::string        peer_id   )                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyPeerHasNewAvatar(peer_id) ; }
@@ -237,8 +235,8 @@ void p3Notify::notifyPeerStatusChanged      (const std::string& peer_id   , uint
 void p3Notify::notifyPeerStatusChangedSummary   ()                                                                              { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyPeerStatusChangedSummary() ; }
 void p3Notify::notifyDiscInfoChanged            ()                                                                              { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDiscInfoChanged         () ; } 
 
-void p3Notify::notifyDownloadComplete           (const std::string& fileHash )                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDownloadComplete           (fileHash) ; }
-void p3Notify::notifyDownloadCompleteCount      (uint32_t           count    )                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDownloadCompleteCount      (count) ; }
+//void p3Notify::notifyDownloadComplete           (const std::string& fileHash )                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDownloadComplete           (fileHash) ; }
+//void p3Notify::notifyDownloadCompleteCount      (uint32_t           count    )                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDownloadCompleteCount      (count) ; }
 void p3Notify::notifyHistoryChanged             (uint32_t           msgId    , int type)                                        { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyHistoryChanged             (msgId,type) ; }
 
 bool p3Notify::cachePgpPassphrase(const std::string& s)

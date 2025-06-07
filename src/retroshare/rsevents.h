@@ -110,7 +110,7 @@ enum class RsEventType : uint32_t
     JSON_API                                                = 18,
 
 	/** Emitted to update library clients about file hashing being completed */
-	FILE_HASHING_COMPLETED                                  = 20,
+    _________UNUSED__________                               = 20,
 
     /// @see rspeers.h
     TOR_MANAGER                                             = 21,

@@ -93,15 +93,14 @@ class p3Notify: public RsNotify
 		//
 		void notifyListPreChange              (int /* list */, int /* type */) ;
 		void notifyListChange                 (int /* list */, int /* type */) ;
-		void notifyErrorMsg                   (int /* list */, int /* sev  */, std::string /* msg */) ;
+//		void notifyErrorMsg                   (int /* list */, int /* sev  */, std::string /* msg */) ;
 		void notifyChatMessage                (const ChatMessage& /* msg      */) ;
 		void notifyChatStatus                 (const ChatId&      /* chat_id  */, const std::string& /* status_string */) ;
 		void notifyChatCleared                (const ChatId&      /* chat_id  */) ;
 		void notifyChatLobbyEvent             (uint64_t           /* lobby id */, uint32_t           /* event type    */ , const RsGxsId & /* nickname */, const std::string& /* any string */) ;
 		void notifyChatLobbyTimeShift         (int                /* time_shift*/) ;
 		void notifyCustomState                (const std::string& /* peer_id   */, const std::string&               /* status_string */) ;
-		void notifyHashingInfo                (uint32_t           /* type      */, const std::string&               /* fileinfo      */) ;
-		void notifyTurtleSearchResult         (const RsPeerId &pid, uint32_t           /* search_id */, const std::list<TurtleFileInfo>& /* files         */) ;
+//		void notifyTurtleSearchResult         (const RsPeerId &pid, uint32_t           /* search_id */, const std::list<TurtleFileInfo>& /* files         */) ;
 #warning MISSING CODE HERE
 //		void notifyTurtleSearchResult         (uint32_t           /* search_id */, const std::list<TurtleGxsInfo >& /* groups        */) ;
 		void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) ;
@@ -114,8 +113,8 @@ class p3Notify: public RsNotify
 		void notifyPeerStatusChangedSummary   () ;
 		void notifyDiscInfoChanged            () ;
 
-		void notifyDownloadComplete           (const std::string& /* fileHash  */) ;
-		void notifyDownloadCompleteCount      (uint32_t           /* count     */) ;
+//		void notifyDownloadComplete           (const std::string& /* fileHash  */) ;
+//		void notifyDownloadCompleteCount      (uint32_t           /* count     */) ;
 		void notifyHistoryChanged             (uint32_t           /* msgId     */, int /* type */) ;
 
 		bool askForPassword                   (const std::string& title, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string&, bool *cancelled /* password */ ) ;
