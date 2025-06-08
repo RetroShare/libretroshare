@@ -73,6 +73,10 @@ class PgpAuxUtils;
 class p3Config;
 class RsPosted;
 
+#ifdef RS_USE_WIRE
+class RsWire;
+#endif
+
 namespace resource_api
 {
     class ResourceRouter;
@@ -127,6 +131,9 @@ public:
     RsUtil::inited_ptr<RsGxsTunnelService>    mGxsTunnels;
     RsUtil::inited_ptr<RsReputations>   mReputations;
     RsUtil::inited_ptr<RsPosted>        mPosted;
+#ifdef RS_USE_WIRE
+    RsUtil::inited_ptr<RsWire>          mWire;
+#endif
 };
 
 class RsPlugin

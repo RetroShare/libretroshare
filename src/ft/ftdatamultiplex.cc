@@ -41,7 +41,7 @@
 /* For Thread Behaviour */
 const uint32_t DMULTIPLEX_MIN	= 10; /* 10 msec sleep */
 const uint32_t DMULTIPLEX_MAX   = 1000; /* 1 sec sleep */
-const double   DMULTIPLEX_RELAX = 0.5; /* relax factor to calculate sleep time if not working in /libretroshare/src/util/rsthreads.cc */
+const double   DMULTIPLEX_RELAX = 20; /* relax factor to calculate sleep time if not working in /libretroshare/src/util/rsthreads.cc */
 
 static const uint32_t MAX_CHECKING_CHUNK_WAIT_DELAY   = 120 ; //! TTL for an inactive chunk
 const uint32_t MAX_SIMULTANEOUS_CRC_REQUESTS = 500 ;

@@ -112,6 +112,17 @@ typedef t_ScopeGuard<rnp_ffi_st             ,&rnp_ffi_destroy>              rnp_
 
 #define RNP_OP_VERIFY_SIGNATURE_STRUCT(name) rnp_op_verify_signature_t name=nullptr;
 
+// This overrides SHA1 security rules, so that certs signed with sha1 alg are still accepted as friends and profiles signed with sha1 still load.
+
+#ifdef V07_NON_BACKWARD_COMPATIBLE_CHANGE_006
+#define FFI_CREATE(ffi) \
+    rnp_ffi_create(&ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+#else
+#define FFI_CREATE(ffi) \
+    rnp_ffi_create(&ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);\
+    rnp_add_security_rule(ffi,RNP_FEATURE_HASH_ALG,"SHA1",RNP_SECURITY_OVERRIDE,0,RNP_SECURITY_DEFAULT);
+#endif
+
 // Implementation of RNP pgp handler.
 
 RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secring,const std::string& trustdb,const std::string& pgp_lock_filename)
@@ -122,9 +133,7 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
     RsInfo() << "Using RNP lib version " << rnp_version_string() ;
     RsInfo() << "RNP-PGPHandler: Initing pgp keyrings";
 
-    /* initialize FFI object */
-    if (rnp_ffi_create(&mRnpFfi, "GPG", "GPG") != RNP_SUCCESS)
-        throw std::runtime_error("RNPPGPHandler::RNPPGPHandler(): cannot initialize ffi object.");
+    FFI_CREATE(mRnpFfi);
 
     // Check that the file exists. If not, create a void keyring.
 
@@ -169,19 +178,21 @@ RNPPGPHandler::RNPPGPHandler(const std::string& pubring, const std::string& secr
 
     RsInfo() << "Loaded " << pub_count << " public keys, and " << sec_count << " secret keys." ;
 
-    rnp_identifier_iterator_t it;
-    rnp_identifier_iterator_create(mRnpFfi,&it,RNP_IDENTIFIER_KEYID);
-    const char *key_identifier = nullptr;
-
-    while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
     {
-        RNP_KEY_HANDLE_STRUCT(key_handle);
-        rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
+        rnp_identifier_iterator_t it;
+        rnp_identifier_iterator_create(mRnpFfi,&it,RNP_IDENTIFIER_KEYID);
+        const char *key_identifier = nullptr;
 
-        initCertificateInfo(key_handle) ;
+        while(RNP_SUCCESS == rnp_identifier_iterator_next(it,&key_identifier) && key_identifier!=nullptr)
+        {
+            RNP_KEY_HANDLE_STRUCT(key_handle);
+            rnp_locate_key(mRnpFfi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
+
+            initCertificateInfo(key_handle) ;
+        }
+
+        rnp_identifier_iterator_destroy(it);
     }
-
-    rnp_identifier_iterator_destroy(it);
 
 #ifdef TODO
         const ops_keydata_t *keydata ;
@@ -249,8 +260,14 @@ ops_keyring_t *OpenPGPSDKHandler::allocateOPSKeyring()
 }
 #endif
 
+void RNPPGPHandler::locked_timeStampKey(const RsPgpId& key_id)
+{
+    _public_keyring_map[key_id]._time_stamp = time(nullptr);
+    _trustdb_changed = true;
+}
+
 bool rnp_get_passphrase_cb(rnp_ffi_t        /* ffi */,
-                           void *           /* app_ctx */,
+                           void *           app_ctx,
                            rnp_key_handle_t key,
                            const char *     pgp_context,
                            char             buf[],
@@ -267,6 +284,8 @@ bool rnp_get_passphrase_cb(rnp_ffi_t        /* ffi */,
     RsDbg() << "GetPassphrase callback called: keyid = " << key_id << ", context = \"" << pgp_context << "\"" << " userid=\"" << user_id << "\"";
 
     std::string passwd;
+
+    static_cast<RNPPGPHandler*>(app_ctx)->locked_timeStampKey(RsPgpId(key_id));
 
     std::string uid_hint ;
 
@@ -856,7 +875,7 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
             throw std::runtime_error("Cannot open supplied memory block. Memory access error.") ;
 
         RNP_FFI_STRUCT(tmp_ffi);
-        rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+        FFI_CREATE(tmp_ffi);
 
         if(rnp_load_keys(tmp_ffi, RNP_KEYSTORE_GPG, input, RNP_LOAD_SAVE_PUBLIC_KEYS) != RNP_SUCCESS)
             throw std::runtime_error("Cannot interpret supplied memory block as public key.") ;
@@ -869,21 +888,22 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
         else if(pub_count > 1)
             throw std::runtime_error("Supplied memory block contain more than one key (" + RsUtil::NumberToString(pub_count) + " found)");
 
-        rnp_identifier_iterator_t it;
-        rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
+        {
+            rnp_identifier_iterator_t it;
+            rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
 
-        const char *key_identifier = nullptr;
-        if(rnp_identifier_iterator_next(it,&key_identifier) != RNP_SUCCESS)
-            throw std::runtime_error("Error while reaching first key");
+            const char *key_identifier = nullptr;
+            if(rnp_identifier_iterator_next(it,&key_identifier) != RNP_SUCCESS)
+                throw std::runtime_error("Error while reaching first key");
 
-        rnp_identifier_iterator_destroy(it);
-
-        key_id = RsPgpId(key_identifier);
+            key_id = RsPgpId(key_identifier);
+            rnp_identifier_iterator_destroy(it);
+        }
 
         RsDbg() << "Binary block contains key ID " << key_id.toStdString() ;
 
         RNP_KEY_HANDLE_STRUCT(key_handle);
-        if(rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle) != RNP_SUCCESS)
+        if(rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_id.toStdString().c_str(),&key_handle) != RNP_SUCCESS)
             throw std::runtime_error("Error while reaching first key data");
 
         RNP_BUFFER_STRUCT(uid);
@@ -937,14 +957,19 @@ static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
     if(pub_count != 1) throw std::runtime_error("Expected 1 public key: found "+RsUtil::NumberToString(pub_count));
     if(sec_count != 1) throw std::runtime_error("Expected 1 secret key: found "+RsUtil::NumberToString(sec_count));
 
-    rnp_identifier_iterator_t it;
-    rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
-    const char *key_identifier = nullptr;
+    {
+        rnp_identifier_iterator_t it;
+        rnp_identifier_iterator_create(tmp_ffi,&it,RNP_IDENTIFIER_KEYID);
+        const char *key_identifier = nullptr;
 
-    rnp_identifier_iterator_next(it,&key_identifier);
-    rnp_identifier_iterator_destroy(it);
+        rnp_identifier_iterator_next(it,&key_identifier);
 
-    imported_key_id = RsPgpId(key_identifier);
+        if(key_identifier == nullptr)
+            throw std::runtime_error("no key identifier found in this keypair");
+
+        imported_key_id = RsPgpId(key_identifier);
+        rnp_identifier_iterator_destroy(it);
+    }
 
     // check that the key has public and secret key for the same key
 
@@ -954,10 +979,7 @@ static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
     RNP_BUFFER_STRUCT(key_alg);
     uint32_t key_bits;
 
-    rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,key_identifier,&key_handle);
-
-    if(key_identifier == nullptr)
-        throw std::runtime_error("no key identifier found in this keypair");
+    rnp_locate_key(tmp_ffi,RNP_IDENTIFIER_KEYID,imported_key_id.toStdString().c_str(),&key_handle);
 
     rnp_key_get_fprint(key_handle, &key_fprint);
     rnp_key_get_primary_uid(key_handle, &key_uid);
@@ -978,8 +1000,7 @@ static bool checkGPGKeyPair(rnp_ffi_t tmp_ffi,
 static bool testKeyPairInput(rnp_input_t keyfile,RsPgpId& imported_key_id)
 {
         RNP_FFI_STRUCT(tmp_ffi);
-
-        rnp_ffi_create(&tmp_ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
+        FFI_CREATE(tmp_ffi);
 
         uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS ;
 
@@ -1258,6 +1279,8 @@ bool OpenPGPSDKHandler::locked_addOrMergeKey(ops_keyring_t *keyring,std::map<RsP
 
 bool RNPPGPHandler::encryptData(const RsPgpId& key_id,bool armored,rnp_input_t input,rnp_output_t output)
 {
+    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+
     RNP_OP_ENCRYPT_STRUCT(encrypt);
 
     if(rnp_op_encrypt_create(&encrypt, mRnpFfi, input, output) != RNP_SUCCESS)
@@ -1271,6 +1294,8 @@ bool RNPPGPHandler::encryptData(const RsPgpId& key_id,bool armored,rnp_input_t i
     rnp_op_encrypt_set_aead(encrypt, "None");
 
     RNP_KEY_HANDLE_STRUCT(key);
+
+    locked_timeStampKey(key_id);
 
     if(rnp_locate_key(mRnpFfi, "keyid", key_id.toStdString().c_str(), &key) != RNP_SUCCESS)
         throw std::runtime_error("Cannot locate destination key " + key_id.toStdString() + " for encryption");
@@ -1288,8 +1313,6 @@ bool RNPPGPHandler::encryptData(const RsPgpId& key_id,bool armored,rnp_input_t i
 
 bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile)
 {
-    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-
     try
     {
         rnp_input_t input ;
@@ -1313,6 +1336,8 @@ bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& t
 bool RNPPGPHandler::encryptDataBin(const RsPgpId& key_id,const void *data, const uint32_t len, unsigned char *encrypted_data, unsigned int *encrypted_data_len)
 {
 	RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
+
+    locked_timeStampKey(key_id);
 
     try
     {
@@ -1348,12 +1373,12 @@ bool RNPPGPHandler::encryptDataBin(const RsPgpId& key_id,const void *data, const
     }
 }
 
-bool RNPPGPHandler::decryptDataBin(const RsPgpId& /*key_id*/,const void *encrypted_data, const uint32_t encrypted_len, unsigned char *data, unsigned int *data_len)
+bool RNPPGPHandler::decryptDataBin(const RsPgpId& key_id,const void *encrypted_data, const uint32_t encrypted_len, unsigned char *data, unsigned int *data_len)
 {
     RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
     /* set the password provider */
-    rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
+    rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, this);
 
     /* create file input and memory output objects for the encrypted message and decrypted messages */
 
@@ -1397,7 +1422,7 @@ bool RNPPGPHandler::decryptTextFromFile(const RsPgpId&,std::string& text,const s
     RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
 
     /* set the password provider */
-    rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
+    rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, this);
 
     /* create file input and memory output objects for the encrypted message and decrypted
      * message */
@@ -1437,11 +1462,11 @@ bool RNPPGPHandler::SignDataBin(const RsPgpId& id,const void *data, const uint32
                                 unsigned char *sign, unsigned int *signlen,
                                 bool /* use_raw_signature */, std::string /* reason = "" */)
 {
-    // passwd provider function.
+    RS_STACK_MUTEX(pgphandlerMtx);
 
     try
     {
-        rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
+        rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, this);
 
         RNP_INPUT_STRUCT(data_input);
         RNP_OUTPUT_STRUCT(signature_output);
@@ -1525,7 +1550,7 @@ bool RNPPGPHandler::privateSignCertificate(const RsPgpId& ownId,const RsPgpId& i
         RNP_UID_HANDLE_STRUCT(signed_key_uid);
         RNP_SIGNATURE_HANDLE_STRUCT(signature_handle);
 
-        rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, NULL);
+        rnp_ffi_set_pass_provider(mRnpFfi, rnp_get_passphrase_cb, this);
 
         if(rnp_locate_key(mRnpFfi,"keyid",id_of_key_to_sign.toStdString().c_str(),&signed_key) != RNP_SUCCESS)
             throw std::runtime_error("Key not found: "+id_of_key_to_sign.toStdString());
@@ -1588,6 +1613,8 @@ bool RNPPGPHandler::VerifySignBin(const void *literal_data, uint32_t literal_dat
     rnp_result_t              sigstatus = RNP_SUCCESS;
 
     bool signature_verification_result = false;
+
+    locked_timeStampKey(pgpIdFromFingerprint(key_fingerprint));
 
     try
     {

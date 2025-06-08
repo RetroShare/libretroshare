@@ -29,18 +29,14 @@
 struct GxsRequest
 {
 	GxsRequest() :
-	    token(0), reqTime(0), clientAnswerType(0), reqType(0),
-	    status(RsTokenService::FAILED) {}
+        reqTime(0), clientAnswerType(0), reqType(0)
+	     {}
 	virtual ~GxsRequest() {}
 
-	uint32_t token;
 	uint32_t reqTime;
-
 	uint32_t clientAnswerType; /// This is made available to the clients in order to keep track of why specific requests where sent..
 	uint32_t reqType;
 	RsTokReqOptions Options;
-
-	RsTokenService::GxsRequestStatus status;
 
     virtual std::ostream& print(std::ostream& o) const = 0;
 };
@@ -62,6 +58,7 @@ class GroupIdReq : public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupIdReq() {}
 
 	std::list<RsGxsGroupId> mGroupIds;
 	std::list<RsGxsGroupId> mGroupIdResult;
@@ -70,6 +67,7 @@ class GroupSerializedDataReq : public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupSerializedDataReq() ;
 
 	std::list<RsGxsGroupId> mGroupIds;
 	std::list<RsNxsGrp*> mGroupData;
@@ -91,7 +89,9 @@ class MsgIdReq : public GxsRequest
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
 
-	GxsMsgReq mMsgIds;
+    virtual ~MsgIdReq() {}
+
+    GxsMsgReq mMsgIds;
 	GxsMsgIdResult mMsgIdResult;
 };
 
@@ -122,6 +122,8 @@ class ServiceStatisticRequest: public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~ServiceStatisticRequest() = default;
+
 	GxsServiceStatistic mServiceStatistic;
 };
 
@@ -129,6 +131,7 @@ struct GroupStatisticRequest: public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupStatisticRequest() = default;
 
 	RsGxsGroupId mGrpId;
 	GxsGroupStatistic mGroupStatistic;
@@ -151,6 +154,7 @@ class GroupSetFlagReq : public GxsRequest
 {
 public:
     virtual std::ostream& print(std::ostream& o) const override ;
+    virtual ~GroupSetFlagReq() = default;
 
 	const static uint32_t FLAG_SUBSCRIBE;
 	const static uint32_t FLAG_STATUS;
@@ -164,7 +168,8 @@ public:
 class MessageSetFlagReq : public GxsRequest
 {
 public:
-	const static uint32_t FLAG_STATUS;
+    virtual ~MessageSetFlagReq() = default;
+    const static uint32_t FLAG_STATUS;
 
     virtual std::ostream& print(std::ostream& o) const override ;
 	uint8_t type;

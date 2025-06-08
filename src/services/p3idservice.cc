@@ -213,6 +213,7 @@ bool p3IdService::getIdentitiesInfo(
         const std::set<RsGxsId>& ids, std::vector<RsGxsIdGroup>& idsInfo )
 {
 	uint32_t token;
+    idsInfo.clear();
 
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_GROUP_DATA;
@@ -220,8 +221,12 @@ bool p3IdService::getIdentitiesInfo(
 	std::list<RsGxsGroupId> idsList;
 	for (auto&& id : ids) idsList.push_back(RsGxsGroupId(id));
 
-	if( !requestGroupInfo(token, opts, idsList)
-	        || waitToken(token) != RsTokenService::COMPLETE ) return false;
+    if(idsList.empty())	// no identities => return true.
+        return true;
+
+    if( !requestGroupInfo(token, opts, idsList) || waitToken(token) != RsTokenService::COMPLETE )
+        return false;
+
 	return getGroupData(token, idsInfo);
 }
 
@@ -658,12 +663,18 @@ void p3IdService::notifyChanges(std::vector<RsGxsNotify *> &changes)
                         mRejectedIdentities.insert(RsGxsId(groupChange->mGroupId));
                         break;
 
+                    case RsGxsNotify::TYPE_GROUP_DELETED:
                     case RsGxsNotify::TYPE_UPDATED:
                     case RsGxsNotify::TYPE_PUBLISHED:
                     {
                         auto ev = std::make_shared<RsGxsIdentityEvent>();
                         ev->mIdentityId = gid;
-                        ev->mIdentityEventCode = RsGxsIdentityEventCode::UPDATED_IDENTITY;
+
+                        if(groupChange->getType() == RsGxsNotify::TYPE_GROUP_DELETED)
+                            ev->mIdentityEventCode = RsGxsIdentityEventCode::DELETED_IDENTITY;
+                        else
+                            ev->mIdentityEventCode = RsGxsIdentityEventCode::UPDATED_IDENTITY;
+
                         rsEvents->postEvent(ev);
 
 						// also time_stamp the key that this group represents
@@ -1177,25 +1188,32 @@ bool p3IdService::deleteIdentity(RsGxsId& id)
 	RsGxsGroupId grouId = RsGxsGroupId(id);
 	if(!deleteGroup(token, grouId))
 	{
-		std::cerr << __PRETTY_FUNCTION__ << "Error! Failed deleting group."
-		          << std::endl;
+        std::cerr << __PRETTY_FUNCTION__ << "Error! Failed deleting group." << std::endl;
 		return false;
 	}
 
-	if(waitToken(token) != RsTokenService::COMPLETE)
-	{
-		std::cerr << __PRETTY_FUNCTION__ << "Error! GXS operation failed."
-		          << std::endl;
-		return false;
-	}
+    waitToken(token);
 
-    if(rsEvents)
-	{
-		auto ev = std::make_shared<RsGxsIdentityEvent>();
-		ev->mIdentityId = grouId;
-		ev->mIdentityEventCode = RsGxsIdentityEventCode::DELETED_IDENTITY;
-		rsEvents->postEvent(ev);
-	}
+    // (cyril) There's a bug in the token service: it returns FAILED for unknown tokens
+    // and deleteGroup() causes the token to be released right after the group is deleted.
+    // So in the end, waitToken always returns FAILED even when the operation completed successfuly.
+    // So I removed the test below. In the end, removing an identity always succeeds even if there's nothing to remove.
+    //
+    //    if(res == RsTokenService::COMPLETED)
+    //    {
+    //           std::cerr << __PRETTY_FUNCTION__ << "Error! GXS group deletion of group " << grouId << ": operation failed."
+    //    	          << std::endl;
+    //    	return false;
+    //    }
+
+    // This is done in notifyChanges() already. Doing it now is too early anyway.
+    //  if(rsEvents)
+    //	{
+    //		auto ev = std::make_shared<RsGxsIdentityEvent>();
+    //		ev->mIdentityId = grouId;
+    //		ev->mIdentityEventCode = RsGxsIdentityEventCode::DELETED_IDENTITY;
+    //		rsEvents->postEvent(ev);
+    //	}
 
 	return true;
 }
