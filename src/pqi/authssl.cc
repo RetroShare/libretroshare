@@ -1305,15 +1305,9 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
         if(!!getpeername(fd, (struct sockaddr *)&addr, &len))
             return std::string();
 
-        char ipstr[INET6_ADDRSTRLEN];
-        void *src = NULL;
-        if (addr.ss_family == AF_INET)
-            src = &((struct sockaddr_in *)&addr)->sin_addr;
-        else if (addr.ss_family == AF_INET6)
-            src = &((struct sockaddr_in6 *)&addr)->sin6_addr;
-
-        if (src && inet_ntop(addr.ss_family, src, ipstr, sizeof(ipstr)))
-            return std::string(ipstr);
+        std::string ipstr;
+        if (sockaddr_storage_inet_ntop(addr, ipstr))
+            return ipstr;
         else
             return std::string();
     };
