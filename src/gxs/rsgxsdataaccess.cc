@@ -57,7 +57,7 @@ static std::ostream& gxsdatadebug(uint32_t service_type)
     if (service_to_print==0 || service_type == 0 || (service_type == service_to_print))
         return std::cerr << time(NULL) << ":GXSDATASERVICE: " ;
     else
-        return null ;
+        return std:cerr ;
 }
 
 #define GXSDATADEBUG gxsdatadebug(mDataStore->serviceType())
