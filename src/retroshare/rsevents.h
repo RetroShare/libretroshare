@@ -65,15 +65,15 @@ enum class RsEventType : uint32_t
 	AUTHSSL_CONNECTION_AUTENTICATION                        = 3,
 
 	/// @see pqissl
-	PEER_CONNECTION                                         = 4,
+    FRIEND_LIST                                             = 4,		// former PEER_STATUS
 
 	/// @see RsGxsChanges, used also in @see RsGxsBroadcast
 	GXS_CHANGES                                             = 5,
 
 	/// Emitted when a peer state changes, @see RsPeers
-	PEER_STATE_CHANGED                                      = 6,
+    _________UNUSED___001_                                  = 6,		// former PEER_STATE_CHANGED
 
-	/// @see RsMailStatusEvent
+    /// @see RsMailStatusEvent
 	MAIL_STATUS                                             = 7,
 
     /// @see RsGxsCircleEvent
@@ -110,7 +110,7 @@ enum class RsEventType : uint32_t
     JSON_API                                                = 18,
 
 	/** Emitted to update library clients about file hashing being completed */
-    _________UNUSED__________                               = 20,
+    _________UNUSED___002_                                  = 20,			// former FILE_HASING_COMPLETE
 
     /// @see rspeers.h
     TOR_MANAGER                                             = 21,

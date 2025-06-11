@@ -130,7 +130,7 @@ const uint32_t RS_FEED_ITEM_CIRCLE_INVITE_CANCELLED= RS_FEED_TYPE_CIRCLE  | 0x00
 const uint32_t RS_MESSAGE_CONNECT_ATTEMPT    = 0x0001;
 
 const int NOTIFY_LIST_NEIGHBOURS             = 1;
-const int NOTIFY_LIST_FRIENDS                = 2;
+//const int NOTIFY_LIST_FRIENDS                = 2;
 const int NOTIFY_LIST_SEARCHLIST             = 4;
 const int NOTIFY_LIST_CHANNELLIST            = 6;
 const int NOTIFY_LIST_TRANSFERLIST           = 7;

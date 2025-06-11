@@ -258,26 +258,32 @@ struct RsAuthSslConnectionAutenticationEvent : RsEvent
 	~RsAuthSslConnectionAutenticationEvent() override;
 };
 
-enum class RsConnectionEventCode: uint8_t
+enum class RsFriendListEventCode: uint8_t
 {
-	UNKNOWN                 = 0x00,
-	PEER_CONNECTED          = 0x01,
-	PEER_DISCONNECTED       = 0x02,
-	PEER_TIME_SHIFT         = 0x03, // mTimeShift = time shift in seconds
-	PEER_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
-    PEER_ADDED              = 0x05,
-    PEER_REMOVED            = 0x06,
+    UNKNOWN                 = 0x00,
+    NODE_CONNECTED          = 0x01,
+    NODE_DISCONNECTED       = 0x02,
+    NODE_TIME_SHIFT         = 0x03, // mTimeShift = time shift in seconds
+    NODE_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
+    NODE_ADDED              = 0x05,
+    NODE_REMOVED            = 0x06,
+    NODE_STATE_CHANGED      = 0x07,	// mSslId
+    PROFILE_ADDED           = 0x08,	// mPgpId
+    PROFILE_REMOVED         = 0x09,	// mPgpId
+    GROUP_ADDED             = 0x0a,
+    GROUP_REMOVED           = 0x0b,
 };
 
-struct RsConnectionEvent : RsEvent
+struct RsFriendListEvent : RsEvent
 {
-	RsConnectionEvent()
-	    : RsEvent(RsEventType::PEER_CONNECTION),
-	      mConnectionInfoCode(RsConnectionEventCode::UNKNOWN), mTimeShift(0) {}
+    RsFriendListEvent()
+        : RsEvent(RsEventType::FRIEND_LIST),
+          mEventCode(RsFriendListEventCode::UNKNOWN), mTimeShift(0) {}
 
-	RsConnectionEventCode mConnectionInfoCode;
+    RsFriendListEventCode mEventCode;
 	RsPeerId mSslId;
-	RsUrl mOwnLocator;
+    RsPgpId mPgpId;
+    RsUrl mOwnLocator;
 	RsUrl mReportedLocator;
 
 	/** If there is a time shift with the peer aka
@@ -291,14 +297,15 @@ struct RsConnectionEvent : RsEvent
 	        RsGenericSerializer::SerializeContext& ctx ) override
 	{
 		RsEvent::serial_process(j, ctx);
-		RS_SERIAL_PROCESS(mConnectionInfoCode);
+        RS_SERIAL_PROCESS(mEventCode);
 		RS_SERIAL_PROCESS(mSslId);
-		RS_SERIAL_PROCESS(mOwnLocator);
+        RS_SERIAL_PROCESS(mPgpId);
+        RS_SERIAL_PROCESS(mOwnLocator);
 		RS_SERIAL_PROCESS(mReportedLocator);
 		RS_SERIAL_PROCESS(mTimeShift);
 	}
 
-	~RsConnectionEvent() override;
+    ~RsFriendListEvent() override = default;
 };
 
 enum class RsNetworkEventCode: uint8_t {
@@ -497,6 +504,7 @@ struct RsGroupInfo : RsSerializable
 	}
 };
 
+#ifdef TO_REMOVE
 /** Event emitted when a peer change state */
 struct RsPeerStateChangedEvent : RsEvent
 {
@@ -513,6 +521,7 @@ struct RsPeerStateChangedEvent : RsEvent
 		RS_SERIAL_PROCESS(mSslId);
 	}
 };
+#endif
 
 enum class RetroshareInviteFlags:uint32_t {
     NOTHING             = 0x00,

@@ -629,7 +629,15 @@ bool AuthPGP::AllowConnection(const RsPgpId& gpg_id, bool accept)
 
     instance()->IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
 
-	RsServer::notify()->notifyListChange(NOTIFY_LIST_FRIENDS, accept ? NOTIFY_TYPE_ADD : NOTIFY_TYPE_DEL);
+    //RsServer::notify()->notifyListChange(NOTIFY_LIST_FRIENDS, accept ? NOTIFY_TYPE_ADD : NOTIFY_TYPE_DEL);
+
+    if(rsEvents)
+    {
+        auto e = std::make_shared<RsFriendListEvent>();
+        e->mEventCode = accept ? (RsFriendListEventCode::PROFILE_ADDED) : (RsFriendListEventCode::PROFILE_REMOVED);
+        e->mPgpId = gpg_id;
+        rsEvents->postEvent(e);
+    }
 
 	return true;
 }
