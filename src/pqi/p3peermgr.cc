@@ -2849,10 +2849,17 @@ bool p3PeerMgrIMPL::editGroup(const RsNodeGroupId& groupId, RsGroupInfo &groupIn
 
     if (changed)
     {
-		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
+        //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
+
+        if(rsEvents)
+        {
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mEventCode = RsFriendListEventCode::GROUP_CHANGED ;
+            rsEvents->postEvent(e);
+        }
 
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
-	}
+    }
 
 	return changed;
 }
@@ -2891,8 +2898,14 @@ bool p3PeerMgrIMPL::removeGroup(const RsNodeGroupId& groupId)
 	}
 
 	if (changed) {
-		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_DEL);
+        //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_DEL);
 
+        if(rsEvents)
+        {
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mEventCode = RsFriendListEventCode::GROUP_REMOVED ;
+            rsEvents->postEvent(e);
+        }
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
@@ -2979,8 +2992,14 @@ bool p3PeerMgrIMPL::assignPeersToGroup(const RsNodeGroupId &groupId, const std::
 	}
 
 	if (changed) {
-		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
+        //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
 
+        if(rsEvents)
+        {
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mEventCode = RsFriendListEventCode::GROUP_CHANGED ;
+            rsEvents->postEvent(e);
+        }
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 

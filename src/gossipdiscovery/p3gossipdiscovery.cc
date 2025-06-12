@@ -128,7 +128,9 @@ RsServiceInfo p3discovery2::getServiceInfo()
 }
 
 p3discovery2::~p3discovery2()
-{ rsEvents->unregisterEventsHandler(mRsEventsHandle); }
+{
+    rsEvents->unregisterEventsHandler(mRsEventsHandle);
+}
 
 void p3discovery2::addFriend(const RsPeerId &sslId)
 {

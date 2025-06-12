@@ -267,11 +267,12 @@ enum class RsFriendListEventCode: uint8_t
     NODE_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
     NODE_ADDED              = 0x05,
     NODE_REMOVED            = 0x06,
-    NODE_STATE_CHANGED      = 0x07,	// mSslId
+    NODE_STATUS_CHANGED     = 0x07,	// mSslId
     PROFILE_ADDED           = 0x08,	// mPgpId
     PROFILE_REMOVED         = 0x09,	// mPgpId
     GROUP_ADDED             = 0x0a,
     GROUP_REMOVED           = 0x0b,
+    GROUP_CHANGED           = 0x0c,
 };
 
 struct RsFriendListEvent : RsEvent
