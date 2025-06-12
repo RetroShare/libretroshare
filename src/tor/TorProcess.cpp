@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
 
 #include "util/rsdir.h"
 #include "util/rsfile.h"

@@ -307,8 +307,8 @@ std::error_condition ftServer::requestFiles(
         const std::vector<RsPeerId>& srcIds, FileRequestFlags flags )
 {
 	constexpr auto fname = __PRETTY_FUNCTION__;
-	const auto dirsCount = collection.mDirs.size();
-	const auto filesCount = collection.mFiles.size();
+    const auto dirsCount = collection.numDirs();
+    const auto filesCount = collection.numFiles();
 
 	Dbg2() << fname << " dirsCount: " << dirsCount
 	       << " filesCount: " << filesCount << std::endl;
@@ -326,12 +326,6 @@ std::error_condition ftServer::requestFiles(
 		return std::errc::invalid_argument;
 	}
 
-	if(filesCount != collection.mTotalFiles)
-	{
-		RsErr() << fname << " Files count mismatch" << std::endl;
-		return std::errc::invalid_argument;
-	}
-
 	std::string basePath = destPath.empty() ? getDownloadDirectory() : destPath;
 	// Track how many time a directory have been explored
 	std::vector<uint32_t> dirsSeenCnt(dirsCount, 0);
@@ -344,7 +338,8 @@ std::error_condition ftServer::requestFiles(
 		uint64_t dirHandle; std::string parentPath;
 		std::tie(dirHandle, parentPath) = se;
 
-		const auto& dirData = collection.mDirs[dirHandle];
+        const RsFileTree::DirData& dirData(collection.directoryData(dirHandle));
+
 		auto& seenTimes = dirsSeenCnt[dirHandle];
 		std::string dirPath = RsDirUtil::makePath(parentPath, dirData.name);
 
@@ -362,7 +357,7 @@ std::error_condition ftServer::requestFiles(
 		{
 			if(fHandle >= filesCount) return std::errc::argument_out_of_domain;
 
-			const RsFileTree::FileData& fData = collection.mFiles[fHandle];
+            const RsFileTree::FileData& fData(collection.fileData(fHandle));
 
 			bool fr =
 			FileRequest( fData.name, fData.hash, fData.size,
@@ -389,7 +384,7 @@ std::error_condition ftServer::requestFiles(
 	return std::error_condition();
 }
 
-bool ftServer::activateTunnels(const RsFileHash& hash,uint32_t encryption_policy,TransferRequestFlags flags,bool onoff)
+bool ftServer::activateTunnels(const RsFileHash& hash,TransferRequestFlags /* flags */,bool onoff)
 {
 	RsFileHash hash_of_hash ;
 
@@ -401,26 +396,11 @@ bool ftServer::activateTunnels(const RsFileHash& hash,uint32_t encryption_policy
 #ifdef SERVER_DEBUG
 		FTSERVER_DEBUG() << "Activating tunnels for hash " << hash << std::endl;
 #endif
-		if(flags & RS_FILE_REQ_ENCRYPTED)
-		{
-#ifdef SERVER_DEBUG
-			FTSERVER_DEBUG() << "  flags require end-to-end encryption. Requesting hash of hash " << hash_of_hash << std::endl;
-#endif
-			mTurtleRouter->monitorTunnels(hash_of_hash,this,true) ;
-		}
-		if((flags & RS_FILE_REQ_UNENCRYPTED) && (encryption_policy != RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT))
-		{
-#ifdef SERVER_DEBUG
-			FTSERVER_DEBUG() << "  flags require no end-to-end encryption. Requesting hash " << hash << std::endl;
-#endif
-			mTurtleRouter->monitorTunnels(hash,this,true) ;
-		}
+        mTurtleRouter->monitorTunnels(hash_of_hash,this,true) ;
 	}
 	else
-	{
 		mTurtleRouter->stopMonitoringTunnels(hash_of_hash);
-		mTurtleRouter->stopMonitoringTunnels(hash);
-	}
+
 	return true ;
 }
 
@@ -459,6 +439,7 @@ void ftServer::setFreeDiskSpaceLimit(uint32_t s)
 	mFtController->setFreeDiskSpaceLimit(s) ;
 }
 
+#ifdef TO_REMOVE
 void ftServer::setDefaultEncryptionPolicy(uint32_t s)
 {
 	mFtController->setDefaultEncryptionPolicy(s) ;
@@ -467,6 +448,7 @@ uint32_t ftServer::defaultEncryptionPolicy()
 {
 	return mFtController->defaultEncryptionPolicy() ;
 }
+#endif
 
 void ftServer::setMaxUploadSlotsPerFriend(uint32_t n)
 {
@@ -766,7 +748,7 @@ bool ftServer::handleTunnelRequest(const RsFileHash& hash,const RsPeerId& peer_i
 		}
 	}
 
-	if(found && mFtController->defaultEncryptionPolicy() == RS_FILE_CTRL_ENCRYPTION_POLICY_STRICT && hash == real_hash)
+    if(found && hash == real_hash)
 	{
 #ifdef SERVER_DEBUG
 		std::cerr << "(WW) rejecting file transfer for hash " << hash << " because the hash is not encrypted and encryption policy requires it." << std::endl;
@@ -1582,6 +1564,9 @@ bool ftServer::decryptItem(const RsTurtleGenericDataItem *encrypted_item,const R
 #endif
 }
 
+// This doesn't "encrypt" the hash. It just uses a one way function to make the real hash impossible to
+// figure out from the hash of the hash.
+//
 bool ftServer::encryptHash(const RsFileHash& hash, RsFileHash& hash_of_hash)
 {
 	hash_of_hash = RsDirUtil::sha1sum(hash.toByteArray(),hash.SIZE_IN_BYTES);
@@ -2272,10 +2257,10 @@ std::error_condition ftServer::dirDetailsToLink(
 	{
 		RsUrl tUrl(baseUrl);
 		tUrl.setQueryKV(FILES_URL_COUNT_FIELD,
-		                std::to_string(tFileTree->mTotalFiles) )
+                        std::to_string(tFileTree->numFiles()) )
 		    .setQueryKV(FILES_URL_NAME_FIELD, dirDetails.name)
 		    .setQueryKV( FILES_URL_SIZE_FIELD,
-		                 std::to_string(tFileTree->mTotalSize) );
+                         std::to_string(tFileTree->totalFileSize()) );
 		if(fragSneak)
 			tUrl.setQueryKV(FILES_URL_DATA_FIELD, FILES_URL_FAGMENT_FORWARD)
 			        .setFragment(link);

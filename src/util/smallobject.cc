@@ -25,6 +25,9 @@
 #include "util/rsthreads.h"
 #include "util/rsmemory.h"
 
+#include "util/rsdebug.h"
+#include "util/rsdebuglevel1.h"
+
 using namespace RsMemoryManagement ;
 
 RsMutex SmallObject::_mtx("SmallObject") ;
@@ -213,17 +216,16 @@ SmallObjectAllocator::~SmallObjectAllocator()
 {
 	RsStackMutex m(SmallObject::_mtx) ;
 
-    	//std::cerr << __PRETTY_FUNCTION__ << " not deleting. Leaving it to the system." << std::endl;
-        
 	_active = false ;
-    
-    	uint32_t still_allocated = 0 ;
+
+	uint32_t still_allocated = 0 ;
         
 	for(std::map<int,FixedAllocator*>::const_iterator it(_pool.begin());it!=_pool.end();++it)
         	still_allocated += it->second->currentSize() ;
 		//delete it->second ;
     
-    	std::cerr << "Memory still in use at end of program: " << still_allocated << " bytes." << std::endl;
+	RS_DBG2( "Memory still in use at end of program: ",
+	         still_allocated, " bytes." );
 }
 
 void *SmallObjectAllocator::allocate(size_t bytes)

@@ -1191,24 +1191,24 @@ static void addPacketHeader(RsShortInviteFieldType ptag, size_t size, unsigned c
 
 bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, RetroshareInviteFlags invite_flags, const std::string& baseUrl )
 {
-	RsPeerId sslId = _sslId;
-	if(sslId.isNull()) sslId = getOwnId();
+    RsPeerId sslId = _sslId;
+    if(sslId.isNull()) sslId = getOwnId();
 
-	RsPeerDetails tDetails;
-	if(!getPeerDetails(sslId, tDetails)) return false;
+    RsPeerDetails tDetails;
+    if(!getPeerDetails(sslId, tDetails)) return false;
 
     uint32_t buf_size = 100;
     uint32_t offset = 0;
     unsigned char *buf = (unsigned char*)malloc(buf_size);
 
     addPacketHeader(RsShortInviteFieldType::SSL_ID,RsPeerId::SIZE_IN_BYTES,buf,offset,buf_size);
-	sslId.serialise(buf,buf_size,offset);
+    sslId.serialise(buf,buf_size,offset);
 
     addPacketHeader(RsShortInviteFieldType::PGP_FINGERPRINT,RsPgpFingerprint::SIZE_IN_BYTES,buf,offset,buf_size);
-	tDetails.fpr.serialise(buf,buf_size,offset);
+    tDetails.fpr.serialise(buf,buf_size,offset);
 
     addPacketHeader(RsShortInviteFieldType::PEER_NAME,tDetails.name.size(),buf,offset,buf_size);
-	memcpy(&buf[offset],tDetails.name.c_str(),tDetails.name.size());
+    memcpy(&buf[offset],tDetails.name.c_str(),tDetails.name.size());
     offset += tDetails.name.size();
 
     /* If it is a hidden node, always use hidden address and port as locator */
@@ -1246,7 +1246,7 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
         for(auto& s: tDetails.ipAddressList)
         {
             const std::string& tLc = s;
-            std::string tLocator = tLc.substr(0, tLc.find_first_of(" ")-1);
+            std::string tLocator = tLc.substr(0, tLc.find_first_of(" "));
 
             addPacketHeader(RsShortInviteFieldType::LOCATOR, tLocator.size(),buf,offset,buf_size);
             memcpy(&buf[offset],tLocator.c_str(),tLocator.size());
@@ -1281,63 +1281,63 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
 
         if(!!(invite_flags & RetroshareInviteFlags::CURRENT_LOCAL_IP ))
         {
-        sockaddr_storage tLocal;
-        bool validLoc =   sockaddr_storage_inet_pton(tLocal, tDetails.localAddr)
-                        && sockaddr_storage_isValidNet(tLocal)
-                        && tDetails.localPort;
-        bool isLocIpv4 = sockaddr_storage_ipv6_to_ipv4(tLocal);
-        if(validLoc && isLocIpv4)
-        {
-            uint32_t t4Addr = reinterpret_cast<sockaddr_in&>(tLocal).sin_addr.s_addr;
+            sockaddr_storage tLocal;
+            bool validLoc =   sockaddr_storage_inet_pton(tLocal, tDetails.localAddr)
+                            && sockaddr_storage_isValidNet(tLocal)
+                            && tDetails.localPort;
+            bool isLocIpv4 = sockaddr_storage_ipv6_to_ipv4(tLocal);
+            if(validLoc && isLocIpv4)
+            {
+                uint32_t t4Addr = reinterpret_cast<sockaddr_in&>(tLocal).sin_addr.s_addr;
 
-            addPacketHeader(RsShortInviteFieldType::LOC4_LOCATOR, 4 + 2,buf,offset,buf_size);
+                addPacketHeader(RsShortInviteFieldType::LOC4_LOCATOR, 4 + 2,buf,offset,buf_size);
 
-            buf[offset+0] = (uint8_t)((t4Addr >> 24) & 0xff);
-            buf[offset+1] = (uint8_t)((t4Addr >> 16) & 0xff);
-            buf[offset+2] = (uint8_t)((t4Addr >>  8) & 0xff);
-            buf[offset+3] = (uint8_t)((t4Addr      ) & 0xff);
+                buf[offset+0] = (uint8_t)((t4Addr >> 24) & 0xff);
+                buf[offset+1] = (uint8_t)((t4Addr >> 16) & 0xff);
+                buf[offset+2] = (uint8_t)((t4Addr >>  8) & 0xff);
+                buf[offset+3] = (uint8_t)((t4Addr      ) & 0xff);
 
-            buf[offset+4] = (uint8_t)((tDetails.localPort >> 8) & 0xff);
-            buf[offset+5] = (uint8_t)((tDetails.localPort     ) & 0xff);
+                buf[offset+4] = (uint8_t)((tDetails.localPort >> 8) & 0xff);
+                buf[offset+5] = (uint8_t)((tDetails.localPort     ) & 0xff);
 
-            offset += 4+2;
+                offset += 4+2;
+            }
         }
-    }
 
         if(!!(invite_flags & RetroshareInviteFlags::CURRENT_EXTERNAL_IP ))
         {
-        sockaddr_storage tExt;
-        bool validExt =   sockaddr_storage_inet_pton(tExt, tDetails.extAddr)
-                       && sockaddr_storage_isValidNet(tExt)
-                       && tDetails.extPort;
-        bool isExtIpv4 = sockaddr_storage_ipv6_to_ipv4(tExt);
-        if(validExt && isExtIpv4)
-        {
-            uint32_t t4Addr = reinterpret_cast<sockaddr_in&>(tExt).sin_addr.s_addr;
+            sockaddr_storage tExt;
+            bool validExt =   sockaddr_storage_inet_pton(tExt, tDetails.extAddr)
+                            && sockaddr_storage_isValidNet(tExt)
+                            && tDetails.extPort;
+            bool isExtIpv4 = sockaddr_storage_ipv6_to_ipv4(tExt);
+            if(validExt && isExtIpv4)
+            {
+                uint32_t t4Addr = reinterpret_cast<sockaddr_in&>(tExt).sin_addr.s_addr;
 
-            addPacketHeader(RsShortInviteFieldType::EXT4_LOCATOR, 4 + 2,buf,offset,buf_size);
+                addPacketHeader(RsShortInviteFieldType::EXT4_LOCATOR, 4 + 2,buf,offset,buf_size);
 
-            buf[offset+0] = (uint8_t)((t4Addr >> 24) & 0xff);
-            buf[offset+1] = (uint8_t)((t4Addr >> 16) & 0xff);
-            buf[offset+2] = (uint8_t)((t4Addr >>  8) & 0xff);
-            buf[offset+3] = (uint8_t)((t4Addr      ) & 0xff);
+                buf[offset+0] = (uint8_t)((t4Addr >> 24) & 0xff);
+                buf[offset+1] = (uint8_t)((t4Addr >> 16) & 0xff);
+                buf[offset+2] = (uint8_t)((t4Addr >>  8) & 0xff);
+                buf[offset+3] = (uint8_t)((t4Addr      ) & 0xff);
 
-            buf[offset+4] = (uint8_t)((tDetails.extPort >> 8) & 0xff);
-            buf[offset+5] = (uint8_t)((tDetails.extPort     ) & 0xff);
+                buf[offset+4] = (uint8_t)((tDetails.extPort >> 8) & 0xff);
+                buf[offset+5] = (uint8_t)((tDetails.extPort     ) & 0xff);
 
-            offset += 4+2;
-        }
-        else if(validExt && !isExtIpv4)
-        {
-            // External address is IPv6, save it on LOCATOR
-            sockaddr_storage_setport(tExt,tDetails.extPort);
-            std::string tLocator = sockaddr_storage_tostring(tExt);
+                offset += 4+2;
+            }
+            else if(validExt && !isExtIpv4)
+            {
+                // External address is IPv6, save it on LOCATOR
+                sockaddr_storage_setport(tExt,tDetails.extPort);
+                std::string tLocator = sockaddr_storage_tostring(tExt);
 
-            addPacketHeader(RsShortInviteFieldType::LOCATOR, tLocator.size(),buf,offset,buf_size);
-            memcpy(&buf[offset],tLocator.c_str(),tLocator.size());
+                addPacketHeader(RsShortInviteFieldType::LOCATOR, tLocator.size(),buf,offset,buf_size);
+                memcpy(&buf[offset],tLocator.c_str(),tLocator.size());
 
-            offset += tLocator.size();
-        }
+                offset += tLocator.size();
+            }
         }
 #endif
 
@@ -1345,27 +1345,27 @@ bool p3Peers::getShortInvite(std::string& invite, const RsPeerId& _sslId, Retros
 
     uint32_t computed_crc = PGPKeyManagement::compute24bitsCRC(buf,offset) ;
 
-	// handle endian issues.
-	unsigned char mem[3] ;
-	mem[0] =  computed_crc        & 0xff ;
-	mem[1] = (computed_crc >> 8 ) & 0xff ;
-	mem[2] = (computed_crc >> 16) & 0xff ;
+    // handle endian issues.
+    unsigned char mem[3] ;
+    mem[0] =  computed_crc        & 0xff ;
+    mem[1] = (computed_crc >> 8 ) & 0xff ;
+    mem[2] = (computed_crc >> 16) & 0xff ;
 
-	addPacketHeader( RsShortInviteFieldType::CHECKSUM,3,buf,offset,buf_size);
-	memcpy(&buf[offset],mem,3);
+    addPacketHeader( RsShortInviteFieldType::CHECKSUM,3,buf,offset,buf_size);
+    memcpy(&buf[offset],mem,3);
     offset += 3;
 
-	Radix64::encode(buf, static_cast<int>(offset), invite);
+    Radix64::encode(buf, static_cast<int>(offset), invite);
 
     if(!(invite_flags & RetroshareInviteFlags::RADIX_FORMAT))
-	{
-		RsUrl inviteUrl(baseUrl);
-		inviteUrl.setQueryKV("rsInvite", invite);
-		invite = inviteUrl.toString();
-	}
+    {
+        RsUrl inviteUrl(baseUrl);
+        inviteUrl.setQueryKV("rsInvite", invite);
+        invite = inviteUrl.toString();
+    }
     free(buf);
 
-	return true;
+    return true;
 }
 
 bool p3Peers::parseShortInvite(const std::string& inviteStrUrl, RsPeerDetails& details, uint32_t &err_code )
@@ -1521,6 +1521,16 @@ std::string p3Peers::GetRetroshareInvite( const RsPeerId& sslId, RetroshareInvit
 			          << "\". Sorry." << std::endl;
 			return "";
 		}
+
+#ifdef V06_EXPERIMENTAL_CHANGE_001
+        // This code is invalid, because it will make the signature invalid since subpacket 33 is inside the hashed section
+        // of the signature.
+        //
+        // remove signature subpacket tag 33 for backward compatibility
+        size_t new_size = 0;
+        PGPKeyManagement::removeSignatureSubPacketTag33(mem_block,mem_block_size,new_size);
+        mem_block_size = new_size;
+#endif
 
 		RsCertificate cert(detail, mem_block, mem_block_size);
 		free(mem_block);

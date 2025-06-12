@@ -486,13 +486,12 @@ LLwaitTokenBeginLabel:
 #endif
 		auto timeout = std::chrono::steady_clock::now() + maxWait;
 		auto st = requestStatus(token);
-
 		while( !(st == RsTokenService::FAILED || st >= RsTokenService::COMPLETE)
 		       && std::chrono::steady_clock::now() < timeout )
 		{
 			std::this_thread::sleep_for(checkEvery);
 			st = requestStatus(token);
-		}
+        }
 		if(st != RsTokenService::COMPLETE && auto_delete_if_unsuccessful)
 			cancelRequest(token);
 

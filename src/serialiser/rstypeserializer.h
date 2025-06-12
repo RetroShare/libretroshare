@@ -4,8 +4,8 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2017       Cyril Soler <csoler@users.sourceforge.net>         *
- * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020-2023  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2024  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2020-2024  Asociación Civil Altermundi <info@altermundi.net>  *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -29,6 +29,7 @@
 #include <system_error>
 #include <bitset>
 #include <string>
+#include <deque>
 
 #include "serialiser/rsserial.h"
 #include "serialiser/rstlvbase.h"
@@ -41,6 +42,7 @@
 #include "util/rsjson.h"
 #include "util/rsdebuglevel1.h"
 #include "util/cxx14retrocompat.h"
+#include "util/cxx17retrocompat.h"
 
 
 struct RsTypeSerializer
@@ -173,7 +175,8 @@ struct RsTypeSerializer
 	        std::is_enum<T>::value ||
 	        std::is_base_of<RsTlvItem,T>::value ||
 	        std::is_same<std::error_condition,T>::value ||
-	        is_sequence_container<T>::value || is_string<T>::value ) >::type
+	        is_sequence_container<T>::value || is_string<T>::value ||
+	        std::is_same<RsJson,T>::value ) >::type
 	static /*void*/ serial_process( RsGenericSerializer::SerializeJob j,
 	                                RsGenericSerializer::SerializeContext& ctx,
 	                                T& memberC, const std::string& member_name )
@@ -261,7 +264,7 @@ struct RsTypeSerializer
 	{
 		switch(j)
 		{
-		case RsGenericSerializer::SIZE_ESTIMATE: // [[falltrough]]
+		case RsGenericSerializer::SIZE_ESTIMATE: RS_FALLTHROUGH;
 		case RsGenericSerializer::SERIALIZE:
 		{
 			uint32_t mapSize = member.size();
@@ -277,15 +280,35 @@ struct RsTypeSerializer
 		}
 		case RsGenericSerializer::DESERIALIZE:
 		{
+			/* Deserializing a map we expect the container is empty, enforce it
+			 * and print some diagnostic if it is not */
+			if(!member.empty())
+			{
+				RS_ERR( "DESERIALIZE operation for std::map ", memberName,
+				        "expect it to be empty, clearing it now ",
+				        "please report to developers" );
+				print_stacktrace();
+				member.clear();
+			}
+
 			uint32_t mapSize = 0;
 			RS_SERIAL_PROCESS(mapSize);
 
-			for(uint32_t i=0; ctx.mOk && i<mapSize; ++i)
+			for(uint32_t i=0; ctx.mOk && i < mapSize; ++i)
 			{
 				T t; U u;
 				RS_SERIAL_PROCESS(t);
 				RS_SERIAL_PROCESS(u);
-				member[t] = u;
+
+				if(ctx.mOk)
+				{
+					/* Keys must not be duplicated in the serialized map if it
+					 * is not the case it is a pathological state we must report
+					 * failure */
+					// C++ > 17 auto [_it, emplaced]
+					auto eStatus = member.emplace(t, u);
+					ctx.mOk &= eStatus.second;
+				}
 			}
 			break;
 		}
@@ -327,6 +350,17 @@ struct RsTypeSerializer
 		}
 		case RsGenericSerializer::FROM_JSON:
 		{
+			/* Deserializing a map we expect the container is empty, enforce it
+			 * and print some diagnostic if it is not */
+			if(!member.empty())
+			{
+				RS_ERR( "FROM_JSON operation for std::map ", memberName,
+				        " expect it to be empty, clearing it now ",
+				        "please report to developers" );
+				print_stacktrace();
+				member.clear();
+			}
+
 			using namespace rapidjson;
 
 			bool ok = ctx.mOk || !!(ctx.mFlags & RsSerializationFlags::YIELDING);
@@ -367,7 +401,16 @@ struct RsTypeSerializer
 					             vCtx.mOk );
 
 					ctx.mOk &= ok;
-					if(ok) member.insert(std::pair<T,U>(key,value));
+
+					if(ok)
+					{
+						/* Keys must not be duplicated in the serialized map if
+						 * it is not the case it is a pathological state we must
+						 * report failure */
+						// C++ > 17 auto [_it, emplaced]
+						auto eStatus = member.emplace(key, value);
+						ctx.mOk &= eStatus.second;
+					}
 					else break;
 				}
 			}
@@ -461,6 +504,9 @@ struct RsTypeSerializer
 //============================================================================//
 //                       Sequence containers                                  //
 //============================================================================//
+
+	/**  std::deque is supported */ template <typename... Args>
+	struct is_sequence_container<std::deque<Args...>>: std::true_type {};
 
 	/** std::list is supported */ template <typename... Args>
 	struct is_sequence_container<std::list<Args...>>: std::true_type {};
@@ -843,6 +889,46 @@ struct RsTypeSerializer
 	{
 		ErrConditionWrapper ew(cond);
 		serial_process(j, ctx, ew, member_name);
+	}
+
+	/** RsJson */
+	template<typename T>
+	typename std::enable_if< std::is_same<RsJson,T>::value >::type
+	static /*void*/ serial_process(
+	        RsGenericSerializer::SerializeJob j,
+	        RsGenericSerializer::SerializeContext& ctx,
+	        T& jsonMember, const std::string& memberName )
+	{
+		switch(j)
+		{
+		case RsGenericSerializer::SIZE_ESTIMATE: RS_FALLTHROUGH;
+		case RsGenericSerializer::SERIALIZE:
+		{
+			std::stringstream ss; ss << jsonMember;
+			std::string strRep(ss.str());
+			serial_process(j, ctx, strRep, memberName);
+			break;
+		}
+		case RsGenericSerializer::DESERIALIZE:
+		{
+			std::string strRep;
+			serial_process(j, ctx, strRep, memberName);
+			jsonMember.Parse(strRep.data(), strRep.size());
+			break;
+		}
+		case RsGenericSerializer::PRINT: break;
+		case RsGenericSerializer::TO_JSON:
+			ctx.mOk = ctx.mOk && to_JSON(memberName, jsonMember, ctx.mJson);
+			break;
+		case RsGenericSerializer::FROM_JSON:
+		{
+			bool ok = ctx.mOk || !!(
+			            ctx.mFlags & RsSerializationFlags::YIELDING );
+			ctx.mOk = ok && from_JSON(memberName, jsonMember, ctx.mJson) && ctx.mOk;
+			break;
+		}
+		default: RsTypeSerializer::fatalUnknownSerialJob(j);
+		}
 	}
 
 	RS_DEPRECATED_FOR(RawMemoryWrapper)

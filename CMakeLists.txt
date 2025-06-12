@@ -159,9 +159,16 @@ cmake_dependent_option(
 # doesn't make the library fat as the debugging symbols are stored
 # separately, enable us to symbolicate crash reports produced by release builds
 # @see https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
+# https://web.archive.org/web/20231127210015/https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
 option(
 	RS_SPLIT_DEBUG
 	"Generate split debug symbols, useful for debugabble release builds"
+	OFF )
+
+option(
+	RS_CPPTRACE_STACKTRACE
+	"Use Jeremy Rifkin Cpptrace library to print stacktrace instead of \
+	our implementation"
 	OFF )
 
 set(
@@ -702,3 +709,20 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
+
+################################################################################
+
+if(RS_CPPTRACE_STACKTRACE)
+    FetchContent_Declare(
+      cpptrace
+      GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+      GIT_TAG v0.3.1
+      GIT_SHALLOW TRUE
+      GIT_PROGRESS TRUE
+      TIMEOUT 10
+    )
+    FetchContent_MakeAvailable(cpptrace)
+    target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
+    target_compile_definitions(
+        ${LIBRARY_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
+endif(RS_CPPTRACE_STACKTRACE)

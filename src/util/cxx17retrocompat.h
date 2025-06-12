@@ -1,9 +1,9 @@
 /*******************************************************************************
- * libretroshare/src/util: cxx17retrocompat.h                                  *
  *                                                                             *
- * libretroshare: retroshare core library                                      *
+ * libretroshare C++17 compatibility helpers                                   *
  *                                                                             *
- * Copyright (C) 2019  Gioacchino Mazzurco <gio@eigenlab.org>                  *
+ * Copyright (C) 2019-2024  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2024  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -23,7 +23,7 @@
 
 #if __cplusplus < 201703L
 
-#include <type_traits>
+#	include <type_traits>
 
 namespace std
 {
@@ -32,4 +32,11 @@ template <class T> constexpr typename add_const<T>::type& as_const(T& t) noexcep
 { return t; }
 template <class T> void as_const(const T&&) = delete;
 }
+
+#	define RS_FALLTHROUGH
+
+#else // __cplusplus < 201703L
+
+#	define RS_FALLTHROUGH [[fallthrough]]
+
 #endif // __cplusplus < 201703L

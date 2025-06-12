@@ -67,6 +67,21 @@ int RS_pthread_setname_np(pthread_t __target_thread, const char *__buf) {
 	#include <iostream>
 #endif
 
+#include <sys/time.h>
+static double getCurrentTS()
+{
+#ifndef WINDOWS_SYS
+        struct timeval cts_tmp;
+        gettimeofday(&cts_tmp, NULL);
+        double cts =  (cts_tmp.tv_sec) + ((double) cts_tmp.tv_usec) / 1000000.0;
+#else
+        struct _timeb timebuf;
+        _ftime( &timebuf);
+        double cts =  (timebuf.time) + ((double) timebuf.millitm) / 1000.0;
+#endif
+        return cts;
+}
+
 /*static*/ void* RsThread::rsthread_init(void* p)
 {
 	RsThread* thread = reinterpret_cast<RsThread *>(p);
@@ -227,7 +242,7 @@ RsQueueThread::RsQueueThread(uint32_t min, uint32_t max, double relaxFactor )
     :mMinSleep(min), mMaxSleep(max), mRelaxFactor(relaxFactor)
 {
     mLastSleep = (uint32_t)mMinSleep ;
-    mLastWork = time(NULL) ;
+    mLastWork_ms = 1000 * getCurrentTS() ;
 }
 
 void RsQueueThread::threadTick()
@@ -237,10 +252,10 @@ void RsQueueThread::threadTick()
     {
         doneWork = true;
     }
-    time_t now = time(NULL);
+    uint64_t now_ms = 1000 * getCurrentTS();
     if (doneWork)
     {
-        mLastWork = now;
+        mLastWork_ms = now_ms;
         mLastSleep = (uint32_t) (mMinSleep + (mLastSleep - mMinSleep) / 2.0);
 #ifdef DEBUG_TICKING
         THREAD_DEBUG << "RsQueueThread::data_tick() done work: sleeping for: " << mLastSleep << " ms" << std::endl;
@@ -249,8 +264,8 @@ void RsQueueThread::threadTick()
     }
     else
     {
-        uint32_t deltaT = now - mLastWork;
-        double frac = deltaT / mRelaxFactor;
+        uint64_t deltaT = now_ms - mLastWork_ms;
+        double frac = deltaT / (1000 * mRelaxFactor);
 
         mLastSleep += (uint32_t)
                         ((mMaxSleep-mMinSleep) * (frac + 0.05));

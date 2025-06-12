@@ -156,7 +156,7 @@ public:
 class RsGxsNetTunnelRandomBiasItem: public RsGxsNetTunnelItem
 {
 public:
-	explicit RsGxsNetTunnelRandomBiasItem() : RsGxsNetTunnelItem(RS_PKT_SUBTYPE_GXS_NET_TUNNEL_RANDOM_BIAS) { clear();}
+    explicit RsGxsNetTunnelRandomBiasItem() : RsGxsNetTunnelItem(RS_PKT_SUBTYPE_GXS_NET_TUNNEL_RANDOM_BIAS) { RsGxsNetTunnelRandomBiasItem::clear();}
     virtual ~RsGxsNetTunnelRandomBiasItem() {}
 
 	virtual void clear() { mRandomBias.clear() ; }
@@ -204,7 +204,7 @@ struct RsGxsServiceTurtleSearchReqItem: RsGxsNetTunnelItem
 		mSearchDataSize = 0;
 	}
 
-	~RsGxsServiceTurtleSearchReqItem() override { clear(); }
+    ~RsGxsServiceTurtleSearchReqItem() override { RsGxsServiceTurtleSearchReqItem::clear(); }
 };
 
 struct RsGxsServiceTurtleSearchReplyItem: RsGxsNetTunnelItem
@@ -243,7 +243,7 @@ struct RsGxsServiceTurtleSearchReplyItem: RsGxsNetTunnelItem
 		mReplyDataSize = 0;
 	}
 
-	~RsGxsServiceTurtleSearchReplyItem() override { clear(); }
+    ~RsGxsServiceTurtleSearchReplyItem() override { RsGxsServiceTurtleSearchReplyItem::clear(); }
 };
 
 class RS_DEPRECATED_FOR(RsGxsServiceTurtleSearchItem)

@@ -132,13 +132,14 @@ struct RsConfigOptions
 	bool autoLogin;                  /* try auto-login */
 
 	bool udpListenerOnly;			 /* only listen to udp */
+
     std::string forcedInetAddress; 	 /* inet address to use.*/
     uint16_t    forcedPort; 	     /* port to listen to */
 
 	bool outStderr;
 	int  debugLevel;
-    std::string logfname;			/* output filename for log */
 
+    std::string logfname;			/* output filename for log */
 	std::string opModeStr;          /* operating mode. Acceptable values: "Full", "NoTurtle", "Gaming", "Minimal" */
 	std::string optBaseDir;			/* base directory where to find profiles, etc */
     std::string userSuppliedTorExecutable; /* allows the user to supply his own Tor executable, or to tell RS where to find Tor */
