@@ -29,6 +29,7 @@
 
 #include "retroshare/rstypes.h"
 #include "retroshare/rsfiles.h"
+#include "retroshare/rsstatus.h"
 #include "retroshare/rsids.h"
 #include "util/rsurl.h"
 #include "util/rsdeprecate.h"
@@ -267,9 +268,11 @@ enum class RsFriendListEventCode: uint8_t
     NODE_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
     NODE_ADDED              = 0x05,
     NODE_REMOVED            = 0x06,
-    NODE_STATUS_CHANGED     = 0x07,	// mSslId
+    NODE_STATUS_CHANGED     = 0x07,	// mSslId, mStatus
+
     PROFILE_ADDED           = 0x08,	// mPgpId
     PROFILE_REMOVED         = 0x09,	// mPgpId
+
     GROUP_ADDED             = 0x0a,
     GROUP_REMOVED           = 0x0b,
     GROUP_CHANGED           = 0x0c,
@@ -286,6 +289,7 @@ struct RsFriendListEvent : RsEvent
     RsPgpId mPgpId;
     RsUrl mOwnLocator;
 	RsUrl mReportedLocator;
+    RsStatusValue mStatus;
 
 	/** If there is a time shift with the peer aka
 	 * mConnectionInfoCode == PEER_TIME_SHIFT contains the time shift value in
@@ -303,7 +307,8 @@ struct RsFriendListEvent : RsEvent
         RS_SERIAL_PROCESS(mPgpId);
         RS_SERIAL_PROCESS(mOwnLocator);
 		RS_SERIAL_PROCESS(mReportedLocator);
-		RS_SERIAL_PROCESS(mTimeShift);
+        RS_SERIAL_PROCESS(mStatus);
+        RS_SERIAL_PROCESS(mTimeShift);
 	}
 
     ~RsFriendListEvent() override = default;

@@ -32,14 +32,16 @@ extern RsStatus *rsStatus;
 #include <list>
 #include <retroshare/rstypes.h>
 
+enum class RsStatusValue: int32_t {
+    RS_STATUS_UNKNOWN  = 0x00,
+    RS_STATUS_OFFLINE  = 0x01,
+    RS_STATUS_AWAY     = 0x02,
+    RS_STATUS_BUSY     = 0x03,
+    RS_STATUS_ONLINE   = 0x04,
+    RS_STATUS_INACTIVE = 0x05,
 
-const uint32_t RS_STATUS_OFFLINE  = 0x0000;
-const uint32_t RS_STATUS_AWAY     = 0x0001;
-const uint32_t RS_STATUS_BUSY     = 0x0002;
-const uint32_t RS_STATUS_ONLINE   = 0x0003;
-const uint32_t RS_STATUS_INACTIVE = 0x0004;
-
-const uint32_t RS_STATUS_COUNT    = 0x0005; // count of status
+    RS_STATUS_COUNT    = 0x06, // count of status
+};
 
 //! data object for peer status information
 /*!
@@ -48,11 +50,11 @@ const uint32_t RS_STATUS_COUNT    = 0x0005; // count of status
 class StatusInfo
 {
 	public:
-	StatusInfo() : status(RS_STATUS_OFFLINE), time_stamp(0)	{}
+    StatusInfo() : status(RsStatusValue::RS_STATUS_UNKNOWN), time_stamp(0)	{}
 
 	public:
 	RsPeerId id;
-	uint32_t status;
+    RsStatusValue status;
 	rstime_t time_stamp; /// for owner time set, and for their peers time sent
 };
 
@@ -89,7 +91,7 @@ class RsStatus
 	 * @param status the status of the peers
 	 * @return will return false if status info does not belong to client
 	 */
-	virtual bool sendStatus(const RsPeerId &id, uint32_t status)                 = 0;
+    virtual bool sendStatus(const RsPeerId &id, RsStatusValue status)                 = 0;
 };
 
 

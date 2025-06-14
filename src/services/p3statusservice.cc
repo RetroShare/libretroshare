@@ -36,7 +36,7 @@ std::ostream& operator<<(std::ostream& out, const StatusInfo& si)
 {
 	out << "StatusInfo: " << std::endl;
 	out << "id: " << si.id << std::endl;
-	out << "status: " << si.status << std::endl;
+    out << "status: " << (uint8_t)si.status << std::endl;
 	out << "time_stamp: " << si.time_stamp << std::endl;
 	return out;
 }
@@ -89,7 +89,7 @@ bool p3StatusService::getOwnStatus(StatusInfo& statusInfo)
 
 		// own status not set, set it to online
 		statusInfo.id = ownId;
-		statusInfo.status = RS_STATUS_ONLINE;
+        statusInfo.status = RsStatusValue::RS_STATUS_ONLINE;
 
 		std::pair<RsPeerId, StatusInfo> pr(ownId, statusInfo);
 		mStatusInfoMap.insert(pr);
@@ -137,7 +137,7 @@ bool p3StatusService::getStatus(const RsPeerId &id, StatusInfo &statusInfo)
 		statusInfo = StatusInfo();
 
 		statusInfo.id = id;
-		statusInfo.status = RS_STATUS_OFFLINE;
+        statusInfo.status = RsStatusValue::RS_STATUS_OFFLINE;
 		return false;
 	}
 	
@@ -147,7 +147,7 @@ bool p3StatusService::getStatus(const RsPeerId &id, StatusInfo &statusInfo)
 }
 
 /* id = "", status is sent to all online peers */
-bool p3StatusService::sendStatus(const RsPeerId &id, uint32_t status)
+bool p3StatusService::sendStatus(const RsPeerId &id, RsStatusValue status)
 {
 	StatusInfo statusInfo;
 	std::set<RsPeerId> onlineList;
@@ -159,7 +159,7 @@ bool p3StatusService::sendStatus(const RsPeerId &id, uint32_t status)
 		statusInfo.status = status;
 
 		// don't save inactive status
-		if(statusInfo.status != RS_STATUS_INACTIVE){
+        if(statusInfo.status != RsStatusValue::RS_STATUS_INACTIVE){
 
 			// If your id is not set, set it
 			if(mStatusInfoMap.find(statusInfo.id) == mStatusInfoMap.end()){
@@ -192,22 +192,28 @@ bool p3StatusService::sendStatus(const RsPeerId &id, uint32_t status)
 	for(it = onlineList.begin(); it != onlineList.end(); ++it){
 		RsStatusItem* statusItem = new RsStatusItem();
 		statusItem->sendTime = time(NULL);
-		statusItem->status = statusInfo.status;
+        statusItem->status = (uint32_t)statusInfo.status;
 		statusItem->PeerId(*it);
 		sendItem(statusItem);
 	}
 
 	/* send notify of own status change */
-	RsServer::notify()->notifyPeerStatusChanged(statusInfo.id.toStdString(), statusInfo.status);
+    //RsServer::notify()->notifyPeerStatusChanged(statusInfo.id.toStdString(), statusInfo.status);
 
-	return true;
+    auto e = std::make_shared<RsFriendListEvent>();
+    e->mSslId = statusInfo.id;
+    e->mStatus = statusInfo.status;
+    e->mEventCode = RsFriendListEventCode::NODE_STATUS_CHANGED;
+    rsEvents->postEvent(e);
+
+    return true;
 }
 
 /******************************/
 
 void p3StatusService::receiveStatusQueue()
 {
-	std::map<RsPeerId, uint32_t> changed;
+    std::map<RsPeerId, RsStatusValue> changed;
 
 	{
 		RsStackMutex stack(mStatusMtx);
@@ -234,13 +240,16 @@ void p3StatusService::receiveStatusQueue()
 			std::map<RsPeerId, StatusInfo>::iterator mit = mStatusInfoMap.find(status_item->PeerId());
 
 			if(mit != mStatusInfoMap.end()){
+
+                auto status = RsStatusValue(status_item->status);
+
 				mit->second.id = status_item->PeerId();
 				
-				if (mit->second.status != status_item->status) {
-					changed [mit->second.id] = status_item->status;
+                if (mit->second.status != status) {
+                    changed [mit->second.id] = status;
 				}
 
-				mit->second.status = status_item->status;
+                mit->second.status = status;
 				mit->second.time_stamp = status_item->sendTime;
 #ifdef	STATUS_DEBUG
 			} else {
@@ -255,11 +264,17 @@ void p3StatusService::receiveStatusQueue()
 	} /* UNLOCKED */
 
 	if (changed.size()) {
-		std::map<RsPeerId, uint32_t>::iterator it;
-		for (it = changed.begin(); it != changed.end(); ++it) {
-			RsServer::notify()->notifyPeerStatusChanged(it->first.toStdString(), it->second);
-		}
-		RsServer::notify()->notifyPeerStatusChangedSummary();
+        std::map<RsPeerId, RsStatusValue>::iterator it;
+        for (it = changed.begin(); it != changed.end(); ++it)
+        {
+            //RsServer::notify()->notifyPeerStatusChanged(it->first.toStdString(), it->second);
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mSslId = it->first;
+            e->mStatus = RsStatusValue(it->second);
+            e->mEventCode = RsFriendListEventCode::NODE_STATUS_CHANGED;
+            rsEvents->postEvent(e);
+        }
+        //RsServer::notify()->notifyPeerStatusChangedSummary();
 	}
 }
 
@@ -298,7 +313,7 @@ bool p3StatusService::saveList(bool& cleanup, std::list<RsItem*>& ilist){
 
 	own_status->PeerId(own_info.id);
 	own_status->sendTime = own_info.time_stamp;
-	own_status->status = own_info.status;
+    own_status->status = (uint32_t)own_info.status;
 
 	ilist.push_back(own_status);
 
@@ -318,7 +333,7 @@ bool p3StatusService::loadList(std::list<RsItem*>& load)
 	    if(own_status != NULL)
 	    {
 		    own_info.id = mServiceCtrl->getOwnId();
-		    own_info.status = own_status->status;
+            own_info.status = RsStatusValue(own_status->status);
 		    own_info.time_stamp = own_status->sendTime;
 
 		    {
@@ -368,16 +383,20 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
 			} /* UNLOCKED */
 
 			changedState = true;
-			RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_OFFLINE);
-		}
+            //RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_OFFLINE);
+
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mSslId = it->id;
+            e->mStatus = RsStatusValue::RS_STATUS_OFFLINE;
+            e->mEventCode = RsFriendListEventCode::NODE_STATUS_CHANGED;
+            rsEvents->postEvent(e);
+        }
 
 		if (it->actions & RS_SERVICE_PEER_CONNECTED) 
 		{
 			/* send current status, only call getOwnStatus once in the loop */
 			if (statusInfo.id.isNull() == false || getOwnStatus(statusInfo)) 
-			{
 				sendStatus(it->id, statusInfo.status);
-			}
 
 			{
 				RsStackMutex stack(mStatusMtx);
@@ -385,14 +404,20 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
 				/* We assume that the peer is online. If not, he send us a new status */
 				StatusInfo info;
 				info.id = it->id;
-				info.status = RS_STATUS_ONLINE;
+                info.status = RsStatusValue::RS_STATUS_ONLINE;
 				info.time_stamp = time(NULL);
 
 				mStatusInfoMap[it->id] = info;
 			} /* UNLOCKED */
 
 			changedState = true;
-			RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_ONLINE);
+            //RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_ONLINE);
+
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mSslId = it->id;
+            e->mStatus = RsStatusValue::RS_STATUS_ONLINE;
+            e->mEventCode = RsFriendListEventCode::NODE_STATUS_CHANGED;
+            rsEvents->postEvent(e);
 		}
 
 		if (it->actions & RS_SERVICE_PEER_REMOVED) 
@@ -405,12 +430,18 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
 			} /* UNLOCKED */
 
 			changedState = true;
-			RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_OFFLINE);
-		}
+            //RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_OFFLINE);
+
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mSslId = it->id;
+            e->mStatus = RsStatusValue::RS_STATUS_OFFLINE;
+            e->mEventCode = RsFriendListEventCode::NODE_STATUS_CHANGED;
+            rsEvents->postEvent(e);
+        }
 	}
 
-	if (changedState)
-	{
-		RsServer::notify()->notifyPeerStatusChangedSummary();
-	}
+//	if (changedState)
+//	{
+//		RsServer::notify()->notifyPeerStatusChangedSummary();
+//	}
 }
