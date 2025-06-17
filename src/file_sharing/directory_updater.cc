@@ -135,9 +135,15 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 
 	mIsChecking = true;
 
-	RsServer::notify()->notifyListPreChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+    //RsServer::notify()->notifyListPreChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
 
-	/* recursive update algorithm works that way:
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+        ev->mEventCode = RsSharedDirectoriesEventCode::OWN_DIR_LIST_PROCESSING;
+        rsEvents->postEvent(ev);
+    }
+    /* recursive update algorithm works that way:
 	 * - the external loop starts on the shared directory list and goes through
 	 *   sub-directories
 	 * - at the same time, it updates the local list of shared directories.
@@ -223,8 +229,14 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 		 * dir list, because the two are not necessarily in the same order. */
 	}
 
-	RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
-	mIsChecking = false;
+    //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+        ev->mEventCode = RsSharedDirectoriesEventCode::OWN_DIR_LIST_UPDATED;
+        rsEvents->postEvent(ev);
+    }
+    mIsChecking = false;
 
 	return true;
 }

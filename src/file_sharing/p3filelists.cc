@@ -142,7 +142,7 @@ void p3FileDatabase::updateShareFlags(const SharedDirInfo& info)
         mLocalSharedDirs->updateShareFlags(info) ;
     }
 
-    RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+    //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
     IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
     if(rsEvents)
@@ -215,7 +215,13 @@ int p3FileDatabase::tick()
 		}
 
 #warning mr-alice 2016-08-19: "This should be removed, but it's necessary atm for updating the GUI"
-        RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+        //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+            ev->mEventCode = RsSharedDirectoriesEventCode::OWN_DIR_LIST_UPDATED;
+            rsEvents->postEvent(ev);
+        }
 
         checkSendBannedFilesInfo();
     }
@@ -225,11 +231,27 @@ int p3FileDatabase::tick()
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
         if(mUpdateFlags & P3FILELISTS_UPDATE_FLAG_LOCAL_DIRS_CHANGED)
-            RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+        {
+            //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
 
+            if(rsEvents)
+            {
+                auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+                ev->mEventCode = RsSharedDirectoriesEventCode::OWN_DIR_LIST_UPDATED;
+                rsEvents->postEvent(ev);
+            }
+        }
         if(mUpdateFlags & P3FILELISTS_UPDATE_FLAG_REMOTE_DIRS_CHANGED)
-            RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);
+        {
+            //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);
 
+            if(rsEvents)
+            {
+                auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+                ev->mEventCode = RsSharedDirectoriesEventCode::FRIEND_DIR_LIST_UPDATED;
+                rsEvents->postEvent(ev);
+            }
+        }
         mUpdateFlags = P3FILELISTS_UPDATE_FLAG_NOTHING_CHANGED ;
     }
 
@@ -265,7 +287,15 @@ int p3FileDatabase::tick()
         // avoid syncing the GUI at every dir sync which kills performance.
 
 		if(mLastDataRecvTS + 5 < now && mLastDataRecvTS + 20 > now)
-			RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);						 	 	 // notify the GUI if the hierarchy has changed
+        {
+            //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);						 	 	 // notify the GUI if the hierarchy has changed
+            if(rsEvents)
+            {
+                auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+                ev->mEventCode = RsSharedDirectoriesEventCode::FRIEND_DIR_LIST_UPDATED;
+                rsEvents->postEvent(ev);
+            }
+        }
     }
 
     return 0;
@@ -1012,8 +1042,14 @@ bool p3FileDatabase::removeExtraFile(const RsFileHash& hash)
     mLastExtraFilesCacheUpdate = 0 ; // forced cache reload
     }
 
-    RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
-	return ret;
+    //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+        ev->mEventCode = RsSharedDirectoriesEventCode::EXTRA_LIST_FILE_REMOVED;
+        rsEvents->postEvent(ev);
+    }
+    return ret;
 }
 
 void p3FileDatabase::getExtraFilesDirDetails_locked(void *ref,DirectoryStorage::EntryIndex e,DirDetails& d) const
@@ -1950,7 +1986,13 @@ void p3FileDatabase::handleDirSyncResponse(RsFileListsSyncResponseItem*& sitem)
 
         if(mLastDataRecvTS + 1 < now) // avoid notifying the GUI too often as it kills performance.
 		{
-			RsServer::notify()->notifyListPreChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);						 	 	 // notify the GUI if the hierarchy has changed
+        //	RsServer::notify()->notifyListPreChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);						 	 	 // notify the GUI if the hierarchy has changed
+            if(rsEvents)
+            {
+                auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+                ev->mEventCode = RsSharedDirectoriesEventCode::FRIEND_DIR_LIST_UPDATED;
+                rsEvents->postEvent(ev);
+            }
 			mLastDataRecvTS = now;
 		}
 #ifdef DEBUG_P3FILELISTS

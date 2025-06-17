@@ -44,7 +44,7 @@ typedef RsPeerId ChatLobbyVirtualPeerId ;
 
 struct RsChatMessageEvent : RsEvent
 {
-	RsChatMessageEvent() : RsEvent(RsEventType::CHAT_MESSAGE) {}
+    RsChatMessageEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
 	~RsChatMessageEvent() override = default;
 
 	///* @see RsEvent @see RsSerializable

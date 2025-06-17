@@ -313,6 +313,26 @@ struct MsgTagType : RsSerializable
 } //namespace Rs
 } //namespace Msgs
 
+#ifdef TODO
+enum class RsChatStatusEventCode: uint8_t
+{
+    NOTIFY_LIST_PRIVATE_INCOMING_CHAT,			    // new private incoming chat
+    NOTIFY_LIST_PRIVATE_OUTGOING_CHAT	,		    // new private incoming chat
+    NOTIFY_LIST_CHAT_LOBBY_LIST	,	    ADD/REMOVE , // new/removed chat lobby
+    NOTIFY_LIST_CHAT_LOBBY_INVITE 		,			// new/removed chat lobby
+
+
+};
+
+struct RsChatStatusEvent : RsEvent
+{
+    RsChatStatusEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsChatStatusEvent() override = default;
+
+    RsChatStatusEventCode mEventCode;
+};
+#endif
+
 enum class RsMailStatusEventCode: uint8_t
 {
 	NEW_MESSAGE                     = 0x00,

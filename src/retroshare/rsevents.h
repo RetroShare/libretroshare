@@ -98,7 +98,7 @@ enum class RsEventType : uint32_t
     FILE_TRANSFER                                           = 14,
 
 	/// @see RsMsgs
-	CHAT_MESSAGE                                            = 15,
+    CHAT_SERVICE                                            = 15,
 
 	/// @see rspeers.h
 	NETWORK                                                 = 16,

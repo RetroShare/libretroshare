@@ -189,8 +189,10 @@ enum class RsSharedDirectoriesEventCode: uint8_t {
     SAVING_FILE_INDEX        = 0x07, // (void)
     EXTRA_LIST_FILE_ADDED    = 0x08, // (void)
     EXTRA_LIST_FILE_REMOVED  = 0x09, // (void)
-    SHARED_DIRS_LIST_CHANGED = 0x0a, // (void)
-//    FILE_HASHING_COMPLETED   = 0x08, // (void)
+    SHARED_DIRS_LIST_CHANGED = 0x0a, // (void) // list of own base shared directories/flags has changed. New sweep will occur soon
+    FRIEND_DIR_LIST_UPDATED  = 0x0b, // NOTIFY_LIST_DIRLIST_FRIENDS, friend dir list has been updated
+    OWN_DIR_LIST_UPDATED     = 0x0c, // NOTIFY_LIST_DIRLIST_LOCAL  , own    dir list has been updated
+    OWN_DIR_LIST_PROCESSING  = 0x0d, // NOTIFY_LIST_DIRLIST_LOCAL prechange
 };
 
 enum class RsFileTransferEventCode: uint8_t {
