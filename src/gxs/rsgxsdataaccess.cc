@@ -32,7 +32,7 @@
 
 // Debug system to allow to print only for some services (group, Peer, etc)
 
-#if! defined(DATA_DEBUG)
+#if defined(DATA_DEBUG)
 static const uint32_t     service_to_print  = RS_SERVICE_GXS_TYPE_FORUMS;// use this to allow to this service id only, or 0 for all services
                                                                             // warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
 
@@ -175,7 +175,9 @@ void RsGxsDataAccess::generateToken(uint32_t &token)
 {
 	RS_STACK_MUTEX(mDataMutex);
 	token = mNextToken++;
+#ifdef DATA_DEBUG
     GXSDATADEBUG << "Generated next token " << token << std::endl;
+#endif
     assert(mTokenQueue.find(token) == mTokenQueue.end());
 }
 
@@ -757,7 +759,9 @@ GxsRequest *RsGxsDataAccess::locked_retrieveCompletedRequest(const uint32_t& tok
 
     if(it->second.status != COMPLETE)
     {
+#ifdef DATA_DEBUG
         RsErr() << "Trying to retrieve an request result for token=" << token << " but the request is not COMPLETE yet. State=" << tokenStatusString[(int)it->second.status];
+#endif
         return nullptr;
     }
 
@@ -782,7 +786,9 @@ void RsGxsDataAccess::processRequests()
     RsStackMutex stack(mDataMutex); /******* LOCKED *******/
 
     if(!mTokenQueue.empty())
+#ifdef DATA_DEBUG
         GXSDATADEBUG << "  Processing token list: Service " << std::hex << mDataStore->serviceType() << std::dec << std::endl;
+#endif
 
     for(std::map<uint32_t,TokenInfo>::iterator token_it(mTokenQueue.begin());token_it!=mTokenQueue.end();)
     {
@@ -793,7 +799,9 @@ void RsGxsDataAccess::processRequests()
         uint32_t token = token_it->first;
         TokenInfo& info(token_it->second);
 
+#ifdef DATA_DEBUG
         GXSDATADEBUG << "      Token " << token << ": Status=" << tokenStatusString[(int)info.status] << "  " ;
+#endif
 
         // Delete very old request that shouldn't be here anymore, probably because of some bug.
 
@@ -803,7 +811,9 @@ void RsGxsDataAccess::processRequests()
                 || info.status == TO_REMOVE
                 || info.status == CANCELLED)
         {
+#ifdef DATA_DEBUG
             GXSDATADEBUG << " Deleting non-handled request, inactive for " << now - info.last_activity << " seconds. " ;
+#endif
 
             delete token_it->second.request;	// this should be the only place in the code where GxsRequest is deleted.
             auto tmp_it = token_it;
@@ -824,16 +834,22 @@ void RsGxsDataAccess::processRequests()
             if(locked_processToken(token,token_it->second.request))
             {
                 info.status = COMPLETE;
+#ifdef DATA_DEBUG
                 GXSDATADEBUG << "          Finished. Setting status as COMPLETE." << std::endl;
+#endif
             }
             else
             {
                 info.status = FAILED;
+#ifdef DATA_DEBUG
                 GXSDATADEBUG << "          Failed. Setting status as FAILED." << std::endl;
+#endif
             }
         }
         else
+#ifdef DATA_DEBUG
             GXSDATADEBUG << " Ignored." << std::endl;
+#endif
 
         ++token_it;
     }
