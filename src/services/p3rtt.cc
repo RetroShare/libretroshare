@@ -367,10 +367,10 @@ int	p3rtt::storePongResult(const RsPeerId& id, uint32_t counter, double recv_ts,
 		{
 			if(rsEvents)
 			{
-				auto ev = std::make_shared<RsConnectionEvent>();
+                auto ev = std::make_shared<RsFriendListEvent>();
 				ev->mSslId = peerInfo->mId;
 				ev->mTimeShift = static_cast<rstime_t>(peerInfo->mCurrentMeanOffset);
-				ev->mConnectionInfoCode = RsConnectionEventCode::PEER_TIME_SHIFT;
+                ev->mEventCode = RsFriendListEventCode::NODE_TIME_SHIFT;
 				rsEvents->postEvent(ev);
 			}
 			RsWarn() << __PRETTY_FUNCTION__ << " Peer: " << peerInfo->mId
