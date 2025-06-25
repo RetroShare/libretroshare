@@ -134,7 +134,7 @@ const int NOTIFY_LIST_NEIGHBOURS             = 1;
 const int NOTIFY_LIST_SEARCHLIST             = 4;
 const int NOTIFY_LIST_CHANNELLIST            = 6;
 const int NOTIFY_LIST_TRANSFERLIST           = 7;
-const int NOTIFY_LIST_CONFIG                 = 8;
+//const int NOTIFY_LIST_CONFIG                 = 8;
 const int NOTIFY_LIST_DIRLIST_LOCAL          = 9;
 const int NOTIFY_LIST_DIRLIST_FRIENDS        = 10;
 const int NOTIFY_LIST_FORUMLIST_LOCKED       = 11; // use connect with Qt::QueuedConnection
@@ -233,7 +233,7 @@ public:
 	virtual void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) {}
 	virtual void notifyOwnAvatarChanged           () {}
 	virtual void notifyOwnStatusMessageChanged    () {}
-	virtual void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) {}
+//	virtual void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) {}
 //	virtual void notifyPeerStatusChanged          (const std::string& /* peer_id   */, uint32_t                         /* status           */) {}
 
 	/* one or more peers has changed the states */

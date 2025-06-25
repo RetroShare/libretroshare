@@ -121,6 +121,9 @@ enum class RsEventType : uint32_t
     /// @see RsWireEvent
     WIRE                                                    = 23,
 
+    /// @see RsWireEvent
+    SYSTEM_ERROR                                            = 24,	// general system notifications
+
     __MAX /// Used internally, keep last
 };
 
@@ -269,4 +272,22 @@ public:
 	        RsEventsHandlerId_t hId ) = 0;
 
 	virtual ~RsEvents();
+};
+
+enum class RsSystemErrorEventCode: uint8_t
+{
+    TIME_SHIFT_PROBLEM                    = 0x01,    // Computer universal time is different from friends
+    DISK_SPACE_ERROR                      = 0x02,    // Disk full
+};
+
+struct RsSystemErrorEvent : RsEvent
+{
+    RsSystemErrorEvent() : RsEvent(RsEventType::SYSTEM_ERROR) {}
+    virtual ~RsSystemErrorEvent() override = default;
+
+    RsSystemErrorEventCode mEventCode;
+
+    float mTimeShift;
+    int mDiskErrorLocation;	//	{ RS_PARTIALS_DIRECTORY, RS_CONFIG_DIRECTORY,  RS_DOWNLOAD_DIRECTORY }
+    int mDiskErrorSizeLimit;// size limit in MB
 };

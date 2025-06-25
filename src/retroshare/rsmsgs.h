@@ -67,9 +67,9 @@
 
 #define RS_MSG_SYSTEM                (RS_MSG_USER_REQUEST | RS_MSG_FRIEND_RECOMMENDATION | RS_MSG_PUBLISH_KEY)
 
-#define RS_CHAT_LOBBY_EVENT_PEER_LEFT   				0x01
-#define RS_CHAT_LOBBY_EVENT_PEER_STATUS 				0x02
-#define RS_CHAT_LOBBY_EVENT_PEER_JOINED 				0x03
+#define RS_CHAT_LOBBY_EVENT_PEER_LEFT   			0x01
+#define RS_CHAT_LOBBY_EVENT_PEER_STATUS 			0x02
+#define RS_CHAT_LOBBY_EVENT_PEER_JOINED 			0x03
 #define RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME 	0x04
 #define RS_CHAT_LOBBY_EVENT_KEEP_ALIVE          	0x05
 
@@ -313,26 +313,6 @@ struct MsgTagType : RsSerializable
 } //namespace Rs
 } //namespace Msgs
 
-#ifdef TODO
-enum class RsChatStatusEventCode: uint8_t
-{
-    NOTIFY_LIST_PRIVATE_INCOMING_CHAT,			    // new private incoming chat
-    NOTIFY_LIST_PRIVATE_OUTGOING_CHAT	,		    // new private incoming chat
-    NOTIFY_LIST_CHAT_LOBBY_LIST	,	    ADD/REMOVE , // new/removed chat lobby
-    NOTIFY_LIST_CHAT_LOBBY_INVITE 		,			// new/removed chat lobby
-
-
-};
-
-struct RsChatStatusEvent : RsEvent
-{
-    RsChatStatusEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
-    virtual ~RsChatStatusEvent() override = default;
-
-    RsChatStatusEventCode mEventCode;
-};
-#endif
-
 enum class RsMailStatusEventCode: uint8_t
 {
 	NEW_MESSAGE                     = 0x00,
@@ -555,6 +535,35 @@ public:
 		RS_SERIAL_PROCESS(lobby_flags);
 	}
 };
+
+enum class RsChatStatusEventCode: uint8_t
+{
+    NOTIFY_LIST_PRIVATE_INCOMING_CHAT,			    // new private incoming chat
+    NOTIFY_LIST_PRIVATE_OUTGOING_CHAT	,		    // new private incoming chat
+
+    CHAT_LOBBY_LIST_CHANGED               = 0x03,    // NOTIFY_LIST_CHAT_LOBBY_LIST	,	    ADD/REMOVE , // new/removed chat lobby
+    CHAT_LOBBY_INVITE_RECEIVED            = 0x04,    // NOTIFY_LIST_CHAT_LOBBY_INVITE, received chat lobby invite
+    CHAT_LOBBY_EVENT_PEER_LEFT   	 	  = 0x05,	 // RS_CHAT_LOBBY_EVENT_PEER_LEFT
+    CHAT_LOBBY_EVENT_PEER_STATUS 	      = 0x06,	 // RS_CHAT_LOBBY_EVENT_PEER_STATUS
+    CHAT_LOBBY_EVENT_PEER_JOINED          = 0x07,	 // RS_CHAT_LOBBY_EVENT_PEER_JOINED
+    CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME = 0x08,	 // RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME
+    CHAT_LOBBY_EVENT_KEEP_ALIVE           = 0x09,	 // RS_CHAT_LOBBY_EVENT_KEEP_ALIVE
+};
+
+struct RsChatStatusEvent : RsEvent
+{
+    RsChatStatusEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsChatStatusEvent() override = default;
+
+    RsChatStatusEventCode mEventCode;
+
+    uint64_t mLobbyId;
+    RsGxsId mGxsId;
+    std::string str;
+    ChatMessage msg;
+    int mTimeShift;
+};
+
 
 struct VisibleChatLobbyRecord : RsSerializable
 {

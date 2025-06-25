@@ -222,14 +222,14 @@ void p3Notify::notifyChatMessage   (const ChatMessage &msg)                     
 void p3Notify::notifyChatStatus    (const ChatId&  chat_id, const std::string& status_string)                                   { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatStatus(chat_id,status_string) ; }
 void p3Notify::notifyChatCleared   (const ChatId&  chat_id)                                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatCleared(chat_id) ; }
 
-void p3Notify::notifyChatLobbyTimeShift     (int                time_shift)                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatLobbyTimeShift(time_shift) ; }
+//void p3Notify::notifyChatLobbyTimeShift     (int                time_shift)                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatLobbyTimeShift(time_shift) ; }
 void p3Notify::notifyCustomState            (const std::string& peer_id   , const std::string&               status_string )    { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyCustomState       (peer_id,status_string) ; }
 #warning MISSING CODE HERE
 //void p3Notify::notifyTurtleSearchResult     (uint32_t           search_id , const std::list<TurtleGxsInfo>&  groups        )    { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyTurtleSearchResult(search_id,groups) ; }
 void p3Notify::notifyPeerHasNewAvatar       (std::string        peer_id   )                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyPeerHasNewAvatar(peer_id) ; }
 void p3Notify::notifyOwnAvatarChanged       ()                                                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyOwnAvatarChanged() ; } 
 void p3Notify::notifyOwnStatusMessageChanged()                                                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyOwnStatusMessageChanged() ; } 
-void p3Notify::notifyDiskFull               (uint32_t           location  , uint32_t                         size_limit_in_MB ) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDiskFull          (location,size_limit_in_MB) ; }
+//void p3Notify::notifyDiskFull               (uint32_t           location  , uint32_t                         size_limit_in_MB ) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDiskFull          (location,size_limit_in_MB) ; }
 //void p3Notify::notifyPeerStatusChanged      (const std::string& peer_id   , uint32_t                         status           ) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyPeerStatusChanged (peer_id,status) ; }
 //void p3Notify::notifyPeerStatusChangedSummary   ()                                                                              { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyPeerStatusChangedSummary() ; }
 

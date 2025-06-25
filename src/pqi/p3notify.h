@@ -106,7 +106,7 @@ class p3Notify: public RsNotify
 		void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) ;
 		void notifyOwnAvatarChanged           () ;
 		void notifyOwnStatusMessageChanged    () ;
-		void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) ;
+//		void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) ;
 //		void notifyPeerStatusChanged          (const std::string& /* peer_id   */, uint32_t                         /* status           */) ;
 		void notifyConnectionWithoutCert      ();
 
