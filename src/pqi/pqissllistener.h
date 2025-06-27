@@ -147,6 +147,7 @@ public:
 		RsPgpId gpgid ;
 		RsPeerId sslid ;
 		std::string sslcn ;
+        rstime_t ts;		// time when this connection started. Used to kill the cnx when the client hangs.
 	};
 
 	// fn to get cert, anyway

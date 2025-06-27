@@ -38,6 +38,8 @@
 static struct RsLog::logInfo pqissllistenzoneInfo = {RsLog::Default, "p3peermgr"};
 #define pqissllistenzone &pqissllistenzoneInfo
 
+static const rstime_t STALLED_CONNEXION_DELAY = 10;	// kill hanging connexions after 15 seconds.
+
 /* NB: This #define makes the listener open 0.0.0.0:X port instead
  * of a specific port - this might help retroshare work on PCs with
  * multiple interfaces or unique network setups.
@@ -414,6 +416,7 @@ int	pqissllistenbase::acceptconnection()
 	incoming_connexion_info.gpgid.clear() ;
 	incoming_connexion_info.sslid.clear() ;
 	incoming_connexion_info.sslcn = "" ;
+    incoming_connexion_info.ts = time(nullptr);
 
 	SSL_set_fd(incoming_connexion_info.ssl, fd);
 
@@ -451,6 +454,16 @@ int	pqissllistenbase::continueSSL(IncomingSSLInfo& incoming_connexion_info, bool
 					// add to incomingqueue.
 					incoming_ssl.push_back(incoming_connexion_info) ;
 				}
+
+                // check if the connection is a stalled connection because of the client not responding
+
+                if(time(nullptr) > STALLED_CONNEXION_DELAY + incoming_connexion_info.ts)
+                {
+                    RsWarn() << "Dropping connection from " << RsUrl(incoming_connexion_info.addr).toString() << " because it has been stalled for more then 10 secs. Client is not responding." << std::endl;
+
+                    closeConnection(fd, incoming_connexion_info.ssl);
+                    return -1;
+                }
 
 				pqioutput(PQL_DEBUG_BASIC, pqissllistenzone, out);
 
