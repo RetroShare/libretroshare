@@ -977,6 +977,8 @@ rs_jsonapi {
             cd $$shell_path($${RESTBED_BUILD_PATH}) && \
             cmake \
                 -Wno-dev \
+		-DBUILD_TESTS=OFF \
+		-DBUILD_SHARED_LIBRARY=OFF \
                 -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
                 \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
                 $${CMAKE_GENERATOR_OVERRIDE} -DBUILD_SSL=OFF \
@@ -1106,6 +1108,7 @@ rs_broadcast_discovery {
                 -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
                 \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
                 $${CMAKE_GENERATOR_OVERRIDE} \
+		$${CMAKE_FORCE_MINVERSION} \
                 -DBUILD_EXAMPLE=OFF -DBUILD_TOOL=OFF \
                 -DCMAKE_INSTALL_PREFIX=. -B. \
                 -H$$shell_path($${UDP_DISCOVERY_SRC_PATH}) && \
