@@ -1182,6 +1182,8 @@ message("In rnp_rnplib precompilation code")
 	}
 
     win32-g++:isEmpty(QMAKE_SH) {
+        LIBRNP_OUTPUT_LIBRARY = librnp.dll.a
+
         # Windows native build
         !isEmpty(EXTERNAL_LIB_DIR) {
             LIBRNP_CMAKE_CXXFLAGS *= -D__MINGW_USE_VC2005_COMPAT -D__STDC_FORMAT_MACROS
@@ -1206,6 +1208,8 @@ message("In rnp_rnplib precompilation code")
             cd /D $$shell_path($${LIBRNP_SRC_PATH}) && git submodule update --init src/libsexpp || cd . $$escape_expand(\\n\\t) \
             $(CHK_DIR_EXISTS) $$shell_path($$LIBRNP_BUILD_PATH) $(MKDIR) $$shell_path($${LIBRNP_BUILD_PATH}) $$escape_expand(\\n\\t)
     } else {
+        LIBRNP_OUTPUT_LIBRARY = librnp.a
+
         librnp_header.commands = \
             cd $${RS_SRC_PATH} && \
             (git submodule update --init supportlibs/librnp || true ) && \
@@ -1229,7 +1233,7 @@ message("In rnp_rnplib precompilation code")
 
     librnp.name = Generating librnp.
     librnp.input = DUMMYQMAKECOMPILERINPUT
-    librnp.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
+    librnp.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/$${LIBRNP_OUTPUT_LIBRARY})
     librnp.CONFIG += target_predeps combine
     librnp.variable_out = PRE_TARGETDEPS
     librnp.depends = $${librnp_header.output}
