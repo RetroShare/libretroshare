@@ -47,7 +47,7 @@ bool p3Status::getStatus(const RsPeerId &id, StatusInfo &statusInfo)
 	return mStatusSrv->getStatus(id, statusInfo);
 }
 
-bool p3Status::sendStatus(const RsPeerId &id, uint32_t status){
+bool p3Status::sendStatus(const RsPeerId &id, RsStatusValue status){
 
 	return mStatusSrv->sendStatus(id, status);
 }
