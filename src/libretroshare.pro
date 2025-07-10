@@ -958,18 +958,12 @@ rs_jsonapi {
         win32-g++:isEmpty(QMAKE_SH) {
             genrestbedlib.commands = \
                 cd /D $$shell_path($${RS_SRC_PATH}) && git submodule update --init supportlibs/restbed || cd . $$escape_expand(\\n\\t) \
-                cd /D $$shell_path($${RESTBED_SRC_PATH}) && git submodule update --init dependency/asio || cd . $$escape_expand(\\n\\t) \
-                cd /D $$shell_path($${RESTBED_SRC_PATH}) && git submodule update --init dependency/catch || cd . $$escape_expand(\\n\\t )\
-                cd /D $$shell_path($${RESTBED_SRC_PATH}) && git submodule update --init dependency/kashmir || cd . $$escape_expand(\\n\\t) \
                 $(CHK_DIR_EXISTS) $$shell_path($$UDP_DISCOVERY_BUILD_PATH) $(MKDIR) $$shell_path($${UDP_DISCOVERY_BUILD_PATH}) $$escape_expand(\\n\\t)
         } else {
             genrestbedlib.commands = \
                 cd $${RS_SRC_PATH} && ( \
                 git submodule update --init supportlibs/restbed ; \
                 cd $${RESTBED_SRC_PATH} ; \
-                git submodule update --init dependency/asio ; \
-                git submodule update --init dependency/catch ; \
-                git submodule update --init dependency/kashmir ; \
                 true ) && \
                 mkdir -p $${RESTBED_BUILD_PATH} &&
         }
