@@ -32,6 +32,7 @@
 
 #include <windows.h>
 #include <string>
+#include <sys/stat.h>
 
 // For win32 systems (tested on MingW+Ubuntu)
 #undef stat64
