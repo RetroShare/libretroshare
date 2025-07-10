@@ -152,7 +152,7 @@ public:
 		 * Sets the avatar data and size for client's account
 		 * @param data is copied, so should be destroyed by the caller
 		 */
-	void setOwnAvatarJpegData(const unsigned char *data,int size) ;
+    void setOwnNodeAvatarJpegData(const unsigned char *data,int size) ;
 
 	/*!
 		 * Gets the avatar data for clients account

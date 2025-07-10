@@ -598,7 +598,15 @@ void p3ChatService::handleRecvChatAvatarItem(RsChatAvatarItem *ca)
 #ifdef CHAT_DEBUG
 	std::cerr << "Received avatar data for peer " << ca->PeerId() << ". Notifying." << std::endl ;
 #endif
-	RsServer::notify()->notifyPeerHasNewAvatar(ca->PeerId().toStdString()) ;
+    //RsServer::notify()->notifyPeerHasNewAvatar(ca->PeerId().toStdString()) ;
+
+    if(rsEvents)
+    {
+        auto e = std::make_shared<RsFriendListEvent>();
+        e->mSslId = ca->PeerId();
+        e->mEventCode = RsFriendListEventCode::NODE_AVATAR_CHANGED;
+        rsEvents->postEvent(e);
+    }
 }
 
 uint32_t p3ChatService::getMaxMessageSecuritySize(int type)
@@ -1003,7 +1011,14 @@ void p3ChatService::setOwnCustomStateString(const std::string& s)
 		mServiceCtrl->getPeersConnected(getServiceInfo().mServiceType, onlineList);
 	}
 
-	RsServer::notify()->notifyOwnStatusMessageChanged() ;
+    //RsServer::notify()->notifyOwnStatusMessageChanged() ;
+    if(rsEvents)
+    {
+        auto e = std::make_shared<RsFriendListEvent>();
+        e->mEventCode = RsFriendListEventCode::OWN_STATUS_CHANGED;
+        e->mSslId = mServiceCtrl->getOwnId();
+        rsEvents->postEvent(e);
+    }
 
 	// alert your online peers to your newly set status
 	std::set<RsPeerId>::iterator it(onlineList.begin());
@@ -1019,7 +1034,7 @@ void p3ChatService::setOwnCustomStateString(const std::string& s)
 	IndicateConfigChanged();
 }
 
-void p3ChatService::setOwnAvatarJpegData(const unsigned char *data,int size)
+void p3ChatService::setOwnNodeAvatarJpegData(const unsigned char *data,int size)
 {
 	{
 		RsStackMutex stack(mChatMtx); /********** STACK LOCKED MTX ******/
@@ -1043,7 +1058,15 @@ void p3ChatService::setOwnAvatarJpegData(const unsigned char *data,int size)
 	}
 	IndicateConfigChanged();
 
-	RsServer::notify()->notifyOwnAvatarChanged() ;
+    //RsServer::notify()->notifyOwnAvatarChanged() ;
+
+    if(rsEvents)
+    {
+        auto e = std::make_shared<RsFriendListEvent>();
+        e->mEventCode = RsFriendListEventCode::OWN_AVATAR_CHANGED;
+        e->mSslId = mServiceCtrl->getOwnId();
+        rsEvents->postEvent(e);
+    }
 
 #ifdef CHAT_DEBUG
 	std::cerr << "p3chatservice:setOwnAvatarJpegData() done." << std::endl ;

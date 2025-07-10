@@ -230,9 +230,9 @@ public:
 	virtual void notifyChatLobbyTimeShift         (int                /* time_shift*/) {}
 	virtual void notifyCustomState                (const std::string& /* peer_id   */, const std::string&               /* status_string */) {}
 //	virtual void notifyTurtleSearchResult         (const RsPeerId&    /* pid       */, uint32_t                         /* search_id     */, const std::list<TurtleFileInfo>& /* files         */) {}
-	virtual void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) {}
-	virtual void notifyOwnAvatarChanged           () {}
-	virtual void notifyOwnStatusMessageChanged    () {}
+//	virtual void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) {}
+//	virtual void notifyOwnAvatarChanged           () {}
+//	virtual void notifyOwnStatusMessageChanged    () {}
 //	virtual void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) {}
 //	virtual void notifyPeerStatusChanged          (const std::string& /* peer_id   */, uint32_t                         /* status           */) {}
 
