@@ -255,9 +255,12 @@ Binary Predicate for Case Insensitive search
 /*TODOS:
  *Factor locales in the comparison
  */
-struct CompareCharIC :
-        public std::binary_function< char , char , bool> {
-
+struct CompareCharIC
+// No need to inherit from binary_function for c++11 or later
+#if __cplusplus < 201103L
+      : public std::binary_function< char , char , bool>
+#endif
+{
     bool operator () ( char ch1 , char ch2 ) const {
         return tolower( static_cast < unsigned char > (ch1) )
                 == tolower( static_cast < unsigned char > (ch2) );
