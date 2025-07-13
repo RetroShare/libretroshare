@@ -33,9 +33,11 @@
 
 #include <cstring>
 
+#ifdef WINDOWS_SYS
 #if _WIN32_WINNT >= _WIN32_WINNT_WIN8
 #define HAS_NTOHLL
 #define HAS_HTOHLL
+#endif
 #endif
 
 /* enforce LITTLE_ENDIAN on Windows */
