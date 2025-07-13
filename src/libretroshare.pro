@@ -1277,7 +1277,7 @@ rs_sam3_libsam3 {
             git submodule update --init supportlibs/libsam3 || \
             true ) && \
             mkdir -p $${LIBSAM3_BUILD_PATH} && \
-            (cp -r $${LIBSAM3_SRC_PATH}/* $${LIBSAM3_BUILD_PATH} || true) &&
+            (cp -r -p $${LIBSAM3_SRC_PATH}/* $${LIBSAM3_BUILD_PATH} || true) &&
     }
     libsam3.commands += \
         cd $$shell_path($${LIBSAM3_BUILD_PATH}) && \
