@@ -1191,9 +1191,13 @@ message("In rnp_rnplib precompilation code")
 		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$clean_path(/usr/local/opt/botan@2/lib/libbotan-2.a)"
 	}
 
-    win32-g++:isEmpty(QMAKE_SH) {
+    win32-g++ {
         LIBRNP_OUTPUT_LIBRARY = librnp.dll.a
+    } else {
+        LIBRNP_OUTPUT_LIBRARY = librnp.a
+    }
 
+    win32-g++:isEmpty(QMAKE_SH) {
         # Windows native build
         !isEmpty(EXTERNAL_LIB_DIR) {
             LIBRNP_CMAKE_CXXFLAGS *= -D__MINGW_USE_VC2005_COMPAT -D__STDC_FORMAT_MACROS
@@ -1218,8 +1222,6 @@ message("In rnp_rnplib precompilation code")
             cd /D $$shell_path($${LIBRNP_SRC_PATH}) && git submodule update --init src/libsexpp || cd . $$escape_expand(\\n\\t) \
             $(CHK_DIR_EXISTS) $$shell_path($$LIBRNP_BUILD_PATH) $(MKDIR) $$shell_path($${LIBRNP_BUILD_PATH}) $$escape_expand(\\n\\t)
     } else {
-        LIBRNP_OUTPUT_LIBRARY = librnp.a
-
         librnp_header.commands = \
             cd $${RS_SRC_PATH} && \
             (git submodule update --init supportlibs/librnp || true ) && \
