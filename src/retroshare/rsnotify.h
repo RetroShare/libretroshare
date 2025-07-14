@@ -130,18 +130,18 @@ const uint32_t RS_FEED_ITEM_CIRCLE_INVITE_CANCELLED= RS_FEED_TYPE_CIRCLE  | 0x00
 const uint32_t RS_MESSAGE_CONNECT_ATTEMPT    = 0x0001;
 
 const int NOTIFY_LIST_NEIGHBOURS             = 1;
-const int NOTIFY_LIST_FRIENDS                = 2;
+//const int NOTIFY_LIST_FRIENDS                = 2;
 const int NOTIFY_LIST_SEARCHLIST             = 4;
 const int NOTIFY_LIST_CHANNELLIST            = 6;
 const int NOTIFY_LIST_TRANSFERLIST           = 7;
-const int NOTIFY_LIST_CONFIG                 = 8;
+//const int NOTIFY_LIST_CONFIG                 = 8;
 const int NOTIFY_LIST_DIRLIST_LOCAL          = 9;
 const int NOTIFY_LIST_DIRLIST_FRIENDS        = 10;
 const int NOTIFY_LIST_FORUMLIST_LOCKED       = 11; // use connect with Qt::QueuedConnection
 const int NOTIFY_LIST_PUBLIC_CHAT            = 13;
 const int NOTIFY_LIST_PRIVATE_INCOMING_CHAT  = 14;
 const int NOTIFY_LIST_PRIVATE_OUTGOING_CHAT  = 15;
-const int NOTIFY_LIST_GROUPLIST              = 16;
+//const int NOTIFY_LIST_GROUPLIST              = 16;
 const int NOTIFY_LIST_CHANNELLIST_LOCKED     = 17; // use connect with Qt::QueuedConnection
 const int NOTIFY_LIST_CHAT_LOBBY_INVITATION  = 18;
 const int NOTIFY_LIST_CHAT_LOBBY_LIST        = 19;
@@ -222,27 +222,26 @@ public:
 
 	virtual void notifyListPreChange              (int /* list */, int /* type */) {}
 	virtual void notifyListChange                 (int /* list */, int /* type */) {}
-	virtual void notifyErrorMsg                   (int /* list */, int /* sev  */, std::string /* msg */) {}
+//	virtual void notifyErrorMsg                   (int /* list */, int /* sev  */, std::string /* msg */) {}
 	virtual void notifyChatMessage                (const ChatMessage& /* msg      */) {}
 	virtual void notifyChatStatus                 (const ChatId&      /* chat_id  */, const std::string& /* status_string */) {}
 	virtual void notifyChatCleared                (const ChatId&      /* chat_id  */) {}
 	virtual void notifyChatLobbyEvent             (uint64_t           /* lobby id */, uint32_t           /* event type    */ ,const RsGxsId& /* nickname */,const std::string& /* any string */) {}
 	virtual void notifyChatLobbyTimeShift         (int                /* time_shift*/) {}
 	virtual void notifyCustomState                (const std::string& /* peer_id   */, const std::string&               /* status_string */) {}
-	virtual void notifyHashingInfo                (uint32_t           /* type      */, const std::string&               /* fileinfo      */) {}
-	virtual void notifyTurtleSearchResult         (const RsPeerId&    /* pid       */, uint32_t                         /* search_id     */, const std::list<TurtleFileInfo>& /* files         */) {}
-	virtual void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) {}
-	virtual void notifyOwnAvatarChanged           () {}
-	virtual void notifyOwnStatusMessageChanged    () {}
-	virtual void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) {}
-	virtual void notifyPeerStatusChanged          (const std::string& /* peer_id   */, uint32_t                         /* status           */) {}
+//	virtual void notifyTurtleSearchResult         (const RsPeerId&    /* pid       */, uint32_t                         /* search_id     */, const std::list<TurtleFileInfo>& /* files         */) {}
+//	virtual void notifyPeerHasNewAvatar           (std::string        /* peer_id   */) {}
+//	virtual void notifyOwnAvatarChanged           () {}
+//	virtual void notifyOwnStatusMessageChanged    () {}
+//	virtual void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) {}
+//	virtual void notifyPeerStatusChanged          (const std::string& /* peer_id   */, uint32_t                         /* status           */) {}
 
 	/* one or more peers has changed the states */
-	virtual void notifyPeerStatusChangedSummary   () {}
+//	virtual void notifyPeerStatusChangedSummary   () {}
 	virtual void notifyDiscInfoChanged            () {}
 
-	virtual void notifyDownloadComplete           (const std::string& /* fileHash  */) {}
-	virtual void notifyDownloadCompleteCount      (uint32_t           /* count     */) {}
+//	virtual void notifyDownloadComplete           (const std::string& /* fileHash  */) {}
+//	virtual void notifyDownloadCompleteCount      (uint32_t           /* count     */) {}
 	virtual void notifyHistoryChanged             (uint32_t           /* msgId     */, int /* type */) {}
 
 	virtual bool askForPassword                   (const std::string& /* title     */, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string& /* password */,bool& /* cancelled */ ) { return false ;}
