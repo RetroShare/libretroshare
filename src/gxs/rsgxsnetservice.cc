@@ -1644,13 +1644,15 @@ bool RsGxsNetService::loadList(std::list<RsItem *> &load)
 
 void RsGxsNetService::locked_checkDelay(uint32_t& time_in_secs)
 {
-    if(time_in_secs <    1 * 86400) { time_in_secs =   0        ; return ; }
-    if(time_in_secs <=  10 * 86400) { time_in_secs =   5 * 86400; return ; }
-    if(time_in_secs <=  20 * 86400) { time_in_secs =  15 * 86400; return ; }
-    if(time_in_secs <=  60 * 86400) { time_in_secs =  30 * 86400; return ; }
-    if(time_in_secs <= 120 * 86400) { time_in_secs =  90 * 86400; return ; }
-    if(time_in_secs <= 250 * 86400) { time_in_secs = 180 * 86400; return ; }
-                                      time_in_secs = 365 * 86400;
+	if(time_in_secs <     1 * 86400) { time_in_secs =    0        ; return ; }
+	if(time_in_secs <=   10 * 86400) { time_in_secs =    5 * 86400; return ; }
+	if(time_in_secs <=   20 * 86400) { time_in_secs =   15 * 86400; return ; }
+	if(time_in_secs <=   60 * 86400) { time_in_secs =   30 * 86400; return ; }
+	if(time_in_secs <=  120 * 86400) { time_in_secs =   90 * 86400; return ; }
+	if(time_in_secs <=  250 * 86400) { time_in_secs =  180 * 86400; return ; }
+	if(time_in_secs <=  400 * 86400) { time_in_secs =  365 * 86400; return ; }
+	if(time_in_secs <= 1200 * 86400) { time_in_secs = 1095 * 86400; return ; }
+									   time_in_secs = 1825 * 86400;
 }
 
 #include <algorithm>
