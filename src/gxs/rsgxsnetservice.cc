@@ -719,7 +719,7 @@ std::error_condition RsGxsNetService::checkUpdatesFromPeers(
             if(keep_delay > 0 && req_delay > 0 && keep_delay < req_delay)
                 req_delay = keep_delay ;
 
-            // The last post will be set to TS 0 if the req delay is 0, which means "Indefinitly"
+            // The last post will be set to TS 0 if the req delay is 0, which means "Indefinitely"
 
             if(req_delay > 0)
 				msg->createdSinceTS = std::max(0,(int)time(NULL) - req_delay);
