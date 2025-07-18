@@ -37,7 +37,7 @@ Unsolved questions:
 	* should we send ACKs everywhere even upward? No, if we severely limit the depth of random walk.
 	* better distribute routing events, so that the matrix gets filled better?
 	* find a strategy to avoid storing too many items
-	* how to handle cases where a ACK cannot be sent back? The previous peer is going to try indefinitly?
+	* how to handle cases where a ACK cannot be sent back? The previous peer is going to try indefinitely?
 		=> the ACK will be automatically collected by another route!
 	* how to make sure ACKed messages are not stored any longer than necessary?
 	* send signed ACKs, so that the receiver cannot be spoofed.
