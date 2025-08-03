@@ -64,7 +64,7 @@ rs_rnplib {
         LIBRNP_LIBS *= -lbotan-3
     } else {
         # This is the case for macOS and other Unix-like systems
-        LIBRNP_LIBS *= -lbotan-3
+        LIBRNP_LIBS *= -lbotan-2
     }
 
     win32-g++|win32-clang-g++ {
