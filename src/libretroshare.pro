@@ -1189,6 +1189,8 @@ message("In rnp_rnplib precompilation code")
 		# botan
 		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_INCLUDE_DIR=$$clean_path(/usr/local/opt/botan@2/include/botan-2)"
 		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$clean_path(/usr/local/opt/botan@2/lib/libbotan-2.a)"
+		# set minimum Mac Version to not get different endresults of min versions
+		LIBRNP_CMAKE_CXXFLAGS = -mmacosx-version-min=10.13
 	}
 
     win32-g++ {
@@ -1283,7 +1285,7 @@ rs_sam3_libsam3 {
     }
     libsam3.commands += \
         cd $$shell_path($${LIBSAM3_BUILD_PATH}) && \
-        $(MAKE) build $${LIBSAM3_MAKE_PARAMS}
+        $(MAKE) build CC=\"$$fixQmakeCC($$QMAKE_CC)\" $${LIBSAM3_MAKE_PARAMS}
     QMAKE_EXTRA_COMPILERS += libsam3
 }
 
