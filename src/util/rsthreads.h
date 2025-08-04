@@ -306,7 +306,6 @@ private:
 class RsTickingThread: public RsThread
 {
 public:
-
 	/**
 	 * Subclasses must implement this method, it will be called in a loop once
 	 * the thread is started, so repetitive work (like checking if data is
@@ -326,7 +325,7 @@ class RsQueueThread: public RsTickingThread
 {
 public:
 	RsQueueThread(uint32_t min, uint32_t max, double relaxFactor);
-	~RsQueueThread() override;
+	virtual ~RsQueueThread() override;
 
 protected:
 	virtual bool workQueued() = 0;
