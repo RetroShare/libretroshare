@@ -153,7 +153,7 @@ public:
     /*!
      * @brief Sets the maximum number of messages to save
      * @param[in] chat_type Type of chat for that number limit
-     * @param[in] count     Max umber of messages, 0 meaning indefinitly
+     * @param[in] count     Max umber of messages, 0 meaning indefinitely
      */
     virtual void     setSaveCount(uint32_t chat_type, uint32_t count) = 0;
 };
