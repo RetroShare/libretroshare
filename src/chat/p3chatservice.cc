@@ -122,8 +122,12 @@ void p3ChatService::sendPublicChat(const std::string &msg)
 		    initChatMessage(ci, message);
 		    message.incoming = false;
 		    message.online = true;
-		    RsServer::notify()->notifyChatMessage(message);
-		    mHistoryMgr->addMessage(message);
+            //RsServer::notify()->notifyChatMessage(message);
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+    ev->mMsg = message;
+    rsEvents->postEvent(ev);
+            mHistoryMgr->addMessage(message);
 	    }
 	    else
 		    checkSizeAndSendMessage(ci);
@@ -352,9 +356,13 @@ bool p3ChatService::sendChat(ChatId destination, std::string msg)
 	if(!isOnline(vpid)  && !destination.isDistantChatId())
 	{
 		message.online = false;
-		RsServer::notify()->notifyChatMessage(message);
+        //RsServer::notify()->notifyChatMessage(message);
 
-		// use the history to load pending messages to the gui
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+    ev->mMsg = message;
+    rsEvents->postEvent(ev);
+        // use the history to load pending messages to the gui
 		// this is not very nice, because the user may think the message was send, while it is still in the queue
 		mHistoryMgr->addMessage(message);
 
@@ -423,7 +431,11 @@ bool p3ChatService::sendChat(ChatId destination, std::string msg)
     std::cerr << std::endl;
 #endif
 
-    RsServer::notify()->notifyChatMessage(message);
+    //RsServer::notify()->notifyChatMessage(message);
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+    ev->mMsg = message;
+    rsEvents->postEvent(ev);
     
     // cyril: history is temporarily disabled for distant chat, since we need to store the full tunnel ID, but then
     // at loading time, the ID is not known so that chat window shows 00000000 as a peer.
@@ -903,9 +915,14 @@ bool p3ChatService::handleRecvChatMsgItem(RsChatMsgItem *& ci)
     initChatMessage(ci, cm);
     cm.incoming = true;
     cm.online = true;
-    RsServer::notify()->notifyChatMessage(cm);
+    //RsServer::notify()->notifyChatMessage(cm);
     
-	mHistoryMgr->addMessage(cm);
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+    ev->mMsg = cm;
+    rsEvents->postEvent(ev);
+
+    mHistoryMgr->addMessage(cm);
 
 	if(rsEvents)
 	{
@@ -1476,9 +1493,13 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 				initChatMessage(*toIt, message);
 				message.incoming = false;
 				message.online = true;
-				RsServer::notify()->notifyChatMessage(message);
+                //RsServer::notify()->notifyChatMessage(message);
 
-				checkSizeAndSendMessage(*toIt); // delete item
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+    ev->mMsg = message;
+    rsEvents->postEvent(ev);
+                checkSizeAndSendMessage(*toIt); // delete item
 			}
 
 			if (changed)

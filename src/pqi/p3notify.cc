@@ -218,7 +218,7 @@ void p3Notify::notifyListPreChange(int list, int type) { FOR_ALL_NOTIFY_CLIENTS 
 void p3Notify::notifyListChange   (int list, int type) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyListChange   (list,type) ; }
 
 //void p3Notify::notifyErrorMsg      (int list, int sev, std::string msg)                                                         { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyErrorMsg(list,sev,msg) ; }
-void p3Notify::notifyChatMessage   (const ChatMessage &msg)                                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatMessage(msg) ; }
+//void p3Notify::notifyChatMessage   (const ChatMessage &msg)                                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatMessage(msg) ; }
 void p3Notify::notifyChatStatus    (const ChatId&  chat_id, const std::string& status_string)                                   { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatStatus(chat_id,status_string) ; }
 void p3Notify::notifyChatCleared   (const ChatId&  chat_id)                                                                     { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatCleared(chat_id) ; }
 

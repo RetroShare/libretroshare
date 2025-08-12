@@ -609,8 +609,8 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_ADD) ;
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
     _should_reset_lobby_counts = false ;
@@ -766,10 +766,10 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 	std::cerr << "  doing specific job for this status item." << std::endl;
 #endif
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
+    auto ev = std::make_shared<RsChatLobbyEvent>();
     ev->mGxsId = item->signature.keyId;
     ev->mLobbyId = item->lobby_id;
-    ev->str = item->string1;
+    ev->mStr = item->string1;
 
     if(item->event_type == RS_CHAT_LOBBY_EVENT_PEER_LEFT)		// if a peer left. Remove its nickname from the list.
 	{
@@ -797,7 +797,7 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 				std::cerr << "  (EE) nickname " << item->nick << " not in participant nicknames list!" << std::endl;
 #endif
 		}
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_EVENT_PEER_LEFT;
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_PEER_LEFT;
     }
 	else if(item->event_type == RS_CHAT_LOBBY_EVENT_PEER_JOINED)		// if a joined left. Add its nickname to the list.
 	{
@@ -818,7 +818,7 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 			// trigger a keep alive packets so as to inform the new participant of our presence in the chatroom
 			it->second.last_keep_alive_packet_time = 0 ;
 		}
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_EVENT_PEER_JOINED         ;
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_PEER_JOINED         ;
     }
 	else if(item->event_type == RS_CHAT_LOBBY_EVENT_KEEP_ALIVE)		// keep alive packet. 
 	{
@@ -837,12 +837,12 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 			std::cerr << "  added nickname " << item->nick << " from lobby " << std::hex << item->lobby_id << std::dec << std::endl;
 #endif
 		}
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_EVENT_KEEP_ALIVE          ;
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_KEEP_ALIVE          ;
     }
     else if(item->event_type == RS_CHAT_LOBBY_EVENT_PEER_STATUS)
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_EVENT_PEER_STATUS         ;
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_PEER_STATUS         ;
     else if(item->event_type == RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME)
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME;
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME;
 
     rsEvents->postEvent(ev);
 
@@ -1128,10 +1128,15 @@ bool DistributedChatService::sendLobbyChat(const ChatLobbyId& lobby_id, const st
     message.sendTime = item.sendTime;
     message.incoming = false;
     message.online = true;
-    RsServer::notify()->notifyChatMessage(message);
+    //RsServer::notify()->notifyChatMessage(message);
     mHistMgr->addMessage(message);
 
-	return true ;
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+    ev->mMsg = message;
+    rsEvents->postEvent(ev);
+
+    return true ;
 }
 
 void DistributedChatService::handleConnectionChallenge(RsChatLobbyConnectChallengeItem *item) 
@@ -1419,8 +1424,8 @@ void DistributedChatService::handleRecvLobbyInvite(RsChatLobbyInviteItem *item)
 	}
 	// 2 - notify the gui to ask the user.
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_INVITE_RECEIVED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_INVITE_RECEIVED;
     rsEvents->postEvent(ev);
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_INVITATION, NOTIFY_TYPE_ADD);
@@ -1527,8 +1532,8 @@ bool DistributedChatService::acceptLobbyInvite(const ChatLobbyId& lobby_id,const
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_ADD);
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
     RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_INCOMING_CHAT, NOTIFY_TYPE_ADD);
@@ -1651,8 +1656,8 @@ bool DistributedChatService::joinVisibleChatLobby(const ChatLobbyId& lobby_id,co
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_ADD) ;
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
     sendLobbyStatusNewPeer(lobby_id) ;
@@ -1706,8 +1711,8 @@ ChatLobbyId DistributedChatService::createChatLobby(const std::string& lobby_nam
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_ADD) ;
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
     triggerConfigSave();
@@ -1745,8 +1750,8 @@ void DistributedChatService::handleFriendUnsubscribeLobby(RsChatLobbyUnsubscribe
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_MOD) ;
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
 }
@@ -1797,8 +1802,8 @@ void DistributedChatService::unsubscribeChatLobby(const ChatLobbyId& id)
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_DEL) ;
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
 	// done!
@@ -1945,8 +1950,8 @@ void DistributedChatService::setLobbyAutoSubscribe(const ChatLobbyId& lobby_id, 
 		_lobby_default_identity.erase(lobby_id);
 	}
 
-    auto ev = std::make_shared<RsChatStatusEvent>();
-    ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+    auto ev = std::make_shared<RsChatLobbyEvent>();
+    ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
     //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_ADD) ;
@@ -2086,8 +2091,8 @@ void DistributedChatService::cleanLobbyCaches()
     {
         //RsServer::notify()->notifyChatLobbyEvent(*it,RS_CHAT_LOBBY_EVENT_KEEP_ALIVE,RsGxsId(),"") ;
 
-        auto ev = std::make_shared<RsChatStatusEvent>();
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_EVENT_KEEP_ALIVE;
+        auto ev = std::make_shared<RsChatLobbyEvent>();
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_KEEP_ALIVE;
         rsEvents->postEvent(ev);
     }
 
@@ -2264,8 +2269,8 @@ bool DistributedChatService::processLoadListItem(const RsItem *item)
 
         //RsServer::notify()->notifyListChange(NOTIFY_LIST_CHAT_LOBBY_LIST, NOTIFY_TYPE_ADD) ;
 
-        auto ev = std::make_shared<RsChatStatusEvent>();
-        ev->mEventCode = RsChatStatusEventCode::CHAT_LOBBY_LIST_CHANGED;
+        auto ev = std::make_shared<RsChatLobbyEvent>();
+        ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
         rsEvents->postEvent(ev);
 
         return true;

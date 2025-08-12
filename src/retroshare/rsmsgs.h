@@ -536,10 +536,17 @@ public:
 	}
 };
 
-enum class RsChatStatusEventCode: uint8_t
+enum class RsChatServiceEventCode: uint8_t
 {
-    NOTIFY_LIST_PRIVATE_INCOMING_CHAT,			    // new private incoming chat
-    NOTIFY_LIST_PRIVATE_OUTGOING_CHAT	,		    // new private incoming chat
+    UNKNOWN                               = 0x00,
+
+    CHAT_MESSAGE_RECEIVED 			      = 0x01,    // new private incoming chat, NOTIFY_LIST_PRIVATE_INCOMING_CHAT
+    CHAT_STATUS_CHANGED   			      = 0x02,    //
+};
+
+enum class RsChatLobbyEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,
 
     CHAT_LOBBY_LIST_CHANGED               = 0x03,    // NOTIFY_LIST_CHAT_LOBBY_LIST	,	    ADD/REMOVE , // new/removed chat lobby
     CHAT_LOBBY_INVITE_RECEIVED            = 0x04,    // NOTIFY_LIST_CHAT_LOBBY_INVITE, received chat lobby invite
@@ -550,20 +557,31 @@ enum class RsChatStatusEventCode: uint8_t
     CHAT_LOBBY_EVENT_KEEP_ALIVE           = 0x09,	 // RS_CHAT_LOBBY_EVENT_KEEP_ALIVE
 };
 
-struct RsChatStatusEvent : RsEvent
+struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
 {
-    RsChatStatusEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
-    virtual ~RsChatStatusEvent() override = default;
+    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsChatLobbyEvent() override = default;
 
-    RsChatStatusEventCode mEventCode;
+    RsChatLobbyEventCode mEventCode;
 
     uint64_t mLobbyId;
     RsGxsId mGxsId;
-    std::string str;
-    ChatMessage msg;
+    std::string mStr;
+    ChatMessage mMsg;
     int mTimeShift;
 };
 
+struct RsChatServiceEvent : RsEvent // This event handles chat in general: status strings, new messages, etc.
+{
+    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsChatServiceEvent() override = default;
+
+    RsChatServiceEventCode mEventCode;
+
+    std::string mStr;
+    ChatId mCid;
+    ChatMessage mMsg;
+};
 
 struct VisibleChatLobbyRecord : RsSerializable
 {
