@@ -49,7 +49,7 @@
 ***********************************************************/
 
 ftFileCreator::ftFileCreator(const std::string& path, uint64_t size, const RsFileHash& hash,bool assume_availability)
-	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability)
+    : ftFileProvider(path,size,hash), chunkMap(size,assume_availability), diskWriteMutex("ftFileCreator")
 {
 	/* 
          * FIXME any inits to do?
@@ -166,7 +166,8 @@ void ftFileCreator::closeFile()
 #ifdef FILE_DEBUG
 		std::cerr << "CLOSED FILE " << (void*)fd << " (" << file_name << ")." << std::endl ;
 #endif
-		fclose(fd) ;
+        RsStackMutex stack2(diskWriteMutex); /********** STACK LOCKED MTX ******/
+        fclose(fd) ;
 	}
 
 	fd = NULL ;
@@ -196,11 +197,14 @@ bool ftFileCreator::addFileData(uint64_t offset, uint32_t chunk_size, void *data
 
 	bool complete = false ;
 	{
-		RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
+        RsStackMutex stack(diskWriteMutex); /********** STACK LOCKED MTX ******/
 
 		if (fd == NULL)
-			if (!locked_initializeFileAttrs())
+        {
+            RsStackMutex stack2(ftcMutex); /********** STACK LOCKED MTX ******/
+            if (!locked_initializeFileAttrs())
 				return false;
+        }
 
 		/* 
 		 * check its at the correct location 
@@ -238,7 +242,8 @@ bool ftFileCreator::addFileData(uint64_t offset, uint32_t chunk_size, void *data
 		/* 
 		 * Notify ftFileChunker about chunks received 
 		 */
-		locked_notifyReceived(offset,chunk_size);
+        RsStackMutex stack2(ftcMutex); /********** STACK LOCKED MTX ******/
+        locked_notifyReceived(offset,chunk_size);
 
 		complete = chunkMap.isComplete();
 	}
