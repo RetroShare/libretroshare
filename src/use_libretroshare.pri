@@ -94,6 +94,11 @@ rs_jsonapi {
         QMAKE_LIBDIR *= $$clean_path($${RESTBED_BUILD_PATH}/)
         # Using sLibs would fail as librestbed.a is generated at compile-time
         LIBS *= -L$$clean_path($${RESTBED_BUILD_PATH}/) -lrestbed
+
+        win32-g++ {
+            # Avoid compile errors "definition is marked dllimport" of inline methods in restbed
+            DEFINES *= WIN_DLL_EXPORT
+        }
     } else:sLibs *= restbed
 
     win32-g++|win32-clang-g++:dLibs *= wsock32

@@ -33,6 +33,13 @@
 
 #include <cstring>
 
+#ifdef WINDOWS_SYS
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
+#define HAS_NTOHLL
+#define HAS_HTOHLL
+#endif
+#endif
+
 /* enforce LITTLE_ENDIAN on Windows */
 #ifdef WINDOWS_SYS
 	#define BYTE_ORDER  1234
@@ -40,7 +47,7 @@
 	#define BIG_ENDIAN  4321
 #endif
 
-#ifndef ntohll
+#if !defined(ntohll) && !defined(HAS_NTOHLL)
 uint64_t ntohll(uint64_t x)
 {
 #ifdef BYTE_ORDER
@@ -63,7 +70,7 @@ uint64_t ntohll(uint64_t x)
 
 }
 #endif
-#ifndef htonll
+#if !defined(htonll) && !defined(HAS_HTOHLL)
 uint64_t htonll(uint64_t x)
 {
         return ntohll(x);

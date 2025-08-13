@@ -246,6 +246,13 @@ win32-g++|win32-clang-g++ {
 	OBJECTS_DIR = temp/obj
 	MOC_DIR = temp/moc
     libretroshare_shared {
+        # Overwrite default export behaviour
+        # If, however, '--export-all-symbols' is not given explicitly on the command line, then the default auto-export behavior will be disabled if either of the following are true:
+        #   - A DEF file is used.
+        #   - Any symbol in any object file was marked with the __declspec(dllexport) attribute.
+        # restbed exports functions with dllexport and disables default behaviour so we need to enable '--export-all-symbols'
+        LIBS *= -Wl,--export-all-symbols
+
         # Exclude exported symbols from libraries to avoid linker error "export ordinal too large"
         QMAKE_LFLAGS *= -Wl,--exclude-libs,libops.a
         QMAKE_LFLAGS *= -Wl,--exclude-libs,libbitdht.a
@@ -941,6 +948,7 @@ rs_jsonapi {
     WRAPPERS_REG_FILE=$$clean_path($${JSONAPI_GENERATOR_OUT}/jsonapi-wrappers.inl)
 
     no_rs_cross_compiling {
+        RESTBED_CMAKE_PARAMS =
         DUMMYRESTBEDINPUT = FORCE
         CMAKE_GENERATOR_OVERRIDE=""
         win32-g++|win32-clang-g++ {
@@ -950,6 +958,14 @@ rs_jsonapi {
                 CMAKE_GENERATOR_OVERRIDE="-G \"MSYS Makefiles\""
             }
         }
+
+        win32-g++:isEmpty(QMAKE_SH) {
+            # Windows native build
+            !isEmpty(EXTERNAL_LIB_DIR) {
+                RESTBED_CMAKE_PARAMS += -DCMAKE_INCLUDE_PATH=$$escape_expand($$shell_path($${EXTERNAL_LIB_DIR}/include))
+            }
+        }
+
         genrestbedlib.name = Generating librestbed.
         genrestbedlib.input = DUMMYRESTBEDINPUT
         genrestbedlib.output = $$clean_path($${RESTBED_BUILD_PATH}/librestbed.a)
@@ -958,18 +974,12 @@ rs_jsonapi {
         win32-g++:isEmpty(QMAKE_SH) {
             genrestbedlib.commands = \
                 cd /D $$shell_path($${RS_SRC_PATH}) && git submodule update --init supportlibs/restbed || cd . $$escape_expand(\\n\\t) \
-                cd /D $$shell_path($${RESTBED_SRC_PATH}) && git submodule update --init dependency/asio || cd . $$escape_expand(\\n\\t) \
-                cd /D $$shell_path($${RESTBED_SRC_PATH}) && git submodule update --init dependency/catch || cd . $$escape_expand(\\n\\t )\
-                cd /D $$shell_path($${RESTBED_SRC_PATH}) && git submodule update --init dependency/kashmir || cd . $$escape_expand(\\n\\t) \
                 $(CHK_DIR_EXISTS) $$shell_path($$UDP_DISCOVERY_BUILD_PATH) $(MKDIR) $$shell_path($${UDP_DISCOVERY_BUILD_PATH}) $$escape_expand(\\n\\t)
         } else {
             genrestbedlib.commands = \
                 cd $${RS_SRC_PATH} && ( \
                 git submodule update --init supportlibs/restbed ; \
                 cd $${RESTBED_SRC_PATH} ; \
-                git submodule update --init dependency/asio ; \
-                git submodule update --init dependency/catch ; \
-                git submodule update --init dependency/kashmir ; \
                 true ) && \
                 mkdir -p $${RESTBED_BUILD_PATH} &&
         }
@@ -977,10 +987,12 @@ rs_jsonapi {
             cd $$shell_path($${RESTBED_BUILD_PATH}) && \
             cmake \
                 -Wno-dev \
+		-DBUILD_TESTS=OFF \
+		-DBUILD_SHARED_LIBRARY=OFF \
                 -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
                 \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
                 $${CMAKE_GENERATOR_OVERRIDE} -DBUILD_SSL=OFF \
-                -DCMAKE_INSTALL_PREFIX=. -B. \
+                -DCMAKE_INSTALL_PREFIX=. $${RESTBED_CMAKE_PARAMS} -B. \
                 -H$$shell_path($${RESTBED_SRC_PATH}) && \
             $(MAKE)
         QMAKE_EXTRA_COMPILERS += genrestbedlib
@@ -1106,6 +1118,7 @@ rs_broadcast_discovery {
                 -DCMAKE_CXX_COMPILER=$$QMAKE_CXX \
                 \"-DCMAKE_CXX_FLAGS=$${QMAKE_CXXFLAGS}\" \
                 $${CMAKE_GENERATOR_OVERRIDE} \
+		$${CMAKE_FORCE_MINVERSION} \
                 -DBUILD_EXAMPLE=OFF -DBUILD_TOOL=OFF \
                 -DCMAKE_INSTALL_PREFIX=. -B. \
                 -H$$shell_path($${UDP_DISCOVERY_SRC_PATH}) && \
@@ -1178,6 +1191,12 @@ message("In rnp_rnplib precompilation code")
 		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$clean_path(/usr/local/opt/botan@2/lib/libbotan-2.a)"
 	}
 
+    win32-g++ {
+        LIBRNP_OUTPUT_LIBRARY = librnp.dll.a
+    } else {
+        LIBRNP_OUTPUT_LIBRARY = librnp.a
+    }
+
     win32-g++:isEmpty(QMAKE_SH) {
         # Windows native build
         !isEmpty(EXTERNAL_LIB_DIR) {
@@ -1226,7 +1245,7 @@ message("In rnp_rnplib precompilation code")
 
     librnp.name = Generating librnp.
     librnp.input = DUMMYQMAKECOMPILERINPUT
-    librnp.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
+    librnp.output = $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/$${LIBRNP_OUTPUT_LIBRARY})
     librnp.CONFIG += target_predeps combine
     librnp.variable_out = PRE_TARGETDEPS
     librnp.depends = $${librnp_header.output}
@@ -1260,7 +1279,7 @@ rs_sam3_libsam3 {
             git submodule update --init supportlibs/libsam3 || \
             true ) && \
             mkdir -p $${LIBSAM3_BUILD_PATH} && \
-            (cp -r $${LIBSAM3_SRC_PATH}/* $${LIBSAM3_BUILD_PATH} || true) &&
+            (cp -r -p $${LIBSAM3_SRC_PATH}/* $${LIBSAM3_BUILD_PATH} || true) &&
     }
     libsam3.commands += \
         cd $$shell_path($${LIBSAM3_BUILD_PATH}) && \
