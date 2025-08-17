@@ -601,6 +601,7 @@ struct RsChatServiceEvent : RsEvent // This event handles chat in general: statu
     ChatId mCid;
     ChatMessage mMsg;
     uint32_t mMsgHistoryId;
+    int mHistoryChangeType;          // NOTIFY_TYPE_ADD,NOTIFY_TYPE_DEL,NOTIFY_TYPE_MOD
 };
 
 struct VisibleChatLobbyRecord : RsSerializable

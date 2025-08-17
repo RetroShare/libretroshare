@@ -169,6 +169,7 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
         auto ev = std::make_shared<RsChatServiceEvent>();
         ev->mEventCode = RsChatServiceEventCode::CHAT_HISTORY_CHANGED;
         ev->mMsgHistoryId = addMsgId;
+        ev->mHistoryChangeType = NOTIFY_TYPE_ADD;
         rsEvents->postEvent(ev);
 	}
 }
@@ -560,6 +561,7 @@ void p3HistoryMgr::clear(const ChatId &chatId)
     auto ev = std::make_shared<RsChatServiceEvent>();
     ev->mEventCode = RsChatServiceEventCode::CHAT_HISTORY_CHANGED;
     ev->mMsgHistoryId = 0;
+    ev->mHistoryChangeType = NOTIFY_TYPE_MOD;
     rsEvents->postEvent(ev);
 }
 
@@ -612,6 +614,7 @@ void p3HistoryMgr::removeMessages(const std::list<uint32_t> &msgIds)
             auto ev = std::make_shared<RsChatServiceEvent>();
             ev->mEventCode = RsChatServiceEventCode::CHAT_HISTORY_CHANGED;
             ev->mMsgHistoryId = *iit;
+            ev->mHistoryChangeType = NOTIFY_TYPE_DEL;
             rsEvents->postEvent(ev);
         }
     }
