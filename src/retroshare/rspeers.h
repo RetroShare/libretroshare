@@ -261,25 +261,26 @@ struct RsAuthSslConnectionAutenticationEvent : RsEvent
 
 enum class RsFriendListEventCode: uint8_t
 {
-    UNKNOWN                 = 0x00,
-    NODE_CONNECTED          = 0x01,
-    NODE_DISCONNECTED       = 0x02,
-    NODE_TIME_SHIFT         = 0x03, // mTimeShift = time shift in seconds
-    NODE_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
-    NODE_ADDED              = 0x05,
-    NODE_REMOVED            = 0x06,
-    NODE_STATUS_CHANGED     = 0x07,	// mSslId, mStatus
-    NODE_AVATAR_CHANGED     = 0x08,	// mSslId
+    UNKNOWN                   = 0x00,
+    NODE_CONNECTED            = 0x01,
+    NODE_DISCONNECTED         = 0x02,
+    NODE_TIME_SHIFT           = 0x03, // mTimeShift = time shift in seconds
+    NODE_REPORTS_WRONG_IP     = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
+    NODE_ADDED                = 0x05,
+    NODE_REMOVED              = 0x06,
+    NODE_STATUS_CHANGED       = 0x07,	// mSslId, mStatus
+    NODE_AVATAR_CHANGED       = 0x08,	// mSslId
+    NODE_STATE_STRING_CHANGED = 0x09,	// mSslId, mStateString
 
-    OWN_AVATAR_CHANGED      = 0x09,
-    OWN_STATUS_CHANGED      = 0x0a,
+    OWN_AVATAR_CHANGED        = 0x0a,
+    OWN_STATUS_CHANGED        = 0x0b,
 
-    PROFILE_ADDED           = 0x0b,	// mPgpId
-    PROFILE_REMOVED         = 0x0c,	// mPgpId
+    PROFILE_ADDED             = 0x0c,	// mPgpId
+    PROFILE_REMOVED           = 0x0d,	// mPgpId
 
-    GROUP_ADDED             = 0x0d,
-    GROUP_REMOVED           = 0x0e,
-    GROUP_CHANGED           = 0x0f,
+    GROUP_ADDED               = 0x0e,
+    GROUP_REMOVED             = 0x0f,
+    GROUP_CHANGED             = 0x10,
 };
 
 struct RsFriendListEvent : RsEvent
@@ -294,6 +295,7 @@ struct RsFriendListEvent : RsEvent
     RsUrl mOwnLocator;
 	RsUrl mReportedLocator;
     RsStatusValue mStatus;
+    std::string mStateString;
 
 	/** If there is a time shift with the peer aka
 	 * mConnectionInfoCode == PEER_TIME_SHIFT contains the time shift value in
@@ -312,6 +314,7 @@ struct RsFriendListEvent : RsEvent
         RS_SERIAL_PROCESS(mOwnLocator);
 		RS_SERIAL_PROCESS(mReportedLocator);
         RS_SERIAL_PROCESS(mStatus);
+        RS_SERIAL_PROCESS(mStateString);
         RS_SERIAL_PROCESS(mTimeShift);
 	}
 

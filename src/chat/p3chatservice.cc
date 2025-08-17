@@ -255,7 +255,7 @@ void p3ChatService::sendStatusString( const ChatId& id,
 
 void p3ChatService::clearChatLobby(const ChatId& id)
 {
-	RsServer::notify()->notifyChatCleared(id);
+    //RsServer::notify()->notifyChatCleared(id);
 }
 
 void p3ChatService::sendChatItem(RsChatItem *item)
@@ -816,8 +816,7 @@ bool p3ChatService::notifyGxsTransSendStatus(RsGxsTransId mailId,
 
 	if(changed)
 	{
-		RsServer::notify()->notifyListChange(
-		            NOTIFY_LIST_PRIVATE_OUTGOING_CHAT, NOTIFY_TYPE_DEL );
+        //RsServer::notify()->notifyListChange( NOTIFY_LIST_PRIVATE_OUTGOING_CHAT, NOTIFY_TYPE_DEL );
 
 		IndicateConfigChanged();
 	}
@@ -954,8 +953,7 @@ void p3ChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
 	else if(cs->flags & RS_CHAT_FLAG_CUSTOM_STATE)		// Check if new custom string is available at peer's. 
 	{ 																	// If so, send a request to get the custom string.
 		receiveStateString(cs->PeerId(),cs->status_string) ;	// store it
-		RsServer::notify()->notifyCustomState(cs->PeerId().toStdString(), cs->status_string) ;
-	}
+    }
 	else if(cs->flags & RS_CHAT_FLAG_CUSTOM_STATE_AVAILABLE)
 	{
 #ifdef CHAT_DEBUG
@@ -963,19 +961,20 @@ void p3ChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
 #endif
 		sendCustomStateRequest(cs->PeerId()) ;
 	}
-    else if(DistantChatService::getDistantChatStatus(DistantChatPeerId(cs->PeerId()), dcpinfo))
+    else
     {
-        RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(cs->PeerId())), cs->status_string) ;
-    }
-	else if(cs->flags & RS_CHAT_FLAG_PRIVATE)
-	{
-        RsServer::notify()->notifyChatStatus(ChatId(cs->PeerId()),cs->status_string) ;
-	}
-	else if(cs->flags & RS_CHAT_FLAG_PUBLIC)
-    {
-        ChatId id = ChatId::makeBroadcastId();
-        id.broadcast_status_peer_id = cs->PeerId();
-        RsServer::notify()->notifyChatStatus(id, cs->status_string) ;
+        auto ev = std::make_shared<RsChatServiceEvent>();
+        ev->mStr = cs->status_string;
+
+        if(DistantChatService::getDistantChatStatus(DistantChatPeerId(cs->PeerId()), dcpinfo))
+            ev->mCid = ChatId(DistantChatPeerId(cs->PeerId()));
+        else if(cs->flags & RS_CHAT_FLAG_PRIVATE)
+            ev->mCid = ChatId(cs->PeerId());
+        else if(cs->flags & RS_CHAT_FLAG_PUBLIC)
+        {
+            ev->mCid = ChatId::makeBroadcastId();
+            ev->mCid.broadcast_status_peer_id = cs->PeerId();
+        }
     }
 
 	DistantChatService::handleRecvChatStatusItem(cs) ;
@@ -1099,6 +1098,12 @@ void p3ChatService::receiveStateString(const RsPeerId& id,const std::string& s)
 #endif
 
    bool new_peer = (_state_strings.find(id) == _state_strings.end()) ;
+
+        auto e = std::make_shared<RsFriendListEvent>();
+        e->mEventCode = RsFriendListEventCode::NODE_STATE_STRING_CHANGED;
+        e->mStateString = s;
+        e->mSslId = id;
+        rsEvents->postEvent(e);
 
    _state_strings[id]._custom_status_string = s ;
    _state_strings[id]._peer_is_new = true ;
@@ -1504,8 +1509,7 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 
 			if (changed)
 			{
-				RsServer::notify()->notifyListChange(
-				            NOTIFY_LIST_PRIVATE_OUTGOING_CHAT, NOTIFY_TYPE_DEL);
+                //RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_OUTGOING_CHAT, NOTIFY_TYPE_DEL);
 
 				IndicateConfigChanged();
 			}

@@ -542,6 +542,7 @@ enum class RsChatServiceEventCode: uint8_t
 
     CHAT_MESSAGE_RECEIVED 			      = 0x01,    // new private incoming chat, NOTIFY_LIST_PRIVATE_INCOMING_CHAT
     CHAT_STATUS_CHANGED   			      = 0x02,    //
+    CHAT_HISTORY_CHANGED  			      = 0x03,    //
 };
 
 enum class RsChatLobbyEventCode: uint8_t
@@ -555,6 +556,15 @@ enum class RsChatLobbyEventCode: uint8_t
     CHAT_LOBBY_EVENT_PEER_JOINED          = 0x07,	 // RS_CHAT_LOBBY_EVENT_PEER_JOINED
     CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME = 0x08,	 // RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME
     CHAT_LOBBY_EVENT_KEEP_ALIVE           = 0x09,	 // RS_CHAT_LOBBY_EVENT_KEEP_ALIVE
+};
+
+enum class RsDistantChatEventCode: uint8_t
+{
+    TUNNEL_STATUS_UNKNOWN                 = 0x00,
+    TUNNEL_STATUS_CAN_TALK                = 0x01,
+    TUNNEL_STATUS_TUNNEL_DN               = 0x02,
+    TUNNEL_STATUS_REMOTELY_CLOSED         = 0x03,
+    TUNNEL_STATUS_CONNECTION_REFUSED      = 0x04,
 };
 
 struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
@@ -571,6 +581,15 @@ struct RsChatLobbyEvent : RsEvent // This event handles events internal to the d
     int mTimeShift;
 };
 
+struct RsDistantChatEvent : RsEvent // This event handles events internal to the distant chat system
+{
+    RsDistantChatEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsDistantChatEvent() override = default;
+
+    RsDistantChatEventCode mEventCode;
+    DistantChatPeerId mId;
+};
+
 struct RsChatServiceEvent : RsEvent // This event handles chat in general: status strings, new messages, etc.
 {
     RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
@@ -581,6 +600,7 @@ struct RsChatServiceEvent : RsEvent // This event handles chat in general: statu
     std::string mStr;
     ChatId mCid;
     ChatMessage mMsg;
+    uint32_t mMsgHistoryId;
 };
 
 struct VisibleChatLobbyRecord : RsSerializable

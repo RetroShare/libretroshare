@@ -91,15 +91,15 @@ class p3Notify: public RsNotify
 
 		// Notifications of clients. Can be called from anywhere inside libretroshare.
 		//
-		void notifyListPreChange              (int /* list */, int /* type */) ;
-		void notifyListChange                 (int /* list */, int /* type */) ;
+//		void notifyListPreChange              (int /* list */, int /* type */) ;
+//		void notifyListChange                 (int /* list */, int /* type */) ;
 //		void notifyErrorMsg                   (int /* list */, int /* sev  */, std::string /* msg */) ;
 //		void notifyChatMessage                (const ChatMessage& /* msg      */) ;
-		void notifyChatStatus                 (const ChatId&      /* chat_id  */, const std::string& /* status_string */) ;
-		void notifyChatCleared                (const ChatId&      /* chat_id  */) ;
-		void notifyChatLobbyEvent             (uint64_t           /* lobby id */, uint32_t           /* event type    */ , const RsGxsId & /* nickname */, const std::string& /* any string */) ;
-		void notifyChatLobbyTimeShift         (int                /* time_shift*/) ;
-		void notifyCustomState                (const std::string& /* peer_id   */, const std::string&               /* status_string */) ;
+//		void notifyChatStatus                 (const ChatId&      /* chat_id  */, const std::string& /* status_string */) ;
+//		void notifyChatCleared                (const ChatId&      /* chat_id  */) ;
+//		void notifyChatLobbyEvent             (uint64_t           /* lobby id */, uint32_t           /* event type    */ , const RsGxsId & /* nickname */, const std::string& /* any string */) ;
+//		void notifyChatLobbyTimeShift         (int                /* time_shift*/) ;
+//		void notifyCustomState                (const std::string& /* peer_id   */, const std::string&               /* status_string */) ;
 //		void notifyTurtleSearchResult         (const RsPeerId &pid, uint32_t           /* search_id */, const std::list<TurtleFileInfo>& /* files         */) ;
 #warning MISSING CODE HERE
 //		void notifyTurtleSearchResult         (uint32_t           /* search_id */, const std::list<TurtleGxsInfo >& /* groups        */) ;
@@ -108,14 +108,14 @@ class p3Notify: public RsNotify
 //		void notifyOwnStatusMessageChanged    () ;
 //		void notifyDiskFull                   (uint32_t           /* location  */, uint32_t                         /* size limit in MB */) ;
 //		void notifyPeerStatusChanged          (const std::string& /* peer_id   */, uint32_t                         /* status           */) ;
-		void notifyConnectionWithoutCert      ();
+//		void notifyConnectionWithoutCert      ();
 
 //		void notifyPeerStatusChangedSummary   () ;
-		void notifyDiscInfoChanged            () ;
+//		void notifyDiscInfoChanged            () ;
 
 //		void notifyDownloadComplete           (const std::string& /* fileHash  */) ;
 //		void notifyDownloadCompleteCount      (uint32_t           /* count     */) ;
-		void notifyHistoryChanged             (uint32_t           /* msgId     */, int /* type */) ;
+//		void notifyHistoryChanged             (uint32_t           /* msgId     */, int /* type */) ;
 
 		bool askForPassword                   (const std::string& title, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string&, bool *cancelled /* password */ ) ;
 		bool askForPluginConfirmation         (const std::string& /* plugin_filename */, const std::string& /* plugin_file_hash */,bool first_time) ;

@@ -276,8 +276,10 @@ public:
 
 enum class RsSystemErrorEventCode: uint8_t
 {
+    UNKNOWN                               = 0x00,    // Computer universal time is different from friends
     TIME_SHIFT_PROBLEM                    = 0x01,    // Computer universal time is different from friends
     DISK_SPACE_ERROR                      = 0x02,    // Disk full
+    GENERAL_ERROR                         = 0x03,    // general error, see string.
 };
 
 struct RsSystemErrorEvent : RsEvent
@@ -290,4 +292,16 @@ struct RsSystemErrorEvent : RsEvent
     float mTimeShift;
     int mDiskErrorLocation;	//	{ RS_PARTIALS_DIRECTORY, RS_CONFIG_DIRECTORY,  RS_DOWNLOAD_DIRECTORY }
     int mDiskErrorSizeLimit;// size limit in MB
+    std::string mErrorMsg;  // generic error message info string. Can be anything.
+
+    ///* @see RsEvent @see RsSerializable
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mDiskErrorLocation);
+        RS_SERIAL_PROCESS(mDiskErrorSizeLimit);
+        RS_SERIAL_PROCESS(mErrorMsg);
+    }
 };
+

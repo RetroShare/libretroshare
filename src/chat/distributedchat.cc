@@ -1536,7 +1536,7 @@ bool DistributedChatService::acceptLobbyInvite(const ChatLobbyId& lobby_id,const
     ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
-    RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_INCOMING_CHAT, NOTIFY_TYPE_ADD);
+    //RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_INCOMING_CHAT, NOTIFY_TYPE_ADD);
 
     // send AKN item
 	sendLobbyStatusNewPeer(lobby_id) ;
