@@ -65,15 +65,15 @@ enum class RsEventType : uint32_t
 	AUTHSSL_CONNECTION_AUTENTICATION                        = 3,
 
 	/// @see pqissl
-	PEER_CONNECTION                                         = 4,
+    FRIEND_LIST                                             = 4,		// former PEER_STATUS
 
 	/// @see RsGxsChanges, used also in @see RsGxsBroadcast
 	GXS_CHANGES                                             = 5,
 
 	/// Emitted when a peer state changes, @see RsPeers
-	PEER_STATE_CHANGED                                      = 6,
+    _________UNUSED___001_                                  = 6,		// former PEER_STATE_CHANGED
 
-	/// @see RsMailStatusEvent
+    /// @see RsMailStatusEvent
 	MAIL_STATUS                                             = 7,
 
     /// @see RsGxsCircleEvent
@@ -98,7 +98,7 @@ enum class RsEventType : uint32_t
     FILE_TRANSFER                                           = 14,
 
 	/// @see RsMsgs
-	CHAT_MESSAGE                                            = 15,
+    CHAT_SERVICE                                            = 15,
 
 	/// @see rspeers.h
 	NETWORK                                                 = 16,
@@ -110,7 +110,7 @@ enum class RsEventType : uint32_t
     JSON_API                                                = 18,
 
 	/** Emitted to update library clients about file hashing being completed */
-	FILE_HASHING_COMPLETED                                  = 20,
+    _________UNUSED___002_                                  = 20,			// former FILE_HASING_COMPLETE
 
     /// @see rspeers.h
     TOR_MANAGER                                             = 21,
@@ -120,6 +120,9 @@ enum class RsEventType : uint32_t
 
     /// @see RsWireEvent
     WIRE                                                    = 23,
+
+    /// @see RsWireEvent
+    SYSTEM_ERROR                                            = 24,	// general system notifications
 
     __MAX /// Used internally, keep last
 };
@@ -270,3 +273,35 @@ public:
 
 	virtual ~RsEvents();
 };
+
+enum class RsSystemErrorEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,    // Computer universal time is different from friends
+    TIME_SHIFT_PROBLEM                    = 0x01,    // Computer universal time is different from friends
+    DISK_SPACE_ERROR                      = 0x02,    // Disk full
+    GENERAL_ERROR                         = 0x03,    // general error, see string.
+};
+
+struct RsSystemErrorEvent : RsEvent
+{
+    RsSystemErrorEvent() : RsEvent(RsEventType::SYSTEM_ERROR) {}
+    virtual ~RsSystemErrorEvent() override = default;
+
+    RsSystemErrorEventCode mEventCode;
+
+    float mTimeShift;
+    int mDiskErrorLocation;	//	{ RS_PARTIALS_DIRECTORY, RS_CONFIG_DIRECTORY,  RS_DOWNLOAD_DIRECTORY }
+    int mDiskErrorSizeLimit;// size limit in MB
+    std::string mErrorMsg;  // generic error message info string. Can be anything.
+
+    ///* @see RsEvent @see RsSerializable
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mDiskErrorLocation);
+        RS_SERIAL_PROCESS(mDiskErrorSizeLimit);
+        RS_SERIAL_PROCESS(mErrorMsg);
+    }
+};
+
