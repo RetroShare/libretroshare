@@ -59,6 +59,10 @@ HashStorage::HashStorage(const std::string& save_file_name)
 void HashStorage::togglePauseHashingProcess()
 {
     RS_STACK_MUTEX(mHashMtx) ;
+
+    if(!mRunning)
+        return;
+
     mHashingProcessPaused = !mHashingProcessPaused ;
 
     if(rsEvents)
