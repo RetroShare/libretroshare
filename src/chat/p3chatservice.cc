@@ -965,6 +965,7 @@ void p3ChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
     {
         auto ev = std::make_shared<RsChatServiceEvent>();
         ev->mStr = cs->status_string;
+        ev->mEventCode = RsChatServiceEventCode::CHAT_STATUS_CHANGED;
 
         if(DistantChatService::getDistantChatStatus(DistantChatPeerId(cs->PeerId()), dcpinfo))
             ev->mCid = ChatId(DistantChatPeerId(cs->PeerId()));
@@ -975,6 +976,8 @@ void p3ChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
             ev->mCid = ChatId::makeBroadcastId();
             ev->mCid.broadcast_status_peer_id = cs->PeerId();
         }
+
+        rsEvents->postEvent(ev);
     }
 
 	DistantChatService::handleRecvChatStatusItem(cs) ;

@@ -840,7 +840,10 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
         ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_KEEP_ALIVE          ;
     }
     else if(item->event_type == RS_CHAT_LOBBY_EVENT_PEER_STATUS)
+    {
         ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_PEER_STATUS         ;
+        ev->mStr = item->string1;
+    }
     else if(item->event_type == RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME)
         ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME;
 
