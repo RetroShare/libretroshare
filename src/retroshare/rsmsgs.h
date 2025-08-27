@@ -67,9 +67,9 @@
 
 #define RS_MSG_SYSTEM                (RS_MSG_USER_REQUEST | RS_MSG_FRIEND_RECOMMENDATION | RS_MSG_PUBLISH_KEY)
 
-#define RS_CHAT_LOBBY_EVENT_PEER_LEFT   				0x01
-#define RS_CHAT_LOBBY_EVENT_PEER_STATUS 				0x02
-#define RS_CHAT_LOBBY_EVENT_PEER_JOINED 				0x03
+#define RS_CHAT_LOBBY_EVENT_PEER_LEFT   			0x01
+#define RS_CHAT_LOBBY_EVENT_PEER_STATUS 			0x02
+#define RS_CHAT_LOBBY_EVENT_PEER_JOINED 			0x03
 #define RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME 	0x04
 #define RS_CHAT_LOBBY_EVENT_KEEP_ALIVE          	0x05
 
@@ -534,6 +534,74 @@ public:
 		RS_SERIAL_PROCESS(lobby_topic);
 		RS_SERIAL_PROCESS(lobby_flags);
 	}
+};
+
+enum class RsChatServiceEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,
+
+    CHAT_MESSAGE_RECEIVED 			      = 0x01,    // new private incoming chat, NOTIFY_LIST_PRIVATE_INCOMING_CHAT
+    CHAT_STATUS_CHANGED   			      = 0x02,    //
+    CHAT_HISTORY_CHANGED  			      = 0x03,    //
+};
+
+enum class RsChatLobbyEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,
+
+    CHAT_LOBBY_LIST_CHANGED               = 0x03,    // NOTIFY_LIST_CHAT_LOBBY_LIST	,	    ADD/REMOVE , // new/removed chat lobby
+    CHAT_LOBBY_INVITE_RECEIVED            = 0x04,    // NOTIFY_LIST_CHAT_LOBBY_INVITE, received chat lobby invite
+    CHAT_LOBBY_EVENT_PEER_LEFT   	 	  = 0x05,	 // RS_CHAT_LOBBY_EVENT_PEER_LEFT
+    CHAT_LOBBY_EVENT_PEER_STATUS 	      = 0x06,	 // RS_CHAT_LOBBY_EVENT_PEER_STATUS
+    CHAT_LOBBY_EVENT_PEER_JOINED          = 0x07,	 // RS_CHAT_LOBBY_EVENT_PEER_JOINED
+    CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME = 0x08,	 // RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME
+    CHAT_LOBBY_EVENT_KEEP_ALIVE           = 0x09,	 // RS_CHAT_LOBBY_EVENT_KEEP_ALIVE
+};
+
+enum class RsDistantChatEventCode: uint8_t
+{
+    TUNNEL_STATUS_UNKNOWN                 = 0x00,
+    TUNNEL_STATUS_CAN_TALK                = 0x01,
+    TUNNEL_STATUS_TUNNEL_DN               = 0x02,
+    TUNNEL_STATUS_REMOTELY_CLOSED         = 0x03,
+    TUNNEL_STATUS_CONNECTION_REFUSED      = 0x04,
+};
+
+struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
+{
+    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsChatLobbyEvent() override = default;
+
+    RsChatLobbyEventCode mEventCode;
+
+    uint64_t mLobbyId;
+    RsGxsId mGxsId;
+    std::string mStr;
+    ChatMessage mMsg;
+    int mTimeShift;
+};
+
+struct RsDistantChatEvent : RsEvent // This event handles events internal to the distant chat system
+{
+    RsDistantChatEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsDistantChatEvent() override = default;
+
+    RsDistantChatEventCode mEventCode;
+    DistantChatPeerId mId;
+};
+
+struct RsChatServiceEvent : RsEvent // This event handles chat in general: status strings, new messages, etc.
+{
+    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    virtual ~RsChatServiceEvent() override = default;
+
+    RsChatServiceEventCode mEventCode;
+
+    std::string mStr;
+    ChatId mCid;
+    ChatMessage mMsg;
+    uint32_t mMsgHistoryId;
+    int mHistoryChangeType;          // NOTIFY_TYPE_ADD,NOTIFY_TYPE_DEL,NOTIFY_TYPE_MOD
 };
 
 struct VisibleChatLobbyRecord : RsSerializable
