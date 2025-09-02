@@ -2096,6 +2096,7 @@ void DistributedChatService::cleanLobbyCaches()
 
         auto ev = std::make_shared<RsChatLobbyEvent>();
         ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_KEEP_ALIVE;
+        ev->mLobbyId = *it;
         rsEvents->postEvent(ev);
     }
 
