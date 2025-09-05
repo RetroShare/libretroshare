@@ -234,7 +234,8 @@ list(
 	pgp/pgpauxutils.cc
 	pgp/pgphandler.cc
 	pgp/pgpkeyutil.cc
-	pgp/rscertificate.cc )
+	pgp/rscertificate.cc
+	pgp/rnppgphandler.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
@@ -242,7 +243,8 @@ list(
 	pgp/pgpauxutils.h
 	pgp/pgphandler.h
 	pgp/pgpkeyutil.h
-	pgp/rscertificate.h )
+	pgp/rscertificate.h
+	pgp/rnppgphandler.h )
 
 #./plugins/dlfcn_win32.cc
 #./plugins/dlfcn_win32.h
@@ -329,6 +331,7 @@ list(
 	pqi/pqisslpersongrp.h
 	pqi/pqisslproxy.h
 	pqi/pqissludp.h
+	pqi/pqissl.h
 	pqi/pqistore.h
 	pqi/pqistreamer.h
 	pqi/pqithreadstreamer.h

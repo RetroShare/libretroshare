@@ -1658,7 +1658,7 @@ void RsGxsNetService::locked_checkDelay(uint32_t& time_in_secs)
 #include <algorithm>
 
 template <typename UpdateMap,class ItemClass>
-struct get_second : public std::unary_function<typename UpdateMap::value_type, RsItem*>
+struct get_second
 {
     get_second(uint16_t serv_type,typename UpdateMap::key_type ItemClass::*member): mServType(serv_type),ID_member(member) {}
 
