@@ -569,7 +569,7 @@ enum class RsDistantChatEventCode: uint8_t
 
 struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
 {
-    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsChatLobbyEventCode::UNKNOWN),mLobbyId(0),mTimeShift(0) {}
     virtual ~RsChatLobbyEvent() override = default;
 
     RsChatLobbyEventCode mEventCode;
@@ -579,20 +579,34 @@ struct RsChatLobbyEvent : RsEvent // This event handles events internal to the d
     std::string mStr;
     ChatMessage mMsg;
     int mTimeShift;
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mLobbyId);
+        RS_SERIAL_PROCESS(mGxsId);
+        RS_SERIAL_PROCESS(mStr);
+        RS_SERIAL_PROCESS(mMsg);
+        RS_SERIAL_PROCESS(mTimeShift);
+    }
 };
 
 struct RsDistantChatEvent : RsEvent // This event handles events internal to the distant chat system
 {
-    RsDistantChatEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    RsDistantChatEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsDistantChatEventCode::TUNNEL_STATUS_UNKNOWN) {}
     virtual ~RsDistantChatEvent() override = default;
 
     RsDistantChatEventCode mEventCode;
     DistantChatPeerId mId;
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mId);
+    }
 };
 
 struct RsChatServiceEvent : RsEvent // This event handles chat in general: status strings, new messages, etc.
 {
-    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE) {}
+    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE), mEventCode(RsChatServiceEventCode::UNKNOWN),mMsgHistoryId(0),mHistoryChangeType(0) {}
     virtual ~RsChatServiceEvent() override = default;
 
     RsChatServiceEventCode mEventCode;
@@ -602,12 +616,22 @@ struct RsChatServiceEvent : RsEvent // This event handles chat in general: statu
     ChatMessage mMsg;
     uint32_t mMsgHistoryId;
     int mHistoryChangeType;          // NOTIFY_TYPE_ADD,NOTIFY_TYPE_DEL,NOTIFY_TYPE_MOD
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mStr);
+        RS_SERIAL_PROCESS(mCid);
+        RS_SERIAL_PROCESS(mMsg);
+        RS_SERIAL_PROCESS(mMsgHistoryId);
+        RS_SERIAL_PROCESS(mHistoryChangeType);
+    }
 };
 
 struct VisibleChatLobbyRecord : RsSerializable
 {
 	VisibleChatLobbyRecord():
 	    lobby_id(0), total_number_of_peers(0), last_report_time(0) {}
+    virtual ~VisibleChatLobbyRecord() override = default;
 
 	ChatLobbyId lobby_id ;						// unique id of the lobby
 	std::string lobby_name ;					// name to use for this lobby
@@ -619,10 +643,7 @@ struct VisibleChatLobbyRecord : RsSerializable
 	ChatLobbyFlags lobby_flags ;				// see RS_CHAT_LOBBY_PRIVACY_LEVEL_PUBLIC / RS_CHAT_LOBBY_PRIVACY_LEVEL_PRIVATE
 
 	/// @see RsSerializable
-	void serial_process(
-	        RsGenericSerializer::SerializeJob j,
-	        RsGenericSerializer::SerializeContext &ctx) override
-	{
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
 		RS_SERIAL_PROCESS(lobby_id);
 		RS_SERIAL_PROCESS(lobby_name);
 		RS_SERIAL_PROCESS(lobby_topic);
@@ -632,8 +653,6 @@ struct VisibleChatLobbyRecord : RsSerializable
 		RS_SERIAL_PROCESS(last_report_time);
 		RS_SERIAL_PROCESS(lobby_flags);
 	}
-
-	~VisibleChatLobbyRecord() override;
 };
 
 class ChatLobbyInfo : RsSerializable

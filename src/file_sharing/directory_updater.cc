@@ -135,8 +135,6 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 
 	mIsChecking = true;
 
-    //RsServer::notify()->notifyListPreChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
-
     if(rsEvents)
     {
         auto ev = std::make_shared<RsSharedDirectoriesEvent>();
@@ -229,7 +227,6 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 		 * dir list, because the two are not necessarily in the same order. */
 	}
 
-    //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
     if(rsEvents)
     {
         auto ev = std::make_shared<RsSharedDirectoriesEvent>();

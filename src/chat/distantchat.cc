@@ -120,8 +120,6 @@ void DistantChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
 #ifdef DEBUG_DISTANT_CHAT    
         DISTANT_CHAT_DEBUG() << "(II) Distant chat: received notification that peer refuses conversation." << std::endl;
 #endif
-        //RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(cs->PeerId())),"Connexion refused by distant peer!") ;
-
         auto ev = std::make_shared<RsDistantChatEvent>();
         ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_CONNECTION_REFUSED;
         ev->mId = DistantChatPeerId(cs->PeerId()) ; // this has been turned into a distant chat peer id of the origin.
@@ -250,7 +248,6 @@ void DistantChatService::receiveData( const RsGxsTunnelId& tunnel_id, unsigned c
 	    item->PeerId(RsPeerId(tunnel_id)) ;	// just in case, but normally this is already done.
 
 	    handleIncomingItem(item) ;
-        //RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_INCOMING_CHAT, NOTIFY_TYPE_ADD);
     }
     else
 	    std::cerr << "  (EE) item could not be deserialised!" << std::endl;

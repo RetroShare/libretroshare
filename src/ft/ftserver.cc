@@ -1988,14 +1988,6 @@ void ftServer::ftReceiveSearchResult(RsTurtleFTSearchResultItem *item)
             cbpt->second.first(cRes);
         }
     }
-
-    // Removed since we now use RsEvent in the Qt GUI.
-    //
-    // if(!hasCallback)
-    // 	 RsServer::notify()->notifyTurtleSearchResult(
-    //	             item->PeerId(), item->request_id, item->result );
-
-    // [END DEPRECATED CODE]
 }
 
 bool ftServer::receiveSearchRequest(

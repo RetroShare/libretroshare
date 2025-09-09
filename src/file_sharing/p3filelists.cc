@@ -142,7 +142,6 @@ void p3FileDatabase::updateShareFlags(const SharedDirInfo& info)
         mLocalSharedDirs->updateShareFlags(info) ;
     }
 
-    //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
     IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
     if(rsEvents)
@@ -214,8 +213,6 @@ int p3FileDatabase::tick()
 			last_print_time = now ;
 		}
 
-#warning mr-alice 2016-08-19: "This should be removed, but it's necessary atm for updating the GUI"
-        //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
         if(rsEvents)
         {
             auto ev = std::make_shared<RsSharedDirectoriesEvent>();
@@ -232,8 +229,6 @@ int p3FileDatabase::tick()
 
         if(mUpdateFlags & P3FILELISTS_UPDATE_FLAG_LOCAL_DIRS_CHANGED)
         {
-            //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
-
             if(rsEvents)
             {
                 auto ev = std::make_shared<RsSharedDirectoriesEvent>();
@@ -243,8 +238,6 @@ int p3FileDatabase::tick()
         }
         if(mUpdateFlags & P3FILELISTS_UPDATE_FLAG_REMOTE_DIRS_CHANGED)
         {
-            //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);
-
             if(rsEvents)
             {
                 auto ev = std::make_shared<RsSharedDirectoriesEvent>();
@@ -288,7 +281,6 @@ int p3FileDatabase::tick()
 
 		if(mLastDataRecvTS + 5 < now && mLastDataRecvTS + 20 > now)
         {
-            //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);						 	 	 // notify the GUI if the hierarchy has changed
             if(rsEvents)
             {
                 auto ev = std::make_shared<RsSharedDirectoriesEvent>();
@@ -1042,7 +1034,6 @@ bool p3FileDatabase::removeExtraFile(const RsFileHash& hash)
     mLastExtraFilesCacheUpdate = 0 ; // forced cache reload
     }
 
-    //RsServer::notify()->notifyListChange(NOTIFY_LIST_DIRLIST_LOCAL, 0);
     if(rsEvents)
     {
         auto ev = std::make_shared<RsSharedDirectoriesEvent>();
@@ -1986,7 +1977,6 @@ void p3FileDatabase::handleDirSyncResponse(RsFileListsSyncResponseItem*& sitem)
 
         if(mLastDataRecvTS + 1 < now) // avoid notifying the GUI too often as it kills performance.
 		{
-        //	RsServer::notify()->notifyListPreChange(NOTIFY_LIST_DIRLIST_FRIENDS, 0);						 	 	 // notify the GUI if the hierarchy has changed
             if(rsEvents)
             {
                 auto ev = std::make_shared<RsSharedDirectoriesEvent>();

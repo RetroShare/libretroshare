@@ -564,7 +564,6 @@ uint32_t p3Msgs::getDistantChatPermissionFlags()
 RsMsgs::~RsMsgs() = default;
 Rs::Msgs::MessageInfo::~MessageInfo() = default;
 MsgInfoSummary::~MsgInfoSummary() = default;
-VisibleChatLobbyRecord::~VisibleChatLobbyRecord() = default;
 
 void RsMailIdRecipientIdPair::serial_process(
         RsGenericSerializer::SerializeJob j,
