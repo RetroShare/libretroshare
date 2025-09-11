@@ -1005,12 +1005,8 @@ void p3discovery2::processContactInfo(const RsPeerId &fromId, const RsDiscContac
 	}
 	updatePeerAddressList(item);
 
-    // RsServer::notify()->notifyListChange(NOTIFY_LIST_NEIGHBOURS, NOTIFY_TYPE_MOD);
-
 	if(should_notify_discovery)
     {
-        //RsServer::notify()->notifyDiscInfoChanged();
-
         if(rsEvents)
         {
             auto ev = std::make_shared<RsGossipDiscoveryEvent>();

@@ -198,7 +198,6 @@ bool p3StatusService::sendStatus(const RsPeerId &id, RsStatusValue status)
 	}
 
 	/* send notify of own status change */
-    //RsServer::notify()->notifyPeerStatusChanged(statusInfo.id.toStdString(), statusInfo.status);
 
     auto e = std::make_shared<RsFriendListEvent>();
     e->mSslId = statusInfo.id;
@@ -267,14 +266,12 @@ void p3StatusService::receiveStatusQueue()
         std::map<RsPeerId, RsStatusValue>::iterator it;
         for (it = changed.begin(); it != changed.end(); ++it)
         {
-            //RsServer::notify()->notifyPeerStatusChanged(it->first.toStdString(), it->second);
             auto e = std::make_shared<RsFriendListEvent>();
             e->mSslId = it->first;
             e->mStatus = RsStatusValue(it->second);
             e->mEventCode = RsFriendListEventCode::NODE_STATUS_CHANGED;
             rsEvents->postEvent(e);
         }
-        //RsServer::notify()->notifyPeerStatusChangedSummary();
 	}
 }
 
@@ -383,7 +380,6 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
 			} /* UNLOCKED */
 
 			changedState = true;
-            //RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_OFFLINE);
 
             auto e = std::make_shared<RsFriendListEvent>();
             e->mSslId = it->id;
@@ -411,7 +407,6 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
 			} /* UNLOCKED */
 
 			changedState = true;
-            //RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_ONLINE);
 
             auto e = std::make_shared<RsFriendListEvent>();
             e->mSslId = it->id;
@@ -430,7 +425,6 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
 			} /* UNLOCKED */
 
 			changedState = true;
-            //RsServer::notify()->notifyPeerStatusChanged(it->id.toStdString(), RS_STATUS_OFFLINE);
 
             auto e = std::make_shared<RsFriendListEvent>();
             e->mSslId = it->id;
@@ -439,9 +433,4 @@ void p3StatusService::statusChange(const std::list<pqiServicePeer> &plist)
             rsEvents->postEvent(e);
         }
 	}
-
-//	if (changedState)
-//	{
-//		RsServer::notify()->notifyPeerStatusChangedSummary();
-//	}
 }

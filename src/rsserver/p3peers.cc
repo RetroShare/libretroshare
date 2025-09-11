@@ -138,7 +138,6 @@ bool p3Peers::FriendsChanged(const RsPeerId& pid,bool add)
         ev->mEventCode = add ? (RsFriendListEventCode::NODE_ADDED):(RsFriendListEventCode::NODE_REMOVED);
         rsEvents->postEvent(ev);
     }
-    //RsServer::notify()->notifyListChange(NOTIFY_LIST_FRIENDS, add? NOTIFY_TYPE_ADD : NOTIFY_TYPE_DEL); // this is meant to disappear
 
     /* TODO */
     return false;

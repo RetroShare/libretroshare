@@ -2803,7 +2803,6 @@ bool p3PeerMgrIMPL::addGroup(RsGroupInfo &groupInfo)
         std::cerr << "(II) Added new group with ID " << groupInfo.id << ", name=\"" << groupInfo.name << "\"" << std::endl;
 	}
 
-    //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_ADD);
     if(rsEvents)
     {
         auto e = std::make_shared<RsFriendListEvent>();
@@ -2849,8 +2848,6 @@ bool p3PeerMgrIMPL::editGroup(const RsNodeGroupId& groupId, RsGroupInfo &groupIn
 
     if (changed)
     {
-        //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
-
         if(rsEvents)
         {
             auto e = std::make_shared<RsFriendListEvent>();
@@ -2897,9 +2894,8 @@ bool p3PeerMgrIMPL::removeGroup(const RsNodeGroupId& groupId)
 		}
 	}
 
-	if (changed) {
-        //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_DEL);
-
+    if (changed)
+    {
         if(rsEvents)
         {
             auto e = std::make_shared<RsFriendListEvent>();
@@ -2991,9 +2987,8 @@ bool p3PeerMgrIMPL::assignPeersToGroup(const RsNodeGroupId &groupId, const std::
 			}
 	}
 
-	if (changed) {
-        //RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
-
+    if (changed)
+    {
         if(rsEvents)
         {
             auto e = std::make_shared<RsFriendListEvent>();

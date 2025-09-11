@@ -122,7 +122,7 @@ void p3ChatService::sendPublicChat(const std::string &msg)
 		    initChatMessage(ci, message);
 		    message.incoming = false;
 		    message.online = true;
-            //RsServer::notify()->notifyChatMessage(message);
+
     auto ev = std::make_shared<RsChatServiceEvent>();
     ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
     ev->mMsg = message;
@@ -356,12 +356,12 @@ bool p3ChatService::sendChat(ChatId destination, std::string msg)
 	if(!isOnline(vpid)  && !destination.isDistantChatId())
 	{
 		message.online = false;
-        //RsServer::notify()->notifyChatMessage(message);
 
-    auto ev = std::make_shared<RsChatServiceEvent>();
-    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
-    ev->mMsg = message;
-    rsEvents->postEvent(ev);
+        auto ev = std::make_shared<RsChatServiceEvent>();
+        ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+        ev->mMsg = message;
+        rsEvents->postEvent(ev);
+
         // use the history to load pending messages to the gui
 		// this is not very nice, because the user may think the message was send, while it is still in the queue
 		mHistoryMgr->addMessage(message);
@@ -431,7 +431,6 @@ bool p3ChatService::sendChat(ChatId destination, std::string msg)
     std::cerr << std::endl;
 #endif
 
-    //RsServer::notify()->notifyChatMessage(message);
     auto ev = std::make_shared<RsChatServiceEvent>();
     ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
     ev->mMsg = message;
@@ -610,8 +609,6 @@ void p3ChatService::handleRecvChatAvatarItem(RsChatAvatarItem *ca)
 #ifdef CHAT_DEBUG
 	std::cerr << "Received avatar data for peer " << ca->PeerId() << ". Notifying." << std::endl ;
 #endif
-    //RsServer::notify()->notifyPeerHasNewAvatar(ca->PeerId().toStdString()) ;
-
     if(rsEvents)
     {
         auto e = std::make_shared<RsFriendListEvent>();
@@ -914,7 +911,6 @@ bool p3ChatService::handleRecvChatMsgItem(RsChatMsgItem *& ci)
     initChatMessage(ci, cm);
     cm.incoming = true;
     cm.online = true;
-    //RsServer::notify()->notifyChatMessage(cm);
     
     auto ev = std::make_shared<RsChatServiceEvent>();
     ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
@@ -1030,7 +1026,6 @@ void p3ChatService::setOwnCustomStateString(const std::string& s)
 		mServiceCtrl->getPeersConnected(getServiceInfo().mServiceType, onlineList);
 	}
 
-    //RsServer::notify()->notifyOwnStatusMessageChanged() ;
     if(rsEvents)
     {
         auto e = std::make_shared<RsFriendListEvent>();
@@ -1076,8 +1071,6 @@ void p3ChatService::setOwnNodeAvatarJpegData(const unsigned char *data,int size)
 			it->second->_own_is_new = true ;
 	}
 	IndicateConfigChanged();
-
-    //RsServer::notify()->notifyOwnAvatarChanged() ;
 
     if(rsEvents)
     {
@@ -1501,21 +1494,17 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 				initChatMessage(*toIt, message);
 				message.incoming = false;
 				message.online = true;
-                //RsServer::notify()->notifyChatMessage(message);
 
-    auto ev = std::make_shared<RsChatServiceEvent>();
-    ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
-    ev->mMsg = message;
-    rsEvents->postEvent(ev);
+                auto ev = std::make_shared<RsChatServiceEvent>();
+                ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
+                ev->mMsg = message;
+                rsEvents->postEvent(ev);
+
                 checkSizeAndSendMessage(*toIt); // delete item
 			}
 
 			if (changed)
-			{
-                //RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_OUTGOING_CHAT, NOTIFY_TYPE_DEL);
-
 				IndicateConfigChanged();
-			}
 		}
 		else if (it->actions & RS_SERVICE_PEER_REMOVED) 
 		{
