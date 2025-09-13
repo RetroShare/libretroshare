@@ -280,6 +280,7 @@ enum class RsSystemErrorEventCode: uint8_t
     TIME_SHIFT_PROBLEM                    = 0x01,    // Computer universal time is different from friends
     DISK_SPACE_ERROR                      = 0x02,    // Disk full
     GENERAL_ERROR                         = 0x03,    // general error, see string.
+    DATA_STREAMING_ERROR                  = 0x04,    // streaming error, mostly from the pqistreamer components
 };
 
 struct RsSystemErrorEvent : RsEvent

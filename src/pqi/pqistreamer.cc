@@ -868,7 +868,7 @@ continue_packet:
 			    rs_sprintf_append(msg, "(M:%d B:%d E:%d)\n", maxlen, blen, extralen);
 			    msg +=  "\n";
 			    msg +=  "block = " ;
-                	    msg += RsUtil::BinToHex((char*)block,8);
+                msg += RsUtil::BinToHex((char*)block,8);
 
 			    msg +=  "\n";
 			    msg +=  "Please get your friends to upgrade to the latest version";
@@ -879,7 +879,10 @@ continue_packet:
 			    msg +=  "Please report the problem to Retroshare's developers";
 			    msg +=  "\n";
 
-			    notify->AddLogMessage(0, RS_SYS_WARNING, title, msg);
+                auto ev = std::make_shared<RsSystemErrorEvent>();
+                ev->mEventCode = RsSystemErrorEventCode::DATA_STREAMING_ERROR;
+                ev->mErrorMsg = msg;
+                rsEvents->postEvent(ev);
 
 			    std::cerr << "pqistreamer::handle_incoming() ERROR: Read Packet too Big" << std::endl;
 			    std::cerr << msg;
