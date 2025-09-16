@@ -915,6 +915,7 @@ bool p3ChatService::handleRecvChatMsgItem(RsChatMsgItem *& ci)
     auto ev = std::make_shared<RsChatServiceEvent>();
     ev->mEventCode = RsChatServiceEventCode::CHAT_MESSAGE_RECEIVED;
     ev->mMsg = cm;
+    ev->mCid = cm.chat_id;
     rsEvents->postEvent(ev);
 
     mHistoryMgr->addMessage(cm);

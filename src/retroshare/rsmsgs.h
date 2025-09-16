@@ -315,18 +315,19 @@ struct MsgTagType : RsSerializable
 
 enum class RsMailStatusEventCode: uint8_t
 {
-	NEW_MESSAGE                     = 0x00,
-	MESSAGE_REMOVED                 = 0x01,
-	MESSAGE_SENT                    = 0x02,
+    UNKNOWN                         = 0x00,
+    NEW_MESSAGE                     = 0x01,
+    MESSAGE_REMOVED                 = 0x02,
+    MESSAGE_SENT                    = 0x03,
 
 	/// means the peer received the message
-	MESSAGE_RECEIVED_ACK            = 0x03,
+    MESSAGE_RECEIVED_ACK            = 0x04,
 
 	/// An error occurred attempting to sign the message
-	SIGNATURE_FAILED   = 0x04,
+    SIGNATURE_FAILED                = 0x05,
 
-	MESSAGE_CHANGED                 = 0x05,
-	TAG_CHANGED                     = 0x06,
+    MESSAGE_CHANGED                 = 0x06,
+    TAG_CHANGED                     = 0x07,
 };
 
 struct RsMailStatusEvent : RsEvent
