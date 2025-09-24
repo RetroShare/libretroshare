@@ -933,7 +933,7 @@ void RsTor::setHiddenServiceDirectory(const std::string& dir)
 
 TorManager *RsTor::instance()
 {
-#if !defined(_WIN32) && !defined(__MINGW32__)
+#if !defined(_WIN32) && !defined(__MINGW32__) && !defined(__APPLE__)
     assert(getpid() == syscall(SYS_gettid));// make sure we're not in a thread
 #endif
 
