@@ -25,6 +25,7 @@
 
 RsNotify *rsNotify = NULL ;
 
+#ifdef TO_REMOVE
 /* Output for retroshare-gui */
 bool p3Notify::NotifySysMessage(uint32_t &sysid, uint32_t &type, 
 					std::string &title, std::string &msg)
@@ -210,8 +211,6 @@ bool p3Notify::ClearFeedItems(uint32_t type)
 	return true;
 }
 
-#define FOR_ALL_NOTIFY_CLIENTS for(std::list<NotifyClient*>::const_iterator it(notifyClients.begin());it!=notifyClients.end();++it)
-
 //void p3Notify::notifyChatLobbyEvent(uint64_t lobby_id, uint32_t event_type,const RsGxsId& nickname,const std::string& any_string) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyChatLobbyEvent(lobby_id,event_type,nickname,any_string) ; }
 
 //void p3Notify::notifyListPreChange(int list, int type) { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyListPreChange(list,type) ; }
@@ -238,6 +237,10 @@ bool p3Notify::ClearFeedItems(uint32_t type)
 //void p3Notify::notifyDownloadComplete           (const std::string& fileHash )                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDownloadComplete           (fileHash) ; }
 //void p3Notify::notifyDownloadCompleteCount      (uint32_t           count    )                                                  { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyDownloadCompleteCount      (count) ; }
 //void p3Notify::notifyHistoryChanged             (uint32_t           msgId    , int type)                                        { FOR_ALL_NOTIFY_CLIENTS (*it)->notifyHistoryChanged             (msgId,type) ; }
+
+#endif
+
+#define FOR_ALL_NOTIFY_CLIENTS for(std::list<NotifyClient*>::const_iterator it(notifyClients.begin());it!=notifyClients.end();++it)
 
 bool p3Notify::cachePgpPassphrase(const std::string& s)
 {

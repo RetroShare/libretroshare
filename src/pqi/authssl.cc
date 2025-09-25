@@ -1478,7 +1478,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			rsEvents->postEvent(std::move(ev));
 		}
 
-		RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
+        //RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
 
 		return verificationFailed;
 	}

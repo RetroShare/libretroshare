@@ -1924,7 +1924,7 @@ int RsServer::StartupRetroShare()
 	/* Peer stuff is up to date */
 
 	//getPqiNotify()->ClearFeedItems(RS_FEED_ITEM_CHAT_NEW);
-	mNotify->ClearFeedItems(RS_FEED_ITEM_MESSAGE);
+    //mNotify->ClearFeedItems(RS_FEED_ITEM_MESSAGE);
 	//getPqiNotify()->ClearFeedItems(RS_FEED_ITEM_FILES_NEW);
 
 	/**************************************************************************/

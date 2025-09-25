@@ -203,11 +203,11 @@ class RS_DEPRECATED_FOR(RsEvents) RsNotify
 		/* Pull methods for retroshare-gui                   */
 		/* this should probably go into a different service. */
 		 
-		virtual bool NotifySysMessage(uint32_t &sysid, uint32_t &type, std::string &title, std::string &msg) = 0;
-		virtual bool NotifyPopupMessage(uint32_t &ptype, std::string &name, std::string &title, std::string &msg) = 0;
-		virtual bool NotifyLogMessage(uint32_t &sysid, uint32_t &type, std::string &title, std::string &msg) = 0;
+        //virtual bool NotifySysMessage(uint32_t &sysid, uint32_t &type, std::string &title, std::string &msg) = 0;
+        //virtual bool NotifyPopupMessage(uint32_t &ptype, std::string &name, std::string &title, std::string &msg) = 0;
+        //virtual bool NotifyLogMessage(uint32_t &sysid, uint32_t &type, std::string &title, std::string &msg) = 0;
 
-		virtual bool GetFeedItem(RsFeedItem &item) = 0;
+        //virtual bool GetFeedItem(RsFeedItem &item) = 0;
 
 		virtual bool cachePgpPassphrase (const std::string& /* pgp_passphrase */) { return false ; }
 		virtual bool clearPgpPassphrase () { return false ; }

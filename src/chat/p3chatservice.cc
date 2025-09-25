@@ -888,6 +888,7 @@ bool p3ChatService::handleRecvChatMsgItem(RsChatMsgItem *& ci)
 
     std::string message = ci->message;
 
+#ifdef TO_REMOVE
     if(!(ci->chatFlags & RS_CHAT_FLAG_LOBBY))
     {
         if(ci->chatFlags & RS_CHAT_FLAG_PRIVATE)
@@ -904,6 +905,7 @@ bool p3ChatService::handleRecvChatMsgItem(RsChatMsgItem *& ci)
 #endif
         }
     }
+#endif
 
 	ci->recvTime = time(NULL);
 
