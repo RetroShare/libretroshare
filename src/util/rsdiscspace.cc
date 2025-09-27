@@ -196,8 +196,8 @@ bool RsDiscSpace::checkForDiscSpace(RsDiscSpace::DiscLocation loc)
 
 	if(_last_res[loc] && !res)
     {
-        auto ev = std::make_shared<RsSystemErrorEvent>();
-        ev->mEventCode = RsSystemErrorEventCode::DISK_SPACE_ERROR;
+        auto ev = std::make_shared<RsSystemEvent>();
+        ev->mEventCode = RsSystemEventCode::DISK_SPACE_ERROR;
         ev->mDiskErrorLocation = loc;
         ev->mDiskErrorSizeLimit = _size_limit_mb;
         rsEvents->postEvent(ev);

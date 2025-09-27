@@ -660,8 +660,8 @@ void DistributedChatService::addTimeShiftStatistics(int D)
         {
             //LIST_CHANGEDRsServer::notify()->notifyChatLobbyTimeShift( (int)pow(2.0f,expected)) ;
 
-            auto ev = std::make_shared<RsSystemErrorEvent>();
-            ev->mEventCode = RsSystemErrorEventCode::TIME_SHIFT_PROBLEM;
+            auto ev = std::make_shared<RsSystemEvent>();
+            ev->mEventCode = RsSystemEventCode::TIME_SHIFT_PROBLEM;
             ev->mTimeShift = (int)pow(2.0f,expected);
             rsEvents->postEvent(ev);
         }

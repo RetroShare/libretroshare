@@ -879,8 +879,8 @@ continue_packet:
 			    msg +=  "Please report the problem to Retroshare's developers";
 			    msg +=  "\n";
 
-                auto ev = std::make_shared<RsSystemErrorEvent>();
-                ev->mEventCode = RsSystemErrorEventCode::DATA_STREAMING_ERROR;
+                auto ev = std::make_shared<RsSystemEvent>();
+                ev->mEventCode = RsSystemEventCode::DATA_STREAMING_ERROR;
                 ev->mErrorMsg = msg;
                 rsEvents->postEvent(ev);
 

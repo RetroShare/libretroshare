@@ -62,7 +62,7 @@ class p3Notify: public RsNotify
 {
 	public:
 
-		p3Notify() : noteMtx("p3Notify"), _disableAskPassword(false) { return; }
+        p3Notify() : noteMtx("p3Notify") /*, _disableAskPassword(false)*/ { return; }
 		virtual ~p3Notify() { return; }
 
 		virtual void registerNotifyClient(NotifyClient *nc) ;
@@ -117,13 +117,13 @@ class p3Notify: public RsNotify
 //		void notifyDownloadCompleteCount      (uint32_t           /* count     */) ;
 //		void notifyHistoryChanged             (uint32_t           /* msgId     */, int /* type */) ;
 
-		bool askForPassword                   (const std::string& title, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string&, bool *cancelled /* password */ ) ;
+//		bool askForPassword                   (const std::string& title, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string&, bool *cancelled /* password */ ) ;
 		bool askForPluginConfirmation         (const std::string& /* plugin_filename */, const std::string& /* plugin_file_hash */,bool first_time) ;
 
-		virtual bool cachePgpPassphrase       (const std::string& /* pgp_passphrase */) ;
-		virtual bool clearPgpPassphrase       () ;
+//		virtual bool cachePgpPassphrase       (const std::string& /* pgp_passphrase */) ;
+//		virtual bool clearPgpPassphrase       () ;
 
-		virtual bool setDisableAskPassword    (const bool /*bValue*/) ;
+//		virtual bool setDisableAskPassword    (const bool /*bValue*/) ;
 
 	private:
 
@@ -136,8 +136,8 @@ class p3Notify: public RsNotify
 
 		std::list<NotifyClient*> notifyClients ;
 
-		std::string cached_pgp_passphrase;
-		bool _disableAskPassword;
+//		std::string cached_pgp_passphrase;
+//		bool _disableAskPassword;
 };
 
 

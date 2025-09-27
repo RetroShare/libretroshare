@@ -33,7 +33,7 @@
 
 #include "pqi/authssl.h"
 #include "pqi/authgpg.h"
-#include "retroshare/rsinit.h"
+#include "rsserver/rsloginhandler.h"
 #include "retroshare/rsnotify.h"
 #include "retroshare/rsfiles.h"
 #include "util/rsurl.h"
@@ -1673,13 +1673,11 @@ bool 	p3Peers::signGPGCertificate(const RsPgpId &id, const std::string &gpg_pass
 	std::cerr << "p3Peers::SignCertificate() " << id;
 	std::cerr << std::endl;
 #endif
-        rsNotify->cachePgpPassphrase(gpg_passphrase);
-        rsNotify->setDisableAskPassword(true);
+        RsLoginHandler::cachePgpPassphrase(gpg_passphrase);
 
         bool res = AuthPGP::SignCertificateLevel0(id);
 
-        rsNotify->clearPgpPassphrase();
-        rsNotify->setDisableAskPassword(false);
+        RsLoginHandler::clearPgpPassphrase();
 
         return res;
 }

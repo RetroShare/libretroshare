@@ -2122,14 +2122,12 @@ RsInit::LoadCertificateStatus RsLoginHelper::attemptLogin(const RsPeerId& accoun
 
         if(!password.empty())
         {
-            rsNotify->cachePgpPassphrase(password);
-            rsNotify->setDisableAskPassword(true);
+            RsLoginHelper::cachePgpPassphrase(password);
         }
         std::string _ignore_lockFilePath;
         RsInit::LoadCertificateStatus ret = RsInit::LockAndLoadCertificates(false, _ignore_lockFilePath);
 
-        rsNotify->setDisableAskPassword(false) ;
-        rsNotify->clearPgpPassphrase() ;
+        RsLoginHelper::clearPgpPassphrase() ;
 
         bool is_hidden_node = false;
         bool is_auto_tor = false ;
@@ -2187,8 +2185,7 @@ std::error_condition RsLoginHelper::createLocationV2(
 
     std::string sslPassword = RsRandom::random_alphaNumericString(RsInit::getSslPwdLen());
 
-	rsNotify->cachePgpPassphrase(password);
-	rsNotify->setDisableAskPassword(true);
+    RsLoginHandler::cachePgpPassphrase(password);
 
 	bool ret = RsAccounts::createNewAccount(
 	            pgpId, "", locationName, "", false, false, sslPassword,
@@ -2201,7 +2198,6 @@ std::error_condition RsLoginHelper::createLocationV2(
 
 	RsInit::LoadPassword(sslPassword);
 	ret = (RsInit::OK == attemptLogin(locationId, password));
-	rsNotify->setDisableAskPassword(false);
 
 	return (ret ? std::error_condition() : RsInitErrorNum::LOGIN_FAILED);
 }
@@ -2268,4 +2264,18 @@ void RsLoginHelper::Location::serial_process(
 /*static*/ bool RsAccounts::getCurrentAccountId(RsPeerId& id)
 {
 	return rsAccountsDetails->getCurrentAccountId(id);
+}
+
+bool RsLoginHelper::askForPassword(const std::string& title, const std::string& key_details, bool prev_is_bad, std::string& password,bool& cancelled)
+{
+    return RsLoginHandler::askForPassword(title,key_details,prev_is_bad,password,cancelled);
+}
+
+bool RsLoginHelper::clearPgpPassphrase()
+{
+    return RsLoginHandler::clearPgpPassphrase();
+}
+bool RsLoginHelper::cachePgpPassphrase(const std::string& passwd)
+{
+    return RsLoginHandler::cachePgpPassphrase(passwd);
 }

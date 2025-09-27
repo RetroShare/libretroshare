@@ -274,26 +274,32 @@ public:
 	virtual ~RsEvents();
 };
 
-enum class RsSystemErrorEventCode: uint8_t
+enum class RsSystemEventCode: uint8_t
 {
     UNKNOWN                               = 0x00,    // Computer universal time is different from friends
     TIME_SHIFT_PROBLEM                    = 0x01,    // Computer universal time is different from friends
     DISK_SPACE_ERROR                      = 0x02,    // Disk full
     GENERAL_ERROR                         = 0x03,    // general error, see string.
     DATA_STREAMING_ERROR                  = 0x04,    // streaming error, mostly from the pqistreamer components
+    PASSWORD_REQUESTED                    = 0x05,    // ask the user for a passwd. This may be sent using the synchroneous sendEvent() if needed
+    NEW_PLUGIN_FOUND                      = 0x06,    // ask the user to validate a new plugin. This may be sent synchroneously is needed.
 };
 
-struct RsSystemErrorEvent : RsEvent
+struct RsSystemEvent : RsEvent
 {
-    RsSystemErrorEvent() : RsEvent(RsEventType::SYSTEM_ERROR) {}
-    virtual ~RsSystemErrorEvent() override = default;
+    RsSystemEvent() : RsEvent(RsEventType::SYSTEM_ERROR) {}
+    virtual ~RsSystemEvent() override = default;
 
-    RsSystemErrorEventCode mEventCode;
+    RsSystemEventCode mEventCode;
 
     float mTimeShift;
     int mDiskErrorLocation;	//	{ RS_PARTIALS_DIRECTORY, RS_CONFIG_DIRECTORY,  RS_DOWNLOAD_DIRECTORY }
     int mDiskErrorSizeLimit;// size limit in MB
     std::string mErrorMsg;  // generic error message info string. Can be anything.
+
+    std::string passwd_request_title;
+    std::string passwd_request_key_details;
+    bool passwd_request_prev_is_bad;
 
     ///* @see RsEvent @see RsSerializable
     void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override

@@ -242,33 +242,7 @@ bool p3Notify::ClearFeedItems(uint32_t type)
 
 #define FOR_ALL_NOTIFY_CLIENTS for(std::list<NotifyClient*>::const_iterator it(notifyClients.begin());it!=notifyClients.end();++it)
 
-bool p3Notify::cachePgpPassphrase(const std::string& s)
-{
-    clearPgpPassphrase() ;
-    cached_pgp_passphrase = s ;
-
-    std::cerr << "(WW) Caching PGP passphrase." << std::endl;
-    return true ;
-}
-bool p3Notify::clearPgpPassphrase()
-{
-    std::cerr << "(WW) Clearing PGP passphrase." << std::endl;
-
-    // Just whipe out the memory instead of just releasing it.
-
-    for(uint32_t i=0;i<cached_pgp_passphrase.length();++i)
-        cached_pgp_passphrase[i] = 0 ;
-
-    cached_pgp_passphrase.clear();
-    return true ;
-}
-
-bool p3Notify::setDisableAskPassword(const bool bValue)
-{
-	_disableAskPassword = bValue;
-	return true;
-}
-
+#ifdef TO_REMOVE
 bool p3Notify::askForPassword                   (const std::string& title    , const std::string& key_details    , bool               prev_is_bad , std::string& password,bool *cancelled)
 {
     if(!prev_is_bad && !cached_pgp_passphrase.empty())
@@ -286,6 +260,7 @@ bool p3Notify::askForPassword                   (const std::string& title    , c
 
 	return false ;
 }
+#endif
 bool p3Notify::askForPluginConfirmation         (const std::string& plugin_filename, const std::string& plugin_file_hash,bool first_time)
 {
 	FOR_ALL_NOTIFY_CLIENTS

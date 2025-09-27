@@ -22,9 +22,7 @@
 #include "authgpg.h"
 #include "retroshare/rsiface.h"		// For rsicontrol.
 #include "retroshare/rspeers.h"		// For RsPeerDetails.
-#ifdef WINDOWS_SYS
-#include "retroshare/rsinit.h"
-#endif
+#include "rsserver/rsloginhandler.h"
 #include "rsserver/p3face.h"
 #include "pqi/p3notify.h"
 #include "pgp/pgphandler.h"
@@ -108,7 +106,7 @@ std::string pgp_pwd_callback(void * /*hook*/, const char *uid_title, const char 
 	fprintf(stderr, "pgp_pwd_callback() called.\n");
 #endif
 	std::string password;
-	RsServer::notify()->askForPassword(uid_title, uid_hint, prev_was_bad, password,cancelled) ;
+    RsLoginHandler::askForPassword(uid_title, uid_hint, prev_was_bad, password,*cancelled) ;
 
 	return password ;
 }
