@@ -121,11 +121,15 @@ std::string RsLoginHandler::getSSLPasswdFileName(const RsPeerId& /*ssl_id*/)
 
 bool RsLoginHandler::askForPassword(const std::string& title, const std::string& key_details, bool prev_is_bad, std::string& password,bool& cancelled)
 {
+    RsDbg() << "asked for passwd: title=\"" << title << "\" key_details=\"" << key_details << "\" prev_is_bad=" << prev_is_bad ;
+
     if(cached_pgp_passphrase.empty() || prev_is_bad)
     {
+        RsDbg() << "  no passwd available in cache or previous passwd is bad. Clearing and re-asking." ;
         clearPgpPassphrase();	// so that we know if the subsequent request is cancelled or not.
 
         auto ev = std::make_shared<RsSystemEvent>();
+        ev->mEventCode = RsSystemEventCode::PASSWORD_REQUESTED;
         ev->passwd_request_key_details = key_details;
         ev->passwd_request_title = title;
         ev->passwd_request_prev_is_bad = prev_is_bad;
@@ -133,8 +137,12 @@ bool RsLoginHandler::askForPassword(const std::string& title, const std::string&
         // Call the RsEvent blocking API
         // This call should request the user for passphrase and then store it into cached_pgp_passphrase
 
+        RsDbg() << "  sending sync event to ask for passwd." ;
         rsEvents->sendEvent(ev);
+        RsDbg() << "  return from sync event to ask for passwd.";
     }
+    else
+        RsDbg() << "  passwd is available in cache.";
 
     if(cached_pgp_passphrase.empty())	// request was cancelled.
     {
