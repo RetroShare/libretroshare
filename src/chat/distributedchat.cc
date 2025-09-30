@@ -202,11 +202,6 @@ bool DistributedChatService::handleRecvChatLobbyMsgItem(RsChatMsgItem *ci)
     getVirtualPeerId(cli->lobby_id,virtual_peer_id) ;
     cli->PeerId(virtual_peer_id) ;
 
-    //name = cli->nick;
-    //popupChatFlag = RS_POPUP_CHATLOBBY;
-
-    //RsServer::notify()->AddPopupMessage(RS_POPUP_CHATLOBBY, ChatId(cli->lobby_id).toStdString(), cli->signature.keyId.toStdString(), cli->message); /* notify private chat message */
-
     return true ;
 }
 
@@ -658,8 +653,6 @@ void DistributedChatService::addTimeShiftStatistics(int D)
 
 		if(expected > 9)	// if more than 20 samples
         {
-            //LIST_CHANGEDRsServer::notify()->notifyChatLobbyTimeShift( (int)pow(2.0f,expected)) ;
-
             auto ev = std::make_shared<RsSystemEvent>();
             ev->mEventCode = RsSystemEventCode::TIME_SHIFT_PROBLEM;
             ev->mTimeShift = (int)pow(2.0f,expected);

@@ -65,8 +65,8 @@ class p3Notify: public RsNotify
         p3Notify() : noteMtx("p3Notify") /*, _disableAskPassword(false)*/ { return; }
 		virtual ~p3Notify() { return; }
 
-		virtual void registerNotifyClient(NotifyClient *nc) ;
-        virtual bool unregisterNotifyClient(NotifyClient *nc) ;
+        //virtual void registerNotifyClient(NotifyClient *nc) ;
+        //virtual bool unregisterNotifyClient(NotifyClient *nc) ;
 
 		/* Pull output methods for retroshare-gui */
         //virtual bool NotifySysMessage(uint32_t &sysid, uint32_t &type, std::string &title, std::string &msg);

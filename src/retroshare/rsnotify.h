@@ -196,9 +196,9 @@ class RS_DEPRECATED_FOR(RsEvents) RsNotify
 {
 	public:
 		/* registration of notifies clients */
-		virtual void registerNotifyClient(NotifyClient *nc) = 0;
+        //virtual void registerNotifyClient(NotifyClient *nc) = 0;
         /* returns true if NotifyClient was found */
-        virtual bool unregisterNotifyClient(NotifyClient *nc) = 0;
+        //virtual bool unregisterNotifyClient(NotifyClient *nc) = 0;
 
 		/* Pull methods for retroshare-gui                   */
 		/* this should probably go into a different service. */
@@ -209,10 +209,10 @@ class RS_DEPRECATED_FOR(RsEvents) RsNotify
 
         //virtual bool GetFeedItem(RsFeedItem &item) = 0;
 
-		virtual bool cachePgpPassphrase (const std::string& /* pgp_passphrase */) { return false ; }
-		virtual bool clearPgpPassphrase () { return false ; }
+        //virtual bool cachePgpPassphrase (const std::string& /* pgp_passphrase */) { return false ; }
+        //virtual bool clearPgpPassphrase () { return false ; }
 
-		virtual bool setDisableAskPassword (const bool /*bValue*/) { return false ; }
+        //virtual bool setDisableAskPassword (const bool /*bValue*/) { return false ; }
 };
 
 class RS_DEPRECATED NotifyClient
@@ -246,5 +246,5 @@ public:
 //	virtual void notifyHistoryChanged             (uint32_t           /* msgId     */, int /* type */) {}
 
 //	virtual bool askForPassword                   (const std::string& /* title     */, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string& /* password */,bool& /* cancelled */ ) { return false ;}
-	virtual bool askForPluginConfirmation         (const std::string& /* plugin_filename */, const std::string& /* plugin_file_hash */,bool /* first_time */) { return false ;}
+//	virtual bool askForPluginConfirmation         (const std::string& /* plugin_filename */, const std::string& /* plugin_file_hash */,bool /* first_time */) { return false ;}
 };

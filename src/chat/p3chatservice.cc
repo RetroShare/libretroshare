@@ -255,7 +255,6 @@ void p3ChatService::sendStatusString( const ChatId& id,
 
 void p3ChatService::clearChatLobby(const ChatId& id)
 {
-    //RsServer::notify()->notifyChatCleared(id);
 }
 
 void p3ChatService::sendChatItem(RsChatItem *item)
@@ -812,11 +811,7 @@ bool p3ChatService::notifyGxsTransSendStatus(RsGxsTransId mailId,
 	}
 
 	if(changed)
-	{
-        //RsServer::notify()->notifyListChange( NOTIFY_LIST_PRIVATE_OUTGOING_CHAT, NOTIFY_TYPE_DEL );
-
 		IndicateConfigChanged();
-	}
 
 	return true;
 }

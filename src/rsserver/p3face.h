@@ -103,7 +103,7 @@ public:
 			coreMutex.unlock(); 
 		}
 
-		static p3Notify *notify() { return dynamic_cast<RsServer*>(instance())->mNotify ; }
+        //static p3Notify *notify() { return dynamic_cast<RsServer*>(instance())->mNotify ; }
 
 	private:
 

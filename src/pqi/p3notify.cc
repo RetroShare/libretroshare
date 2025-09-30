@@ -260,7 +260,6 @@ bool p3Notify::askForPassword                   (const std::string& title    , c
 
 	return false ;
 }
-#endif
 bool p3Notify::askForPluginConfirmation         (const std::string& plugin_filename, const std::string& plugin_file_hash,bool first_time)
 {
 	FOR_ALL_NOTIFY_CLIENTS
@@ -288,3 +287,4 @@ bool p3Notify::unregisterNotifyClient(NotifyClient *nc)
         return false;
     }
 }
+#endif

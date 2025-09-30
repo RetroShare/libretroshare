@@ -852,8 +852,7 @@ continue_packet:
 	    {
 		    pqioutput(PQL_ALERT, pqistreamerzone, "ERROR: Read Packet too Big!");
 
-		    p3Notify *notify = RsServer::notify();
-		    if (notify)
+            if (rsEvents)
 		    {
 			    std::string title =
 			                    "Warning: Bad Packet Read";
@@ -924,8 +923,7 @@ continue_packet:
 				    std::cerr << out << std::endl ;
 				    pqioutput(PQL_ALERT, pqistreamerzone, out);
 
-				    p3Notify *notify = RsServer::notify();
-				    if (notify)
+                    if (rsEvents)
 				    {
 					    std::string title = "Warning: Error Completing Read";
 

@@ -28,6 +28,7 @@
 #include <chrono>
 #include <functional>
 
+#include "retroshare/rstypes.h"
 #include "util/rsmemory.h"
 #include "util/rsurl.h"
 #include "serialiser/rsserializable.h"
@@ -122,7 +123,7 @@ enum class RsEventType : uint32_t
     WIRE                                                    = 23,
 
     /// @see RsWireEvent
-    SYSTEM_ERROR                                            = 24,	// general system notifications
+    SYSTEM                                                  = 24,	// general system notifications
 
     __MAX /// Used internally, keep last
 };
@@ -287,7 +288,7 @@ enum class RsSystemEventCode: uint8_t
 
 struct RsSystemEvent : RsEvent
 {
-    RsSystemEvent() : RsEvent(RsEventType::SYSTEM_ERROR) {}
+    RsSystemEvent() : RsEvent(RsEventType::SYSTEM) {}
     virtual ~RsSystemEvent() override = default;
 
     RsSystemEventCode mEventCode;
@@ -301,6 +302,10 @@ struct RsSystemEvent : RsEvent
     std::string passwd_request_key_details;
     bool passwd_request_prev_is_bad;
 
+    std::string plugin_file_name;
+    RsFileHash plugin_file_hash;
+    bool plugin_first_time;
+
     ///* @see RsEvent @see RsSerializable
     void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
     {
@@ -309,6 +314,14 @@ struct RsSystemEvent : RsEvent
         RS_SERIAL_PROCESS(mDiskErrorLocation);
         RS_SERIAL_PROCESS(mDiskErrorSizeLimit);
         RS_SERIAL_PROCESS(mErrorMsg);
+
+        RS_SERIAL_PROCESS(passwd_request_title);
+        RS_SERIAL_PROCESS(passwd_request_key_details);
+        RS_SERIAL_PROCESS(passwd_request_prev_is_bad);
+
+        RS_SERIAL_PROCESS(plugin_file_name);
+        RS_SERIAL_PROCESS(plugin_file_hash);
+        RS_SERIAL_PROCESS(plugin_first_time);
     }
 };
 
