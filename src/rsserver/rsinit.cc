@@ -1627,7 +1627,6 @@ int RsServer::StartupRetroShare()
 #else
 	interfaces.mDht    = NULL;
 #endif
-	interfaces.mNotify = mNotify;
     interfaces.mServiceControl = serviceCtrl;
     interfaces.mPluginHandler  = mPluginsManager;
     // gxs

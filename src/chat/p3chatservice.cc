@@ -819,7 +819,7 @@ bool p3ChatService::notifyGxsTransSendStatus(RsGxsTransId mailId,
 bool p3ChatService::handleRecvChatMsgItem(RsChatMsgItem *& ci)
 {
 	std::string name;
-	uint32_t popupChatFlag = RS_POPUP_CHAT;
+    //uint32_t popupChatFlag = RS_POPUP_CHAT;
 
 	{
 		RS_STACK_MUTEX(mChatMtx);

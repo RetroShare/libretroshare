@@ -27,6 +27,7 @@
 
 #include "util/rsthreads.h"
 
+#ifdef TO_REMOVE
 class p3NotifySysMsg
 {
 	public:
@@ -139,6 +140,6 @@ class p3Notify: public RsNotify
 //		std::string cached_pgp_passphrase;
 //		bool _disableAskPassword;
 };
-
+#endif
 
 #endif

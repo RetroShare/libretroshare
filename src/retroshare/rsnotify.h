@@ -35,12 +35,9 @@ class ChatId;
 class ChatMessage;
 struct RsGxsChanges;
 
+#ifdef TO_REMOVE
 class RsNotify;
 extern RsNotify   *rsNotify;
-
-const uint32_t RS_SYS_ERROR 	= 0x0001;
-const uint32_t RS_SYS_WARNING 	= 0x0002;
-const uint32_t RS_SYS_INFO 	    = 0x0004;
 
 const uint32_t RS_POPUP_MSG             = 0x0001;
 const uint32_t RS_POPUP_CHAT            = 0x0002;
@@ -53,81 +50,9 @@ const uint32_t RS_POPUP_CHATLOBBY       = 0x0080;
 const uint32_t RS_POPUP_CONNECT_ATTEMPT = 0x0100;
 const uint32_t RS_POPUP_ENCRYPTED_MSG   = 0x0200;
 
-/* CHAT flags are here - so they are in the same place as 
- * other Notify flags... not used by libretroshare though
- */
-const uint32_t RS_CHAT_OPEN          = 0x0001;
-//const uint32_t free                = 0x0002;
-const uint32_t RS_CHAT_FOCUS         = 0x0004;
-const uint32_t RS_CHAT_TABBED_WINDOW = 0x0008;
-const uint32_t RS_CHAT_BLINK         = 0x0010;
-
-const uint32_t RS_FEED_TYPE_PEER     = 0x0010;
-const uint32_t RS_FEED_TYPE_CHANNEL  = 0x0020;
-const uint32_t RS_FEED_TYPE_FORUM    = 0x0040;
-//const uint32_t RS_FEED_TYPE_BLOG     = 0x0080;
-const uint32_t RS_FEED_TYPE_CHAT     = 0x0100;
-const uint32_t RS_FEED_TYPE_MSG      = 0x0200;
-const uint32_t RS_FEED_TYPE_FILES    = 0x0400;
-const uint32_t RS_FEED_TYPE_SECURITY = 0x0800;
-const uint32_t RS_FEED_TYPE_POSTED   = 0x1000;
-const uint32_t RS_FEED_TYPE_SECURITY_IP = 0x2000;
-const uint32_t RS_FEED_TYPE_CIRCLE   = 0x4000;
-
 #ifdef RS_USE_WIRE
 const uint32_t RS_FEED_TYPE_WIRE  = 0x8000;
 #endif
-
-const uint32_t RS_FEED_ITEM_PEER_CONNECT            = RS_FEED_TYPE_PEER  | 0x0001;
-const uint32_t RS_FEED_ITEM_PEER_DISCONNECT         = RS_FEED_TYPE_PEER  | 0x0002;
-const uint32_t RS_FEED_ITEM_PEER_HELLO              = RS_FEED_TYPE_PEER  | 0x0003;
-const uint32_t RS_FEED_ITEM_PEER_NEW                = RS_FEED_TYPE_PEER  | 0x0004;
-const uint32_t RS_FEED_ITEM_PEER_OFFSET             = RS_FEED_TYPE_PEER  | 0x0005;
-const uint32_t RS_FEED_ITEM_PEER_DENIES_CONNEXION   = RS_FEED_TYPE_PEER  | 0x0006;
-
-const uint32_t RS_FEED_ITEM_SEC_CONNECT_ATTEMPT     = RS_FEED_TYPE_SECURITY  | 0x0001;
-const uint32_t RS_FEED_ITEM_SEC_AUTH_DENIED         = RS_FEED_TYPE_SECURITY  | 0x0002;	// locally denied connection
-const uint32_t RS_FEED_ITEM_SEC_UNKNOWN_IN          = RS_FEED_TYPE_SECURITY  | 0x0003;
-const uint32_t RS_FEED_ITEM_SEC_UNKNOWN_OUT         = RS_FEED_TYPE_SECURITY  | 0x0004;
-const uint32_t RS_FEED_ITEM_SEC_WRONG_SIGNATURE     = RS_FEED_TYPE_SECURITY  | 0x0005;
-const uint32_t RS_FEED_ITEM_SEC_BAD_CERTIFICATE     = RS_FEED_TYPE_SECURITY  | 0x0006;
-const uint32_t RS_FEED_ITEM_SEC_INTERNAL_ERROR      = RS_FEED_TYPE_SECURITY  | 0x0007;
-const uint32_t RS_FEED_ITEM_SEC_MISSING_CERTIFICATE = RS_FEED_TYPE_SECURITY  | 0x0008;
-
-const uint32_t RS_FEED_ITEM_SEC_IP_BLACKLISTED      = RS_FEED_TYPE_SECURITY_IP  | 0x0001;
-const uint32_t RS_FEED_ITEM_SEC_IP_WRONG_EXTERNAL_IP_REPORTED = RS_FEED_TYPE_SECURITY_IP  | 0x0002;
-
-const uint32_t RS_FEED_ITEM_CHANNEL_NEW      = RS_FEED_TYPE_CHANNEL  | 0x0001;
-//const uint32_t RS_FEED_ITEM_CHANNEL_UPDATE   = RS_FEED_TYPE_CHANNEL  | 0x0002;
-const uint32_t RS_FEED_ITEM_CHANNEL_MSG      = RS_FEED_TYPE_CHANNEL  | 0x0003;
-const uint32_t RS_FEED_ITEM_CHANNEL_PUBLISHKEY = RS_FEED_TYPE_CHANNEL  | 0x0004;
-
-const uint32_t RS_FEED_ITEM_FORUM_NEW        = RS_FEED_TYPE_FORUM | 0x0001;
-//const uint32_t RS_FEED_ITEM_FORUM_UPDATE     = RS_FEED_TYPE_FORUM | 0x0002;
-const uint32_t RS_FEED_ITEM_FORUM_MSG        = RS_FEED_TYPE_FORUM | 0x0003;
-const uint32_t RS_FEED_ITEM_FORUM_PUBLISHKEY = RS_FEED_TYPE_FORUM | 0x0004;
-
-//const uint32_t RS_FEED_ITEM_BLOG_NEW         = RS_FEED_TYPE_BLOG  | 0x0001;
-//const uint32_t RS_FEED_ITEM_BLOG_UPDATE      = RS_FEED_TYPE_BLOG  | 0x0002;
-//const uint32_t RS_FEED_ITEM_BLOG_MSG         = RS_FEED_TYPE_BLOG  | 0x0003;
-
-const uint32_t RS_FEED_ITEM_POSTED_NEW       = RS_FEED_TYPE_POSTED  | 0x0001;
-//const uint32_t RS_FEED_ITEM_POSTED_UPDATE    = RS_FEED_TYPE_POSTED  | 0x0002;
-const uint32_t RS_FEED_ITEM_POSTED_MSG       = RS_FEED_TYPE_POSTED  | 0x0003;
-
-const uint32_t RS_FEED_ITEM_CHAT_NEW         = RS_FEED_TYPE_CHAT  | 0x0001;
-const uint32_t RS_FEED_ITEM_MESSAGE          = RS_FEED_TYPE_MSG   | 0x0001;
-const uint32_t RS_FEED_ITEM_FILES_NEW        = RS_FEED_TYPE_FILES | 0x0001;
-
-const uint32_t RS_FEED_ITEM_CIRCLE_MEMB_REQ        = RS_FEED_TYPE_CIRCLE  | 0x0001;
-const uint32_t RS_FEED_ITEM_CIRCLE_INVITE_REC      = RS_FEED_TYPE_CIRCLE  | 0x0002;
-const uint32_t RS_FEED_ITEM_CIRCLE_MEMB_LEAVE      = RS_FEED_TYPE_CIRCLE  | 0x0003;
-const uint32_t RS_FEED_ITEM_CIRCLE_MEMB_JOIN       = RS_FEED_TYPE_CIRCLE  | 0x0004;
-const uint32_t RS_FEED_ITEM_CIRCLE_MEMB_ACCEPTED   = RS_FEED_TYPE_CIRCLE  | 0x0005;
-const uint32_t RS_FEED_ITEM_CIRCLE_MEMB_REVOKED    = RS_FEED_TYPE_CIRCLE  | 0x0006;
-const uint32_t RS_FEED_ITEM_CIRCLE_INVITE_CANCELLED= RS_FEED_TYPE_CIRCLE  | 0x0007;
-
-const uint32_t RS_MESSAGE_CONNECT_ATTEMPT    = 0x0001;
 
 #warning TODO: see which of these cnstants are still used.
 const int NOTIFY_LIST_NEIGHBOURS             = 1;
@@ -248,3 +173,4 @@ public:
 //	virtual bool askForPassword                   (const std::string& /* title     */, const std::string& /* key_details     */, bool               /* prev_is_bad */, std::string& /* password */,bool& /* cancelled */ ) { return false ;}
 //	virtual bool askForPluginConfirmation         (const std::string& /* plugin_filename */, const std::string& /* plugin_file_hash */,bool /* first_time */) { return false ;}
 };
+#endif

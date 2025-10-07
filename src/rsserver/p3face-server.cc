@@ -89,8 +89,8 @@ RsServer::RsServer() :
 
 	// This is needed asap.
 	//
-	mNotify = new p3Notify() ;
-	rsNotify = mNotify ;
+    //mNotify = new p3Notify() ;
+    //rsNotify = mNotify ;
 
 	mPeerMgr = NULL;
 	mLinkMgr = NULL;

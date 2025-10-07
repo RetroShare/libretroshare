@@ -424,6 +424,15 @@ struct DistantChatPeerInfo : RsSerializable
 	}
 };
 
+enum class RsChatHistoryChangeFlags: uint8_t
+{
+    SAME   = 0x00,
+    MOD    = 0x01, /* general purpose, check all */
+    ADD    = 0x02, /* flagged additions */
+    DEL    = 0x04, /* flagged deletions */
+};
+RS_REGISTER_ENUM_FLAGS_TYPE(RsChatHistoryChangeFlags);
+
 // Identifier for an chat endpoint like
 // neighbour peer, distant peer, chatlobby, broadcast
 class ChatId : RsSerializable
@@ -607,7 +616,8 @@ struct RsDistantChatEvent : RsEvent // This event handles events internal to the
 
 struct RsChatServiceEvent : RsEvent // This event handles chat in general: status strings, new messages, etc.
 {
-    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE), mEventCode(RsChatServiceEventCode::UNKNOWN),mMsgHistoryId(0),mHistoryChangeType(0) {}
+    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE), mEventCode(RsChatServiceEventCode::UNKNOWN),
+        mMsgHistoryId(0),mHistoryChangeType(RsChatHistoryChangeFlags::SAME) {}
     virtual ~RsChatServiceEvent() override = default;
 
     RsChatServiceEventCode mEventCode;
@@ -616,7 +626,7 @@ struct RsChatServiceEvent : RsEvent // This event handles chat in general: statu
     ChatId mCid;
     ChatMessage mMsg;
     uint32_t mMsgHistoryId;
-    int mHistoryChangeType;          // NOTIFY_TYPE_ADD,NOTIFY_TYPE_DEL,NOTIFY_TYPE_MOD
+    RsChatHistoryChangeFlags mHistoryChangeType;          // ChatHistoryChangeFlags::ADD/DEL/MOD
 
     void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
         RS_SERIAL_PROCESS(mEventCode);

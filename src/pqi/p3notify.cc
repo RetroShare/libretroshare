@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <algorithm>
 
-RsNotify *rsNotify = NULL ;
+//RsNotify *rsNotify = NULL ;
 
 #ifdef TO_REMOVE
 /* Output for retroshare-gui */

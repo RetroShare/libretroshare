@@ -188,7 +188,7 @@ public:
 		p3GeneralConfig *mGeneralConfig;
 
 		// notify
-		p3Notify *mNotify ;
+        //p3Notify *mNotify ;
 
 		// Worker Data.....
 
