@@ -30,9 +30,7 @@
 #include <string>                 // for string, allocator, operator<<, oper...
 #include <utility>                // for pair
 
-#include "pqi/p3notify.h"         // for p3Notify
 #include "retroshare/rsids.h"     // for operator<<
-#include "retroshare/rsnotify.h"  // for RS_SYS_WARNING
 #include "rsserver/p3face.h"      // for RsServer
 #include "serialiser/rsserial.h"  // for RsItem, RsSerialiser, getRsItemSize
 #include "util/rsdebug.h"         // for pqioutput, PQL_ALERT, PQL_DEBUG_ALL

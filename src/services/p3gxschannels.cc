@@ -34,7 +34,6 @@
 #include "retroshare/rspeers.h"
 
 #include "rsserver/p3face.h"
-#include "retroshare/rsnotify.h"
 
 #include <cstdio>
 #include <chrono>

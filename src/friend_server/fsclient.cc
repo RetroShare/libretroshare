@@ -30,7 +30,6 @@
 
 #include "pqi/pqithreadstreamer.h"
 #include "retroshare/rspeers.h"
-#include "retroshare/rsnotify.h"
 
 #include "fsclient.h"
 #include "pqi/authgpg.h"

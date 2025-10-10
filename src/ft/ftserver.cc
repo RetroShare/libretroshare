@@ -41,7 +41,6 @@
 #include "ft/ftturtlefiletransferitem.h"
 
 #include "pqi/p3linkmgr.h"
-#include "pqi/p3notify.h"
 #include "pqi/pqi.h"
 
 #include "retroshare/rstypes.h"

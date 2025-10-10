@@ -34,7 +34,6 @@
 #include "pqi/authssl.h"
 #include "pqi/authgpg.h"
 #include "rsserver/rsloginhandler.h"
-#include "retroshare/rsnotify.h"
 #include "retroshare/rsfiles.h"
 #include "util/rsurl.h"
 #include "util/radix64.h"

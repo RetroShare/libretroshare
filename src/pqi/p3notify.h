@@ -22,7 +22,6 @@
 #ifndef RS_P3_NOTIFY_INTERFACE_H
 #define RS_P3_NOTIFY_INTERFACE_H
 
-#include "retroshare/rsnotify.h"
 #include "retroshare/rsturtle.h"
 
 #include "util/rsthreads.h"

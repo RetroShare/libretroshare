@@ -45,7 +45,6 @@
 #include "util/rsstring.h"
 #include "retroshare/rsinit.h"
 #include "retroshare/rstor.h"
-#include "retroshare/rsnotify.h"
 #include "retroshare/rsiface.h"
 #include "plugins/pluginmanager.h"
 #include "retroshare/rsversion.h"
@@ -864,9 +863,6 @@ RsGRouter *rsGRouter = NULL ;
 #include "rsserver/p3status.h"
 #include "rsserver/p3history.h"
 #include "rsserver/p3serverconfig.h"
-
-
-#include "pqi/p3notify.h" // HACK - moved to pqi for compilation order.
 
 #include "pqi/p3peermgr.h"
 #include "pqi/p3linkmgr.h"

@@ -28,7 +28,6 @@
 //#include "pqi/pqissl.h"
 
 #include "pqi/p3cfgmgr.h"
-#include "pqi/p3notify.h"
 #include "pqi/pqipersongrp.h"
 
 #include "retroshare/rsiface.h"

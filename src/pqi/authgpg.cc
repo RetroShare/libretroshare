@@ -24,7 +24,6 @@
 #include "retroshare/rspeers.h"		// For RsPeerDetails.
 #include "rsserver/rsloginhandler.h"
 #include "rsserver/p3face.h"
-#include "pqi/p3notify.h"
 #include "pgp/pgphandler.h"
 
 #include <util/rsdir.h>

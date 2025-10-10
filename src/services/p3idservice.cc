@@ -42,7 +42,6 @@
 #include "gxs/gxssecurity.h"
 #include "rsserver/rsloginhandler.h"
 #include "retroshare/rspeers.h"
-#include "retroshare/rsnotify.h"
 
 
 /****
