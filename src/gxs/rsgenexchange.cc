@@ -3132,7 +3132,7 @@ void RsGenExchange::processRecvdMessages()
 
             // (cyril) Normally we should discard posts that are older than the sync request. But that causes a problem because
             // 	RsGxsNetService requests posts to sync by chunks of 20. So if the 20 are discarded, they will be re-synced next time, and the sync process
-            // 	will indefinitly loop on the same 20 posts. Since the posts are there already, keeping them is the least problematique way to fix this problem.
+            // 	will indefinitely loop on the same 20 posts. Since the posts are there already, keeping them is the least problematique way to fix this problem.
             //
 			//      uint32_t max_sync_age = ( mNetService != NULL)?( mNetService->getSyncAge(msg->metaData->mGroupId)):RS_GXS_DEFAULT_MSG_REQ_PERIOD;
 			//
