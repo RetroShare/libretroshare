@@ -33,14 +33,13 @@ extern RsStatus *rsStatus;
 #include <retroshare/rstypes.h>
 
 enum class RsStatusValue: int32_t {
-    RS_STATUS_UNKNOWN  = 0x00,
-    RS_STATUS_OFFLINE  = 0x01,
-    RS_STATUS_AWAY     = 0x02,
-    RS_STATUS_BUSY     = 0x03,
-    RS_STATUS_ONLINE   = 0x04,
-    RS_STATUS_INACTIVE = 0x05,
+    RS_STATUS_OFFLINE  = 0x00,
+    RS_STATUS_AWAY     = 0x01,
+    RS_STATUS_BUSY     = 0x02,
+    RS_STATUS_ONLINE   = 0x03,
+    RS_STATUS_INACTIVE = 0x04,
 
-    RS_STATUS_COUNT    = 0x06, // count of status
+    RS_STATUS_COUNT    = 0x05, // count of status
 };
 
 //! data object for peer status information
@@ -50,7 +49,7 @@ enum class RsStatusValue: int32_t {
 class StatusInfo
 {
 	public:
-    StatusInfo() : status(RsStatusValue::RS_STATUS_UNKNOWN), time_stamp(0)	{}
+    StatusInfo() : status(RsStatusValue::RS_STATUS_OFFLINE), time_stamp(0)	{}
 
 	public:
 	RsPeerId id;
