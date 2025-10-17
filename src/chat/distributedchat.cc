@@ -1127,6 +1127,7 @@ void DistributedChatService::handleConnectionChallenge(RsChatLobbyConnectChallen
 		RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
 
 		for(std::map<ChatLobbyId,ChatLobbyEntry>::iterator it(_chat_lobbys.begin());it!=_chat_lobbys.end() && !found;++it)
+			if(!IS_PUBLIC_LOBBY(it->second.lobby_flags))
 			for(std::map<ChatLobbyMsgId,rstime_t>::const_iterator it2(it->second.msg_cache.begin());it2!=it->second.msg_cache.end() && !found;++it2)
 				if(it2->second + CONNECTION_CHALLENGE_MAX_MSG_AGE + 5 > now)  // any msg not older than 5 seconds plus max challenge count is fine.
 				{
@@ -1990,7 +1991,7 @@ void DistributedChatService::cleanLobbyCaches()
 
 			// 5 - look at lobby activity and possibly send connection challenge
 			//
-			if(++it->second.connexion_challenge_count > CONNECTION_CHALLENGE_MAX_COUNT && now > it->second.last_connexion_challenge_time + CONNECTION_CHALLENGE_MIN_DELAY) 
+			if(!IS_PUBLIC_LOBBY(it->second.lobby_flags) && ++it->second.connexion_challenge_count > CONNECTION_CHALLENGE_MAX_COUNT && now > it->second.last_connexion_challenge_time + CONNECTION_CHALLENGE_MIN_DELAY)
 			{
 				it->second.connexion_challenge_count = 0 ;
 				it->second.last_connexion_challenge_time = now ;
