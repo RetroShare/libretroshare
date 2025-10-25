@@ -591,6 +591,9 @@ struct RsChatLobbyEvent : RsEvent // This event handles events internal to the d
     int mTimeShift;
 
     void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+
+        RsEvent::serial_process(j,ctx);
+
         RS_SERIAL_PROCESS(mEventCode);
         RS_SERIAL_PROCESS(mLobbyId);
         RS_SERIAL_PROCESS(mGxsId);
@@ -609,6 +612,9 @@ struct RsDistantChatEvent : RsEvent // This event handles events internal to the
     DistantChatPeerId mId;
 
     void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+
+        RsEvent::serial_process(j,ctx);
+
         RS_SERIAL_PROCESS(mEventCode);
         RS_SERIAL_PROCESS(mId);
     }
@@ -629,6 +635,9 @@ struct RsChatServiceEvent : RsEvent // This event handles chat in general: statu
     RsChatHistoryChangeFlags mHistoryChangeType;          // ChatHistoryChangeFlags::ADD/DEL/MOD
 
     void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+
+        RsEvent::serial_process(j,ctx);
+
         RS_SERIAL_PROCESS(mEventCode);
         RS_SERIAL_PROCESS(mStr);
         RS_SERIAL_PROCESS(mCid);
