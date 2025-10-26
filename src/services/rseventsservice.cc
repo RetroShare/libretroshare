@@ -109,17 +109,19 @@ std::error_condition RsEventsService::registerEventsHandler(
 		if(std::error_condition ec = isEventTypeInvalid(eventType))
 			return ec;
 
+    if(hId > mLastHandlerId)
+    {
+        print_stacktrace();
+        RsErr() << "You are probably using an uninitialized handler ID, which is not permitted. Allocating a new one" ;
+        hId=0;
+    }
+
     if(!hId)
         hId = generateUniqueHandlerId_unlocked();
-	else if (hId > mLastHandlerId)
-	{
-		print_stacktrace();
-		return RsEventsErrorNum::INVALID_HANDLER_ID;
-	}
     else
     {
         print_stacktrace();
-        RsWarn() << "Overriding an existing error handler ID with a new callback. This is very unexpected" ;
+        RsWarn() << "Overriding an existing error handler ID with a new callback. This is very unexpected. Make sure you know what you are doing." ;
     }
 
 	mHandlerMaps[static_cast<std::size_t>(eventType)][hId] = multiCallback;
