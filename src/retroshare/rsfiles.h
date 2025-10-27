@@ -235,25 +235,6 @@ struct RsSharedDirectoriesEvent: RsEvent
     uint64_t mTotalSizeToHash ;		// total size to hash in MB
 };
 
-#ifdef TO_REMOVE
-struct RsFileHashingCompletedEvent: RsEvent
-{
-    RsFileHashingCompletedEvent():
-        RsEvent(RsEventType::FILE_HASHING_COMPLETED), mHashingSpeed(0) {}
-
-    ///* @see RsEvent @see RsSerializable
-    void serial_process( RsGenericSerializer::SerializeJob j,
-                         RsGenericSerializer::SerializeContext& ctx ) override
-    {
-        RsEvent::serial_process(j, ctx);
-        RS_SERIAL_PROCESS(mFilePath);
-        RS_SERIAL_PROCESS(mFileHash);
-        RS_SERIAL_PROCESS(mHashingSpeed);
-    }
-
-};
-#endif
-
 
 struct RsFileTransferEvent: RsEvent
 {

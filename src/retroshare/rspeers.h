@@ -517,25 +517,6 @@ struct RsGroupInfo : RsSerializable
 	}
 };
 
-#ifdef TO_REMOVE
-/** Event emitted when a peer change state */
-struct RsPeerStateChangedEvent : RsEvent
-{
-	/// @param[in] sslId is of the peer which changed state
-	explicit RsPeerStateChangedEvent(RsPeerId sslId);
-
-	/// Storage fot the id of the peer that changed state
-	RsPeerId mSslId;
-
-	void serial_process( RsGenericSerializer::SerializeJob j,
-	                     RsGenericSerializer::SerializeContext& ctx) override
-	{
-		RsEvent::serial_process(j, ctx);
-		RS_SERIAL_PROCESS(mSslId);
-	}
-};
-#endif
-
 enum class RetroshareInviteFlags:uint32_t {
     NOTHING             = 0x00,
     CURRENT_LOCAL_IP    = 0x01,
