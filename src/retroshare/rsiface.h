@@ -91,6 +91,6 @@ public:
 	virtual void setShutdownCallback(const std::function<void(int)>& callback) = 0;
 
 protected:
-	RsControl() {}	// should not be used, hence it's private.
+	virtual ~RsControl() {}	// should not be used, hence it's private.
 };
 
