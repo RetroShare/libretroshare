@@ -719,7 +719,7 @@ std::error_condition RsGxsNetService::checkUpdatesFromPeers(
             if(keep_delay > 0 && req_delay > 0 && keep_delay < req_delay)
                 req_delay = keep_delay ;
 
-            // The last post will be set to TS 0 if the req delay is 0, which means "Indefinitly"
+            // The last post will be set to TS 0 if the req delay is 0, which means "Indefinitely"
 
             if(req_delay > 0)
 				msg->createdSinceTS = std::max(0,(int)time(NULL) - req_delay);
@@ -1644,19 +1644,21 @@ bool RsGxsNetService::loadList(std::list<RsItem *> &load)
 
 void RsGxsNetService::locked_checkDelay(uint32_t& time_in_secs)
 {
-    if(time_in_secs <    1 * 86400) { time_in_secs =   0        ; return ; }
-    if(time_in_secs <=  10 * 86400) { time_in_secs =   5 * 86400; return ; }
-    if(time_in_secs <=  20 * 86400) { time_in_secs =  15 * 86400; return ; }
-    if(time_in_secs <=  60 * 86400) { time_in_secs =  30 * 86400; return ; }
-    if(time_in_secs <= 120 * 86400) { time_in_secs =  90 * 86400; return ; }
-    if(time_in_secs <= 250 * 86400) { time_in_secs = 180 * 86400; return ; }
-                                      time_in_secs = 365 * 86400;
+	if(time_in_secs <     1 * 86400) { time_in_secs =    0        ; return ; }
+	if(time_in_secs <=   10 * 86400) { time_in_secs =    5 * 86400; return ; }
+	if(time_in_secs <=   20 * 86400) { time_in_secs =   15 * 86400; return ; }
+	if(time_in_secs <=   60 * 86400) { time_in_secs =   30 * 86400; return ; }
+	if(time_in_secs <=  120 * 86400) { time_in_secs =   90 * 86400; return ; }
+	if(time_in_secs <=  250 * 86400) { time_in_secs =  180 * 86400; return ; }
+	if(time_in_secs <=  400 * 86400) { time_in_secs =  365 * 86400; return ; }
+	if(time_in_secs <= 1200 * 86400) { time_in_secs = 1095 * 86400; return ; }
+									   time_in_secs = 1825 * 86400;
 }
 
 #include <algorithm>
 
 template <typename UpdateMap,class ItemClass>
-struct get_second : public std::unary_function<typename UpdateMap::value_type, RsItem*>
+struct get_second
 {
     get_second(uint16_t serv_type,typename UpdateMap::key_type ItemClass::*member): mServType(serv_type),ID_member(member) {}
 

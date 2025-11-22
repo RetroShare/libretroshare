@@ -63,6 +63,7 @@ rs_rnplib {
         # Windows msys2
         LIBRNP_LIBS *= -lbotan-3
     } else {
+        # This is the case for macOS and other Unix-like systems
         LIBRNP_LIBS *= -lbotan-2
     }
 
@@ -71,10 +72,9 @@ rs_rnplib {
         CONFIG += librnp_shared
     }
 
-    !libretroshare_shared {
-        # libretroshare is used as a static library. Link the external libraries to the executable.
-        LIBS *= $${LIBRNP_LIBS}
-    }
+    # Link LIBRNP_LIBS regardless of whether libretroshare is shared or static.
+    # This ensures the final executable can find the RNP symbols.
+    LIBS *= $${LIBRNP_LIBS}
 
 	#PRE_TARGETDEPS += $$clean_path($${LIBRNP_BUILD_PATH}/src/lib/librnp.a)
 
@@ -94,6 +94,11 @@ rs_jsonapi {
         QMAKE_LIBDIR *= $$clean_path($${RESTBED_BUILD_PATH}/)
         # Using sLibs would fail as librestbed.a is generated at compile-time
         LIBS *= -L$$clean_path($${RESTBED_BUILD_PATH}/) -lrestbed
+
+        win32-g++ {
+            # Avoid compile errors "definition is marked dllimport" of inline methods in restbed
+            DEFINES *= WIN_DLL_EXPORT
+        }
     } else:sLibs *= restbed
 
     win32-g++|win32-clang-g++:dLibs *= wsock32

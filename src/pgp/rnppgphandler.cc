@@ -1313,10 +1313,6 @@ bool RNPPGPHandler::encryptData(const RsPgpId& key_id,bool armored,rnp_input_t i
 
 bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& text,const std::string& outfile)
 {
-    RsStackMutex mtx(pgphandlerMtx) ;				// lock access to PGP memory structures.
-
-    locked_timeStampKey(key_id);
-
     try
     {
         rnp_input_t input ;
