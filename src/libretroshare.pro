@@ -1028,14 +1028,14 @@ rs_jsonapi {
             doxygen $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t)
     } else {
         genjsonapi.commands = \
-            mkdir -p $${JSONAPI_GENERATOR_OUT} && \
-            cp $${DOXIGEN_CONFIG_SRC} $${DOXIGEN_CONFIG_OUT} && \
-            echo OUTPUT_DIRECTORY=$${JSONAPI_GENERATOR_OUT} >> $${DOXIGEN_CONFIG_OUT} && \
-            echo INPUT=$${DOXIGEN_INPUT_DIRECTORY} >> $${DOXIGEN_CONFIG_OUT} && \
-            doxygen $${DOXIGEN_CONFIG_OUT} &&
+            mkdir -p $$shell_path($${JSONAPI_GENERATOR_OUT}) && \
+            cp $$shell_path($${DOXIGEN_CONFIG_SRC}) $$shell_path($${DOXIGEN_CONFIG_OUT}) && \
+            echo OUTPUT_DIRECTORY=$$shell_path($${JSONAPI_GENERATOR_OUT}) >> $$shell_path($${DOXIGEN_CONFIG_OUT}) && \
+            echo INPUT=$$shell_path($${DOXIGEN_INPUT_DIRECTORY}) >> $$shell_path($${DOXIGEN_CONFIG_OUT}) && \
+            doxygen $$shell_path($${DOXIGEN_CONFIG_OUT}) &&
     }
     genjsonapi.commands += \
-        $${JSONAPI_GENERATOR_EXE} $${JSONAPI_GENERATOR_SRC} $${JSONAPI_GENERATOR_OUT}
+        $$shell_path($${JSONAPI_GENERATOR_EXE}) $$shell_path($${JSONAPI_GENERATOR_SRC}) $$shell_path($${JSONAPI_GENERATOR_OUT})
     QMAKE_EXTRA_COMPILERS += genjsonapi
 
     # Force recalculation of libretroshare dependencies see https://stackoverflow.com/a/47884045
