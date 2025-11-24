@@ -56,7 +56,7 @@ std::error_condition RsEventsService::isEventTypeInvalid(RsEventType eventType)
 		return RsEventsErrorNum::EVENT_TYPE_UNDEFINED;
 
 	if( eventType < RsEventType::__NONE ||
-	        eventType >= static_cast<RsEventType>(mHandlerMaps.size()) )
+            static_cast<uint32_t>(eventType) >= mHandlerMaps.size() )
 		return RsEventsErrorNum::EVENT_TYPE_OUT_OF_RANGE;
 
 	return std::error_condition();
@@ -91,6 +91,25 @@ RsEventsHandlerId_t RsEventsService::generateUniqueHandlerId()
 {
 	RS_STACK_MUTEX(mHandlerMapMtx);
 	return generateUniqueHandlerId_unlocked();
+}
+
+RsEventType RsEventsService::getDynamicEventType(const std::string& unique_service_identifier)
+{
+    RS_STACK_MUTEX(mHandlerMapMtx);
+
+    auto it = mRegisteredExtraEventTypes.find(unique_service_identifier);
+
+    if(it == mRegisteredExtraEventTypes.end())
+    {
+        mRegisteredExtraEventTypes[unique_service_identifier] = static_cast<RsEventType>(mHandlerMaps.size());
+        mHandlerMaps.push_back(  std::map<RsEventsHandlerId_t,std::function<void(std::shared_ptr<const RsEvent>)> >());
+
+        it = mRegisteredExtraEventTypes.find(unique_service_identifier);
+
+        RsInfo() << "Registered new dynamic event Type " << (int)it->second << " for service \"" << unique_service_identifier << "\"" << std::endl;
+    }
+
+    return it->second;
 }
 
 RsEventsHandlerId_t RsEventsService::generateUniqueHandlerId_unlocked()

@@ -125,7 +125,7 @@ enum class RsEventType : uint32_t
     /// @see RsWireEvent
     SYSTEM                                                  = 24,	// general system notifications
 
-    __MAX /// Used internally, keep last
+    __MAX                                                   = 25    // Used internally, keep last.
 };
 
 enum class RsEventsErrorNum : int32_t
@@ -222,8 +222,7 @@ public:
 	 * @param[in] event
 	 * @return Success or error details.
 	 */
-	virtual std::error_condition postEvent(
-	        std::shared_ptr<const RsEvent> event ) = 0;
+    virtual std::error_condition postEvent( std::shared_ptr<const RsEvent> event ) = 0;
 
 	/**
 	 * @brief Send event directly to handlers. Blocking API
@@ -231,14 +230,29 @@ public:
 	 * @param[in] event
 	 * @return Success or error details.
 	 */
-	virtual std::error_condition sendEvent(
-	        std::shared_ptr<const RsEvent> event ) = 0;
+    virtual std::error_condition sendEvent( std::shared_ptr<const RsEvent> event ) = 0;
 
 	/**
 	 * @brief Generate unique handler identifier
 	 * @return generate Id
 	 */
 	virtual RsEventsHandlerId_t generateUniqueHandlerId() = 0;
+
+    /**
+     * @brief getDynamicEventType
+     * 	  This function can be used to generate event types on the fly when not already defined in rseventids.h. This is
+     *   for instance useful when plugins need to generate their own event type. Simply calling
+     *   			getDynamicEventType("SOME_STRING_SPECIFIC_TO_THE_PLUGIN") will return the given event type, possibly generating it
+     *   on the fly if needed.
+     *   Other event handlers that use EventType values that are already in rseventids.h do not need this function.
+     *   The result is only valid for the current RS session and may change after restart.
+     *
+     * @param unique_service_identifier		simple string that is unique to the plugin.
+     *
+     * @return								returns the event type associated to the string identifier.
+     *
+     */
+    virtual RsEventType getDynamicEventType(const std::string& unique_service_identifier) =0;
 
 	/**
 	 * @brief Register events handler
