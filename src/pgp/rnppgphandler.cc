@@ -114,7 +114,7 @@ typedef t_ScopeGuard<rnp_ffi_st             ,&rnp_ffi_destroy>              rnp_
 
 // This overrides SHA1 security rules, so that certs signed with sha1 alg are still accepted as friends and profiles signed with sha1 still load.
 
-#ifdef V07_NON_BACKWARD_COMPATIBLE_CHANGE_006
+#ifdef V07_NON_BACKWARD_COMPATIBLE_CHANGE_005
 #define FFI_CREATE(ffi) \
     rnp_ffi_create(&ffi,RNP_KEYSTORE_GPG,RNP_KEYSTORE_GPG);
 #else
