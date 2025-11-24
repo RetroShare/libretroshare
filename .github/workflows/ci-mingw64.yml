@@ -1,4 +1,4 @@
-name: MINGW64 Qt5 Build
+name: MINGW64 Windows Build
 
 on:
   push:
