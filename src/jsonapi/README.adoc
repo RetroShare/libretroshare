@@ -437,7 +437,7 @@ After spending some hours investigating this topic the most reasonable approach
 seems to:
 
 1. Properly document headers in +libretroshare/src/retroshare/+ in doxygen syntax
-specifying wihich params are input and/or output (doxygen sysntax for this is
+specifying which params are input and/or output (doxygen sysntax for this is
 +@param[in/out/inout]+) this will be the API documentation too.
 
 2. At compile time use doxygen to generate XML description of the headers and use
