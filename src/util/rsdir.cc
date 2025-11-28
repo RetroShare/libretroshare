@@ -521,8 +521,12 @@ bool RsDirUtil::checkDirectory(const std::string& dir)
 	int val;
 	mode_t st_mode;
 #ifdef WINDOWS_SYS
-	std::wstring wdir;
-	librs::util::ConvertUtf8ToUtf16(dir, wdir);
+        std::string fixed = dir;
+        std::wstring wdir;
+        // mingw64 _wstat fails when the directory name has trailing slash or backslash: we remove them
+        while (!fixed.empty() && (fixed.back() == '\\' || fixed.back() == '/'))
+                fixed.pop_back();
+        librs::util::ConvertUtf8ToUtf16(fixed, wdir);
 	struct _stat buf;
 	val = _wstat(wdir.c_str(), &buf);
 	st_mode = buf.st_mode;
