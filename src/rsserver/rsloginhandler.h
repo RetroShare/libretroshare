@@ -49,16 +49,18 @@ public:
 	 * Gets the SSL passwd by any means: try autologin, and look into gpg file
 	 * if enable_gpg_key_callback==true
 	 */
-	static bool getSSLPassword( const RsPeerId& ssl_id,
-	                            bool enable_gpg_key_callback,
-	                            std::string& ssl_password);
+    static bool getSSLPassword( const RsPeerId& ssl_id, bool enable_gpg_key_callback, std::string& ssl_password);
 
 	/**
 	 * Checks whether the ssl passwd is already in the gpg file. If the file's
 	 * not here, the passwd is stored there, encrypted with the current GPG key.
 	 */
-	static bool checkAndStoreSSLPasswdIntoGPGFile(
-	        const RsPeerId& ssl_id, const std::string& ssl_passwd );
+    static bool checkAndStoreSSLPasswdIntoGPGFile( const RsPeerId& ssl_id, const std::string& ssl_passwd );
+
+    static bool askForPassword(const std::string& title, const std::string& key_details, bool prev_is_bad, std::string& password,bool& cancelled);
+    static bool cachePgpPassphrase(const std::string& s);
+    static bool clearPgpPassphrase();
+    static bool setDisableAskPgpPassphrase(const bool bValue);
 
 #ifdef RS_AUTOLOGIN
 	/**
@@ -79,5 +81,7 @@ private:
 	static bool tryAutoLogin(const RsPeerId& ssl_id,std::string& ssl_passwd);
 	static std::string getAutologinFileName(const RsPeerId& ssl_id);
 #endif // RS_AUTOLOGIN
+
+    static std::string cached_pgp_passphrase;
 };
 

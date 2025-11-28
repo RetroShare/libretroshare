@@ -135,7 +135,6 @@ PUBLIC_HEADERS =	retroshare/rsdisc.h \
 					retroshare/rsinit.h \
 					retroshare/rsplugin.h \
 					retroshare/rsmsgs.h \
-					retroshare/rsnotify.h \
 					retroshare/rspeers.h \
 					retroshare/rsstatus.h \
 					retroshare/rsturtle.h \
@@ -407,7 +406,6 @@ HEADERS +=	pqi/authssl.h \
 			pqi/p3peermgr.h \
 			pqi/p3linkmgr.h \
 			pqi/p3netmgr.h \
-			pqi/p3notify.h \
 			pqi/p3upnpmgr.h \
 			pqi/pqiqos.h \
 			pqi/pqi.h \
@@ -587,7 +585,6 @@ SOURCES +=	pqi/authgpg.cc \
 			pqi/pqifdbin.cc \
 			pqi/rstcpsocket.cc \
 			pqi/p3netmgr.cc \
-			pqi/p3notify.cc \
 			pqi/pqiqos.cc \
 			pqi/pqibin.cc \
 			pqi/pqihandler.cc \

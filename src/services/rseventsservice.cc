@@ -56,7 +56,7 @@ std::error_condition RsEventsService::isEventTypeInvalid(RsEventType eventType)
 		return RsEventsErrorNum::EVENT_TYPE_UNDEFINED;
 
 	if( eventType < RsEventType::__NONE ||
-	        eventType >= static_cast<RsEventType>(mHandlerMaps.size()) )
+            static_cast<uint32_t>(eventType) >= mHandlerMaps.size() )
 		return RsEventsErrorNum::EVENT_TYPE_OUT_OF_RANGE;
 
 	return std::error_condition();
@@ -93,6 +93,25 @@ RsEventsHandlerId_t RsEventsService::generateUniqueHandlerId()
 	return generateUniqueHandlerId_unlocked();
 }
 
+RsEventType RsEventsService::getDynamicEventType(const std::string& unique_service_identifier)
+{
+    RS_STACK_MUTEX(mHandlerMapMtx);
+
+    auto it = mRegisteredExtraEventTypes.find(unique_service_identifier);
+
+    if(it == mRegisteredExtraEventTypes.end())
+    {
+        mRegisteredExtraEventTypes[unique_service_identifier] = static_cast<RsEventType>(mHandlerMaps.size());
+        mHandlerMaps.push_back(  std::map<RsEventsHandlerId_t,std::function<void(std::shared_ptr<const RsEvent>)> >());
+
+        it = mRegisteredExtraEventTypes.find(unique_service_identifier);
+
+        RsInfo() << "Registered new dynamic event Type " << (int)it->second << " for service \"" << unique_service_identifier << "\"" << std::endl;
+    }
+
+    return it->second;
+}
+
 RsEventsHandlerId_t RsEventsService::generateUniqueHandlerId_unlocked()
 {
 	if(++mLastHandlerId) return mLastHandlerId; // Avoid 0 after overflow
@@ -109,12 +128,20 @@ std::error_condition RsEventsService::registerEventsHandler(
 		if(std::error_condition ec = isEventTypeInvalid(eventType))
 			return ec;
 
-	if(!hId) hId = generateUniqueHandlerId_unlocked();
-	else if (hId > mLastHandlerId)
-	{
-		print_stacktrace();
-		return RsEventsErrorNum::INVALID_HANDLER_ID;
-	}
+    if(hId > mLastHandlerId)
+    {
+        print_stacktrace();
+        RsErr() << "You are probably using an uninitialized handler ID, which is not permitted. Allocating a new one" ;
+        hId=0;
+    }
+
+    if(!hId)
+        hId = generateUniqueHandlerId_unlocked();
+    else
+    {
+        print_stacktrace();
+        RsWarn() << "Overriding an existing error handler ID with a new callback. This is very unexpected. Make sure you know what you are doing." ;
+    }
 
 	mHandlerMaps[static_cast<std::size_t>(eventType)][hId] = multiCallback;
 	return std::error_condition();

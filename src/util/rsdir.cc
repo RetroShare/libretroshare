@@ -45,7 +45,6 @@
 #include "util/rsmemory.h"
 #include "util/folderiterator.h"
 #include "retroshare/rstypes.h"
-#include "retroshare/rsnotify.h"
 #include "util/rsthreads.h"
 #include "util/largefile_retrocompat.hpp"
 

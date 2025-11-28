@@ -26,9 +26,12 @@
 #include "rsloginhandler.h"
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
+#include "retroshare/rsevents.h"
 #include "util/rsdebug.h"
 
 //#define DEBUG_RSLOGINHANDLER 1
+
+std::string RsLoginHandler::cached_pgp_passphrase;
 
 bool RsLoginHandler::getSSLPassword( const RsPeerId& ssl_id,
                                      bool enable_gpg_ask_passwd,
@@ -116,6 +119,63 @@ std::string RsLoginHandler::getSSLPasswdFileName(const RsPeerId& /*ssl_id*/)
 	return RsAccounts::AccountKeysDirectory() + "/" + "ssl_passphrase.pgp";
 }
 
+bool RsLoginHandler::askForPassword(const std::string& title, const std::string& key_details, bool prev_is_bad, std::string& password,bool& cancelled)
+{
+    RsDbg() << "asked for passwd: title=\"" << title << "\" key_details=\"" << key_details << "\" prev_is_bad=" << prev_is_bad ;
+
+    if(cached_pgp_passphrase.empty() || prev_is_bad)
+    {
+        RsDbg() << "  no passwd available in cache or previous passwd is bad. Clearing and re-asking." ;
+        clearPgpPassphrase();	// so that we know if the subsequent request is cancelled or not.
+
+        auto ev = std::make_shared<RsSystemEvent>();
+        ev->mEventCode = RsSystemEventCode::PASSWORD_REQUESTED;
+        ev->passwd_request_key_details = key_details;
+        ev->passwd_request_title = title;
+        ev->passwd_request_prev_is_bad = prev_is_bad;
+
+        // Call the RsEvent blocking API
+        // This call should request the user for passphrase and then store it into cached_pgp_passphrase
+
+        RsDbg() << "  sending sync event to ask for passwd." ;
+        rsEvents->sendEvent(ev);
+        RsDbg() << "  return from sync event to ask for passwd.";
+    }
+    else
+        RsDbg() << "  passwd is available in cache.";
+
+    if(cached_pgp_passphrase.empty())	// request was cancelled.
+    {
+        cancelled = true;
+        return false;
+    }
+    else
+        cancelled = false;
+
+    password = cached_pgp_passphrase;
+    return true;
+}
+
+bool RsLoginHandler::cachePgpPassphrase(const std::string& s)
+{
+    clearPgpPassphrase() ;
+    cached_pgp_passphrase = s ;
+
+    std::cerr << "(WW) Caching PGP passphrase." << std::endl;
+    return true ;
+}
+bool RsLoginHandler::clearPgpPassphrase()
+{
+    std::cerr << "(WW) Clearing PGP passphrase." << std::endl;
+
+    // Just whipe out the memory instead of just releasing it.
+
+    for(uint32_t i=0;i<cached_pgp_passphrase.length();++i)
+        cached_pgp_passphrase[i] = 0 ;
+
+    cached_pgp_passphrase.clear();
+    return true ;
+}
 #ifdef RS_AUTOLOGIN
 
 #if defined(HAS_GNOME_KEYRING) || defined(__FreeBSD__) || defined(__OpenBSD__)

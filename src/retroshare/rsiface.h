@@ -21,7 +21,6 @@
  *******************************************************************************/
 #pragma once
 
-#include "retroshare/rsnotify.h"
 #include "rstypes.h"
 
 #include <map>

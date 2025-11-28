@@ -28,6 +28,7 @@
 #include <chrono>
 #include <functional>
 
+#include "retroshare/rstypes.h"
 #include "util/rsmemory.h"
 #include "util/rsurl.h"
 #include "serialiser/rsserializable.h"
@@ -65,15 +66,15 @@ enum class RsEventType : uint32_t
 	AUTHSSL_CONNECTION_AUTENTICATION                        = 3,
 
 	/// @see pqissl
-	PEER_CONNECTION                                         = 4,
+    FRIEND_LIST                                             = 4,		// former PEER_STATUS
 
 	/// @see RsGxsChanges, used also in @see RsGxsBroadcast
 	GXS_CHANGES                                             = 5,
 
 	/// Emitted when a peer state changes, @see RsPeers
-	PEER_STATE_CHANGED                                      = 6,
+    _________UNUSED___001_                                  = 6,		// former PEER_STATE_CHANGED
 
-	/// @see RsMailStatusEvent
+    /// @see RsMailStatusEvent
 	MAIL_STATUS                                             = 7,
 
     /// @see RsGxsCircleEvent
@@ -98,7 +99,7 @@ enum class RsEventType : uint32_t
     FILE_TRANSFER                                           = 14,
 
 	/// @see RsMsgs
-	CHAT_MESSAGE                                            = 15,
+    CHAT_SERVICE                                            = 15,
 
 	/// @see rspeers.h
 	NETWORK                                                 = 16,
@@ -110,7 +111,7 @@ enum class RsEventType : uint32_t
     JSON_API                                                = 18,
 
 	/** Emitted to update library clients about file hashing being completed */
-	FILE_HASHING_COMPLETED                                  = 20,
+    _________UNUSED___002_                                  = 20,			// former FILE_HASING_COMPLETE
 
     /// @see rspeers.h
     TOR_MANAGER                                             = 21,
@@ -121,7 +122,10 @@ enum class RsEventType : uint32_t
     /// @see RsWireEvent
     WIRE                                                    = 23,
 
-    __MAX /// Used internally, keep last
+    /// @see RsWireEvent
+    SYSTEM                                                  = 24,	// general system notifications
+
+    __MAX                                                   = 25    // Used internally, keep last.
 };
 
 enum class RsEventsErrorNum : int32_t
@@ -218,8 +222,7 @@ public:
 	 * @param[in] event
 	 * @return Success or error details.
 	 */
-	virtual std::error_condition postEvent(
-	        std::shared_ptr<const RsEvent> event ) = 0;
+    virtual std::error_condition postEvent( std::shared_ptr<const RsEvent> event ) = 0;
 
 	/**
 	 * @brief Send event directly to handlers. Blocking API
@@ -227,14 +230,29 @@ public:
 	 * @param[in] event
 	 * @return Success or error details.
 	 */
-	virtual std::error_condition sendEvent(
-	        std::shared_ptr<const RsEvent> event ) = 0;
+    virtual std::error_condition sendEvent( std::shared_ptr<const RsEvent> event ) = 0;
 
 	/**
 	 * @brief Generate unique handler identifier
 	 * @return generate Id
 	 */
 	virtual RsEventsHandlerId_t generateUniqueHandlerId() = 0;
+
+    /**
+     * @brief getDynamicEventType
+     * 	  This function can be used to generate event types on the fly when not already defined in rseventids.h. This is
+     *   for instance useful when plugins need to generate their own event type. Simply calling
+     *   			getDynamicEventType("SOME_STRING_SPECIFIC_TO_THE_PLUGIN") will return the given event type, possibly generating it
+     *   on the fly if needed.
+     *   Other event handlers that use EventType values that are already in rseventids.h do not need this function.
+     *   The result is only valid for the current RS session and may change after restart.
+     *
+     * @param unique_service_identifier		simple string that is unique to the plugin.
+     *
+     * @return								returns the event type associated to the string identifier.
+     *
+     */
+    virtual RsEventType getDynamicEventType(const std::string& unique_service_identifier) =0;
 
 	/**
 	 * @brief Register events handler
@@ -270,3 +288,54 @@ public:
 
 	virtual ~RsEvents();
 };
+
+enum class RsSystemEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,    // Computer universal time is different from friends
+    TIME_SHIFT_PROBLEM                    = 0x01,    // Computer universal time is different from friends
+    DISK_SPACE_ERROR                      = 0x02,    // Disk full
+    GENERAL_ERROR                         = 0x03,    // general error, see string.
+    DATA_STREAMING_ERROR                  = 0x04,    // streaming error, mostly from the pqistreamer components
+    PASSWORD_REQUESTED                    = 0x05,    // ask the user for a passwd. This may be sent using the synchroneous sendEvent() if needed
+    NEW_PLUGIN_FOUND                      = 0x06,    // ask the user to validate a new plugin. This may be sent synchroneously is needed.
+};
+
+struct RsSystemEvent : RsEvent
+{
+    RsSystemEvent() : RsEvent(RsEventType::SYSTEM) {}
+    virtual ~RsSystemEvent() override = default;
+
+    RsSystemEventCode mEventCode;
+
+    float mTimeShift;
+    int mDiskErrorLocation;	//	{ RS_PARTIALS_DIRECTORY, RS_CONFIG_DIRECTORY,  RS_DOWNLOAD_DIRECTORY }
+    int mDiskErrorSizeLimit;// size limit in MB
+    std::string mErrorMsg;  // generic error message info string. Can be anything.
+
+    std::string passwd_request_title;
+    std::string passwd_request_key_details;
+    bool passwd_request_prev_is_bad;
+
+    std::string plugin_file_name;
+    RsFileHash plugin_file_hash;
+    bool plugin_first_time;
+
+    ///* @see RsEvent @see RsSerializable
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mDiskErrorLocation);
+        RS_SERIAL_PROCESS(mDiskErrorSizeLimit);
+        RS_SERIAL_PROCESS(mErrorMsg);
+
+        RS_SERIAL_PROCESS(passwd_request_title);
+        RS_SERIAL_PROCESS(passwd_request_key_details);
+        RS_SERIAL_PROCESS(passwd_request_prev_is_bad);
+
+        RS_SERIAL_PROCESS(plugin_file_name);
+        RS_SERIAL_PROCESS(plugin_file_hash);
+        RS_SERIAL_PROCESS(plugin_first_time);
+    }
+};
+

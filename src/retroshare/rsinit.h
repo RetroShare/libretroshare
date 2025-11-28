@@ -508,4 +508,35 @@ public:
 	                     const std::string& password, std::string& errorMessage,
 	                     bool makeHidden = false, bool makeAutoTor = false );
 #endif // !RS_VERSION_AT_LEAST(0,6,6)
+
+    /**
+     * @brief askForPassword	Requests the PGP passphrase for all sorts of uses: signing identities, signing messages, etc.
+     * @param title				Title of the window where to ask the passphrase (ex: "Password requested")
+     * @param key_details		Additional details to be shown about the key (ex: key id, name, etc)
+     * @param prev_is_bad		true when previous password was wrong. Used to display some error.
+     * @param password			[out] supplied password.
+     * @param cancelled			[out] true when password request was cancelled.
+     * @return
+     *
+     * This method *should not* be visible in the json api.
+     */
+    static bool askForPassword(const std::string& title, const std::string& key_details, bool prev_is_bad, std::string& password,bool& cancelled);
+
+    /**
+     * @brief clearPgpPassphrase	Remove previously cached PGP passphrase.
+     * @return 						always true (success)
+     *
+     * This method *should not* be visible in the json api.
+     */
+
+    static bool clearPgpPassphrase();
+    /**
+     * @brief cachePgpPassphrase	store PGP passphrase to be used by internal components
+     * @return 						always true (success)
+     *
+     * This method *should not* be visible in the json api.
+     */
+
+    static bool cachePgpPassphrase(const std::string& passwd);
 };
+

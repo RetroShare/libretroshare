@@ -710,7 +710,6 @@ void p3GxsCircles::notifyChanges(std::vector<RsGxsNotify *> &changes)
 	std::cerr << std::endl;
 #endif
 
-	//p3Notify *notify = RsServer::notify();
 	std::set<RsGxsCircleId> circles_to_reload;
 
 	for(auto it = changes.begin(); it != changes.end(); ++it)

@@ -33,8 +33,7 @@
 
 #include "pqi/authssl.h"
 #include "pqi/authgpg.h"
-#include "retroshare/rsinit.h"
-#include "retroshare/rsnotify.h"
+#include "rsserver/rsloginhandler.h"
 #include "retroshare/rsfiles.h"
 #include "util/rsurl.h"
 #include "util/radix64.h"
@@ -133,10 +132,11 @@ bool p3Peers::FriendsChanged(const RsPeerId& pid,bool add)
 #endif
     if(rsEvents)
     {
-        auto ev = std::make_shared<RsPeerStateChangedEvent>(pid);
+        auto ev = std::make_shared<RsFriendListEvent>();
+        ev->mSslId = pid;
+        ev->mEventCode = add ? (RsFriendListEventCode::NODE_ADDED):(RsFriendListEventCode::NODE_REMOVED);
         rsEvents->postEvent(ev);
     }
-    RsServer::notify()->notifyListChange(NOTIFY_LIST_FRIENDS, add? NOTIFY_TYPE_ADD : NOTIFY_TYPE_DEL); // this is meant to disappear
 
     /* TODO */
     return false;
@@ -1672,13 +1672,11 @@ bool 	p3Peers::signGPGCertificate(const RsPgpId &id, const std::string &gpg_pass
 	std::cerr << "p3Peers::SignCertificate() " << id;
 	std::cerr << std::endl;
 #endif
-        rsNotify->cachePgpPassphrase(gpg_passphrase);
-        rsNotify->setDisableAskPassword(true);
+        RsLoginHandler::cachePgpPassphrase(gpg_passphrase);
 
         bool res = AuthPGP::SignCertificateLevel0(id);
 
-        rsNotify->clearPgpPassphrase();
-        rsNotify->setDisableAskPassword(false);
+        RsLoginHandler::clearPgpPassphrase();
 
         return res;
 }
@@ -1847,9 +1845,10 @@ void p3Peers::setServicePermissionFlags(const RsPgpId& gpg_id,const ServicePermi
 	mPeerMgr->setServicePermissionFlags(gpg_id,flags) ;
 }
 
+#ifdef TO_REMOVE
 RsPeerStateChangedEvent::RsPeerStateChangedEvent(RsPeerId sslId) :
     RsEvent(RsEventType::PEER_STATE_CHANGED), mSslId(sslId) {}
+#endif
 
 RsPeers::~RsPeers() = default;
 RsAuthSslConnectionAutenticationEvent::~RsAuthSslConnectionAutenticationEvent() = default;
-RsConnectionEvent::~RsConnectionEvent() = default;

@@ -1254,7 +1254,6 @@ void p3turtle::handleSearchResult(RsTurtleSearchResultItem *item)
                 std::cerr << "(EE) received turtle FT search result but the service is not a ftServer!!" << std::endl;
                 continue;
             }
-			//RsServer::notify()->notifyTurtleSearchResult(ftsr->request_id,ftsr->result) ;
 
             client->ftReceiveSearchResult(ftsr);
             continue ;
@@ -2192,23 +2191,6 @@ void p3turtle::monitorTunnels(const RsFileHash& hash,RsTurtleClientService *clie
 		_incoming_file_hashes[hash].service = client_service ;
 	}
 }
-
-
-//    RsTurtleGxsSearchResultGroupSummaryItem *gxs_sr_gs = dynamic_cast<RsTurtleGxsSearchResultGroupSummaryItem*>(item) ;
-//
-//    if(gxs_sr_gs != NULL)
-//    {
-//		RsServer::notify()->notifyTurtleSearchResult(gxs_sr_gs->request_id,gxs_sr_gs->result) ;
-//        return ;
-//    }
-//    RsTurtleGxsSearchResultGroupDataItem *gxs_sr_gd = dynamic_cast<RsTurtleGxsSearchResultGroupDataItem*>(item) ;
-//
-//    if(gxs_sr_gd != NULL)
-//    {
-//#warning MISSING CODE HERE TO HANDLE ENCRYPTED INCOMING GROUP DATA.
-//		//RsServer::notify()->notifyTurtleSearchResult(gxs_sr_gd->request_id,gxs_sr_gd->encrypted_nxs_group) ;
-//        return ;
-//    }
 
 /// Warning: this function should never be called while the turtle mutex is locked.
 /// Otherwize this is a possible source of cross-lock with the File mutex.

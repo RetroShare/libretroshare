@@ -120,7 +120,10 @@ void DistantChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
 #ifdef DEBUG_DISTANT_CHAT    
         DISTANT_CHAT_DEBUG() << "(II) Distant chat: received notification that peer refuses conversation." << std::endl;
 #endif
-        RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(cs->PeerId())),"Connexion refused by distant peer!") ;
+        auto ev = std::make_shared<RsDistantChatEvent>();
+        ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_CONNECTION_REFUSED;
+        ev->mId = DistantChatPeerId(cs->PeerId()) ; // this has been turned into a distant chat peer id of the origin.
+        rsEvents->postEvent(ev);
     }
 
     if(cs->flags & RS_CHAT_FLAG_CLOSING_DISTANT_CONNECTION)
@@ -184,24 +187,31 @@ void DistantChatService::notifyTunnelStatus( const RsGxsTunnelId& tunnel_id, uin
     DISTANT_CHAT_DEBUG() << "DistantChatService::notifyTunnelStatus(): got notification " << std::hex << tunnel_status << std::dec << " for tunnel " << tunnel_id << std::endl;
 #endif
     
+    auto ev = std::make_shared<RsDistantChatEvent>();
+    ev->mId = DistantChatPeerId(tunnel_id);
+
+#warning TODO: I had to comment out calls to notifyPeerStatusChanged, which anyway looked misplaced here. Probably a hack.
     switch(tunnel_status)
     {
     default:
     case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_UNKNOWN: 		std::cerr << "(EE) don't know how to handle RS_GXS_TUNNEL_STATUS_UNKNOWN !" << std::endl;
-        								break ;
+                                        ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_UNKNOWN;
+                                        break ;
         
-    case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_CAN_TALK:    	RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(tunnel_id)),"Tunnel is secured. You can talk!") ;
-        								RsServer::notify()->notifyPeerStatusChanged(tunnel_id.toStdString(),RS_STATUS_ONLINE) ;
-                            						break ;
+    case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_CAN_TALK:
+                                        ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_CAN_TALK;
+                                        break ;
                             
-    case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_TUNNEL_DN:    	RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(tunnel_id)),"Tunnel is down...") ;
-			        					RsServer::notify()->notifyPeerStatusChanged(tunnel_id.toStdString(),RS_STATUS_OFFLINE) ;
-        								break ;
+    case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_TUNNEL_DN:
+                                        ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_TUNNEL_DN;
+                                        break ;
         
-    case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_REMOTELY_CLOSED:	RsServer::notify()->notifyChatStatus(ChatId(DistantChatPeerId(tunnel_id)),"Tunnel is down...") ;
-        								RsServer::notify()->notifyPeerStatusChanged(tunnel_id.toStdString(),RS_STATUS_OFFLINE) ;
-                            						break ;
+    case RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_REMOTELY_CLOSED:
+                                        ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_REMOTELY_CLOSED;
+                                        break ;
     }
+
+    rsEvents->postEvent(ev);
 }
 
 void DistantChatService::receiveData( const RsGxsTunnelId& tunnel_id, unsigned char* data, uint32_t data_size)
@@ -238,7 +248,6 @@ void DistantChatService::receiveData( const RsGxsTunnelId& tunnel_id, unsigned c
 	    item->PeerId(RsPeerId(tunnel_id)) ;	// just in case, but normally this is already done.
 
 	    handleIncomingItem(item) ;
-	    RsServer::notify()->notifyListChange(NOTIFY_LIST_PRIVATE_INCOMING_CHAT, NOTIFY_TYPE_ADD);
     }
     else
 	    std::cerr << "  (EE) item could not be deserialised!" << std::endl;
