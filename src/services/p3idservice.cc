@@ -40,8 +40,8 @@
 #include "util/rstime.h"
 #include "crypto/hashstream.h"
 #include "gxs/gxssecurity.h"
+#include "rsserver/rsloginhandler.h"
 #include "retroshare/rspeers.h"
-#include "retroshare/rsnotify.h"
 
 
 /****
@@ -981,16 +981,9 @@ bool p3IdService::createIdentity( RsGxsId& id, const std::string& name, const Rs
 
 	if(!pseudonimous && !pgpPassword.empty())
 	{
-		if(!rsNotify->cachePgpPassphrase(pgpPassword))
+        if(!RsLoginHandler::cachePgpPassphrase(pgpPassword))
 		{
             RsErr() << __PRETTY_FUNCTION__ << " Failure caching password" << std::endl;
-			ret = false;
-			goto LabelCreateIdentityCleanup;
-		}
-
-		if(!rsNotify->setDisableAskPassword(true))
-		{
-            RsErr() << __PRETTY_FUNCTION__ << " Failure disabling password user request" << std::endl;
 			ret = false;
 			goto LabelCreateIdentityCleanup;
 		}
@@ -1036,10 +1029,7 @@ bool p3IdService::createIdentity( RsGxsId& id, const std::string& name, const Rs
 
 LabelCreateIdentityCleanup:
 	if(!pseudonimous && !pgpPassword.empty())
-	{
-		rsNotify->setDisableAskPassword(false);
-		rsNotify->clearPgpPassphrase();
-	}
+        RsLoginHandler::clearPgpPassphrase();
 
 	return ret;
 }
@@ -1143,16 +1133,9 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
 
     if(!pseudonimous && !pgpPassword.empty())
     {
-        if(!rsNotify->cachePgpPassphrase(pgpPassword))
+        if(!RsLoginHandler::cachePgpPassphrase(pgpPassword))
         {
             RsErr() << __PRETTY_FUNCTION__ << " Failure caching password" << std::endl;
-            ret = false;
-            goto LabelUpdateIdentityCleanup;
-        }
-
-        if(!rsNotify->setDisableAskPassword(true))
-        {
-            RsErr() << __PRETTY_FUNCTION__ << " Failure disabling password user request" << std::endl;
             ret = false;
             goto LabelUpdateIdentityCleanup;
         }
@@ -1178,7 +1161,7 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
 
 LabelUpdateIdentityCleanup:
     if(!pseudonimous && !pgpPassword.empty())
-        rsNotify->clearPgpPassphrase();
+        RsLoginHandler::clearPgpPassphrase();
 
     return ret;
 }

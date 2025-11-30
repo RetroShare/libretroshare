@@ -302,7 +302,7 @@ void TorManager::hiddenServiceStatusChanged(int new_status,int old_status)
         ev->mTorConnectivityStatus  = RsTorConnectivityStatus::HIDDEN_SERVICE_READY;
         ev->mTorStatus = RsTorStatus::READY;
 
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
 }
 
@@ -474,7 +474,7 @@ bool TorManager::startTorManager()
                 ev->mTorManagerEventType = RsTorManagerEventCode::CONFIGURATION_NEEDED;
                 ev->mTorConnectivityStatus  = RsTorConnectivityStatus::UNKNOWN;
                 ev->mTorStatus = RsTorStatus::UNKNOWN;
-                rsEvents->sendEvent(ev);
+                rsEvents->postEvent(ev);
             }
             //emit configurationNeededChanged();
         }
@@ -511,7 +511,7 @@ void TorManager::run()
     {
         auto ev = std::make_shared<RsTorManagerEvent>();
         ev->mTorManagerEventType = RsTorManagerEventCode::TOR_MANAGER_STOPPED;
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
 }
 
@@ -677,7 +677,7 @@ void TorManagerPrivate::getConfFinished(TorControlCommand *sender)
                 ev->mTorManagerEventType = RsTorManagerEventCode::CONFIGURATION_NEEDED;
                 ev->mTorConnectivityStatus  = RsTorConnectivityStatus::UNKNOWN;
                 ev->mTorStatus = RsTorStatus::UNKNOWN;
-                rsEvents->sendEvent(ev);
+                rsEvents->postEvent(ev);
             }
         }
 }
@@ -772,7 +772,7 @@ void TorManagerPrivate::setError(const std::string &message)
 
         ev->mTorManagerEventType = RsTorManagerEventCode::TOR_MANAGER_ERROR;
         ev->mErrorMessage = message;
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
     //emit q->errorChanged();
 }

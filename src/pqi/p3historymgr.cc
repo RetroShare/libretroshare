@@ -164,8 +164,13 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
-	if (addMsgId) {
-		RsServer::notify()->notifyHistoryChanged(addMsgId, NOTIFY_TYPE_ADD);
+    if (addMsgId)
+    {
+        auto ev = std::make_shared<RsChatServiceEvent>();
+        ev->mEventCode = RsChatServiceEventCode::CHAT_HISTORY_CHANGED;
+        ev->mMsgHistoryId = addMsgId;
+        ev->mHistoryChangeType = RsChatHistoryChangeFlags::ADD;
+        rsEvents->postEvent(ev);
 	}
 }
 
@@ -552,7 +557,11 @@ void p3HistoryMgr::clear(const ChatId &chatId)
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
     }
 
-	RsServer::notify()->notifyHistoryChanged(0, NOTIFY_TYPE_MOD);
+    auto ev = std::make_shared<RsChatServiceEvent>();
+    ev->mEventCode = RsChatServiceEventCode::CHAT_HISTORY_CHANGED;
+    ev->mMsgHistoryId = 0;
+    ev->mHistoryChangeType = RsChatHistoryChangeFlags::MOD;
+    rsEvents->postEvent(ev);
 }
 
 void p3HistoryMgr::removeMessages(const std::list<uint32_t> &msgIds)
@@ -598,9 +607,15 @@ void p3HistoryMgr::removeMessages(const std::list<uint32_t> &msgIds)
 	{
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
-		for (iit = removedIds.begin(); iit != removedIds.end(); ++iit)
-			RsServer::notify()->notifyHistoryChanged(*iit, NOTIFY_TYPE_DEL);
-	}
+        for (iit = removedIds.begin(); iit != removedIds.end(); ++iit)
+        {
+            auto ev = std::make_shared<RsChatServiceEvent>();
+            ev->mEventCode = RsChatServiceEventCode::CHAT_HISTORY_CHANGED;
+            ev->mMsgHistoryId = *iit;
+            ev->mHistoryChangeType = RsChatHistoryChangeFlags::DEL;
+            rsEvents->postEvent(ev);
+        }
+    }
 }
 
 bool p3HistoryMgr::getEnable(uint32_t chat_type)

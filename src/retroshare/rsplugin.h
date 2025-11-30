@@ -115,7 +115,6 @@ public:
     RsUtil::inited_ptr<RsTurtle> mTurtle;
     RsUtil::inited_ptr<RsDisc>   mDisc;
     RsUtil::inited_ptr<RsDht>    mDht;
-    RsUtil::inited_ptr<RsNotify> mNotify;
     RsUtil::inited_ptr<RsServiceControl> mServiceControl;
     RsUtil::inited_ptr<RsPluginHandler> mPluginHandler;
 

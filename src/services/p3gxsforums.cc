@@ -31,7 +31,6 @@
 #include "retroshare/rsidentity.h"
 #include "util/rsdebug.h"
 #include "rsserver/p3face.h"
-#include "retroshare/rsnotify.h"
 #include "util/rsdebuglevel2.h"
 #include "retroshare/rsgxsflags.h"
 

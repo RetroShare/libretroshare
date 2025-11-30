@@ -30,12 +30,12 @@
 
 #include "pqi/pqithreadstreamer.h"
 #include "retroshare/rspeers.h"
-#include "retroshare/rsnotify.h"
 
 #include "fsclient.h"
 #include "pqi/authgpg.h"
 #include "pqi/pqifdbin.h"
 #include "pqi/pqiproxy.h"
+#include "rsserver/rsloginhandler.h"
 
 #define DEBUG_FSCLIENT
 
@@ -94,13 +94,11 @@ bool FsClient::requestFriends(const std::string& address, uint16_t port,
         uint32_t decrypted_data_size = encrypted_response_item->bin_len;
         RsTemporaryMemory decrypted_data(decrypted_data_size);
 
-        rsNotify->cachePgpPassphrase(pgp_passphrase) ;
-        rsNotify->setDisableAskPassword(true);
+        RsLoginHandler::cachePgpPassphrase(pgp_passphrase) ;
 
         bool decrypted = AuthPGP::decryptDataBin(encrypted_response_item->bin_data,encrypted_response_item->bin_len,  decrypted_data,&decrypted_data_size);
 
-        rsNotify->setDisableAskPassword(false);
-        rsNotify->clearPgpPassphrase();
+        RsLoginHandler::clearPgpPassphrase();
 
         if(!decrypted)
         {

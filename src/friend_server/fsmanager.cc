@@ -224,7 +224,7 @@ void FriendServerManager::updateStatus(RsFriendServerStatus new_status)
         auto ev = std::make_shared<RsFriendServerEvent>();
         ev->mFriendServerStatus = new_status;
         ev->mFriendServerEventType = RsFriendServerEventCode::FRIEND_SERVER_STATUS_CHANGED;
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
     mStatus = new_status;
 }

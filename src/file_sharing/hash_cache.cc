@@ -58,15 +58,28 @@ HashStorage::HashStorage(const std::string& save_file_name)
 
 void HashStorage::togglePauseHashingProcess()
 {
-	RS_STACK_MUTEX(mHashMtx) ;
-	mHashingProcessPaused = !mHashingProcessPaused ;
+    RS_STACK_MUTEX(mHashMtx) ;
+
+    if(!mRunning)
+        return;
+
+    mHashingProcessPaused = !mHashingProcessPaused ;
+
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+        ev->mEventCode = mHashingProcessPaused? (RsSharedDirectoriesEventCode::HASHING_PROCESS_PAUSED):(RsSharedDirectoriesEventCode::HASHING_PROCESS_RESUMED);
+        rsEvents->postEvent(ev);
+    }
 }
+
 bool HashStorage::hashingProcessPaused()
 {
 	RS_STACK_MUTEX(mHashMtx) ;
 	return mHashingProcessPaused;
 }
 
+#ifdef TO_REMOVE
 static std::string friendlyUnit(uint64_t val)
 {
     const std::string units[6] = {"B","KB","MB","GB","TB","PB"};
@@ -86,6 +99,7 @@ static std::string friendlyUnit(uint64_t val)
     sprintf(buf,"%2.2f",double(val)/fact*1024.0f) ;
     return  std::string(buf) + " TB";
 }
+#endif
 
 void HashStorage::threadTick()
 {
@@ -136,13 +150,6 @@ void HashStorage::threadTick()
                     stopHashThread();
                 }
 
-                if(rsEvents)
-                {
-                    auto ev = std::make_shared<RsSharedDirectoriesEvent>();
-                    ev->mEventCode = RsSharedDirectoriesEventCode::DIRECTORY_SWEEP_ENDED;
-                    rsEvents->postEvent(ev);
-                }
-                //RsServer::notify()->notifyHashingInfo(NOTIFY_HASHTYPE_FINISH, "") ;
             }
             else
             {
@@ -182,19 +189,23 @@ void HashStorage::threadTick()
 
             std::string tmpout;
 
+#ifdef TO_REMOVE
 			if(mCurrentHashingSpeed > 0)
 				rs_sprintf(tmpout, "%lu/%lu (%s - %d%%, %d MB/s) : %s", (unsigned long int)mHashCounter+1, (unsigned long int)mTotalFilesToHash, friendlyUnit(mTotalHashedSize).c_str(), int(mTotalHashedSize/double(mTotalSizeToHash)*100.0), mCurrentHashingSpeed,job.full_path.c_str()) ;
 			else
 				rs_sprintf(tmpout, "%lu/%lu (%s - %d%%) : %s", (unsigned long int)mHashCounter+1, (unsigned long int)mTotalFilesToHash, friendlyUnit(mTotalHashedSize).c_str(), int(mTotalHashedSize/double(mTotalSizeToHash)*100.0), job.full_path.c_str()) ;
+#endif
 
 			{
-				/* Emit deprecated event only for retrocompatibility
-				 * TODO: create a proper event with structured data instead of a
-				 * formatted string */
 				auto ev = std::make_shared<RsSharedDirectoriesEvent>();
 				ev->mEventCode = RsSharedDirectoriesEventCode::HASHING_FILE;
-				ev->mMessage = tmpout;
-				rsEvents->postEvent(ev);
+                ev->mHashingSpeed = mCurrentHashingSpeed;
+                ev->mHashCounter = mHashCounter;
+                ev->mTotalFilesToHash = mTotalFilesToHash;
+                ev->mTotalHashedSize = mTotalHashedSize;
+                ev->mTotalSizeToHash = mTotalSizeToHash;
+                ev->mFilePath = job.full_path;
+                rsEvents->postEvent(ev);
 			}
 
 			double seconds_origin = rstime::RsScopeTimer::currentTime() ;
@@ -239,12 +250,19 @@ void HashStorage::threadTick()
 	if(!hash.isNull())
 		job.client->hash_callback(job.client_param, job.full_path, hash, size);
 
+#ifdef TO_REMOVE
 	/* Notify we completed hashing a file */
-	auto ev = std::make_shared<RsFileHashingCompletedEvent>();
-	ev->mFilePath = job.full_path;
+    auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+    ev->mEventCode = RsSharedDirectoriesEventCode::FILE_HASHING_COMPLETED;
+    ev->mFilePath = job.full_path;
 	ev->mHashingSpeed = mCurrentHashingSpeed;
 	ev->mFileHash = hash;
-	rsEvents->postEvent(ev);
+    ev->mHashCounter = mHashCounter+1;
+    ev->mTotalFilesToHash = mTotalFilesToHash;
+    ev->mTotalHashedSize = mTotalHashedSize;
+    ev->mTotalSizeToHash = mTotalSizeToHash;
+    rsEvents->postEvent(ev);
+#endif
 }
 
 bool HashStorage::requestHash(const std::string& full_path,uint64_t size,rstime_t mod_time,RsFileHash& known_hash,HashStorageClient *c,uint32_t client_param)
@@ -332,6 +350,12 @@ void HashStorage::startHashThread()
         mHashCounter = 0;
         mTotalHashedSize = 0;
 
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+            ev->mEventCode = RsSharedDirectoriesEventCode::HASHING_PROCESS_STARTED;
+            rsEvents->postEvent(ev);
+        }
         start("fs hash cache") ;
     }
 }
@@ -348,6 +372,13 @@ void HashStorage::stopHashThread()
         mTotalSizeToHash = 0;
         mTotalFilesToHash = 0;
     }
+    if(rsEvents)
+    {
+        auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+        ev->mEventCode = RsSharedDirectoriesEventCode::HASHING_PROCESS_FINISHED;
+        rsEvents->postEvent(ev);
+    }
+
 }
 
 void HashStorage::clean()

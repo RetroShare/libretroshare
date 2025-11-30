@@ -30,9 +30,7 @@
 #include <string>                 // for string, allocator, operator<<, oper...
 #include <utility>                // for pair
 
-#include "pqi/p3notify.h"         // for p3Notify
 #include "retroshare/rsids.h"     // for operator<<
-#include "retroshare/rsnotify.h"  // for RS_SYS_WARNING
 #include "rsserver/p3face.h"      // for RsServer
 #include "serialiser/rsserial.h"  // for RsItem, RsSerialiser, getRsItemSize
 #include "util/rsdebug.h"         // for pqioutput, PQL_ALERT, PQL_DEBUG_ALL
@@ -852,8 +850,7 @@ continue_packet:
 	    {
 		    pqioutput(PQL_ALERT, pqistreamerzone, "ERROR: Read Packet too Big!");
 
-		    p3Notify *notify = RsServer::notify();
-		    if (notify)
+            if (rsEvents)
 		    {
 			    std::string title =
 			                    "Warning: Bad Packet Read";
@@ -868,7 +865,7 @@ continue_packet:
 			    rs_sprintf_append(msg, "(M:%d B:%d E:%d)\n", maxlen, blen, extralen);
 			    msg +=  "\n";
 			    msg +=  "block = " ;
-                	    msg += RsUtil::BinToHex((char*)block,8);
+                msg += RsUtil::BinToHex((char*)block,8);
 
 			    msg +=  "\n";
 			    msg +=  "Please get your friends to upgrade to the latest version";
@@ -879,7 +876,10 @@ continue_packet:
 			    msg +=  "Please report the problem to Retroshare's developers";
 			    msg +=  "\n";
 
-			    notify->AddLogMessage(0, RS_SYS_WARNING, title, msg);
+                auto ev = std::make_shared<RsSystemEvent>();
+                ev->mEventCode = RsSystemEventCode::DATA_STREAMING_ERROR;
+                ev->mErrorMsg = msg;
+                rsEvents->postEvent(ev);
 
 			    std::cerr << "pqistreamer::handle_incoming() ERROR: Read Packet too Big" << std::endl;
 			    std::cerr << msg;
@@ -921,8 +921,7 @@ continue_packet:
 				    std::cerr << out << std::endl ;
 				    pqioutput(PQL_ALERT, pqistreamerzone, out);
 
-				    p3Notify *notify = RsServer::notify();
-				    if (notify)
+                    if (rsEvents)
 				    {
 					    std::string title = "Warning: Error Completing Read";
 

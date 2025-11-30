@@ -128,7 +128,9 @@ RsServiceInfo p3discovery2::getServiceInfo()
 }
 
 p3discovery2::~p3discovery2()
-{ rsEvents->unregisterEventsHandler(mRsEventsHandle); }
+{
+    rsEvents->unregisterEventsHandler(mRsEventsHandle);
+}
 
 void p3discovery2::addFriend(const RsPeerId &sslId)
 {
@@ -411,7 +413,7 @@ void p3discovery2::recvOwnContactInfo(const RsPeerId &fromId, const RsDiscContac
     if(rsEvents)
     {
         auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
         ev->mFromId = fromId;
         ev->mAboutId = item->sslId;
         rsEvents->postEvent(ev);
@@ -1003,16 +1005,12 @@ void p3discovery2::processContactInfo(const RsPeerId &fromId, const RsDiscContac
 	}
 	updatePeerAddressList(item);
 
-	RsServer::notify()->notifyListChange(NOTIFY_LIST_NEIGHBOURS, NOTIFY_TYPE_MOD);
-
 	if(should_notify_discovery)
     {
-        RsServer::notify()->notifyDiscInfoChanged();
-
         if(rsEvents)
         {
             auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-            ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+            ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
             ev->mFromId = fromId;
             ev->mAboutId = item->sslId;
             rsEvents->postEvent(ev);
@@ -1152,7 +1150,7 @@ void p3discovery2::recvPGPCertificate(const RsPeerId& fromId, RsDiscPgpKeyItem* 
     if(rsEvents)
     {
         auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
         ev->mFromId = fromId;
         ev->mAboutId = fromId;
         rsEvents->postEvent(ev);
@@ -1202,7 +1200,7 @@ void p3discovery2::statusChange(const std::list<pqiServicePeer> &plist)
     if(rsEvents)
     {
         auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
         ev->mFromId.clear();
         ev->mAboutId = pit->id;
         rsEvents->postEvent(ev);

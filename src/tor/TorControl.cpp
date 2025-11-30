@@ -106,7 +106,7 @@ void TorControl::setStatus(TorControl::Status n)
         ev->mTorStatus = ::torStatus(mTorStatus);
         ev->mTorConnectivityStatus  = torConnectivityStatus(mStatus);
 
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
     mStatusChanged_callback(mStatus, old);
 }
@@ -127,7 +127,7 @@ void TorControl::setTorStatus(TorControl::TorStatus n)
         ev->mTorStatus = ::torStatus(mTorStatus);
         ev->mTorConnectivityStatus  = torConnectivityStatus(mStatus);
 
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
 }
 
@@ -425,7 +425,7 @@ void TorControl::getTorInfoReply(TorControlCommand *sender)
             ev->mTorManagerEventType = RsTorManagerEventCode::TOR_CONNECTIVITY_CHANGED;
             ev->mTorConnectivityStatus  = torConnectivityStatus(mStatus);
             ev->mTorStatus = ::torStatus(mTorStatus);
-            rsEvents->sendEvent(ev);
+            rsEvents->postEvent(ev);
         }
     }
 
@@ -596,7 +596,7 @@ void TorControl::updateBootstrap(const std::list<ByteArray> &data)
         ev->mTorManagerEventType = RsTorManagerEventCode::BOOTSTRAP_STATUS_CHANGED;
         ev->mTorConnectivityStatus  = torConnectivityStatus(mStatus);
         ev->mTorStatus = ::torStatus(mTorStatus);
-        rsEvents->sendEvent(ev);
+        rsEvents->postEvent(ev);
     }
 }
 
