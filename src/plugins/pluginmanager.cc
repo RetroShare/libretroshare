@@ -311,7 +311,7 @@ bool RsPluginManager::loadPlugin(const std::string& plugin_name,bool first_time)
 
 	if(!_allow_all_plugins)
 	{
-//		if(_accepted_hashes.find(pinfo.file_hash) == _accepted_hashes.end() && _rejected_hashes.find(pinfo.file_hash) == _rejected_hashes.end() )
+        if(_accepted_hashes.find(pinfo.file_hash) == _accepted_hashes.end() && _rejected_hashes.find(pinfo.file_hash) == _rejected_hashes.end() )
         {
             auto ev = std::make_shared<RsSystemEvent>();
             ev->mEventCode = RsSystemEventCode::NEW_PLUGIN_FOUND;
@@ -324,8 +324,9 @@ bool RsPluginManager::loadPlugin(const std::string& plugin_name,bool first_time)
         // at this point, if the plugin was accepted by the sync call above, it will be removed from the _rejected_hashes map,
         // and added to the accepted hash map.
 
-        if(_accepted_hashes.find(pinfo.file_hash) == _accepted_hashes.end() )
-		{
+        if(_accepted_hashes.find(pinfo.file_hash) == _accepted_hashes.end()
+         ||_rejected_hashes.find(pinfo.file_hash) != _rejected_hashes.end() )
+        {
 			pinfo.status = PLUGIN_STATUS_REJECTED_HASH ;
 			std::cerr << "    -> hash rejected. Giving up plugin. " << std::endl;
 			return false ;
