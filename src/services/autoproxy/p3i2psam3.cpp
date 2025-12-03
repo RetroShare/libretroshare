@@ -516,7 +516,7 @@ bool p3I2pSam3::startSession()
 	}
 
 	if (ret != 0) {
-		delete session;
+        free(session);
 		session = nullptr;
 		return false;
 	}
