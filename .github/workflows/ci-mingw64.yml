@@ -25,10 +25,20 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout repository RetroShare
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
+          repository: 'RetroShare/RetroShare'
+          path: /D/a/RetroShare
+          submodules: 'true'
+
+#      - name: Checkout repository libretroshare
+#        uses: actions/checkout@v6
+#        with:
+#          persist-credentials: false
+#          path: /D/a/RetroShare/libretroshare
+#          submodules: 
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@40677d36a502eb2cf0fb808cc9dec31bf6152638 # v2.28.0
@@ -62,11 +72,12 @@ jobs:
         run: |
           pwd
           ls -la
-#      - name: Checkout submodules
-#        run: |
-#          env
-#          git submodule update --init --remote libbitdht/ retroshare-webui/
-#          git submodule update --init supportlibs/librnp supportlibs/rapidjson supportlibs/restbed
+
+      - name: Checkout submodules
+        run: |
+          env
+          git submodule update --init --remote libbitdht/ libretroshare/ retroshare-webui/
+          git submodule update --init supportlibs/librnp supportlibs/rapidjson supportlibs/restbed
 
       - name: CI-Build
         run: |
