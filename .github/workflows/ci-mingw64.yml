@@ -58,11 +58,15 @@ jobs:
             mingw-w64-x86_64-libbotan
             mingw-w64-x86_64-asio
 
-      - name: Checkout submodules
+      - name: testing
         run: |
-          env
-          git submodule update --init --remote libbitdht/ libretroshare/ retroshare-webui/
-          git submodule update --init supportlibs/librnp supportlibs/rapidjson supportlibs/restbed
+          pwd
+          ls -la
+#      - name: Checkout submodules
+#        run: |
+#          env
+#          git submodule update --init --remote libbitdht/ retroshare-webui/
+#          git submodule update --init supportlibs/librnp supportlibs/rapidjson supportlibs/restbed
 
       - name: CI-Build
         run: |
