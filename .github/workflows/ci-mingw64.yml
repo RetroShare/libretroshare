@@ -25,10 +25,13 @@ jobs:
         shell: msys2 {0}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Checkout RetroShare: it is needed, because libretroshare.pro is looking for retroshare.pri
+      - name: Checkout repository RetroShare
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
+          repository: 'RetroShare/RetroShare'
+          submodules: 'false'
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@40677d36a502eb2cf0fb808cc9dec31bf6152638 # v2.28.0
@@ -57,6 +60,11 @@ jobs:
             mingw-w64-x86_64-json-c
             mingw-w64-x86_64-libbotan
             mingw-w64-x86_64-asio
+
+      - name: list directory and print working directory
+        run: |
+          pwd
+          ls -la
 
       - name: Checkout submodules
         run: |
