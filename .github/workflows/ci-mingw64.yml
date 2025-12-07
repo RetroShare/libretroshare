@@ -30,7 +30,7 @@ jobs:
         with:
           persist-credentials: false
           repository: 'RetroShare/RetroShare'
-          path: /D/a/RetroShare
+#          path: /D/a/RetroShare
           submodules: 'true'
 
 #      - name: Checkout repository libretroshare
