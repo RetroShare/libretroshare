@@ -68,7 +68,7 @@ jobs:
             mingw-w64-x86_64-libbotan
             mingw-w64-x86_64-asio
 
-      - name: testing
+      - name: list directory and print working directory
         run: |
           pwd
           ls -la
@@ -81,6 +81,6 @@ jobs:
 
       - name: CI-Build
         run: |
-          cd src
+#          cd src
           qmake . -r -spec win32-g++ "CONFIG+=release" "CONFIG+=rs_autologin" "CONFIG+=no_rs_sam3" "CONFIG+=no_rs_sam3_libsam3"
           mingw32-make -j3
