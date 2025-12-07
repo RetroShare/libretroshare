@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
           repository: 'RetroShare/RetroShare'
 #          path: /D/a/RetroShare
-          submodules: 'true'
+          submodules: 'false'
 
 #      - name: Checkout repository libretroshare
 #        uses: actions/checkout@v6
