@@ -1808,7 +1808,8 @@ bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, cons
 	    sockaddr_storage current_best_ext_address_guess ;
 	    uint32_t count ;
 
-	    locked_computeCurrentBestOwnExtAddressCandidate(current_best_ext_address_guess,count) ;
+        if(locked_computeCurrentBestOwnExtAddressCandidate(current_best_ext_address_guess,count))
+            mNetMgr->setExtAddress(current_best_ext_address_guess);
 
 	    std::cerr << "p3PeerMgr::  Current external address is calculated to be: " << sockaddr_storage_iptostring(current_best_ext_address_guess) << " (simultaneously reported by " << count << " peers)." << std::endl;
     }
