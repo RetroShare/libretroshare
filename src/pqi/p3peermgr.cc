@@ -1789,6 +1789,9 @@ bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, cons
     //	- remove old values for that same peer
     //	- remove values for non connected peers
 
+    sockaddr_storage current_best_ext_address_guess ;
+    bool have_ext_address = false;
+
     {
 	    RsStackMutex stack(mPeerMtx); /****** STACK LOCK MUTEX *******/
 
@@ -1805,14 +1808,16 @@ bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, cons
 	    else
 		    ++it ;
 
-	    sockaddr_storage current_best_ext_address_guess ;
 	    uint32_t count ;
 
         if(locked_computeCurrentBestOwnExtAddressCandidate(current_best_ext_address_guess,count))
-            mNetMgr->setExtAddress(current_best_ext_address_guess);
+            have_ext_address = true;
 
 	    std::cerr << "p3PeerMgr::  Current external address is calculated to be: " << sockaddr_storage_iptostring(current_best_ext_address_guess) << " (simultaneously reported by " << count << " peers)." << std::endl;
     }
+
+    if(have_ext_address)
+        mNetMgr->setExtAddress(current_best_ext_address_guess);	// setExtAddress will only send an event if the address actually changed.
 
     // now current
 
