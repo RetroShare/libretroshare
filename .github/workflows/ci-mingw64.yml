@@ -74,5 +74,13 @@ jobs:
 
       - name: CI-Build
         run: |
-          qmake . -r -spec win32-g++ "CONFIG+=release" "CONFIG+=rs_autologin" "CONFIG+=no_rs_sam3" "CONFIG+=no_rs_sam3_libsam3"
+          qmake . -r -spec win32-g++ \
+          "CONFIG+=debug" \
+          "CONFIG+=release" \
+          "CONFIG+=rs_autologin" \
+          "CONFIG+=wikipoos" \
+          "CONFIG+=gxsthewire" \
+          "CONFIG+=retroshare_plugins" \
+          "CONFIG+=no_rs_sam3" \
+          "CONFIG+=no_rs_sam3_libsam3"
           mingw32-make -j3
