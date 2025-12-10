@@ -17,17 +17,15 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-24.04
-
     steps:
       # Checkout RetroShare: it is needed, because libretroshare.pro is looking for retroshare.pri
-      - name: Checkout repository RetroShare
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-          repository: 'RetroShare/RetroShare'
-          submodules: 'false'
+    - name: Checkout repository RetroShare
+      uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+        repository: 'RetroShare/RetroShare'
+        submodules: 'false'
     - name: git init submodules
       run: git submodule update --init --remote libbitdht/ libretroshare/ openpgpsdk/ retroshare-webui/ && git --no-pager log --max-count 1
     - name: git submodule supportlibs
