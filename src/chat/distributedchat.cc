@@ -613,10 +613,10 @@ void DistributedChatService::addTimeShiftStatistics(int D)
 {
 	// consider only 1 item per second
 	static rstime_t last_stat_time = 0;
-        rstime_t now = time(NULL);
-        if(now <= last_stat_time)
-                return;
-        last_stat_time = now;
+	rstime_t now = time(NULL);
+	if(now <= last_stat_time)
+		return;
+	last_stat_time = now;
 
 	static const int S = 50 ; // accuracy up to 2^50 second. Quite conservative!
 	static int total = 0 ;
