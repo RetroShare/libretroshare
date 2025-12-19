@@ -28,6 +28,7 @@
 
 #include <restbed>
 #include <openssl/crypto.h>
+#include <asio.hpp>
 
 
 #include "jsonapi.h"
@@ -403,8 +404,8 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 					return;
 				}
 
-				lService->schedule( [weakSession, hId, event]()
-				{
+                auto io_context = lService->get_io_context();
+				asio::post(*io_context, [weakSession, hId, event]() {
 					auto session = weakSession.lock();
 					if(!session || session->is_closed())
 					{
