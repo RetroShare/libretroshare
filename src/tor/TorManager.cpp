@@ -731,6 +731,11 @@ std::string TorManagerPrivate::torExecutablePath() const
 
     if(RsDirUtil::fileExists("/usr/bin/tor"))
         return std::string("/usr/bin/tor");
+
+    // If not, try the flatpack location, so as to be compatible with flatpack RS versions.
+
+    if(RsDirUtil::fileExists("/app/bin/tor"))
+        return std::string("/app/bin/tor");
 #endif
 
     RsErr() << "Could not find Tor executable anywhere!" ;
