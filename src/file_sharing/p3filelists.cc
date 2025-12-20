@@ -355,6 +355,27 @@ cleanup = true;
             sList.push_back(item) ;
     }
 
+    {
+        RS_STACK_MUTEX(mFLSMtx) ;
+        RsFileListsUploadStatsItem *item = nullptr;
+
+        for(auto it(mCumulativeUploaded.begin());it!=mCumulativeUploaded.end();++it)
+        {
+            if(item == nullptr)
+                item = new RsFileListsUploadStatsItem ;
+
+            item->hash_stats.insert(*it);
+
+            if(item->hash_stats.size() > 500)	// safe bet for size
+            {
+                sList.push_back(item) ;
+                item = nullptr;
+            }
+        }
+        if(item != nullptr)
+            sList.push_back(item) ;
+    }
+
     RsConfigKeyValueSet *rskv = new RsConfigKeyValueSet();
 
     /* basic control parameters */
@@ -486,6 +507,7 @@ bool p3FileDatabase::loadList(std::list<RsItem *>& load)
 	ignored_suffixes.push_back( ".part" );
 #endif
     mPrimaryBanList.clear();
+    mCumulativeUploaded.clear();
 
     for(std::list<RsItem *>::iterator it = load.begin(); it != load.end(); ++it)
     {
@@ -604,6 +626,13 @@ bool p3FileDatabase::loadList(std::list<RsItem *>& load)
             mPrimaryBanList.insert(fb->primary_banned_files_list.begin(),fb->primary_banned_files_list.end()) ;
             mBannedFileListNeedsUpdate = true;
             mLastPrimaryBanListChangeTimeStamp = time(NULL);
+        }
+
+        RsFileListsUploadStatsItem *fu = dynamic_cast<RsFileListsUploadStatsItem*>(*it) ;
+
+        if(fu)
+        {
+            mCumulativeUploaded.insert(fu->hash_stats.begin(), fu->hash_stats.end()) ;
         }
 
         delete *it ;
@@ -982,8 +1011,6 @@ bool p3FileDatabase::findChildPointer( void *ref, int row, void *& result,
     return res;
 }
 
-// This function returns statistics about the entire directory
-
 int p3FileDatabase::getSharedDirStatistics(const RsPeerId& pid,SharedDirStats& stats)
 {
     RS_STACK_MUTEX(mFLSMtx) ;
@@ -1000,6 +1027,37 @@ int p3FileDatabase::getSharedDirStatistics(const RsPeerId& pid,SharedDirStats& s
 
         return true ;
     }
+}
+
+uint64_t p3FileDatabase::getCumulativeUpload(const RsFileHash& hash) const
+{
+	RS_STACK_MUTEX(mFLSMtx);
+	auto it = mCumulativeUploaded.find(hash);
+	if (it != mCumulativeUploaded.end())
+		return it->second;
+	return 0;
+}
+
+uint64_t p3FileDatabase::getCumulativeUploadAll() const
+{
+	RS_STACK_MUTEX(mFLSMtx);
+	uint64_t total = 0;
+	for (auto it = mCumulativeUploaded.begin(); it != mCumulativeUploaded.end(); ++it)
+		total += it->second;
+	return total;
+}
+
+uint64_t p3FileDatabase::getCumulativeUploadNum() const
+{
+	RS_STACK_MUTEX(mFLSMtx);
+	return mCumulativeUploaded.size();
+}
+
+void p3FileDatabase::addUploadStats(const RsFileHash& hash, uint64_t size)
+{
+	RS_STACK_MUTEX(mFLSMtx);
+	mCumulativeUploaded[hash] += size;
+	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 
 bool p3FileDatabase::removeExtraFile(const RsFileHash& hash)

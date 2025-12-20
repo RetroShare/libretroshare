@@ -426,8 +426,6 @@ private:
     std::map<RsPeerId,RsFileHash> mEncryptedPeerIds ;  // This map holds the hash to be used with each peer id
     std::map<RsPeerId,std::map<RsFileHash,rstime_t> > mUploadLimitMap ;
 
-	std::map<RsFileHash,uint64_t> cumulative_uploaded;
-
 	/** Store search callbacks with timeout*/
     RS_DEPRECATED
 	std::map<
