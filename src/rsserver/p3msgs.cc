@@ -439,7 +439,7 @@ void p3Msgs::getOwnAvatarData(unsigned char *& data,int& size)
 
 void p3Msgs::setOwnAvatarData(const unsigned char *data,int size)
 {
-	mChatSrv->setOwnAvatarJpegData(data,size) ;
+	mChatSrv->setOwnNodeAvatarJpegData(data,size) ;
 }
 
 void p3Msgs::getAvatarData(const RsPeerId& pid,unsigned char *& data,int& size)
@@ -564,7 +564,6 @@ uint32_t p3Msgs::getDistantChatPermissionFlags()
 RsMsgs::~RsMsgs() = default;
 Rs::Msgs::MessageInfo::~MessageInfo() = default;
 MsgInfoSummary::~MsgInfoSummary() = default;
-VisibleChatLobbyRecord::~VisibleChatLobbyRecord() = default;
 
 void RsMailIdRecipientIdPair::serial_process(
         RsGenericSerializer::SerializeJob j,

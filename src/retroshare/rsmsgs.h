@@ -67,9 +67,9 @@
 
 #define RS_MSG_SYSTEM                (RS_MSG_USER_REQUEST | RS_MSG_FRIEND_RECOMMENDATION | RS_MSG_PUBLISH_KEY)
 
-#define RS_CHAT_LOBBY_EVENT_PEER_LEFT   				0x01
-#define RS_CHAT_LOBBY_EVENT_PEER_STATUS 				0x02
-#define RS_CHAT_LOBBY_EVENT_PEER_JOINED 				0x03
+#define RS_CHAT_LOBBY_EVENT_PEER_LEFT   			0x01
+#define RS_CHAT_LOBBY_EVENT_PEER_STATUS 			0x02
+#define RS_CHAT_LOBBY_EVENT_PEER_JOINED 			0x03
 #define RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME 	0x04
 #define RS_CHAT_LOBBY_EVENT_KEEP_ALIVE          	0x05
 
@@ -315,18 +315,19 @@ struct MsgTagType : RsSerializable
 
 enum class RsMailStatusEventCode: uint8_t
 {
-	NEW_MESSAGE                     = 0x00,
-	MESSAGE_REMOVED                 = 0x01,
-	MESSAGE_SENT                    = 0x02,
+    UNKNOWN                         = 0x00,
+    NEW_MESSAGE                     = 0x01,
+    MESSAGE_REMOVED                 = 0x02,
+    MESSAGE_SENT                    = 0x03,
 
 	/// means the peer received the message
-	MESSAGE_RECEIVED_ACK            = 0x03,
+    MESSAGE_RECEIVED_ACK            = 0x04,
 
 	/// An error occurred attempting to sign the message
-	SIGNATURE_FAILED   = 0x04,
+    SIGNATURE_FAILED                = 0x05,
 
-	MESSAGE_CHANGED                 = 0x05,
-	TAG_CHANGED                     = 0x06,
+    MESSAGE_CHANGED                 = 0x06,
+    TAG_CHANGED                     = 0x07,
 };
 
 struct RsMailStatusEvent : RsEvent
@@ -422,6 +423,15 @@ struct DistantChatPeerInfo : RsSerializable
 		RS_SERIAL_PROCESS(pending_items);
 	}
 };
+
+enum class RsChatHistoryChangeFlags: uint8_t
+{
+    SAME   = 0x00,
+    MOD    = 0x01, /* general purpose, check all */
+    ADD    = 0x02, /* flagged additions */
+    DEL    = 0x04, /* flagged deletions */
+};
+RS_REGISTER_ENUM_FLAGS_TYPE(RsChatHistoryChangeFlags);
 
 // Identifier for an chat endpoint like
 // neighbour peer, distant peer, chatlobby, broadcast
@@ -536,10 +546,112 @@ public:
 	}
 };
 
+enum class RsChatServiceEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,
+
+    CHAT_MESSAGE_RECEIVED 			      = 0x01,    // new private incoming chat, NOTIFY_LIST_PRIVATE_INCOMING_CHAT
+    CHAT_STATUS_CHANGED   			      = 0x02,    //
+    CHAT_HISTORY_CHANGED  			      = 0x03,    //
+};
+
+enum class RsChatLobbyEventCode: uint8_t
+{
+    UNKNOWN                               = 0x00,
+
+    CHAT_LOBBY_LIST_CHANGED               = 0x03,    // NOTIFY_LIST_CHAT_LOBBY_LIST	,	    ADD/REMOVE , // new/removed chat lobby
+    CHAT_LOBBY_INVITE_RECEIVED            = 0x04,    // NOTIFY_LIST_CHAT_LOBBY_INVITE, received chat lobby invite
+    CHAT_LOBBY_EVENT_PEER_LEFT   	 	  = 0x05,	 // RS_CHAT_LOBBY_EVENT_PEER_LEFT
+    CHAT_LOBBY_EVENT_PEER_STATUS 	      = 0x06,	 // RS_CHAT_LOBBY_EVENT_PEER_STATUS
+    CHAT_LOBBY_EVENT_PEER_JOINED          = 0x07,	 // RS_CHAT_LOBBY_EVENT_PEER_JOINED
+    CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME = 0x08,	 // RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME
+    CHAT_LOBBY_EVENT_KEEP_ALIVE           = 0x09,	 // RS_CHAT_LOBBY_EVENT_KEEP_ALIVE
+};
+
+enum class RsDistantChatEventCode: uint8_t
+{
+    TUNNEL_STATUS_UNKNOWN                 = 0x00,
+    TUNNEL_STATUS_CAN_TALK                = 0x01,
+    TUNNEL_STATUS_TUNNEL_DN               = 0x02,
+    TUNNEL_STATUS_REMOTELY_CLOSED         = 0x03,
+    TUNNEL_STATUS_CONNECTION_REFUSED      = 0x04,
+};
+
+struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
+{
+    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsChatLobbyEventCode::UNKNOWN),mLobbyId(0),mTimeShift(0) {}
+    virtual ~RsChatLobbyEvent() override = default;
+
+    RsChatLobbyEventCode mEventCode;
+
+    uint64_t mLobbyId;
+    RsGxsId mGxsId;
+    std::string mStr;
+    ChatMessage mMsg;
+    int mTimeShift;
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+
+        RsEvent::serial_process(j,ctx);
+
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mLobbyId);
+        RS_SERIAL_PROCESS(mGxsId);
+        RS_SERIAL_PROCESS(mStr);
+        RS_SERIAL_PROCESS(mMsg);
+        RS_SERIAL_PROCESS(mTimeShift);
+    }
+};
+
+struct RsDistantChatEvent : RsEvent // This event handles events internal to the distant chat system
+{
+    RsDistantChatEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsDistantChatEventCode::TUNNEL_STATUS_UNKNOWN) {}
+    virtual ~RsDistantChatEvent() override = default;
+
+    RsDistantChatEventCode mEventCode;
+    DistantChatPeerId mId;
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+
+        RsEvent::serial_process(j,ctx);
+
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mId);
+    }
+};
+
+struct RsChatServiceEvent : RsEvent // This event handles chat in general: status strings, new messages, etc.
+{
+    RsChatServiceEvent() : RsEvent(RsEventType::CHAT_SERVICE), mEventCode(RsChatServiceEventCode::UNKNOWN),
+        mMsgHistoryId(0),mHistoryChangeType(RsChatHistoryChangeFlags::SAME) {}
+    virtual ~RsChatServiceEvent() override = default;
+
+    RsChatServiceEventCode mEventCode;
+
+    std::string mStr;
+    ChatId mCid;
+    ChatMessage mMsg;
+    uint32_t mMsgHistoryId;
+    RsChatHistoryChangeFlags mHistoryChangeType;          // ChatHistoryChangeFlags::ADD/DEL/MOD
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
+
+        RsEvent::serial_process(j,ctx);
+
+        RS_SERIAL_PROCESS(mEventCode);
+        RS_SERIAL_PROCESS(mStr);
+        RS_SERIAL_PROCESS(mCid);
+        RS_SERIAL_PROCESS(mMsg);
+        RS_SERIAL_PROCESS(mMsgHistoryId);
+        RS_SERIAL_PROCESS(mHistoryChangeType);
+    }
+};
+
 struct VisibleChatLobbyRecord : RsSerializable
 {
 	VisibleChatLobbyRecord():
 	    lobby_id(0), total_number_of_peers(0), last_report_time(0) {}
+    virtual ~VisibleChatLobbyRecord() override = default;
 
 	ChatLobbyId lobby_id ;						// unique id of the lobby
 	std::string lobby_name ;					// name to use for this lobby
@@ -551,10 +663,7 @@ struct VisibleChatLobbyRecord : RsSerializable
 	ChatLobbyFlags lobby_flags ;				// see RS_CHAT_LOBBY_PRIVACY_LEVEL_PUBLIC / RS_CHAT_LOBBY_PRIVACY_LEVEL_PRIVATE
 
 	/// @see RsSerializable
-	void serial_process(
-	        RsGenericSerializer::SerializeJob j,
-	        RsGenericSerializer::SerializeContext &ctx) override
-	{
+    void serial_process( RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
 		RS_SERIAL_PROCESS(lobby_id);
 		RS_SERIAL_PROCESS(lobby_name);
 		RS_SERIAL_PROCESS(lobby_topic);
@@ -564,8 +673,6 @@ struct VisibleChatLobbyRecord : RsSerializable
 		RS_SERIAL_PROCESS(last_report_time);
 		RS_SERIAL_PROCESS(lobby_flags);
 	}
-
-	~VisibleChatLobbyRecord() override;
 };
 
 class ChatLobbyInfo : RsSerializable

@@ -128,7 +128,9 @@ RsServiceInfo p3discovery2::getServiceInfo()
 }
 
 p3discovery2::~p3discovery2()
-{ rsEvents->unregisterEventsHandler(mRsEventsHandle); }
+{
+    rsEvents->unregisterEventsHandler(mRsEventsHandle);
+}
 
 void p3discovery2::addFriend(const RsPeerId &sslId)
 {
@@ -411,7 +413,7 @@ void p3discovery2::recvOwnContactInfo(const RsPeerId &fromId, const RsDiscContac
     if(rsEvents)
     {
         auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
         ev->mFromId = fromId;
         ev->mAboutId = item->sslId;
         rsEvents->postEvent(ev);
@@ -1003,16 +1005,12 @@ void p3discovery2::processContactInfo(const RsPeerId &fromId, const RsDiscContac
 	}
 	updatePeerAddressList(item);
 
-	RsServer::notify()->notifyListChange(NOTIFY_LIST_NEIGHBOURS, NOTIFY_TYPE_MOD);
-
 	if(should_notify_discovery)
     {
-        RsServer::notify()->notifyDiscInfoChanged();
-
         if(rsEvents)
         {
             auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-            ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+            ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
             ev->mFromId = fromId;
             ev->mAboutId = item->sslId;
             rsEvents->postEvent(ev);
@@ -1152,7 +1150,7 @@ void p3discovery2::recvPGPCertificate(const RsPeerId& fromId, RsDiscPgpKeyItem* 
     if(rsEvents)
     {
         auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
+        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
         ev->mFromId = fromId;
         ev->mAboutId = fromId;
         rsEvents->postEvent(ev);
@@ -1166,46 +1164,45 @@ void p3discovery2::statusChange(const std::list<pqiServicePeer> &plist)
 	std::cerr << "p3discovery2::statusChange()" << std::endl;
 #endif
 
-	std::list<pqiServicePeer>::const_iterator pit;
-	for(pit =  plist.begin(); pit != plist.end(); ++pit)
-	{
-		if (pit->actions & RS_SERVICE_PEER_CONNECTED) 
-		{
-#ifdef P3DISC_DEBUG
-			std::cerr << "p3discovery2::statusChange() Starting Disc with: " << pit->id << std::endl;
-#endif
-			sendOwnContactInfo(pit->id);
-		} 
-		else if (pit->actions & RS_SERVICE_PEER_DISCONNECTED) 
-		{
-			std::cerr << "p3discovery2::statusChange() Disconnected: " << pit->id << std::endl;
-		}
-
-		if (pit->actions & RS_SERVICE_PEER_NEW)
-		{
-#ifdef P3DISC_DEBUG
-			std::cerr << "p3discovery2::statusChange() Adding Friend: " << pit->id << std::endl;
-#endif
-			addFriend(pit->id);
-		}
-		else if (pit->actions & RS_SERVICE_PEER_REMOVED)
-		{
-#ifdef P3DISC_DEBUG
-			std::cerr << "p3discovery2::statusChange() Removing Friend: " << pit->id << std::endl;
-#endif
-			removeFriend(pit->id);
-		}
-	}
-#ifdef P3DISC_DEBUG
-	std::cerr << "p3discovery2::statusChange() finished." << std::endl;
-#endif
-    if(rsEvents)
+    for(auto pit =  plist.begin(); pit != plist.end(); ++pit)
     {
-        auto ev = std::make_shared<RsGossipDiscoveryEvent>();
-        ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::FRIEND_PEER_INFO_RECEIVED;
-        ev->mFromId.clear();
-        ev->mAboutId = pit->id;
-        rsEvents->postEvent(ev);
+        if (pit->actions & RS_SERVICE_PEER_CONNECTED)
+        {
+#ifdef P3DISC_DEBUG
+            std::cerr << "p3discovery2::statusChange() Starting Disc with: " << pit->id << std::endl;
+#endif
+            sendOwnContactInfo(pit->id);
+        }
+        else if (pit->actions & RS_SERVICE_PEER_DISCONNECTED)
+        {
+            std::cerr << "p3discovery2::statusChange() Disconnected: " << pit->id << std::endl;
+        }
+
+        if (pit->actions & RS_SERVICE_PEER_NEW)
+        {
+#ifdef P3DISC_DEBUG
+            std::cerr << "p3discovery2::statusChange() Adding Friend: " << pit->id << std::endl;
+#endif
+            addFriend(pit->id);
+        }
+        else if (pit->actions & RS_SERVICE_PEER_REMOVED)
+        {
+#ifdef P3DISC_DEBUG
+            std::cerr << "p3discovery2::statusChange() Removing Friend: " << pit->id << std::endl;
+#endif
+            removeFriend(pit->id);
+        }
+#ifdef P3DISC_DEBUG
+        std::cerr << "p3discovery2::statusChange() finished." << std::endl;
+#endif
+        if(rsEvents)
+        {
+            auto ev = std::make_shared<RsGossipDiscoveryEvent>();
+            ev->mGossipDiscoveryEventType = RsGossipDiscoveryEventType::DISCOVERY_INFO_RECEIVED;
+            ev->mFromId.clear();
+            ev->mAboutId = pit->id;
+            rsEvents->postEvent(ev);
+        }
     }
 
 	return;

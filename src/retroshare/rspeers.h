@@ -29,6 +29,7 @@
 
 #include "retroshare/rstypes.h"
 #include "retroshare/rsfiles.h"
+#include "retroshare/rsstatus.h"
 #include "retroshare/rsids.h"
 #include "util/rsurl.h"
 #include "util/rsdeprecate.h"
@@ -258,27 +259,43 @@ struct RsAuthSslConnectionAutenticationEvent : RsEvent
 	~RsAuthSslConnectionAutenticationEvent() override;
 };
 
-enum class RsConnectionEventCode: uint8_t
+enum class RsFriendListEventCode: uint8_t
 {
-	UNKNOWN                 = 0x00,
-	PEER_CONNECTED          = 0x01,
-	PEER_DISCONNECTED       = 0x02,
-	PEER_TIME_SHIFT         = 0x03, // mTimeShift = time shift in seconds
-	PEER_REPORTS_WRONG_IP   = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
-    PEER_ADDED              = 0x05,
-    PEER_REMOVED            = 0x06,
+    UNKNOWN                   = 0x00,
+    NODE_CONNECTED            = 0x01,
+    NODE_DISCONNECTED         = 0x02,
+    NODE_TIME_SHIFT           = 0x03, // mTimeShift = time shift in seconds
+    NODE_REPORTS_WRONG_IP     = 0x04, // mPeerLocator = address reported, mOwnLocator = own address
+    NODE_ADDED                = 0x05,
+    NODE_REMOVED              = 0x06,
+    NODE_STATUS_CHANGED       = 0x07,	// mSslId, mStatus
+    NODE_AVATAR_CHANGED       = 0x08,	// mSslId
+    NODE_STATE_STRING_CHANGED = 0x09,	// mSslId, mStateString
+
+    OWN_AVATAR_CHANGED        = 0x0a,
+    OWN_STATUS_CHANGED        = 0x0b,
+
+    PROFILE_ADDED             = 0x0c,	// mPgpId
+    PROFILE_REMOVED           = 0x0d,	// mPgpId
+
+    GROUP_ADDED               = 0x0e,
+    GROUP_REMOVED             = 0x0f,
+    GROUP_CHANGED             = 0x10,
 };
 
-struct RsConnectionEvent : RsEvent
+struct RsFriendListEvent : RsEvent
 {
-	RsConnectionEvent()
-	    : RsEvent(RsEventType::PEER_CONNECTION),
-	      mConnectionInfoCode(RsConnectionEventCode::UNKNOWN), mTimeShift(0) {}
+    RsFriendListEvent()
+        : RsEvent(RsEventType::FRIEND_LIST),
+          mEventCode(RsFriendListEventCode::UNKNOWN), mTimeShift(0) {}
 
-	RsConnectionEventCode mConnectionInfoCode;
+    RsFriendListEventCode mEventCode;
 	RsPeerId mSslId;
-	RsUrl mOwnLocator;
+    RsPgpId mPgpId;
+    RsUrl mOwnLocator;
 	RsUrl mReportedLocator;
+    RsStatusValue mStatus;
+    std::string mStateString;
 
 	/** If there is a time shift with the peer aka
 	 * mConnectionInfoCode == PEER_TIME_SHIFT contains the time shift value in
@@ -291,14 +308,17 @@ struct RsConnectionEvent : RsEvent
 	        RsGenericSerializer::SerializeContext& ctx ) override
 	{
 		RsEvent::serial_process(j, ctx);
-		RS_SERIAL_PROCESS(mConnectionInfoCode);
+        RS_SERIAL_PROCESS(mEventCode);
 		RS_SERIAL_PROCESS(mSslId);
-		RS_SERIAL_PROCESS(mOwnLocator);
+        RS_SERIAL_PROCESS(mPgpId);
+        RS_SERIAL_PROCESS(mOwnLocator);
 		RS_SERIAL_PROCESS(mReportedLocator);
-		RS_SERIAL_PROCESS(mTimeShift);
+        RS_SERIAL_PROCESS(mStatus);
+        RS_SERIAL_PROCESS(mStateString);
+        RS_SERIAL_PROCESS(mTimeShift);
 	}
 
-	~RsConnectionEvent() override;
+    ~RsFriendListEvent() override = default;
 };
 
 enum class RsNetworkEventCode: uint8_t {
@@ -494,23 +514,6 @@ struct RsGroupInfo : RsSerializable
 		RS_SERIAL_PROCESS(name);
 		RS_SERIAL_PROCESS(flag);
 		RS_SERIAL_PROCESS(peerIds);
-	}
-};
-
-/** Event emitted when a peer change state */
-struct RsPeerStateChangedEvent : RsEvent
-{
-	/// @param[in] sslId is of the peer which changed state
-	explicit RsPeerStateChangedEvent(RsPeerId sslId);
-
-	/// Storage fot the id of the peer that changed state
-	RsPeerId mSslId;
-
-	void serial_process( RsGenericSerializer::SerializeJob j,
-	                     RsGenericSerializer::SerializeContext& ctx) override
-	{
-		RsEvent::serial_process(j, ctx);
-		RS_SERIAL_PROCESS(mSslId);
 	}
 };
 

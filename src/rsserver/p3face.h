@@ -28,7 +28,6 @@
 //#include "pqi/pqissl.h"
 
 #include "pqi/p3cfgmgr.h"
-#include "pqi/p3notify.h"
 #include "pqi/pqipersongrp.h"
 
 #include "retroshare/rsiface.h"
@@ -103,7 +102,7 @@ public:
 			coreMutex.unlock(); 
 		}
 
-		static p3Notify *notify() { return dynamic_cast<RsServer*>(instance())->mNotify ; }
+        //static p3Notify *notify() { return dynamic_cast<RsServer*>(instance())->mNotify ; }
 
 	private:
 
@@ -188,7 +187,7 @@ public:
 		p3GeneralConfig *mGeneralConfig;
 
 		// notify
-		p3Notify *mNotify ;
+        //p3Notify *mNotify ;
 
 		// Worker Data.....
 

@@ -47,8 +47,8 @@ extern std::shared_ptr<RsGossipDiscovery> rsGossipDiscovery;
  */
 
 enum class RsGossipDiscoveryEventType: uint32_t {
-    UNKNOWN                     = 0x00,
-    FRIEND_PEER_INFO_RECEIVED   = 0x01,
+    UNKNOWN                   = 0x00,
+    DISCOVERY_INFO_RECEIVED   = 0x01,
 };
 
 struct RsGossipDiscoveryEvent : RsEvent

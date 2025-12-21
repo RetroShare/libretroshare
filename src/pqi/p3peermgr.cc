@@ -1789,6 +1789,9 @@ bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, cons
     //	- remove old values for that same peer
     //	- remove values for non connected peers
 
+    sockaddr_storage current_best_ext_address_guess ;
+    bool have_ext_address = false;
+
     {
 	    RsStackMutex stack(mPeerMtx); /****** STACK LOCK MUTEX *******/
 
@@ -1805,13 +1808,16 @@ bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, cons
 	    else
 		    ++it ;
 
-	    sockaddr_storage current_best_ext_address_guess ;
 	    uint32_t count ;
 
-	    locked_computeCurrentBestOwnExtAddressCandidate(current_best_ext_address_guess,count) ;
+        if(locked_computeCurrentBestOwnExtAddressCandidate(current_best_ext_address_guess,count))
+            have_ext_address = true;
 
 	    std::cerr << "p3PeerMgr::  Current external address is calculated to be: " << sockaddr_storage_iptostring(current_best_ext_address_guess) << " (simultaneously reported by " << count << " peers)." << std::endl;
     }
+
+    if(have_ext_address)
+        mNetMgr->setExtAddress(current_best_ext_address_guess);	// setExtAddress will only send an event if the address actually changed.
 
     // now current
 
@@ -1840,11 +1846,11 @@ bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, cons
 
 		if(rsEvents)
 		{
-			auto ev = std::make_shared<RsConnectionEvent>();
+            auto ev = std::make_shared<RsFriendListEvent>();
 			ev->mSslId = from;
 			ev->mOwnLocator = RsUrl(own_addr);
 			ev->mReportedLocator = RsUrl(addr);
-			ev->mConnectionInfoCode = RsConnectionEventCode::PEER_REPORTS_WRONG_IP;
+            ev->mEventCode = RsFriendListEventCode::NODE_REPORTS_WRONG_IP;
 			rsEvents->postEvent(ev);
 		}
 	}
@@ -2803,7 +2809,12 @@ bool p3PeerMgrIMPL::addGroup(RsGroupInfo &groupInfo)
         std::cerr << "(II) Added new group with ID " << groupInfo.id << ", name=\"" << groupInfo.name << "\"" << std::endl;
 	}
 
-	RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_ADD);
+    if(rsEvents)
+    {
+        auto e = std::make_shared<RsFriendListEvent>();
+        e->mEventCode = RsFriendListEventCode::GROUP_ADDED ;
+        rsEvents->postEvent(e);
+    }
 
     IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 
@@ -2843,10 +2854,15 @@ bool p3PeerMgrIMPL::editGroup(const RsNodeGroupId& groupId, RsGroupInfo &groupIn
 
     if (changed)
     {
-		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
+        if(rsEvents)
+        {
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mEventCode = RsFriendListEventCode::GROUP_CHANGED ;
+            rsEvents->postEvent(e);
+        }
 
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
-	}
+    }
 
 	return changed;
 }
@@ -2884,9 +2900,14 @@ bool p3PeerMgrIMPL::removeGroup(const RsNodeGroupId& groupId)
 		}
 	}
 
-	if (changed) {
-		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_DEL);
-
+    if (changed)
+    {
+        if(rsEvents)
+        {
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mEventCode = RsFriendListEventCode::GROUP_REMOVED ;
+            rsEvents->postEvent(e);
+        }
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 
@@ -2972,9 +2993,14 @@ bool p3PeerMgrIMPL::assignPeersToGroup(const RsNodeGroupId &groupId, const std::
 			}
 	}
 
-	if (changed) {
-		RsServer::notify()->notifyListChange(NOTIFY_LIST_GROUPLIST, NOTIFY_TYPE_MOD);
-
+    if (changed)
+    {
+        if(rsEvents)
+        {
+            auto e = std::make_shared<RsFriendListEvent>();
+            e->mEventCode = RsFriendListEventCode::GROUP_CHANGED ;
+            rsEvents->postEvent(e);
+        }
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 	}
 

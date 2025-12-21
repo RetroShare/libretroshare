@@ -1450,8 +1450,8 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			rsEvents->postEvent(std::move(ev));
 		}
 
-		if (auth_diagnostic == RS_SSL_HANDSHAKE_DIAGNOSTIC_ISSUER_UNKNOWN)
-			RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
+        //if (auth_diagnostic == RS_SSL_HANDSHAKE_DIAGNOSTIC_ISSUER_UNKNOWN)
+        //	RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
 
 		return verificationFailed;
 	}
@@ -1478,7 +1478,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 			rsEvents->postEvent(std::move(ev));
 		}
 
-		RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
+        //RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
 
 		return verificationFailed;
 	}
