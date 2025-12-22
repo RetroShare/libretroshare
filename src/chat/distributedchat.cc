@@ -611,6 +611,14 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
 
 void DistributedChatService::addTimeShiftStatistics(int D)
 {
+	// Bursts of messages from friends using a wrong system clock can trigger a TIME_SHIFT_PROBLEM event 
+	// We eliminate that by taking into account at most 1 message per second
+	static rstime_t last_stat_time = 0;
+	rstime_t now = time(NULL);
+	if(now <= last_stat_time)
+		return;
+	last_stat_time = now;
+
 	static const int S = 50 ; // accuracy up to 2^50 second. Quite conservative!
 	static int total = 0 ;
 	static std::vector<int> log_delay_histogram(S,0) ;
