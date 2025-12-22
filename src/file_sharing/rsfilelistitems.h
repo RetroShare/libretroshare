@@ -40,6 +40,7 @@ const uint8_t RS_PKT_SUBTYPE_FILELISTS_SYNC_RSP_ITEM             = 0x02;
 const uint8_t RS_PKT_SUBTYPE_FILELISTS_CONFIG_ITEM               = 0x03;
 const uint8_t RS_PKT_SUBTYPE_FILELISTS_BANNED_HASHES_ITEM        = 0x04;
 const uint8_t RS_PKT_SUBTYPE_FILELISTS_BANNED_HASHES_CONFIG_ITEM = 0x05;
+const uint8_t RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM         = 0x06;
 
 /*!
  * Base class for filelist sync items
@@ -125,6 +126,17 @@ public:
 	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 
     std::map<RsFileHash,BannedFileEntry> primary_banned_files_list ;
+};
+
+class RsFileListsUploadStatsItem: public RsFileListsItem
+{
+public:
+	RsFileListsUploadStatsItem() : RsFileListsItem(RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM){}
+
+    virtual void clear() { hash_stats.clear(); }
+	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+
+    std::map<RsFileHash, uint64_t> hash_stats;
 };
 
 class RsFileListsSerialiser : public RsServiceSerializer
