@@ -611,7 +611,8 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
 
 void DistributedChatService::addTimeShiftStatistics(int D)
 {
-	// consider only 1 item per second
+	// Bursts of messages from friends using a wrong system clock can trigger a TIME_SHIFT_PROBLEM event 
+	// We eliminate that by taking into account at most 1 message per second
 	static rstime_t last_stat_time = 0;
 	rstime_t now = time(NULL);
 	if(now <= last_stat_time)
