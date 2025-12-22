@@ -50,7 +50,227 @@
 static const uint32_t MAX_MESSAGE_SECURITY_SIZE         = 31000 ; // Max message size to forward other friends
 static const uint32_t MAX_AVATAR_JPEG_SIZE              = 32767; // Maximum size in bytes for an avatar. Too large packets 
                                                                  // don't transfer correctly and can kill the system.
-																					  // Images are 96x96, which makes approx. 27000 bytes uncompressed.
+ChatId::ChatId():
+    type(TYPE_NOT_SET),
+    lobby_id(0)
+{
+
+}
+
+ChatId::ChatId(RsPeerId id):
+    lobby_id(0)
+{
+    type = TYPE_PRIVATE;
+    peer_id = id;
+}
+
+ChatId::ChatId(DistantChatPeerId id):
+    lobby_id(0)
+{
+    type = TYPE_PRIVATE_DISTANT;
+    distant_chat_id = id;
+}
+
+ChatId::ChatId(ChatLobbyId id):
+    lobby_id(0)
+{
+    type = TYPE_LOBBY;
+    lobby_id = id;
+}
+
+ChatId::ChatId(std::string str) : lobby_id(0)
+{
+    type = TYPE_NOT_SET;
+    if(str.empty()) return;
+
+    if(str[0] == 'P')
+    {
+        type = TYPE_PRIVATE;
+        peer_id = RsPeerId(str.substr(1));
+    }
+    else if(str[0] == 'D')
+    {
+        type = TYPE_PRIVATE_DISTANT;
+        distant_chat_id = DistantChatPeerId(str.substr(1));
+    }
+    else if(str[0] == 'L')
+    {
+        if(sizeof(ChatLobbyId) != 8)
+        {
+            std::cerr << "ChatId::ChatId(std::string) Error: sizeof(ChatLobbyId) != 8. please report this" << std::endl;
+            return;
+        }
+        str = str.substr(1);
+        if(str.size() != 16)
+            return;
+        ChatLobbyId id = 0;
+        for(int i = 0; i<16; i++)
+        {
+            uint8_t c = str[i];
+            if(c <= '9')
+                c -= '0';
+            else
+                c -= 'A' - 10;
+            id = id << 4;
+            id |= c;
+        }
+        type = TYPE_LOBBY;
+        lobby_id = id;
+    }
+    else if(str[0] == 'B')
+    {
+        type = TYPE_BROADCAST;
+    }
+}
+
+ChatId ChatId::makeBroadcastId()
+{
+    ChatId id;
+    id.type = TYPE_BROADCAST;
+    return id;
+}
+
+std::string ChatId::toStdString() const
+{
+    std::string str;
+    if(type == TYPE_PRIVATE)
+    {
+        str += "P";
+        str += peer_id.toStdString();
+    }
+    else if(type == TYPE_PRIVATE_DISTANT)
+    {
+        str += "D";
+        str += distant_chat_id.toStdString();
+    }
+    else if(type == TYPE_LOBBY)
+    {
+        if(sizeof(ChatLobbyId) != 8)
+        {
+            std::cerr << "ChatId::toStdString() Error: sizeof(ChatLobbyId) != 8. please report this" << std::endl;
+            return "";
+        }
+        str += "L";
+
+        ChatLobbyId id = lobby_id;
+        for(int i = 0; i<16; i++)
+        {
+            uint8_t c = id >>(64-4);
+            if(c > 9)
+                c += 'A' - 10;
+            else
+                c += '0';
+            str += c;
+            id = id << 4;
+        }
+    }
+    else if(type == TYPE_BROADCAST)
+    {
+        str += "B";
+    }
+    return str;
+}
+
+bool ChatId::operator <(const ChatId& other) const
+{
+    if(type != other.type)
+        return type < other.type;
+    else
+    {
+        switch(type)
+        {
+        case TYPE_NOT_SET:
+            return false;
+        case TYPE_PRIVATE:
+            return peer_id < other.peer_id;
+        case TYPE_PRIVATE_DISTANT:
+            return distant_chat_id < other.distant_chat_id;
+        case TYPE_LOBBY:
+            return lobby_id < other.lobby_id;
+        case TYPE_BROADCAST:
+            return false;
+        default:
+            return false;
+        }
+    }
+}
+
+bool ChatId::isSameEndpoint(const ChatId &other) const
+{
+    if(type != other.type)
+        return false;
+    else
+    {
+        switch(type)
+        {
+        case TYPE_NOT_SET:
+            return false;
+        case TYPE_PRIVATE:
+            return peer_id == other.peer_id;
+        case TYPE_PRIVATE_DISTANT:
+            return distant_chat_id == other.distant_chat_id;
+        case TYPE_LOBBY:
+            return lobby_id == other.lobby_id;
+        case TYPE_BROADCAST:
+            return true;
+        default:
+            return false;
+        }
+    }
+}
+
+bool ChatId::isNotSet() const
+{
+    return type == TYPE_NOT_SET;
+}
+bool ChatId::isPeerId() const
+{
+    return type == TYPE_PRIVATE;
+}
+bool ChatId::isDistantChatId()  const
+{
+    return type == TYPE_PRIVATE_DISTANT;
+}
+bool ChatId::isLobbyId() const
+{
+    return type == TYPE_LOBBY;
+}
+bool ChatId::isBroadcast() const
+{
+    return type == TYPE_BROADCAST;
+}
+RsPeerId    ChatId::toPeerId()  const
+{
+    if(type == TYPE_PRIVATE)
+        return peer_id;
+    else
+    {
+        std::cerr << "ChatId Warning: conversation to RsPeerId requested, but type is different. Current value=\"" << toStdString() << "\"" << std::endl;
+        return RsPeerId();
+    }
+}
+
+DistantChatPeerId     ChatId::toDistantChatId()   const
+{
+    if(type == TYPE_PRIVATE_DISTANT)
+        return distant_chat_id;
+    else
+    {
+        std::cerr << "ChatId Warning: conversation to DistantChatPeerId requested, but type is different. Current value=\"" << toStdString() << "\"" << std::endl;
+        return DistantChatPeerId();
+    }
+}
+ChatLobbyId ChatId::toLobbyId() const
+{
+    if(type == TYPE_LOBBY)
+        return lobby_id;
+    else
+    {
+        std::cerr << "ChatId Warning: conversation to ChatLobbyId requested, but type is different. Current value=\"" << toStdString() << "\"" << std::endl;
+        return 0;
+    }
+}
+
 
 p3ChatService::p3ChatService( p3ServiceControl *sc, p3IdService *pids,
                               p3LinkMgr *lm, p3HistoryMgr *historyMgr,
@@ -253,8 +473,9 @@ void p3ChatService::sendStatusString( const ChatId& id,
 	}
 }
 
-void p3ChatService::clearChatLobby(const ChatId& id)
+void p3ChatService::clearChatLobby(const ChatId& /*id */)
 {
+    RsWarn() << __PRETTY_FUNCTION__ << " not implemented, and shouldn't be called." ;
 }
 
 void p3ChatService::sendChatItem(RsChatItem *item)

@@ -27,12 +27,11 @@
 #include <string>
 #include <vector>
 
-#include "rsitems/rsmsgitems.h"
 #include "services/p3service.h"
 #include "pqi/pqiservicemonitor.h"
 #include "chat/distantchat.h"
 #include "chat/distributedchat.h"
-#include "retroshare/rsmsgs.h"
+#include "retroshare/rschats.h"
 #include "gxstrans/p3gxstrans.h"
 #include "util/rsdeprecate.h"
 
@@ -93,7 +92,6 @@ public:
 		 */
 	void sendPublicChat(const std::string &msg);
 
-	/********* RsMsgs ***********/
 	/*!
 	 * Send a chat message.
 	 * @param destination where to send the chat message

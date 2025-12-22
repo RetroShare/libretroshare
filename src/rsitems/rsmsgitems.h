@@ -24,7 +24,7 @@
 #include <map>
 
 #include "retroshare/rstypes.h"
-#include "retroshare/rsmsgs.h"
+#include "retroshare/rsmail.h"
 #include "serialiser/rstlvkeys.h"
 #include "rsitems/rsserviceids.h"
 #include "serialiser/rsserial.h"

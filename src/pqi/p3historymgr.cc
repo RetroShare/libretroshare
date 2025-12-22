@@ -26,6 +26,7 @@
 #include "rsitems/rsconfigitems.h"
 #include "retroshare/rsiface.h"
 #include "retroshare/rspeers.h"
+#include "retroshare/rschats.h"
 #include "rsitems/rsmsgitems.h"
 #include "rsserver/p3face.h"
 #include "util/rsstring.h"
@@ -94,7 +95,7 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
 		else if(cm.chat_id.isDistantChatId()&& mDistantEnable == true)
 		{
 			DistantChatPeerInfo dcpinfo;
-			if (rsMsgs->getDistantChatStatus(cm.chat_id.toDistantChatId(), dcpinfo))
+            if (rsChats->getDistantChatStatus(cm.chat_id.toDistantChatId(), dcpinfo))
 			{
 				RsIdentityDetails det;
 				RsGxsId writer_id = cm.incoming?(dcpinfo.to_id):(dcpinfo.own_id);

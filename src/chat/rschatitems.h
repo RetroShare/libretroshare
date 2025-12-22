@@ -34,7 +34,7 @@
 
 #include "serialiser/rstlvidset.h"
 #include "serialiser/rstlvfileitem.h"
-#include "retroshare/rsmsgs.h"
+#include "retroshare/rschats.h"
 
 /* chat Flags */
 const uint32_t RS_CHAT_FLAG_PRIVATE                    = 0x0001;

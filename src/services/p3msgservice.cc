@@ -99,6 +99,8 @@
 
 using namespace Rs::Msgs;
 
+RsMail *rsMail = nullptr;	// extern
+
 //#define DEBUG_DISTANT_MSG
 
 /// keep msg hashes for 2 months to avoid re-sent msgs
@@ -1297,7 +1299,7 @@ void p3MsgService::getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32
 }
 
 /* remove based on the unique mid (stored in sid) */
-bool    p3MsgService::deleteMessage(const std::string& mid)
+bool    p3MsgService::MessageDelete(const std::string& mid)
 {
     uint32_t msgId = strtoul(mid.c_str(), 0, 10);
 
@@ -1377,7 +1379,7 @@ end_deleteMessage:
     return changed;
 }
 
-bool    p3MsgService::markMsgIdRead(const std::string &mid, bool unreadByUser)
+bool p3MsgService::MessageRead(const std::string &mid, bool unreadByUser)
 {
     uint32_t msgId = strtoul(mid.c_str(), NULL, 10);
 
@@ -2858,6 +2860,31 @@ RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,
     return item;
 }
 
+bool p3MsgService::MessageReplied(const std::string &mid, bool replied)
+{
+    return setMsgFlag(mid, replied ? RS_MSG_FLAGS_REPLIED : 0, RS_MSG_FLAGS_REPLIED);
+}
+
+bool p3MsgService::MessageForwarded(const std::string &mid, bool forwarded)
+{
+    return setMsgFlag(mid, forwarded ? RS_MSG_FLAGS_FORWARDED : 0, RS_MSG_FLAGS_FORWARDED);
+}
+
+bool p3MsgService::MessageLoadEmbeddedImages(const std::string &mid, bool load)
+{
+    return setMsgFlag(mid, load ? RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES : 0, RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES);
+}
+
+bool p3MsgService::MessageStar(const std::string &mid, bool star)
+{
+    return setMsgFlag(mid, star ? RS_MSG_FLAGS_STAR : 0, RS_MSG_FLAGS_STAR);
+}
+bool p3MsgService::MessageJunk(const std::string &mid, bool junk)
+{
+    return setMsgFlag(mid, junk ? RS_MSG_FLAGS_SPAM : 0, RS_MSG_FLAGS_SPAM);
+}
+
+
 void p3MsgService::debug_dump()
 {
     std::cerr << "Dump of p3MsgService data:" << std::endl;
@@ -2889,4 +2916,23 @@ void p3MsgService::debug_dump()
     }
 }
 
+void RsMailIdRecipientIdPair::serial_process(
+        RsGenericSerializer::SerializeJob j,
+        RsGenericSerializer::SerializeContext& ctx )
+{
+    RS_SERIAL_PROCESS(mMailId);
+    RS_SERIAL_PROCESS(mRecipientId);
+}
+
+bool RsMailIdRecipientIdPair::operator<(const RsMailIdRecipientIdPair& o) const
+{
+    return std::tie(  mMailId,   mRecipientId) <
+           std::tie(o.mMailId, o.mRecipientId);
+}
+
+bool RsMailIdRecipientIdPair::operator==(const RsMailIdRecipientIdPair& o) const
+{
+    return std::tie(  mMailId,   mRecipientId) ==
+           std::tie(o.mMailId, o.mRecipientId);
+}
 

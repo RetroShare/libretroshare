@@ -44,6 +44,7 @@
 #include "util/folderiterator.h"
 #include "util/rsstring.h"
 #include "retroshare/rsinit.h"
+#include "retroshare/rsmail.h"
 #include "retroshare/rstor.h"
 #include "retroshare/rsiface.h"
 #include "plugins/pluginmanager.h"
@@ -859,7 +860,6 @@ RsGRouter *rsGRouter = NULL ;
 /* Implemented Rs Interfaces */
 #include "rsserver/p3face.h"
 #include "rsserver/p3peers.h"
-#include "rsserver/p3msgs.h"
 #include "rsserver/p3status.h"
 #include "rsserver/p3history.h"
 #include "rsserver/p3serverconfig.h"
@@ -1589,7 +1589,7 @@ int RsServer::StartupRetroShare()
 	mGxsNetTunnel->connectToTurtleRouter(tr) ;
 
 	rsGossipDiscovery.reset(mDisc);
-	rsMsgs  = new p3Msgs(msgSrv, chatSrv);
+    rsMail  = msgSrv;
 
 	// connect components to turtle router.
 
@@ -1615,7 +1615,7 @@ int RsServer::StartupRetroShare()
 	RsPlugInInterfaces interfaces;
 	interfaces.mFiles  = rsFiles;
 	interfaces.mPeers  = rsPeers;
-	interfaces.mMsgs   = rsMsgs;
+    interfaces.mMail   = rsMail;
 	interfaces.mTurtle = rsTurtle;
 	interfaces.mDisc   = rsDisc;
 #ifdef RS_USE_BITDHT

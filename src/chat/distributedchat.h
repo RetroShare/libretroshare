@@ -22,7 +22,7 @@
 #pragma once
 
 #include <retroshare/rstypes.h>
-#include <retroshare/rsmsgs.h>
+#include <retroshare/rschats.h>
 #include <retroshare/rsservicecontrol.h>
 
 typedef RsPeerId ChatLobbyVirtualPeerId ;

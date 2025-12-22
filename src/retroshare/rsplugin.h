@@ -41,7 +41,8 @@ class RsReputations ;
 class RsTurtle ;
 class RsGxsTunnelService ;
 class RsDht ;
-class RsMsgs ;
+class RsMail ;
+class RsChats ;
 class RsGxsForums;
 class RsGxsChannels;
 class RsNotify;
@@ -111,7 +112,8 @@ class RsPlugInInterfaces {
 public:
     RsUtil::inited_ptr<RsPeers>  mPeers;
     RsUtil::inited_ptr<RsFiles>  mFiles;
-    RsUtil::inited_ptr<RsMsgs>   mMsgs;
+    RsUtil::inited_ptr<RsChats>  mChats;
+    RsUtil::inited_ptr<RsMail>   mMail;
     RsUtil::inited_ptr<RsTurtle> mTurtle;
     RsUtil::inited_ptr<RsDisc>   mDisc;
     RsUtil::inited_ptr<RsDht>    mDht;
