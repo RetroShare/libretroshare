@@ -65,6 +65,7 @@ struct RsChatMessageEvent : RsEvent
   * @see NotifyBase
   */
 class p3ChatService :
+        public RsChats,
         public p3Service, public DistantChatService, public DistributedChatService, public p3Config,
         public pqiServiceMonitor, GxsTransClient
 {
@@ -72,7 +73,7 @@ public:
 	p3ChatService(p3ServiceControl *cs, p3IdService *pids, p3LinkMgr *cm,
 	               p3HistoryMgr *historyMgr, p3GxsTrans& gxsTransService );
 
-	virtual RsServiceInfo getServiceInfo();
+    virtual RsServiceInfo getServiceInfo()override;
 
 	/***** overloaded from p3Service *****/
 	/*!
@@ -82,10 +83,10 @@ public:
 		 * : notifyCustomState, notifyChatStatus, notifyPeerHasNewAvatar
 		 * @see NotifyBase
 		 */
-	virtual int tick();
+    virtual int tick()override;
 
 	/*************** pqiMonitor callback ***********************/
-	virtual void statusChange(const std::list<pqiServicePeer> &plist);
+    virtual void statusChange(const std::list<pqiServicePeer> &plist)override;
 
 	/*!
 		 * public chat sent to all peers
@@ -98,7 +99,7 @@ public:
 	 * @param msg the message
 	 * @see ChatId
 	 */
-	bool sendChat(ChatId destination, std::string msg);
+    bool sendChat(ChatId destination, std::string msg)override;
 
 	/*!
 		 * chat is sent to specifc peer
@@ -110,13 +111,36 @@ public:
 	 * can be used to send 'immediate' status msgs, these status updates are
 	 * meant for immediate use by peer (not saved by rs) e.g currently used to
 	 * update user when a peer 'is typing' during a chat */
-	void sendStatusString( const ChatId& id, const std::string& status_str );
+    void sendStatusString( const ChatId& id, const std::string& status_str )override;
 
 	/**
 	 * @brief clearChatLobby: Signal chat was cleared by GUI.
 	 * @param id: Chat id cleared.
 	 */
-	virtual void clearChatLobby(const ChatId& id);
+
+    /** methods that will call the DistributedChatService parent
+     */
+    virtual void getChatLobbyList(std::list<ChatLobbyId>& lids) override;
+    virtual void clearChatLobby(const ChatId& id)override;
+    virtual bool getChatLobbyInfo(const ChatLobbyId& id,ChatLobbyInfo& info) override;
+    virtual void getListOfNearbyChatLobbies(std::vector<VisibleChatLobbyRecord>& public_lobbies) override;
+    virtual void invitePeerToLobby(const ChatLobbyId &lobby_id, const RsPeerId &peer_id) override;
+    virtual bool denyLobbyInvite(const ChatLobbyId &id) override ;
+    virtual bool acceptLobbyInvite(const ChatLobbyId& id,const RsGxsId& gxs_id) override;
+    virtual void getPendingChatLobbyInvites(std::list<ChatLobbyInvite> &invites) override;
+    virtual void unsubscribeChatLobby(const ChatLobbyId& lobby_id) override;
+    virtual void sendLobbyStatusPeerLeaving(const ChatLobbyId& lobby_id) override;
+    virtual bool setIdentityForChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& nick) override;
+    virtual bool getIdentityForChatLobby(const ChatLobbyId& lobby_id,RsGxsId& nick_name) override;
+    virtual bool setDefaultIdentityForChatLobby(const RsGxsId& nick) override;
+    virtual void getDefaultIdentityForChatLobby(RsGxsId& nick_name) override;
+    virtual void setLobbyAutoSubscribe(const ChatLobbyId& lobby_id, const bool autoSubscribe) override;
+    virtual bool getLobbyAutoSubscribe(const ChatLobbyId& lobby_id) override;
+    virtual bool setDistantChatPermissionFlags(uint32_t flags) override;
+    virtual uint32_t getDistantChatPermissionFlags() override;
+    virtual bool getDistantChatStatus(const DistantChatPeerId& pid,DistantChatPeerInfo& info) override;
+    virtual bool closeDistantChatConnexion(const DistantChatPeerId &pid) override;
+    virtual ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags privacy_type) override;
 
 	/*!
 		 * send to all peers online
@@ -128,42 +152,42 @@ public:
 		 * this retrieves custom status for a peers, generate a requests to the peer
 		 * @param peer_id the id of the peer you want status string for
 		 */
-	std::string getCustomStateString(const RsPeerId& peer_id) ;
+    virtual std::string getCustomStateString(const RsPeerId& peer_id) override;
 
 	/*!
 		 * sets the client's custom status, generates 'status available' item sent to all online peers
 		 */
-	void  setOwnCustomStateString(const std::string&) ;
+    virtual void  setCustomStateString(const std::string&) override;
 
 	/*!
 		 * @return client's custom string
 		 */
-	std::string getOwnCustomStateString() ;
+    virtual std::string getOwnCustomStateString() override;
 
 	/*! gets the peer's avatar in jpeg format, if available. Null otherwise. Also asks the peer to send
 		* its avatar, if not already available. Creates a new unsigned char array. It's the caller's
 		* responsibility to delete this ones used.
 		*/
-	void getAvatarJpegData(const RsPeerId& peer_id,unsigned char *& data,int& size) ;
+    void getAvatarData(const RsPeerId& peer_id,unsigned char *& data,int& size) override;
 
 	/*!
 		 * Sets the avatar data and size for client's account
 		 * @param data is copied, so should be destroyed by the caller
 		 */
-    void setOwnNodeAvatarJpegData(const unsigned char *data,int size) ;
+    void setOwnNodeAvatarData(const unsigned char *data,int size) override;
 
 	/*!
 		 * Gets the avatar data for clients account
 		 * data is in jpeg format
 		 */
-	void getOwnAvatarJpegData(unsigned char *& data,int& size) ;
+    void getOwnNodeAvatarData(unsigned char *& data,int& size) override;
 
 	/*!
 		 * Return the max message size for security forwarding
 		 * @param type RS_CHAT_TYPE_...
 		 * return 0 unlimited
 		 */
-	static uint32_t getMaxMessageSecuritySize(int type);
+    uint32_t getMaxMessageSecuritySize(int type)override;
 
 	/*!
 		 * Checks message security, especially remove billion laughs attacks
@@ -180,37 +204,38 @@ public:
 	                                           const RsGxsId& from_gxs_id,
 	                                           DistantChatPeerId &pid,
 	                                           uint32_t& error_code,
-	                                           bool notify = true );
+                                               bool notify = true )override;
 
 	/// @see GxsTransClient::receiveGxsTransMail(...)
 	virtual bool receiveGxsTransMail( const RsGxsId& authorId,
 	                                  const RsGxsId& recipientId,
-	                                  const uint8_t* data, uint32_t dataSize );
+                                      const uint8_t* data, uint32_t dataSize )override;
 
 	/// @see GxsTransClient::notifySendMailStatus(...)
 	virtual bool notifyGxsTransSendStatus( RsGxsTransId mailId,
-	                                       GxsTransSendStatus status );
+                                           GxsTransSendStatus status )override;
 
+    virtual bool joinVisibleChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& own_id) override;
 
 protected:
 	/************* from p3Config *******************/
-	virtual RsSerialiser *setupSerialiser() ;
+    virtual RsSerialiser *setupSerialiser() override;
 
 	/*!
 		 * chat msg items and custom status are saved
 		 */
-	virtual bool saveList(bool& cleanup, std::list<RsItem*>&) ;
-	virtual void saveDone();
-	virtual bool loadList(std::list<RsItem*>& load) ;
+    virtual bool saveList(bool& cleanup, std::list<RsItem*>&) override;
+    virtual void saveDone()override;
+    virtual bool loadList(std::list<RsItem*>& load) override;
 
 	// accepts virtual peer id
 	bool isOnline(const RsPeerId &pid) ;
 
 	/// This is to be used by subclasses/parents to call IndicateConfigChanged()
-	virtual void triggerConfigSave()  { IndicateConfigChanged() ; }
+    virtual void triggerConfigSave()override  { IndicateConfigChanged() ; }
 
 	/// Same, for storing messages in incoming list
-	RS_DEPRECATED virtual void locked_storeIncomingMsg(RsChatMsgItem *) ;
+    RS_DEPRECATED virtual void locked_storeIncomingMsg(RsChatMsgItem *) override;
 
 private:
 	RsMutex mChatMtx;
@@ -220,9 +245,9 @@ private:
 
 	// Receive chat queue
 	void receiveChatQueue();
-	void handleIncomingItem(RsItem *);	// called by the former, and turtle handler for incoming encrypted items
+    void handleIncomingItem(RsItem *)override;	// called by the former, and turtle handler for incoming encrypted items
 
-	virtual void sendChatItem(RsChatItem *) ;
+    virtual void sendChatItem(RsChatItem *) override;
 
 	void initChatMessage(RsChatMsgItem *c, ChatMessage& msg);
 
@@ -237,7 +262,7 @@ private:
 	void receiveStateString(const RsPeerId& id,const std::string& s) ;
 
 	/// methods for handling various Chat items.
-	virtual bool handleRecvChatMsgItem(RsChatMsgItem *&item) ;			// NULL-ifies the item if memory ownership is taken
+    virtual bool handleRecvChatMsgItem(RsChatMsgItem *&item)override ;			// NULL-ifies the item if memory ownership is taken
     
 	void handleRecvChatStatusItem(RsChatStatusItem *item) ;
 	void handleRecvChatAvatarItem(RsChatAvatarItem *item) ;

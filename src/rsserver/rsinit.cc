@@ -1590,6 +1590,7 @@ int RsServer::StartupRetroShare()
 
 	rsGossipDiscovery.reset(mDisc);
     rsMail  = msgSrv;
+    rsChats = chatSrv;
 
 	// connect components to turtle router.
 
