@@ -134,7 +134,6 @@ PUBLIC_HEADERS =	retroshare/rsdisc.h \
 					retroshare/rsiface.h \
 					retroshare/rsinit.h \
 					retroshare/rsplugin.h \
-//					retroshare/rsmsgs.h \
                                         retroshare/rschats.h \
                                         retroshare/rsmail.h \
 					retroshare/rschat.h \

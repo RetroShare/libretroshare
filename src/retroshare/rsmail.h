@@ -229,7 +229,7 @@ struct MsgInfoSummary : RsSerializable
     MsgAddress from;
     MsgAddress to;						// specific address the message has been sent to (may be used for e.g. reply)
 
-    uint32_t msgflags;		// combination of flags from rsmsgs.h (RS_MSG_OUTGOING, etc)
+    uint32_t msgflags;		// combination of flags from rsmail.h (RS_MSG_OUTGOING, etc)
     MsgTagInfo msgtags;
 
 	std::string title;

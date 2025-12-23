@@ -2017,7 +2017,7 @@ bool p3MsgService::setMessageTag(const std::string& msgId, uint32_t tagId, bool 
             msi->tagIds.insert(tagId);
             ev->mChangedMsgIds.insert(msgId); // normally we should check whether the tag already exists or not.
         }
-        else if(tagId==0)		// See rsmsgs.h. tagId=0 => erase all tags.
+        else if(tagId==0)		// See rsmail.h. tagId=0 => erase all tags.
         {
             msi->tagIds.clear();
             ev->mChangedMsgIds.insert(msgId);
