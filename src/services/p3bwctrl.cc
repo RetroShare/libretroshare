@@ -269,6 +269,8 @@ int p3BandwidthControl::getAllBandwidthRates(std::map<RsPeerId, RsConfigDataRate
         	rates.mQueueIn = bit->second.mRates.mQueueIn;
         	rates.mQueueOut = bit->second.mRates.mQueueOut;
 
+		mPg->getPeerTotalTraffic(bit->first, rates.mTotalIn, rates.mTotalOut);
+
 		ratemap[bit->first] = rates;
 	}			
 	return true ;

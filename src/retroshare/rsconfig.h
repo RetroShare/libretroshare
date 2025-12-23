@@ -149,7 +149,8 @@ struct RsConfigDataRates : RsSerializable
 	    mAllocTs(0),
 	    mRateOut(0), mRateMaxOut(0), mAllowedOut(0),
 	    mAllowedTs(0),
-	    mQueueIn(0), mQueueOut(0)
+	    mQueueIn(0), mQueueOut(0),
+	    mTotalIn(0), mTotalOut(0)
 	{}
 
 	/* all in kB/s */
@@ -168,6 +169,9 @@ struct RsConfigDataRates : RsSerializable
 	int	mQueueIn;
 	int	mQueueOut;
 
+	uint64_t mTotalIn;
+	uint64_t mTotalOut;
+
 	// RsSerializable interface
 	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) {
 		RS_SERIAL_PROCESS(mRateIn);
@@ -184,6 +188,8 @@ struct RsConfigDataRates : RsSerializable
 
 		RS_SERIAL_PROCESS(mQueueIn);
 		RS_SERIAL_PROCESS(mQueueOut);
+		RS_SERIAL_PROCESS(mTotalIn);
+		RS_SERIAL_PROCESS(mTotalOut);
 	}
 };
 

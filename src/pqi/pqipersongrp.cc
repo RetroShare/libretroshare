@@ -395,6 +395,20 @@ bool pqipersongrp::getCryptoParams(const RsPeerId& id,RsPeerCryptoParams& params
 	//return locked_getCryptoParams(id,params) ;
 }
 
+bool pqipersongrp::getPeerTotalTraffic(const RsPeerId& id, uint64_t& in, uint64_t& out)
+{
+    RsStackMutex stack(coreMtx); /******* LOCKED MUTEX **********/
+
+    std::map<RsPeerId, SearchModule *>::iterator it = mods.find(id) ;
+
+    if(it == mods.end())
+        return false ;
+
+    in = it->second->pqi->getTraffic(true);
+    out = it->second->pqi->getTraffic(false);
+    return true;
+
+
 int     pqipersongrp::addPeer(const RsPeerId& id)
 {
 	pqioutput(PQL_DEBUG_BASIC, pqipersongrpzone, "pqipersongrp::addPeer() PeerId: " + id.toStdString());

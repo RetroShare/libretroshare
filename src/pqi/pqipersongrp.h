@@ -91,6 +91,7 @@ virtual int tick();
 virtual int status();
 
 virtual bool getCryptoParams(const RsPeerId&,RsPeerCryptoParams&) ;
+    virtual bool getPeerTotalTraffic(const RsPeerId& id, uint64_t& in, uint64_t& out);
 	protected:
 
 virtual bool locked_getCryptoParams(const RsPeerId&, RsPeerCryptoParams&) { return false ;}
