@@ -120,6 +120,9 @@ public:
 
     /** methods that will call the DistributedChatService parent
      */
+    virtual ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags privacy_type) override;
+    virtual bool joinVisibleChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& own_id) override;
+    virtual void unsubscribeChatLobby(const ChatLobbyId& lobby_id) override;
     virtual void getChatLobbyList(std::list<ChatLobbyId>& lids) override;
     virtual void clearChatLobby(const ChatId& id)override;
     virtual bool getChatLobbyInfo(const ChatLobbyId& id,ChatLobbyInfo& info) override;
@@ -128,7 +131,6 @@ public:
     virtual bool denyLobbyInvite(const ChatLobbyId &id) override ;
     virtual bool acceptLobbyInvite(const ChatLobbyId& id,const RsGxsId& gxs_id) override;
     virtual void getPendingChatLobbyInvites(std::list<ChatLobbyInvite> &invites) override;
-    virtual void unsubscribeChatLobby(const ChatLobbyId& lobby_id) override;
     virtual void sendLobbyStatusPeerLeaving(const ChatLobbyId& lobby_id) override;
     virtual bool setIdentityForChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& nick) override;
     virtual bool getIdentityForChatLobby(const ChatLobbyId& lobby_id,RsGxsId& nick_name) override;
@@ -136,11 +138,13 @@ public:
     virtual void getDefaultIdentityForChatLobby(RsGxsId& nick_name) override;
     virtual void setLobbyAutoSubscribe(const ChatLobbyId& lobby_id, const bool autoSubscribe) override;
     virtual bool getLobbyAutoSubscribe(const ChatLobbyId& lobby_id) override;
+
+    /** methods that will call the DistantChatService parent
+     */
     virtual bool setDistantChatPermissionFlags(uint32_t flags) override;
     virtual uint32_t getDistantChatPermissionFlags() override;
     virtual bool getDistantChatStatus(const DistantChatPeerId& pid,DistantChatPeerInfo& info) override;
     virtual bool closeDistantChatConnexion(const DistantChatPeerId &pid) override;
-    virtual ChatLobbyId createChatLobby(const std::string& lobby_name,const RsGxsId& lobby_identity,const std::string& lobby_topic,const std::set<RsPeerId>& invited_friends,ChatLobbyFlags privacy_type) override;
 
 	/*!
 		 * send to all peers online
@@ -214,8 +218,6 @@ public:
 	/// @see GxsTransClient::notifySendMailStatus(...)
 	virtual bool notifyGxsTransSendStatus( RsGxsTransId mailId,
                                            GxsTransSendStatus status )override;
-
-    virtual bool joinVisibleChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& own_id) override;
 
 protected:
 	/************* from p3Config *******************/
