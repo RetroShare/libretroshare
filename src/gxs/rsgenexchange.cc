@@ -2062,19 +2062,24 @@ void RsGenExchange::processMsgMetaChanges()
 
     GxsMsgReq msgIds;
 
+    // --- OPTIMIZATION START ---
+    // Prepare vectors for batch processing
+    std::vector<MsgLocMetaData> batchMetaData;
+    std::vector<uint32_t> batchTokens;
+    std::vector<bool> batchChanged;
+
     std::map<uint32_t, MsgLocMetaData>::iterator mit;
+    
+    // 1. PREPARATION PHASE
     for (mit = metaMap.begin(); mit != metaMap.end(); ++mit)
     {
         MsgLocMetaData& m = mit->second;
 
-		int32_t value, mask;
-        bool ok = true;
+        int32_t value, mask;
         bool changed = false;
 
-        // for meta flag changes get flag to apply mask
         if(m.val.getAsInt32(RsGeneralDataService::MSG_META_STATUS, value))
         {
-            ok = false;
             if(m.val.getAsInt32(RsGeneralDataService::MSG_META_STATUS+GXS_MASK, mask))
             {
                 GxsMsgReq req;
@@ -2083,29 +2088,44 @@ void RsGenExchange::processMsgMetaChanges()
                 req.insert(std::make_pair(m.msgId.first, msgIdV));
                 GxsMsgMetaResult result;
                 mDataStore->retrieveGxsMsgMetaData(req, result);
-                GxsMsgMetaResult::iterator mit = result.find(m.msgId.first);
+                GxsMsgMetaResult::iterator mit_res = result.find(m.msgId.first);
 
-                if(mit != result.end())
+                if(mit_res != result.end())
                 {
-                    const auto& msgMetaV = mit->second;
+                    const auto& msgMetaV = mit_res->second;
 
                     if(!msgMetaV.empty())
                     {
                         const auto& meta = *(msgMetaV.begin());
                         value = (meta->mMsgStatus & ~mask) | (mask & value);
-						changed = (static_cast<int64_t>(meta->mMsgStatus) != value);
+                        changed = (static_cast<int64_t>(meta->mMsgStatus) != value);
                         m.val.put(RsGeneralDataService::MSG_META_STATUS, value);
-                        ok = true;
                     }
                 }
                 m.val.removeKeyValue(RsGeneralDataService::MSG_META_STATUS+GXS_MASK);
             }
         }
 
-        ok &= mDataStore->updateMessageMetaData(m) == 1;
-        uint32_t token = mit->first;
+        batchMetaData.push_back(m);
+        batchTokens.push_back(mit->first);
+        batchChanged.push_back(changed);
+    }
 
-        if(ok)
+    // 2. EXECUTION PHASE (Batch Write)
+    bool batchSuccess = false;
+    if(!batchMetaData.empty())
+    {
+        batchSuccess = (mDataStore->updateMessageMetaData(batchMetaData) == 1);
+    }
+
+    // 3. POST-PROCESSING (Notifications & Tokens)
+    for(size_t i=0; i < batchMetaData.size(); ++i)
+    {
+        uint32_t token = batchTokens[i];
+        bool changed = batchChanged[i];
+        const MsgLocMetaData& m = batchMetaData[i];
+
+        if(batchSuccess)
         {
             mDataAccess->updatePublicRequestStatus(token, RsTokenService::COMPLETE);
             if (changed)
@@ -2123,14 +2143,33 @@ void RsGenExchange::processMsgMetaChanges()
             mMsgNotify.insert(std::make_pair(token, m.msgId));
         }
     }
+    // --- OPTIMIZATION END ---
 
+    // --- GUI CRASH FIX (Anti-Flood) ---
     if (!msgIds.empty())
     {
         RS_STACK_MUTEX(mGenMtx);
 
-        for(auto it(msgIds.begin());it!=msgIds.end();++it)
-            for(auto& msg_id:it->second)
-				mNotifications.push_back(new RsGxsMsgChange(RsGxsNotify::TYPE_PROCESSED, it->first, msg_id, false));
+        for(auto it = msgIds.begin(); it != msgIds.end(); ++it)
+        {
+            const RsGxsGroupId& grpId = it->first;
+            const std::set<RsGxsMessageId>& msgs = it->second;
+
+            // PROTECTION THRESHOLD: If more than 10 messages change in the same group,
+            // send a single global notification.
+            // This prevents the UI from freezing due to thousands of events.
+            if(msgs.size() > 10) 
+            {
+                 // TYPE_STATISTICS_CHANGED forces the group tree to re-calculate counters
+                 mNotifications.push_back(new RsGxsGroupChange(RsGxsNotify::TYPE_STATISTICS_CHANGED, grpId, false));
+            }
+            else
+            {
+                // Standard behavior for individual clicks
+                for(const auto& msg_id : msgs)
+                    mNotifications.push_back(new RsGxsMsgChange(RsGxsNotify::TYPE_PROCESSED, grpId, msg_id, false));
+            }
+        }
     }
 }
 

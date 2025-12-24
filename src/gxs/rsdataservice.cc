@@ -1581,6 +1581,91 @@ int RsDataService::updateMessageMetaData(const MsgLocMetaData& metaData)
     return 0;
 }
 
+// --- OPTIMIZATION START (Batch Update) ---
+int RsDataService::updateMessageMetaData(const std::vector<MsgLocMetaData>& metaDataList)
+{
+    if(metaDataList.empty()) return 1;
+
+#ifdef RS_DATA_SERVICE_DEBUG
+    std::cerr << "RsDataService: Starting Batch Update for " << metaDataList.size() << " messages." << std::endl;
+#endif
+
+    RsStackMutex stack(mDbMutex);
+
+    // 1. START GLOBAL TRANSACTION
+    // Critical for performance: SQLite will perform a single fsync at the end.
+    if (!mDb->beginTransaction())
+    {
+        std::cerr << "RsDataService::updateMessageMetaData(batch) failed to begin transaction." << std::endl;
+        return 0;
+    }
+
+    bool globalSuccess = true;
+    int successCount = 0;
+
+    for(std::vector<MsgLocMetaData>::const_iterator it = metaDataList.begin(); it != metaDataList.end(); ++it)
+    {
+        const MsgLocMetaData& metaData = *it;
+        const RsGxsGroupId& grpId = metaData.msgId.first;
+        const RsGxsMessageId& msgId = metaData.msgId.second;
+
+        // Perform SQL UPDATE (Fast because it's in-memory due to transaction)
+        if(mDb->sqlUpdate(MSG_TABLE_NAME,  KEY_GRP_ID+ "='" + grpId.toStdString() + "' AND " + KEY_MSG_ID + "='" + msgId.toStdString() + "'", metaData.val) )
+        {
+            successCount++;
+            
+            // --- CACHE OPTIMIZATION (In-Memory Update) ---
+            // Instead of re-reading DB (Slow), we update the object in memory if it exists.
+            if(mUseCache)
+            {
+                // 1. Look up group cache first
+                auto grpCacheIt = mMsgMetaDataCache.find(grpId);
+                
+                if (grpCacheIt != mMsgMetaDataCache.end())
+                {
+                    // 2. Look up message in this group's cache
+                    std::shared_ptr<RsGxsMsgMetaData> cachedMeta = grpCacheIt->second.getMeta(msgId);
+                    
+                    if (cachedMeta)
+                    {
+                        // 3. HIT! Message is in memory (displayed). Update C++ object directly.
+                        int32_t intVal;
+
+                        // Update Status (Read/Unread/New...)
+                        if(metaData.val.getAsInt32(KEY_MSG_STATUS, intVal))
+                            cachedMeta->mMsgStatus = intVal;
+                            
+                        // Update Flags
+                        if(metaData.val.getAsInt32(KEY_NXS_FLAGS, intVal))
+                            cachedMeta->mMsgFlags = intVal;
+                    }
+                }
+                // MISS: If message is not in cache, do nothing. 
+                // Next DB read will fetch the updated version.
+            }
+            // --- END CACHE OPTIMIZATION ---
+        }
+        else
+        {
+            std::cerr << "RsDataService::updateMessageMetaData(batch) failed for msgId: " << msgId << std::endl;
+            globalSuccess = false; 
+        }
+    }
+
+    // 2. COMMIT TRANSACTION
+    if (globalSuccess || successCount > 0)
+    {
+        mDb->commitTransaction();
+    }
+    else
+    {
+        mDb->rollbackTransaction();
+    }
+
+    return globalSuccess ? 1 : 0;
+}
+// --- OPTIMIZATION END ---
+
 int RsDataService::removeMsgs(const GxsMsgReq& msgIds)
 {
     RsStackMutex stack(mDbMutex);

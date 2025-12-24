@@ -26,6 +26,8 @@
 #include <memory>
 #include <cstdint>
 #include <cerrno>
+#include <unistd.h>
+#include <ctime>
 
 #include "util/rstime.h"
 #include "util/retrodb.h"
@@ -238,48 +240,61 @@ bool RetroDb::execSQL(const std::string &query){
     return ok;
 }
 
-RetroCursor* RetroDb::sqlQuery(const std::string& tableName, const std::list<std::string>& columns,
-                               const std::string& selection, const std::string& orderBy){
+RetroCursor* RetroDb::sqlQuery(const std::string& table, const std::list<std::string>& colu, const std::string& selection, const std::string& sort)
+{
+    std::string sql = "SELECT ";
 
-    if(tableName.empty() || columns.empty()){
-        std::cerr << "RetroDb::sqlQuery(): No table or columns given" << std::endl;
+    if(colu.empty()){
+        sql += "*";
+    }else{
+        for(std::list<std::string>::const_iterator it = colu.begin(); it != colu.end(); ++it){
+            if(it != colu.begin()){
+                sql += ", ";
+            }
+            sql += *it;
+        }
+    }
+
+    sql += " FROM " + table;
+
+    if(!selection.empty()){
+        sql += " WHERE " + selection;
+    }
+
+    if(!sort.empty()){
+        sql += " ORDER BY " + sort;
+    }
+
+    sql += ";";
+
+    sqlite3_stmt *stmt;
+    
+    // --- RETRY LOOP START ---
+    int rc;
+    time_t start_time = time(NULL);
+    
+    do {
+        rc = sqlite3_prepare_v2(mDb, sql.c_str(), -1, &stmt, 0);
+        
+        if (rc == SQLITE_BUSY || rc == SQLITE_LOCKED) {
+            // Wait 10ms (needs #include <unistd.h>)
+            usleep(10000); 
+        } else {
+            break; 
+        }
+    } while (difftime(time(NULL), start_time) < TIME_LIMIT);
+    // --- RETRY LOOP END ---
+
+    if(rc != SQLITE_OK){
+        if(rc == SQLITE_BUSY){
+             std::cerr << "RetroDb::sqlQuery() SQLITE_BUSY timeout! " << sql << std::endl;
+        } else {
+             std::cerr << "RetroDb::sqlQuery() SQL Error : " << sqlite3_errmsg(mDb) << std::endl;
+        }
         return NULL;
     }
 
-    std::string columnSelection; // the column names to return
-    sqlite3_stmt* stmt = NULL;
-    std::list<std::string>::const_iterator it = columns.begin();
-
-    for(; it != columns.end(); ++it){
-        if (it != columns.begin()) {
-            columnSelection += ",";
-        }
-
-        columnSelection += *it;
-    }
-
-    // construct query
-    // SELECT columnSelection FROM tableName WHERE selection
-    std::string sqlQuery = "SELECT " + columnSelection + " FROM " +
-                           tableName;
-
-    // add selection clause if present
-    if(!selection.empty())
-        sqlQuery += " WHERE " + selection;
-
-
-    // add 'order by' clause if present
-    if(!orderBy.empty())
-        sqlQuery += " ORDER BY " + orderBy + ";";
-    else
-        sqlQuery += ";";
-
-#ifdef RETRODB_DEBUG
-    std::cerr << "RetroDb::sqlQuery(): " << sqlQuery << std::endl;
-#endif
-
-    sqlite3_prepare_v2(mDb, sqlQuery.c_str(), sqlQuery.length(), &stmt, NULL);
-    return (new RetroCursor(stmt));
+    return new RetroCursor(stmt);
 }
 
 bool RetroDb::isOpen() const {
@@ -801,32 +816,42 @@ bool RetroCursor::open(sqlite3_stmt *stm){
 
 }
 
-bool RetroCursor::moveToNext(){
-
-#ifdef RETRODB_DEBUG
-    std::cerr << "RetroCursor::moveToNext()\n";
-#endif
-
-    if(!isOpen())
+bool RetroCursor::moveToNext()
+{
+    if(!mStmt){
+        std::cerr << "RetroDb::moveToNext() Invalid Statement" << std::endl;
         return false;
+    }
 
-    int rc = sqlite3_step(mStmt);
+    // --- RETRY LOOP START ---
+    int rc;
+    time_t start_time = time(NULL);
+
+    do {
+        rc = sqlite3_step(mStmt);
+
+        if (rc == SQLITE_BUSY || rc == SQLITE_LOCKED) {
+             usleep(10000); // Wait 10ms
+        } else {
+            break; // Success, Row, or Error
+        }
+    } while (difftime(time(NULL), start_time) < 3.0); // 3 seconds timeout
+    // --- RETRY LOOP END ---
 
     if(rc == SQLITE_ROW){
         return true;
-
-    }else if(rc == SQLITE_DONE){ // no more results
+    }else if(rc == SQLITE_DONE){
         return false;
-    }
-    else if(rc == SQLITE_BUSY){ // should not enter here
+    }else if(rc == SQLITE_BUSY){ // should not enter here
         std::cerr << "RetroDb::moveToNext()\n" ;
-        std::cerr << "Busy!, possible multiple accesses to Db" << std::endl
-                  << "serious error";
-
+        std::cerr << "Busy!, possible multiple accesses to Db"
+#ifndef _WIN32
+        //<< "\n Backtrace:\n" << BackTrace::st_getBackTrace()
+#endif
+        << std::endl;
         return false;
-
     }else{
-        std::cerr << "Error executing statement (code: " << rc << ")\n";
+        std::cerr << "RetroDb::moveToNext() : " << rc << std::endl;
         return false;
     }
 }

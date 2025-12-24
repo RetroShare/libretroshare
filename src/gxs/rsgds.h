@@ -248,6 +248,19 @@ public:
      */
     virtual int updateMessageMetaData(const MsgLocMetaData& metaData) = 0;
 
+    // --- OPTIMIZATION START (Batch Interface) ---
+    /*!
+     * Updates a list of message metadata.
+     * Default implementation falls back to iterative update if not overridden.
+     */
+    virtual int updateMessageMetaData(const std::vector<MsgLocMetaData>& metaDataList)
+    {
+        int ret = 1;
+        for(const auto& m : metaDataList) ret &= updateMessageMetaData(m);
+        return ret;
+    }
+    // --- OPTIMIZATION END ---
+
     /*!
      * @param metaData
      */

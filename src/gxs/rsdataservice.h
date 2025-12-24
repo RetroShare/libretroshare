@@ -242,6 +242,16 @@ public:
      */
     int updateMessageMetaData(const MsgLocMetaData& metaData) override;
 
+    // --- OPTIMIZATION START (Batch Update) ---
+    /*!
+     * Updates a list of message metadata in a single transaction.
+     * This is significantly faster than calling updateMessageMetaData iteratively.
+     * @param metaDataList Vector of meta data items to update
+     * @return error code (1 on success, 0 on failure)
+     */
+    int updateMessageMetaData(const std::vector<MsgLocMetaData>& metaDataList);
+    // --- OPTIMIZATION END ---
+
     /*!
      * @param metaData The meta data item to update
      * @return error code
