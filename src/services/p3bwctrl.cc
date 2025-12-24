@@ -27,6 +27,7 @@
 
 #include "services/p3bwctrl.h"
 #include "rsitems/rsbwctrlitems.h"
+#include "retroshare/rsturtle.h"
 
 #include <sys/time.h>
 
@@ -242,6 +243,25 @@ int  p3BandwidthControl::getTotalBandwidthRates(RsConfigDataRates &rates)
 
 	rates.mQueueIn = mTotalRates.mQueueIn;
 	rates.mQueueOut = mTotalRates.mQueueOut;
+
+	/* Sum up traffic from all connected peers */
+	std::map<RsPeerId, BwCtrlData>::iterator bit;
+	for(bit = mBwMap.begin(); bit != mBwMap.end(); ++bit)
+	{
+		uint64_t tin = 0;
+		uint64_t tout = 0;
+		mPg->getPeerTotalTraffic(bit->first, tin, tout);
+		rates.mTotalIn += tin;
+		rates.mTotalOut += tout;
+	}
+
+	if (rsTurtle)
+	{
+		TurtleTrafficStatisticsInfo tinfo;
+		rsTurtle->getTrafficStatistics(tinfo);
+		rates.mRateIn += tinfo.total_dn_Bps / 1024.0f;
+		rates.mRateOut += tinfo.total_up_Bps / 1024.0f;
+	}
 
 	return 1;
 }
