@@ -97,7 +97,7 @@
 #include <map>
 #include <sstream>
 
-using namespace Rs::Msgs;
+using namespace Rs::Mail;
 
 RsMail *rsMail = nullptr;	// extern
 
@@ -323,15 +323,15 @@ int p3MsgService::incomingMsgs()	// direct node-to-node messages
 	while((mi = (RsMsgItem *) recvItem()) != NULL)
 	{
         handleIncomingItem(mi,
-                           Rs::Msgs::MsgAddress(mi->PeerId(),            Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
-                           Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+                           Rs::Mail::MsgAddress(mi->PeerId(),            Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Mail::MsgAddress(mServiceCtrl->getOwnId(),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO));
         ++i ;
 	}
 
 	return i;
 }
 
-void p3MsgService::handleIncomingItem(RsMsgItem *mi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to)
+void p3MsgService::handleIncomingItem(RsMsgItem *mi,const Rs::Mail::MsgAddress& from,const Rs::Mail::MsgAddress& to)
 {
 	// only returns true when a msg is complete.
 	if(checkAndRebuildPartialMessage(mi))
@@ -726,9 +726,9 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
         RsErr() << "  Loaded msg source pair (msg=" << psrc->msgId << ", src_id=" << psrc->srcId << ")";
 
         if(mit->second->msg.msgFlags & RS_MSG_FLAGS_DISTANT)
-            mit->second->from = Rs::Msgs::MsgAddress(RsGxsId(psrc->srcId),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+            mit->second->from = Rs::Mail::MsgAddress(RsGxsId(psrc->srcId),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO);
         else
-            mit->second->from = Rs::Msgs::MsgAddress(psrc->srcId,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+            mit->second->from = Rs::Mail::MsgAddress(psrc->srcId,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO);
     }
     // 4 - store each message in the appropriate map.
 
@@ -751,30 +751,30 @@ bool p3MsgService::parseList_backwardCompatibility(std::list<RsItem*>& load)
             for(auto d:mit.second->msg.rsgxsid_msgto.ids)
                 if(rsIdentity->isOwnId(d))
                 {
-                    mit.second->to = MsgAddress(d,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+                    mit.second->to = MsgAddress(d,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO);
                     break;
                 }
             for(auto d:mit.second->msg.rsgxsid_msgcc.ids)
                 if(rsIdentity->isOwnId(d))
                 {
-                    mit.second->to = MsgAddress(d,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_CC);
+                    mit.second->to = MsgAddress(d,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_CC);
                     break;
                 }
             for(auto d:mit.second->msg.rsgxsid_msgbcc.ids)
                 if(rsIdentity->isOwnId(d))
                 {
-                    mit.second->to = MsgAddress(d,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_BCC);
+                    mit.second->to = MsgAddress(d,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_BCC);
                     break;
                 }
         }
         else
         {
             if(mit.second->msg.rspeerid_msgto.ids.find(rsPeers->getOwnId()) != mit.second->msg.rspeerid_msgto.ids.end())
-                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO);
             else if(mit.second->msg.rspeerid_msgcc.ids.find(rsPeers->getOwnId()) != mit.second->msg.rspeerid_msgcc.ids.end())
-                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_CC);
+                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_CC);
             else
-                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_BCC);
+                mit.second->to = MsgAddress(rsPeers->getOwnId(),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_BCC);
         }
 
         RsInfo() << "  Storing message " << mit.first << ", possible destination: " << mit.second->to  << ", MsgFlags: " << std::hex << mit.second->msg.msgFlags << std::dec ;
@@ -1539,7 +1539,7 @@ MessageIdentifier p3MsgService::internal_sendMessage(MessageIdentifier id,const 
         else
         {
             info.flags |= RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES; /* load embedded images only for node-to-node messages?? */  // (cyril: ?!?!)
-            info.origin = Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO);
+            info.origin = Rs::Mail::MsgAddress(mServiceCtrl->getOwnId(),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO);
         }
     }
 
@@ -1765,8 +1765,8 @@ bool p3MsgService::SystemMessage(const std::string &title, const std::string &me
 	msg->rspeerid_msgto.ids.insert(mServiceCtrl->getOwnId());
 
     processIncomingMsg(msg,
-                           Rs::Msgs::MsgAddress(RsPeerId(),              Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
-                           Rs::Msgs::MsgAddress(mServiceCtrl->getOwnId(),Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+                           Rs::Mail::MsgAddress(RsPeerId(),              Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Mail::MsgAddress(mServiceCtrl->getOwnId(),Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO));
 
 	return true;
 }
@@ -1810,7 +1810,7 @@ bool p3MsgService::MessageToDraft(MessageInfo& info, const std::string& msgParen
     return true;
 }
 
-bool 	p3MsgService::getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info)
+bool 	p3MsgService::getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info)
 {
 	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
     return locked_getMessageTag(msgId,info);
@@ -2605,8 +2605,8 @@ bool p3MsgService::receiveGxsTransMail( const RsGxsId& authorId,
 		msg_item->PeerId(RsPeerId(authorId));
 
         handleIncomingItem(msg_item,
-                           Rs::Msgs::MsgAddress(authorId,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
-                           Rs::Msgs::MsgAddress(recipientId,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+                           Rs::Mail::MsgAddress(authorId,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Mail::MsgAddress(recipientId,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO));
     }
 	else
 	{
@@ -2767,8 +2767,8 @@ void p3MsgService::receiveGRouterData( const RsGxsId &destination_key,
 		msg_item->PeerId(RsPeerId(signing_key)) ;	// hack to pass on GXS id.
 
         handleIncomingItem(msg_item,
-                           Rs::Msgs::MsgAddress(signing_key,    Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO),
-                           Rs::Msgs::MsgAddress(destination_key,Rs::Msgs::MsgAddress::MSG_ADDRESS_MODE_TO));
+                           Rs::Mail::MsgAddress(signing_key,    Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO),
+                           Rs::Mail::MsgAddress(destination_key,Rs::Mail::MsgAddress::MSG_ADDRESS_MODE_TO));
     }
 	else
 		std::cerr << "  Item could not be deserialised. Format error??" << std::endl;
@@ -2824,7 +2824,7 @@ void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& s
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW); // save _ongoing_messages
 }
 
-RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,const Rs::Msgs::MsgAddress& to)
+RsMsgItem *p3MsgService::createOutgoingMessageItem(const RsMailStorageItem& msi,const Rs::Mail::MsgAddress& to)
 {
     RsMsgItem *item = new RsMsgItem;
 

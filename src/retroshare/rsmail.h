@@ -103,7 +103,7 @@ struct RsMailIdRecipientIdPair : RsSerializable
 
 namespace Rs
 {
-namespace Msgs
+namespace Mail
 {
 
 enum class BoxName:uint8_t {
@@ -375,7 +375,7 @@ public:
      * @param[out] msgList
 	 * @return always true
 	 */
-    virtual bool getMessageSummaries(Rs::Msgs::BoxName box,std::list<Rs::Msgs::MsgInfoSummary> &msgList) = 0;
+    virtual bool getMessageSummaries(Rs::Mail::BoxName box,std::list<Rs::Mail::MsgInfoSummary> &msgList) = 0;
 
 	/**
 	 * @brief getMessage
@@ -384,7 +384,7 @@ public:
 	 * @param[out] msg
 	 * @return true on success
 	 */
-	virtual bool getMessage(const std::string &msgId, Rs::Msgs::MessageInfo &msg)  = 0;
+    virtual bool getMessage(const std::string &msgId, Rs::Mail::MessageInfo &msg)  = 0;
 
 	/**
 	 * @brief sendMail
@@ -442,7 +442,7 @@ public:
 	 * @param[in] msgParentId
 	 * @return true on success
 	 */
-	virtual bool MessageToDraft(Rs::Msgs::MessageInfo &info, const std::string &msgParentId) = 0;
+    virtual bool MessageToDraft(Rs::Mail::MessageInfo &info, const std::string &msgParentId) = 0;
 
 	/**
 	 * @brief MessageToTrash
@@ -531,7 +531,7 @@ public:
 	 * @param[out] tags
 	 * @return always true
 	 */
-	virtual bool getMessageTagTypes(Rs::Msgs::MsgTagType& tags) = 0;
+    virtual bool getMessageTagTypes(Rs::Mail::MsgTagType& tags) = 0;
 
 	/**
 	 * @brief setMessageTagType
@@ -558,7 +558,7 @@ public:
 	 * @param[out] info
 	 * @return true on success
 	 */
-	virtual bool getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info) = 0;
+    virtual bool getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info) = 0;
 
 	/**
 	 * @brief setMessageTag
@@ -576,7 +576,7 @@ public:
 	 * @param[out] tags
 	 * @return always true
 	 */
-	virtual bool resetMessageStandardTagTypes(Rs::Msgs::MsgTagType& tags) = 0;
+    virtual bool resetMessageStandardTagTypes(Rs::Mail::MsgTagType& tags) = 0;
 
 	/****************************************/
 	/*        Private distant messages      */
@@ -602,7 +602,7 @@ public:
 	 * @return always true
 	 */
 	RS_DEPRECATED_FOR(sendMail)
-	virtual bool MessageSend(Rs::Msgs::MessageInfo &info) = 0;
+    virtual bool MessageSend(Rs::Mail::MessageInfo &info) = 0;
 
     virtual ~RsMail() = default;
 };
