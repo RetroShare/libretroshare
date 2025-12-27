@@ -40,7 +40,8 @@
  ******/
 
 #define CHUNK_MAX_AGE           120
-#define MAX_FTCHUNKS_PER_PEER    20
+// JOLA
+#define MAX_FTCHUNKS_PER_PEER    40
 
 /***********************************************************
 *
