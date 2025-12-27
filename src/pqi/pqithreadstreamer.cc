@@ -24,7 +24,8 @@
 #include <unistd.h>
 
 #define DEFAULT_STREAMER_TIMEOUT	  10000 // 10 ms
-#define DEFAULT_STREAMER_SLEEP		  30000 // 30 ms
+// JOLA
+#define DEFAULT_STREAMER_SLEEP		  10000 // 10 ms
 #define DEFAULT_STREAMER_IDLE_SLEEP	1000000 // 1 sec
 
 // #define PQISTREAMER_DEBUG
