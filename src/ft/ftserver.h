@@ -367,6 +367,7 @@ public:
 	virtual uint64_t getCumulativeUpload(RsFileHash hash);
 	virtual uint64_t getCumulativeUploadAll();
 	virtual uint64_t getCumulativeUploadNum();
+	virtual void clearUploadStats();
 
     /*************** Internal Transfer Fns *************************/
     virtual int tick();

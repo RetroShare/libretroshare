@@ -1216,5 +1216,7 @@ public:
 		virtual uint64_t getCumulativeUploadAll() = 0;
 		virtual uint64_t getCumulativeUploadNum() = 0;
 
+		virtual void clearUploadStats() = 0;
+
 	virtual ~RsFiles() = default;
 };

@@ -176,6 +176,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
         virtual uint64_t getCumulativeUploadAll() const;
         virtual uint64_t getCumulativeUploadNum() const;
         virtual void addUploadStats(const RsFileHash& hash, uint64_t size);
+        void clearUploadStats();
 
         // interface for hash caching
 
