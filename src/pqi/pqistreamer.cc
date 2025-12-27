@@ -63,7 +63,8 @@ static const int   PQISTREAM_PACKET_SLICING_PROBE_DELAY	= 60;  		// send every 6
 static uint8_t PACKET_SLICING_PROBE_BYTES[8] =  { 0x02, 0xaa, 0xbb, 0xcc, 0x00, 0x00, 0x00,  0x08 } ;
 
 /* Change to true to disable packet slicing and/or packet grouping, if needed */
-#define DISABLE_PACKET_SLICING  false
+// JOLA
+#define DISABLE_PACKET_SLICING true 
 #define DISABLE_PACKET_GROUPING false
 
 /* This removes the print statements (which hammer pqidebug) */
