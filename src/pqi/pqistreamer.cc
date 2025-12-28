@@ -48,7 +48,8 @@ static const int   PQISTREAM_AVG_PERIOD 			= 1; 		// update speed estimate every
 static const float PQISTREAM_AVG_FRAC   			= 0.8; 		// for bandpass filter over speed estimate.
 static const float PQISTREAM_AVG_DT_FRAC                        = 0.99;         // for low pass filter over elapsed time
 
-static const int   PQISTREAM_OPTIMAL_PACKET_SIZE  		= 512;		// It is believed that this value should be lower than TCP slices and large enough as compare to encryption padding.
+// JOLA
+static const int   PQISTREAM_OPTIMAL_PACKET_SIZE  		= 1400;		// It is believed that this value should be lower than TCP slices and large enough as compare to encryption padding.
 										// most importantly, it should be constant, so as to allow correct QoS.
 static const int   PQISTREAM_SLICE_FLAG_STARTS			= 0x01;		// 
 static const int   PQISTREAM_SLICE_FLAG_ENDS 			= 0x02;		// these flags should be kept in the range 0x01-0x08
