@@ -1257,7 +1257,7 @@ bool	ftServer::sendData(const RsPeerId& peerId, const RsFileHash& hash, uint64_t
 		//static const uint32_t	MAX_FT_CHUNK  = 32 * 1024; /* 32K */
 		//static const uint32_t	MAX_FT_CHUNK  = 16 * 1024; /* 16K */
 // JOLA
-		static const uint32_t	MAX_FT_CHUNK  = 128 * 1024; /* 128K */
+		static const uint32_t	MAX_FT_CHUNK  = 240 * 1024; /* 128K */
 
 		/* workout size */
 		chunk = MAX_FT_CHUNK;
