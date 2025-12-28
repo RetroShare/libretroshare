@@ -22,11 +22,10 @@
  *******************************************************************************/
 #pragma once
 
-#include "retroshare/rsmsgs.h"
+#include "retroshare/rsmail.h"
 #include "retroshare/rsgxsifacetypes.h"
 
 class p3MsgService;
-class p3ChatService;
 
 class RsChatMsgItem;
 
@@ -36,11 +35,11 @@ class RsChatMsgItem;
  * custom status, avatar and
  * chats (public(group) and private) to peers
  */
-class p3Msgs: public RsMsgs 
+class p3Msgs: public RsMail
 {
 public:
 
-	p3Msgs(p3MsgService *p3m, p3ChatService *p3c) :
+	p3Msgs(p3MsgService *p3m) :
 	    mMsgSrv(p3m), mChatSrv(p3c) {}
 	~p3Msgs() override = default;
 
