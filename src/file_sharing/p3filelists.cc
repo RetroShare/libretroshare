@@ -1082,6 +1082,11 @@ void p3FileDatabase::addUploadStats(const RsFileHash& hash, uint64_t size)
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 
+void p3FileDatabase::clearUploadStats()
+{
+	mCumulativeUploaded.clear();
+}
+
 bool p3FileDatabase::removeExtraFile(const RsFileHash& hash)
 {
 	bool ret = false;
