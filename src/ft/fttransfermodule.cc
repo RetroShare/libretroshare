@@ -741,10 +741,6 @@ bool ftTransferModule::locked_tickPeerTransfer(peerInfo &info)
 #endif
 	/* update rate */
 
-// JOLA
-	uint32_t actualRateOld = info.actualRate;
-	uint32_t lastTransfersOld = info.lastTransfers;
-    
 	if( (info.lastTransfers > 0 && ageReq > 0) || ageReq > 2)
 	{
 		info.actualRate = info.actualRate * 0.75 + 0.25 * info.lastTransfers / (float)ageReq;
@@ -826,9 +822,6 @@ bool ftTransferModule::locked_tickPeerTransfer(peerInfo &info)
 	std::cerr << "locked_tickPeerTransfer() desired  next_req: " << next_req;
 	std::cerr << std::endl;
 #endif
-
-// JOLA
-	RsDbg() << "FT actualRateOld " << std::dec << actualRateOld << " lastTransfersOld " << lastTransfersOld << " age " << ageReq << " actualRateNew " << (uint32_t) info.actualRate << " nextReq " << next_req;
 
 	/* do request */
 	uint64_t req_offset = 0;
