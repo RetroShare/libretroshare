@@ -110,7 +110,6 @@ class pqistreamer: public PQInterface
 		// Binary Interface for IO, initialisated at startup.
 		BinInterface *mBio;
 		unsigned int  mBio_flags; // BIN_FLAGS_NO_CLOSE | BIN_FLAGS_NO_DELETE
-		std::list<void *> mOutPkts; // Cntrl / Search / Results queue
 
 	private:
 		int queue_outpqi_locked(RsItem *i,uint32_t& serialized_size);
@@ -150,6 +149,7 @@ class pqistreamer: public PQInterface
 		int   mFailed_read_attempts ;
 
 		// Temp Storage for transient data.....
+		std::list<void *> mOutPkts; // Cntrl / Search / Results queue
 		std::list<RsItem *> mIncoming;
 
 		uint32_t mIncomingSize; // size of mIncoming. To avoid calling linear cost std::list::size()

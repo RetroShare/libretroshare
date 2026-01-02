@@ -359,7 +359,7 @@ int	pqistreamer::status()
 // this method is overloaded by pqiqosstreamer
 void pqistreamer::locked_storeInOutputQueue(void *ptr,int,int)
 {
-    RsDbg() << "Storing packet " << std::hex << ptr << std::dec << " in outqueue.";
+	// RsDbg() << "Storing packet " << std::hex << ptr << std::dec << " in outqueue.";
 	mOutPkts.push_back(ptr);
 }
 
@@ -550,13 +550,13 @@ int	pqistreamer::handleoutgoing_locked()
 
 	    if ((!(mBio->cansend(0))) || (maxbytes < sentbytes))
 	    {
-//#ifdef DEBUG_PQISTREAMER
+#ifdef DEBUG_PQISTREAMER
 		if (sentbytes > maxbytes)
 			RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped sending max reached, sentbytes " << std::dec << sentbytes << " maxbytes " << maxbytes;
 		else
 			RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped sending bio not ready, sentbytes " << std::dec << sentbytes << " maxbytes " << maxbytes;
-//#endif
-		    return 0;
+#endif
+		return sentbytes;
 	    }
 	    // send a out_pkt., else send out_data. unless there is a pending packet. The strategy is to
             //	- grab as many packets as possible while below the optimal packet size, so as to allow some packing and decrease encryption padding overhead (suposeddly)
@@ -699,12 +699,11 @@ int	pqistreamer::handleoutgoing_locked()
             sent = true;
 	    }
     }
+
 #ifdef DEBUG_PQISTREAMER
-    if(nsent > 0)
-	    std::cerr << "nsent = " << nsent << ", total bytes=" << sentbytes << std::endl;
-#endif
     if (sentbytes >0)
-	    RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped, outqueue empty sentbytes " << std::dec << sentbytes << " maxbytes " << maxbytes;
+            RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped outqueue empty, nsent " << std::dec << nsent << " sentbytes " << sentbytes << " maxbytes " << maxbytes;
+#endif
 
     return sentbytes;
 }
@@ -1033,12 +1032,12 @@ continue_packet:
     if(maxin > readbytes && mBio->moretoread(0))
 	    goto start_packet_read ;
 
-//#ifdef DEBUG_PQISTREAMER
+#ifdef DEBUG_PQISTREAMER
 	if (readbytes > maxin)
 		RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading max reached, readbytes " << std::dec << readbytes << " maxin " << maxin;
 	else
 		RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading no more to read, readbytes " << std::dec << readbytes << " maxin " << maxin;
-//#endif
+#endif
 
     return readbytes;
 }

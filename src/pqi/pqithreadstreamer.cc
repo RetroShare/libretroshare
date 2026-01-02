@@ -23,14 +23,21 @@
 #include "pqi/pqithreadstreamer.h"
 #include <unistd.h>
 
+// for timeBeginPeriod
 #ifdef WINDOWS_SYS
 #include <windows.h>
 #include <mmsystem.h>
 #endif
 
-#define DEFAULT_STREAMER_TIMEOUT	  5000 // 10 ms
-#define DEFAULT_STREAMER_SLEEP		  30000 // 30 ms
-#define DEFAULT_STREAMER_IDLE_SLEEP	1000000 // 1 sec
+#define STREAMER_TIMEOUT_MIN                  0 //  non blocking
+#define STREAMER_TIMEOUT_DELTA		   1000 //  1 ms
+#define STREAMER_TIMEOUT_MAX              10000 // 10 ms
+
+#define STREAMER_SLEEP_MIN		   1000 //  1 ms
+#define STREAMER_SLEEP_DELTA               1000 //  1 ms
+#define STREAMER_SLEEP_MAX                30000 // 30 ms
+
+#define DEFAULT_STREAMER_IDLE_SLEEP	1000000 //  1 sec
 
 // #define PQISTREAMER_DEBUG
 
@@ -43,8 +50,8 @@ pqithreadstreamer::pqithreadstreamer(PQInterface *parent, RsSerialiser *rss, con
         // necessary for frequent polling and high-speed data transfer.
         timeBeginPeriod(1);
 #endif
-	mTimeout = DEFAULT_STREAMER_TIMEOUT;
-	mSleepPeriod = DEFAULT_STREAMER_SLEEP;
+	mTimeout = STREAMER_TIMEOUT_MAX;
+	mSleepPeriod = STREAMER_SLEEP_MAX;
 }
 
 bool pqithreadstreamer::RecvItem(RsItem *item)
@@ -55,7 +62,7 @@ bool pqithreadstreamer::RecvItem(RsItem *item)
 int	pqithreadstreamer::tick()
 {
 	// pqithreadstreamer mutex lock is not needed here
-	// we will only check if the connection is active, and if not we will try to establish it
+	// we only check if the connection is active, and if not we will try to establish it
 	tick_bio();
 
 	return 0;
@@ -63,19 +70,16 @@ int	pqithreadstreamer::tick()
 
 void pqithreadstreamer::threadTick()
 {
-	uint32_t recv_timeout = 0;
-	uint32_t sleep_period = 0;
+        static uint32_t recv_timeout = mTimeout;
+        static uint32_t sleep_period = mSleepPeriod;
+        static uint32_t readbytes = 0;
+        static uint32_t sentbytes = 0;
 	bool isactive = false;
-	bool has_outgoing = false;
 
 	// Locked section to safely read shared variables
 	{
 		RsStackMutex stack(mStreamerMtx);
-		recv_timeout = mTimeout;
-		sleep_period = mSleepPeriod;
 		isactive = mBio->isactive();
-		// Check if there are packets waiting in the outgoing queue
-		has_outgoing = !mOutPkts.empty();
 	}
     
 	if (!isactive)
@@ -86,58 +90,44 @@ void pqithreadstreamer::threadTick()
 
 	updateRates();
 
-	// ADAPTIVE TIMEOUT:
-	// If we have data to send, we force the receive timeout to 0.
-	// This ensures tick_recv returns immediately if no data is present,
-	// allowing tick_send to be called without waiting for the 10ms recv timeout.
-	uint32_t adaptive_timeout = has_outgoing ? 0 : recv_timeout;
-
-	// Fill incoming queue
-	int readbytes = 0;
+	// Adaptive timeout and sleep
+	// Check if any data was processed during previous cycle.
+	if (readbytes > 0 || sentbytes > 0) 
 	{
-		RsStackMutex stack(mThreadMutex);
-		readbytes = tick_recv(adaptive_timeout);
+		// Activity detected: Switch to maximum reactivity immediately.
+		// This prevents the thread from blocking in the next receive call,
+		// ensuring fast throughput for data bursts.
+		recv_timeout = STREAMER_TIMEOUT_MIN;
+		sleep_period = STREAMER_SLEEP_MIN; 
+	} 
+	else 
+	{
+		// No activity: Gradually increase the timeout and sleep to save CPU cycles.
+		if (recv_timeout < STREAMER_TIMEOUT_MAX) 
+		        recv_timeout += STREAMER_TIMEOUT_DELTA;
+		if (sleep_period < STREAMER_SLEEP_MAX)
+			sleep_period += STREAMER_SLEEP_DELTA;
 	}
 
-	bool activity = false;
+	{
+		RsStackMutex stack(mThreadMutex);
+		readbytes = tick_recv(recv_timeout);
+	}
 
 	// Process incoming items, move them to appropriate service queue or shortcut to fast service
 	RsItem *incoming = NULL;
 	while((incoming = GetItem()))
 	{
-		activity = true; // Activity detected (Download)
 		RecvItem(incoming);
 	}
 
 	// Parse outgoing queue and send items
-	int sentbytes = 0;
 	{
 		RsStackMutex stack(mThreadMutex);
 		sentbytes = tick_send(0);
 	}
 
-	// ADAPTIVE SLEEP:
-	// If data was moved in either direction, reset sleep to 1ms for max performance.
-	// Otherwise, gradually increase sleep up to 30ms to save CPU resources.
-	{
-		RsStackMutex stack(mStreamerMtx);
-		if (readbytes > 0 || sentbytes > 0)
-		{
-			mSleepPeriod = 1000;
-		}
-		else
-		{
-			// Increment sleep period up to the 30ms limit
-			if (mSleepPeriod < 30000)
-			{
-				mSleepPeriod += 1000;
-			}
-		}
-		sleep_period = mSleepPeriod;
-	}
-
-	if (readbytes > 0 || sentbytes > 0 || adaptive_timeout == 0 || sleep_period == 30000)
-		RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() readbytes " << std::dec << readbytes << " sentbytes " << sentbytes << " adaptive_timeout " << adaptive_timeout / 1000 << " sleep_period " <<  sleep_period / 1000;
+	// RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() recv_timeout " << std::dec << recv_timeout / 1000 << " sleep_period " <<  sleep_period / 1000 << " readbytes " << readbytes << "  sentbytes " << sentbytes;
 
 	if (sleep_period > 0)
 	{
