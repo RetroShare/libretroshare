@@ -304,16 +304,17 @@ int 	pqistreamer::tick_bio()
 
 int 	pqistreamer::tick_recv(uint32_t timeout)
 {
+	int readbytes = 0;
 	if (mBio->moretoread(timeout))
 	{
-		handleincoming();
+		readbytes = handleincoming();
 	}
 	if(!(mBio->isactive()))
 	{
 		RsStackMutex stack(mStreamerMtx);
 		free_pend();
 	}
-	return 1;
+	return readbytes;
 }
 
 int 	pqistreamer::tick_send(uint32_t timeout)
@@ -326,13 +327,14 @@ int 	pqistreamer::tick_send(uint32_t timeout)
 		return 0;
 	}
 
+	int sentbytes;
 	if (mBio->cansend(timeout))
 	{
 		RsStackMutex stack(mStreamerMtx); /**** LOCKED MUTEX ****/
-		handleoutgoing_locked();
+		sentbytes = handleoutgoing_locked();
 	}
     
-	return 1;
+	return sentbytes;
 }
 
 int	pqistreamer::status()
@@ -548,12 +550,12 @@ int	pqistreamer::handleoutgoing_locked()
 
 	    if ((!(mBio->cansend(0))) || (maxbytes < sentbytes))
 	    {
-#ifdef DEBUG_PQISTREAMER
+//#ifdef DEBUG_PQISTREAMER
 		if (sentbytes > maxbytes)
 			RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped sending max reached, sentbytes " << std::dec << sentbytes << " maxbytes " << maxbytes;
 		else
 			RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped sending bio not ready, sentbytes " << std::dec << sentbytes << " maxbytes " << maxbytes;
-#endif
+//#endif
 		    return 0;
 	    }
 	    // send a out_pkt., else send out_data. unless there is a pending packet. The strategy is to
@@ -701,7 +703,10 @@ int	pqistreamer::handleoutgoing_locked()
     if(nsent > 0)
 	    std::cerr << "nsent = " << nsent << ", total bytes=" << sentbytes << std::endl;
 #endif
-    return 1;
+    if (sentbytes >0)
+	    RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped, outqueue empty sentbytes " << std::dec << sentbytes << " maxbytes " << maxbytes;
+
+    return sentbytes;
 }
 
 
@@ -1028,14 +1033,14 @@ continue_packet:
     if(maxin > readbytes && mBio->moretoread(0))
 	    goto start_packet_read ;
 
-#ifdef DEBUG_PQISTREAMER
+//#ifdef DEBUG_PQISTREAMER
 	if (readbytes > maxin)
 		RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading max reached, readbytes " << std::dec << readbytes << " maxin " << maxin;
 	else
 		RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading no more to read, readbytes " << std::dec << readbytes << " maxin " << maxin;
-#endif
+//#endif
 
-    return 0;
+    return readbytes;
 }
 
 RsItem *pqistreamer::addPartialPacket(const void *block, uint32_t len, uint32_t slice_packet_id, bool is_packet_starting, bool is_packet_ending, uint32_t &total_len) 
