@@ -59,7 +59,7 @@
 
 #define GXSID_MAX_CACHE_SIZE 15000
 
-// unused keys are deleted according to some heuristic that should favor known keys, signed keys etc. 
+// unused keys are deleted according to some heuristic that should favor known keys, signed keys etc.
 
 static const rstime_t MAX_KEEP_KEYS_BANNED_DEFAULT =     2 * 86400 ; // get rid of banned ids after 1 days. That gives a chance to un-ban someone before he gets definitely kicked out
 
@@ -285,19 +285,19 @@ bool p3IdService::setAsRegularContact(const RsGxsId& id,bool b)
 {
     RsStackMutex stack(mIdMtx);
     std::set<RsGxsId>::iterator it = mContacts.find(id) ;
-    
+
     if(b && (it == mContacts.end()))
     {
         mContacts.insert(id) ;
         slowIndicateConfigChanged() ;
     }
-    
+
     if( (!b) &&(it != mContacts.end()))
     {
         mContacts.erase(it) ;
         slowIndicateConfigChanged() ;
     }
-    
+
     return true ;
 }
 
@@ -1102,6 +1102,7 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
     group.mMeta.mCircleType = GXS_CIRCLE_TYPE_PUBLIC ;
     group.mImage = avatar;
 
+    group.mMeta.mGroupFlags = 0;
     if(!pseudonimous)
     {
 #warning csoler 2020-01-21: Backward compatibility issue to fix here in v0.7.0
@@ -2848,7 +2849,7 @@ bool p3IdService::cache_store(const RsGxsIdGroupItem *item)
         {
 #ifdef DEBUG_IDS
             std::cerr << "p3IdService::cache_store() Found Admin Key" << std::endl;
-#endif 
+#endif
             fullkey = kit->second;
             full_key_ok = true;
         }
@@ -3162,7 +3163,7 @@ bool p3IdService::cache_update_if_cached(const RsGxsId &id, std::string serviceS
 	RsStackMutex stack(mIdMtx); /********** STACK LOCKED MTX ******/
 
 	RsGxsIdCache updated_data;
-    
+
 	if(mKeyCache.fetch(id, updated_data))
 	{
 #ifdef DEBUG_IDS
@@ -3171,7 +3172,7 @@ bool p3IdService::cache_update_if_cached(const RsGxsId &id, std::string serviceS
 #endif // DEBUG_IDS
 
 		updated_data.updateServiceString(serviceString);
-        
+
 		mKeyCache.store(id, updated_data);
 	}
 
@@ -3190,15 +3191,15 @@ bool p3IdService::cache_request_ownids()
 	std::cerr << std::endl;
 #endif // DEBUG_IDS
 
-	uint32_t ansType = RS_TOKREQ_ANSTYPE_DATA; 
+	uint32_t ansType = RS_TOKREQ_ANSTYPE_DATA;
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_GROUP_DATA;
 	//opts.mSubscribeFlags = GXS_SERV::GROUP_SUBSCRIBE_ADMIN;
 
 	uint32_t token = 0;
-	
+
 	RsGenExchange::getTokenService()->requestGroupInfo(token, ansType, opts);
-	GxsTokenQueue::queueRequest(token, GXSIDREQ_CACHEOWNIDS);	
+	GxsTokenQueue::queueRequest(token, GXSIDREQ_CACHEOWNIDS);
 	return true;
 }
 
@@ -3302,13 +3303,13 @@ bool p3IdService::cachetest_getlist()
 	std::cerr << std::endl;
 #endif // DEBUG_IDS
 
-	uint32_t ansType = RS_TOKREQ_ANSTYPE_LIST; 
+	uint32_t ansType = RS_TOKREQ_ANSTYPE_LIST;
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_GROUP_IDS;
 	uint32_t token = 0;
-	
+
 	RsGenExchange::getTokenService()->requestGroupInfo(token, ansType, opts);
-	GxsTokenQueue::queueRequest(token, GXSIDREQ_CACHETEST);	
+	GxsTokenQueue::queueRequest(token, GXSIDREQ_CACHETEST);
 
 	// Schedule Next Event.
 	RsTickEvent::schedule_in(GXSID_EVENT_CACHETEST, CACHETEST_PERIOD);
@@ -3484,7 +3485,7 @@ void	p3IdService::CacheArbitrationDone(uint32_t mode)
  *
  * Info to be stored in GroupServiceString + Cache.
  *
- * Actually - it must be a Signature here - otherwise, you could 
+ * Actually - it must be a Signature here - otherwise, you could
  * put in a hash from someone else!
  *
  * Don't think that we need to match very often - maybe once a day?
@@ -3746,10 +3747,10 @@ bool p3IdService::pgphash_handlerequest(uint32_t token)
 #endif // DEBUG_IDS
 
 	// We need full data - for access to Hash & Signature.
-	// Perhaps we will change this to an initial pass through Meta, 
+	// Perhaps we will change this to an initial pass through Meta,
 	// and use this to discard lots of things.
 
-	// Even better - we can set flags in the Meta Data, (IdType), 
+	// Even better - we can set flags in the Meta Data, (IdType),
 	// And use GXS to filter out all the AnonIds, and only have to process
 	// Proper Ids.
 
@@ -3805,7 +3806,7 @@ bool p3IdService::pgphash_handlerequest(uint32_t token)
 					continue;
 				}
 
-				/* Have a linear attempt policy -	
+				/* Have a linear attempt policy -
 				 * if zero checks - try now.
 				 * if 1 check, at least a day.
 				 * if 2 checks: 2days, etc.
@@ -3918,7 +3919,7 @@ bool p3IdService::pgphash_process()
 		CacheArbitrationDone(BG_PGPHASH);
 		return true;
 	}
-	
+
 
 	SSGxsIdGroup ssdata;
 	ssdata.load(pg.mMeta.mServiceString); // attempt load - okay if fails.
@@ -4251,9 +4252,9 @@ bool p3IdService::recogn_start()
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_GROUP_DATA;
 	uint32_t token = 0;
-	
+
 	RsGenExchange::getTokenService()->requestGroupInfo(token, ansType, opts, recognList);
-	GxsTokenQueue::queueRequest(token, GXSIDREQ_RECOGN);	
+	GxsTokenQueue::queueRequest(token, GXSIDREQ_RECOGN);
 	return true;
 
 }
@@ -4268,16 +4269,16 @@ bool p3IdService::recogn_handlerequest(uint32_t token)
 
 	std::vector<RsGxsGrpItem*> grpData;
 	bool ok = RsGenExchange::getGroupData(token, grpData);
-	
+
 	if(ok)
 	{
 #ifdef DEBUG_RECOGN
 		std::cerr << "p3IdService::recogn_request() Have " << grpData.size() << " Groups";
 		std::cerr << std::endl;
 #endif // DEBUG_RECOGN
-		
+
 		std::vector<RsGxsGrpItem*>::iterator vit = grpData.begin();
-		
+
 		for(; vit != grpData.end(); ++vit)
 		{
 			RsGxsIdGroupItem* item = dynamic_cast<RsGxsIdGroupItem*>(*vit);
@@ -4292,7 +4293,7 @@ bool p3IdService::recogn_handlerequest(uint32_t token)
 				RsStackMutex stack(mIdMtx); /********** STACK LOCKED MTX ******/
 				mRecognGroupsToProcess.push_back(item);
 			}
-			else 
+			else
 			{
 				delete (*vit);
 			}
@@ -4343,7 +4344,7 @@ bool p3IdService::recogn_process()
 		CacheArbitrationDone(BG_RECOGN);
 		return true;
 	}
-	
+
 
 
 	std::list<RsGxsRecognTagItem *> tagItems;
@@ -4362,13 +4363,13 @@ bool p3IdService::recogn_process()
 		{
 			tagValidFlags |= i;
 		}
-		else 
+		else
 		{
 			isPending |= isTagPending;
 		}
 
 		delete *it;
-		i *= 2;		
+		i *= 2;
 	}
 
 #ifdef DEBUG_RECOGN
@@ -4396,7 +4397,7 @@ bool p3IdService::recogn_process()
 	cache_update_if_cached(RsGxsId(item->meta.mGroupId.toStdString()), serviceString);
 
 	delete item;
-	
+
 	// Schedule Next Processing.
 	RsTickEvent::schedule_in(GXSID_EVENT_RECOGN_PROC, RECOGN_PROC_PERIOD);
 	return false; // as there are more items on the queue to process.
@@ -4422,12 +4423,12 @@ bool p3IdService::recogn_checktag(const RsGxsId &id, const std::string &nickname
 	// id matches.
 	// nickname matches.
 	// signer is valid.
-	// ------ 
+	// ------
 	// signature is valid.  (only if doSignCheck == true)
-	
+
 	rstime_t now = time(NULL);
 	isPending = false;
-	
+
 	// check date range.
 	if ((item->valid_from > now) || (item->valid_to < now))
 	{
@@ -4438,7 +4439,7 @@ bool p3IdService::recogn_checktag(const RsGxsId &id, const std::string &nickname
 
 		return false;
 	}
-	
+
 	// id match.
 	if (id != item->identity)
 	{
@@ -4448,7 +4449,7 @@ bool p3IdService::recogn_checktag(const RsGxsId &id, const std::string &nickname
 #endif // DEBUG_RECOGN
 		return false;
 	}
-	
+
 	// nickname match.
 	if (nickname != item->nickname)
 	{
@@ -4458,14 +4459,14 @@ bool p3IdService::recogn_checktag(const RsGxsId &id, const std::string &nickname
 #endif // DEBUG_RECOGN
 		return false;
 	}
-	
-	
-	
+
+
+
 	{
 		/* check they validity of the Tag */
 		RsStackMutex stack(mIdMtx); /********** STACK LOCKED MTX ******/
 
-		
+
 		std::map<RsGxsId, RsGxsRecognSignerItem *>::iterator it;
 		it = mRecognSignKeys.find(item->sign.keyId);
 		if (it == mRecognSignKeys.end())
@@ -4476,16 +4477,16 @@ bool p3IdService::recogn_checktag(const RsGxsId &id, const std::string &nickname
 #endif // DEBUG_RECOGN
 
 			// If OldKey, then we don't want to reprocess.
-			if (mRecognOldSignKeys.end() != 
+			if (mRecognOldSignKeys.end() !=
 				mRecognOldSignKeys.find(item->sign.keyId))
 			{
 				isPending = true; // need to reprocess later with new key
 			}
 			return false;
 		}
-		
+
 		// Check tag_class is okay for signer.
-		if (it->second->signing_classes.ids.end() == 
+		if (it->second->signing_classes.ids.end() ==
 			std::find(it->second->signing_classes.ids.begin(), it->second->signing_classes.ids.end(), item->tag_class))
 		{
 #ifdef DEBUG_RECOGN
@@ -4494,7 +4495,7 @@ bool p3IdService::recogn_checktag(const RsGxsId &id, const std::string &nickname
 #endif // DEBUG_RECOGN
 			return false;
 		}
-		
+
 		// ALL Okay, just signature to check.
 		if (!doSignCheck)
 		{
@@ -4521,8 +4522,8 @@ void p3IdService::loadRecognKeys()
 /************************************************************************************/
 /************************************************************************************/
 
-#define MAX_KNOWN_PGPIDS	20 
-#define MAX_UNKNOWN_PGPIDS	20 
+#define MAX_KNOWN_PGPIDS	20
+#define MAX_UNKNOWN_PGPIDS	20
 #define MAX_PSEUDOIDS		20
 
 #define DUMMY_GXSID_DELAY	5
@@ -4716,7 +4717,7 @@ std::string rsIdTypeToString(uint32_t idtype)
 
 /* here we are running a background process that calculates the reputation scores
  * for each of the IDs....
- * 
+ *
  * As this class will be extensively used by many other threads... it is best
  * that we don't block at all. This should be in a background thread.
  * Perhaps a generic method to handle this will be advisable.... but we do that later.
@@ -4726,7 +4727,7 @@ std::string rsIdTypeToString(uint32_t idtype)
  *   4 components:
  *     1) Your Opinion: Should override everything else.
  *     2) Implicit Factors: Know the associated GPG Key.
- *     3) Your Friends Opinions: 
+ *     3) Your Friends Opinions:
  *     4) Your Friends Calculated Reputation Scores.
  *
  * Must make sure that there is no Feedback loop in the Reputation calculation.
@@ -4744,14 +4745,14 @@ std::string rsIdTypeToString(uint32_t idtype)
  * So we are going to have three different scores (Own, Peers, (the neighbour) Hood)...
  *
  * So next question, when do we need to incrementally calculate the score?
- *  .... how often do we need to recalculate everything -> this could lead to a flux of messages. 
+ *  .... how often do we need to recalculate everything -> this could lead to a flux of messages.
  *
  *
- * 
+ *
  * MORE NOTES:
  *
- *   The Opinion Messages will have to be signed by PGP or SSL Keys, to guarantee that we don't 
- * multiple votes per person... As the message system doesn't handle uniqueness in this respect, 
+ *   The Opinion Messages will have to be signed by PGP or SSL Keys, to guarantee that we don't
+ * multiple votes per person... As the message system doesn't handle uniqueness in this respect,
  * we might have to do FULL_CALC for everything - This bit TODO.
  *
  * This will make IdService quite different to the other GXS services.
@@ -4760,12 +4761,12 @@ std::string rsIdTypeToString(uint32_t idtype)
 /************************************************************************************/
 /*
  * Processing Algorithm:
- *  - Grab all Groups which have received messages. 
+ *  - Grab all Groups which have received messages.
  *  (opt 1)-> grab latest msgs for each of these and process => score.
  *  (opt 2)-> try incremental system (people probably won't change opinions often -> just set them once)
  *      --> if not possible, fallback to full calculation.
  *
- * 
+ *
  */
 
 void p3IdService::checkPeerForIdentities()

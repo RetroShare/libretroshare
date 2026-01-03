@@ -611,6 +611,14 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
 
 void DistributedChatService::addTimeShiftStatistics(int D)
 {
+	// Bursts of messages from friends using a wrong system clock can trigger a TIME_SHIFT_PROBLEM event 
+	// We eliminate that by taking into account at most 1 message per second
+	static rstime_t last_stat_time = 0;
+	rstime_t now = time(NULL);
+	if(now <= last_stat_time)
+		return;
+	last_stat_time = now;
+
 	static const int S = 50 ; // accuracy up to 2^50 second. Quite conservative!
 	static int total = 0 ;
 	static std::vector<int> log_delay_histogram(S,0) ;
@@ -1150,6 +1158,7 @@ void DistributedChatService::handleConnectionChallenge(RsChatLobbyConnectChallen
 		RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
 
 		for(std::map<ChatLobbyId,ChatLobbyEntry>::iterator it(_chat_lobbys.begin());it!=_chat_lobbys.end() && !found;++it)
+			if(!IS_PUBLIC_LOBBY(it->second.lobby_flags))
 			for(std::map<ChatLobbyMsgId,rstime_t>::const_iterator it2(it->second.msg_cache.begin());it2!=it->second.msg_cache.end() && !found;++it2)
 				if(it2->second + CONNECTION_CHALLENGE_MAX_MSG_AGE + 5 > now)  // any msg not older than 5 seconds plus max challenge count is fine.
 				{
@@ -2031,7 +2040,7 @@ void DistributedChatService::cleanLobbyCaches()
 
 			// 5 - look at lobby activity and possibly send connection challenge
 			//
-			if(++it->second.connexion_challenge_count > CONNECTION_CHALLENGE_MAX_COUNT && now > it->second.last_connexion_challenge_time + CONNECTION_CHALLENGE_MIN_DELAY) 
+			if(!IS_PUBLIC_LOBBY(it->second.lobby_flags) && ++it->second.connexion_challenge_count > CONNECTION_CHALLENGE_MAX_COUNT && now > it->second.last_connexion_challenge_time + CONNECTION_CHALLENGE_MIN_DELAY)
 			{
 				it->second.connexion_challenge_count = 0 ;
 				it->second.last_connexion_challenge_time = now ;

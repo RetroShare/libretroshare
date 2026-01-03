@@ -1236,6 +1236,7 @@ bool    p3NetMgrIMPL::setExtAddress(const struct sockaddr_storage &addr)
 #ifdef NETMGR_DEBUG_RESET
 		std::cerr << "p3NetMgrIMPL::setExtAddress() Calling NetReset" << std::endl;
 #endif
+        std::cerr << "External address changed to " << sockaddr_storage_iptostring(mExtAddr)<< std::endl;
 
         if(rsEvents)
         {

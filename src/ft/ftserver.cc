@@ -1316,6 +1316,7 @@ bool	ftServer::sendData(const RsPeerId& peerId, const RsFileHash& hash, uint64_t
 		offset += chunk;
 		tosend -= chunk;
 	}
+	mFileDatabase->addUploadStats(hash, chunksize);
 
 	/* clean up data */
 	free(data);
@@ -2342,4 +2343,24 @@ std::error_condition ftServer::parseFilesLink(
 	std::tie(tft, ec) = RsFileTree::fromBase64(*radixPtr);
 	if(tft) collection = *tft;
 	return ec;
+}
+
+uint64_t ftServer::getCumulativeUpload(RsFileHash hash)
+{
+	return mFileDatabase->getCumulativeUpload(hash);
+}
+
+uint64_t ftServer::getCumulativeUploadAll()
+{
+	return mFileDatabase->getCumulativeUploadAll();
+}
+
+uint64_t ftServer::getCumulativeUploadNum()
+{
+	return mFileDatabase->getCumulativeUploadNum();
+}
+
+void ftServer::clearUploadStats()
+{
+	return mFileDatabase->clearUploadStats();
 }

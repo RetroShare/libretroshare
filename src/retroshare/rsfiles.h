@@ -1212,5 +1212,11 @@ public:
 		virtual bool	ignoreDuplicates() = 0;
 		virtual void 	setIgnoreDuplicates(bool ignore) = 0;
 
+		virtual uint64_t getCumulativeUpload(RsFileHash hash) = 0;
+		virtual uint64_t getCumulativeUploadAll() = 0;
+		virtual uint64_t getCumulativeUploadNum() = 0;
+
+		virtual void clearUploadStats() = 0;
+
 	virtual ~RsFiles() = default;
 };

@@ -364,6 +364,11 @@ public:
     bool encryptItem(RsTurtleGenericTunnelItem *clear_item,const RsFileHash& hash,RsTurtleGenericDataItem *& encrypted_item);
     bool decryptItem(const RsTurtleGenericDataItem *encrypted_item, const RsFileHash& hash, RsTurtleGenericTunnelItem *&decrypted_item);
 
+	virtual uint64_t getCumulativeUpload(RsFileHash hash);
+	virtual uint64_t getCumulativeUploadAll();
+	virtual uint64_t getCumulativeUploadNum();
+	virtual void clearUploadStats();
+
     /*************** Internal Transfer Fns *************************/
     virtual int tick();
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * libretroshare/src/services: p3wiki.h                                        *
+ * libretroshare/src/services: p3wiki.cc                                       *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
@@ -46,25 +46,29 @@ uint32_t p3Wiki::wikiAuthenPolicy()
 	flag |= GXS_SERV::MSG_AUTHEN_CHILD_PUBLISH_SIGN;
 	RsGenExchange::setAuthenPolicyFlag(flag, policy, RsGenExchange::RESTRICTED_GRP_BITS);
 	RsGenExchange::setAuthenPolicyFlag(flag, policy, RsGenExchange::PRIVATE_GRP_BITS);
+	flag = 0;
+	RsGenExchange::setAuthenPolicyFlag(flag, policy, RsGenExchange::GRP_OPTION_BITS);
 	return policy;
 }
 
-void p3Wiki::service_tick() {}
+void p3Wiki::service_tick()
+{
+    /* Service tick required by RsGenExchange */
+}
 
 void p3Wiki::notifyChanges(std::vector<RsGxsNotify*>& changes)
 {
     if (rsEvents) {
-        /* Get the same dynamic event type ID used in the GUI */
         RsEventType wikiEventType = (RsEventType)rsEvents->getDynamicEventType("GXS_WIKI");
 
         for(auto change : changes) {
-            /* Create event using the dynamic ID */
             std::shared_ptr<RsGxsWikiEvent> event = std::make_shared<RsGxsWikiEvent>(wikiEventType);
             event->mWikiGroupId = change->mGroupId; 
             
             if (dynamic_cast<RsGxsMsgChange*>(change)) {
                 event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
             } else {
+                // This handles new Wikis
                 event->mWikiEventCode = RsWikiEventCode::UPDATED_COLLECTION;
             }
             rsEvents->postEvent(event);
@@ -74,4 +78,173 @@ void p3Wiki::notifyChanges(std::vector<RsGxsNotify*>& changes)
         for(auto change : changes) delete change;
     }
     changes.clear();
+}
+
+/* GXS Data Retrieval Methods */
+
+bool p3Wiki::getCollections(const uint32_t &token, std::vector<RsWikiCollection> &collections)
+{
+	std::vector<RsGxsGrpItem*> grpData;
+	bool ok = RsGenExchange::getGroupData(token, grpData);
+	if(ok) {
+		for(auto it : grpData) {
+			RsGxsWikiCollectionItem* item = dynamic_cast<RsGxsWikiCollectionItem*>(it);
+			if (item) {
+				RsWikiCollection collection = item->collection;
+				collection.mMeta = item->meta;
+				collections.push_back(collection);
+			}
+			delete it;
+		}
+	}
+	return ok;
+}
+
+bool p3Wiki::getSnapshots(const uint32_t &token, std::vector<RsWikiSnapshot> &snapshots)
+{
+	GxsMsgDataMap msgData;
+	bool ok = RsGenExchange::getMsgData(token, msgData);
+	if(ok) {
+		for(auto& mit : msgData) {
+			for(auto vit : mit.second) {
+				RsGxsWikiSnapshotItem* item = dynamic_cast<RsGxsWikiSnapshotItem*>(vit);
+				if(item) {
+					RsWikiSnapshot snapshot = item->snapshot;
+					snapshot.mMeta = item->meta;
+					snapshots.push_back(snapshot);
+				}
+				delete vit;
+			}
+		}
+	}
+	return ok;
+}
+
+bool p3Wiki::getRelatedSnapshots(const uint32_t &token, std::vector<RsWikiSnapshot> &snapshots)
+{
+    GxsMsgRelatedDataMap msgData;
+	bool ok = RsGenExchange::getMsgRelatedData(token, msgData);
+	if(ok) {
+		for(auto& mit : msgData) {
+			for(auto vit : mit.second) {
+				RsGxsWikiSnapshotItem* item = dynamic_cast<RsGxsWikiSnapshotItem*>(vit);
+				if(item) {
+					RsWikiSnapshot snapshot = item->snapshot;
+					snapshot.mMeta = item->meta;
+					snapshots.push_back(snapshot);
+				}
+				delete vit;
+			}
+		}
+	}
+	return ok;
+}
+
+bool p3Wiki::getComments(const uint32_t &token, std::vector<RsWikiComment> &comments)
+{
+	GxsMsgDataMap msgData;
+	bool ok = RsGenExchange::getMsgData(token, msgData);
+	if(ok) {
+		for(auto& mit : msgData) {
+			for(auto vit : mit.second) {
+				RsGxsWikiCommentItem* item = dynamic_cast<RsGxsWikiCommentItem*>(vit);
+				if(item) {
+					RsWikiComment comment = item->comment;
+					comment.mMeta = item->meta;
+					comments.push_back(comment);
+				}
+				delete vit;
+			}
+		}
+	}
+	return ok;
+}
+
+/* Submission Methods */
+
+bool p3Wiki::submitCollection(uint32_t &token, RsWikiCollection &collection)
+{
+	RsGxsWikiCollectionItem* collectionItem = new RsGxsWikiCollectionItem();
+	collectionItem->collection = collection;
+	collectionItem->meta = collection.mMeta;
+	RsGenExchange::publishGroup(token, collectionItem);
+	return true;
+}
+
+bool p3Wiki::submitSnapshot(uint32_t &token, RsWikiSnapshot &snapshot)
+{
+    RsGxsWikiSnapshotItem* snapshotItem = new RsGxsWikiSnapshotItem();
+    snapshotItem->snapshot = snapshot;
+    snapshotItem->meta = snapshot.mMeta;
+    snapshotItem->meta.mMsgFlags = FLAG_MSG_TYPE_WIKI_SNAPSHOT;
+    RsGenExchange::publishMsg(token, snapshotItem);
+	return true;
+}
+
+bool p3Wiki::submitComment(uint32_t &token, RsWikiComment &comment)
+{
+    RsGxsWikiCommentItem* commentItem = new RsGxsWikiCommentItem();
+    commentItem->comment = comment;
+    commentItem->meta = comment.mMeta;
+    commentItem->meta.mMsgFlags = FLAG_MSG_TYPE_WIKI_COMMENT;
+    RsGenExchange::publishMsg(token, commentItem);
+	return true;
+}
+
+bool p3Wiki::updateCollection(uint32_t &token, RsWikiCollection &group)
+{
+    RsGxsWikiCollectionItem* grpItem = new RsGxsWikiCollectionItem();
+    grpItem->collection = group;
+    grpItem->meta = group.mMeta;
+    RsGenExchange::updateGroup(token, grpItem);
+    return true;
+}
+
+/* Blocking Interfaces */
+
+bool p3Wiki::createCollection(RsWikiCollection &group)
+{
+	uint32_t token;
+	return submitCollection(token, group) && waitToken(token) == RsTokenService::COMPLETE;
+}
+
+bool p3Wiki::updateCollection(const RsWikiCollection &group)
+{
+	uint32_t token;
+	RsWikiCollection update(group);
+	return updateCollection(token, update) && waitToken(token) == RsTokenService::COMPLETE;
+}
+
+bool p3Wiki::getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups)
+{
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_GROUP_DATA;
+
+	if (groupIds.empty()) {
+		if (!requestGroupInfo(token, opts) || waitToken(token) != RsTokenService::COMPLETE ) return false;
+	} else {
+		if (!requestGroupInfo(token, opts, groupIds) || waitToken(token) != RsTokenService::COMPLETE ) return false;
+	}
+	return getCollections(token, groups) && !groups.empty();
+}
+
+/* Stream operators for debugging */
+
+std::ostream &operator<<(std::ostream &out, const RsWikiCollection &group)
+{
+    out << "RsWikiCollection [ Name: " << group.mMeta.mGroupName << " ]";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, const RsWikiSnapshot &shot)
+{
+    out << "RsWikiSnapshot [ Title: " << shot.mMeta.mMsgName << "]";
+    return out;
+}
+
+std::ostream &operator<<(std::ostream &out, const RsWikiComment &comment)
+{
+    out << "RsWikiComment [ Title: " << comment.mMeta.mMsgName << "]";
+    return out;
 }

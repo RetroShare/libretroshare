@@ -978,43 +978,51 @@ continue_packet:
 #ifdef DEBUG_PQISTREAMER
 	    std::cerr << "[" << (void*)pthread_self() << "] " << RsUtil::BinToHex((char*)block,8) << "...: deserializing. Size=" << pktlen << std::endl ;
 #endif
-	    RsItem *pkt ;
+	    RsItem *pkt = NULL;
+	    bool is_error = false;
 
-	    if(is_partial_packet)
+	    if (is_partial_packet)
 	    {
 #ifdef DEBUG_PACKET_SLICING
-		    std::cerr << "Inputing partial packet " << RsUtil::BinToHex((char*)block,8) << std::endl;
+		    RsDbg() << "Inputing partial packet " << RsUtil::BinToHex((char*)block,8);
 #endif
-            		uint32_t packet_length = 0 ;
-		    pkt = addPartialPacket(block,pktlen,slice_packet_id,is_packet_starting,is_packet_ending,packet_length) ;
-            
-            		pktlen = packet_length ;
+		    uint32_t packet_length = 0 ;
+		    pkt = addPartialPacket(block,pktlen,slice_packet_id,is_packet_starting,is_packet_ending,packet_length);
+		    if (pkt != NULL)
+			    pktlen = packet_length;
+		    else if (is_packet_ending)
+			    is_error = true;
 	    }
 	    else
-		    pkt = mRsSerialiser->deserialise(block, &pktlen);
-
-	    if ((pkt != NULL) && (0  < handleincomingitem(pkt,pktlen)))
 	    {
+		    pkt = mRsSerialiser->deserialise(block, &pktlen);
+		    if (pkt == NULL)
+			    is_error = true;
+	    }
+
+	    if (pkt != NULL)
+	    {
+		    handleincomingitem(pkt,pktlen);
 #ifdef DEBUG_PQISTREAMER
 		    pqioutput(PQL_DEBUG_BASIC, pqistreamerzone, "Successfully Read a Packet!");
 #endif
 		    inReadBytes(pktlen);	// only count deserialised packets, because that's what is actually been transfered.
 	    }
-	    else if (!is_partial_packet)
+	    else if (is_error)
 	    {
 #ifdef DEBUG_PQISTREAMER
 		    pqioutput(PQL_ALERT, pqistreamerzone, "Failed to handle Packet!");
 #endif
-		    std::cerr << "Incoming Packet  could not be deserialised:" << std::endl;
-		    std::cerr << "  Incoming peer id: " << PeerId() << std::endl;
+		    RsDbg() << "Incoming Packet could not be deserialised:";
+		    RsDbg() << "  Incoming peer id: " << PeerId();
 		    if(pktlen >= 8)
-			    std::cerr << "  Packet header   : " << RsUtil::BinToHex((unsigned char*)block,8) << std::endl;
+			    RsDbg() << "  Packet header   : " << RsUtil::BinToHex((unsigned char*)block,8);
 		    if(pktlen >  8)
-			    std::cerr << "  Packet data     : " << RsUtil::BinToHex((unsigned char*)block+8,std::min(50u,pktlen-8)) << ((pktlen>58)?"...":"") << std::endl;
+			    RsDbg() << "  Packet data     : " << RsUtil::BinToHex((unsigned char*)block+8,std::min(50u,pktlen-8)) << ((pktlen>58)?"...":"");
 	    }
 
-	    mReading_state = reading_state_initial ;	// restart at state 1.
-	    mFailed_read_attempts = 0 ;						// reset failed read, as the packet has been totally read.
+		mReading_state = reading_state_initial;	// restart at state 1.
+		mFailed_read_attempts = 0;		// reset failed read, as the packet has been totally read.
     }
 
     if(maxin > readbytes && mBio->moretoread(0))
