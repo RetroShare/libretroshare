@@ -53,7 +53,7 @@ virtual void handle_event(uint32_t event_type, const std::string &elabel);
 
 public:
 
-virtual void service_tick();
+void service_tick() override;
 
         /* Specific Service Data */
 virtual bool getCollections(const uint32_t &token, std::vector<RsWikiCollection> &collections) override;

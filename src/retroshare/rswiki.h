@@ -131,4 +131,30 @@ virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<
 
 };
 
+
+#include "retroshare/rsevents.h"
+
+enum class RsWikiEventCode : uint8_t
+{
+    UPDATED_SNAPSHOT   = 0x01,
+    UPDATED_COLLECTION = 0x02
+};
+
+struct RsGxsWikiEvent : public RsEvent
+{
+    /* Dynamic constructor */
+    RsGxsWikiEvent(RsEventType type) : RsEvent(type) {}
+    virtual ~RsGxsWikiEvent() override = default;
+
+    RsWikiEventCode mWikiEventCode;
+    RsGxsGroupId mWikiGroupId;
+
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mWikiEventCode);
+        RS_SERIAL_PROCESS(mWikiGroupId);
+    }
+};
+
 #endif
