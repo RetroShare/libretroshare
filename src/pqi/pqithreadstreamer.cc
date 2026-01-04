@@ -72,8 +72,8 @@ void pqithreadstreamer::threadTick()
 {
         static uint32_t recv_timeout = mTimeout;
         static uint32_t sleep_period = mSleepPeriod;
-        static uint32_t readbytes = 0;
-        static uint32_t sentbytes = 0;
+        uint32_t readbytes = 0;
+        uint32_t sentbytes = 0;
 	bool isactive = false;
 
 	// Locked section to safely read shared variables
@@ -82,39 +82,23 @@ void pqithreadstreamer::threadTick()
 		isactive = mBio->isactive();
 	}
     
+	// Long sleep if connection is not active
 	if (!isactive)
 	{
+//		RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() mBio->isactive() false long sleep";
 		rstime::rs_usleep(DEFAULT_STREAMER_IDLE_SLEEP);
 		return ;
 	}
 
 	updateRates();
 
-	// Adaptive timeout and sleep
-	// Check if any data was processed during previous cycle.
-	if (readbytes > 0 || sentbytes > 0) 
-	{
-		// Activity detected: Switch to maximum reactivity immediately.
-		// This prevents the thread from blocking in the next receive call,
-		// ensuring fast throughput for data bursts.
-		recv_timeout = STREAMER_TIMEOUT_MIN;
-		sleep_period = STREAMER_SLEEP_MIN; 
-	} 
-	else 
-	{
-		// No activity: Gradually increase the timeout and sleep to save CPU cycles.
-		if (recv_timeout < STREAMER_TIMEOUT_MAX) 
-		        recv_timeout += STREAMER_TIMEOUT_DELTA;
-		if (sleep_period < STREAMER_SLEEP_MAX)
-			sleep_period += STREAMER_SLEEP_DELTA;
-	}
-
+	// Fill incoming queue
 	{
 		RsStackMutex stack(mThreadMutex);
 		readbytes = tick_recv(recv_timeout);
 	}
 
-	// Process incoming items, move them to appropriate service queue or shortcut to fast service
+	// Process incoming items, move them to relevant service queue or shortcut to fast service
 	RsItem *incoming = NULL;
 	while((incoming = GetItem()))
 	{
@@ -127,7 +111,25 @@ void pqithreadstreamer::threadTick()
 		sentbytes = tick_send(0);
 	}
 
-	// RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() recv_timeout " << std::dec << recv_timeout / 1000 << " sleep_period " <<  sleep_period / 1000 << " readbytes " << readbytes << "  sentbytes " << sentbytes;
+        // Adaptive timeout and sleep
+        // Check if any data was processed during previous cycle
+        if (readbytes > 0 || sentbytes > 0)
+        {
+                // Activity detected: switch to maximum reactivity immediately
+                // This ensure fast throughput for data bursts
+                recv_timeout = STREAMER_TIMEOUT_MIN;
+                sleep_period = STREAMER_SLEEP_MIN;
+        }
+        else
+        {
+                // No activity: gradually increase the timeout and sleep to save CPU cycles
+                if (recv_timeout < STREAMER_TIMEOUT_MAX)
+                        recv_timeout += STREAMER_TIMEOUT_DELTA;
+                if (sleep_period < STREAMER_SLEEP_MAX)
+                        sleep_period += STREAMER_SLEEP_DELTA;
+        }
+
+//	RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() recv_timeout " << std::dec << recv_timeout / 1000 << " sleep_period " <<  sleep_period / 1000 << " readbytes " << readbytes << "  sentbytes " << sentbytes;
 
 	if (sleep_period > 0)
 	{

@@ -233,7 +233,6 @@ int pqissllistenbase::setuplisten()
 		  "pqissllistenbase::setuplisten() Bound to Address.");
 	}
 
-/*
 #ifdef WINDOWS_SYS
 	// Set TCP buffer size for Windows systems
 
@@ -275,7 +274,6 @@ int pqissllistenbase::setuplisten()
 		std::cerr << "pqissllistenbase::setuplisten: Error setting TCP send buffer size. Error " << err << std::endl;
 	}
 #endif
-*/
 
 	if (0 != (err = listen(lsock, 100)))
 	{

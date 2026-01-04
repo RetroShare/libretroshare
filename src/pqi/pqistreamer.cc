@@ -38,6 +38,8 @@
 #include "util/rsprint.h"         // for BinToHex
 #include "util/rsstring.h"        // for rs_sprintf_append, rs_sprintf
 
+#include <iomanip>
+
 //#define DEBUG_PQISTREAMER 1
 
 static struct RsLog::logInfo pqistreamerzoneInfo = {RsLog::Default, "pqistreamer"};
@@ -304,16 +306,29 @@ int 	pqistreamer::tick_bio()
 
 int 	pqistreamer::tick_recv(uint32_t timeout)
 {
+	if(!(mBio->isactive()))
+	{
+//		RsDbg() << "PQISTREAMER pqistreamer::tick_recv mBio->isactive false";
+		RsStackMutex stack(mStreamerMtx);
+		free_pend();
+		return 0;
+	}
+
 	int readbytes = 0;
 	if (mBio->moretoread(timeout))
 	{
 		readbytes = handleincoming();
 	}
+//	else
+//		RsDbg() << "PQISTREAMER pqistreamer::tick_recv mBios->moretoread() false";
+
 	if(!(mBio->isactive()))
 	{
+//		RsDbg() << "PQISTREAMER pqistreamer::tick_recv mBio->isactive false";
 		RsStackMutex stack(mStreamerMtx);
 		free_pend();
 	}
+
 	return readbytes;
 }
 
@@ -322,18 +337,28 @@ int 	pqistreamer::tick_send(uint32_t timeout)
 	/* short circuit everything if bio isn't active */
 	if (!(mBio->isactive()))
 	{
+//		RsDbg() << "PQISTREAMER pqistreamer::tick_send mBio->isactive false";
 		RsStackMutex stack(mStreamerMtx);
 		free_pend();
 		return 0;
 	}
 
-	int sentbytes;
+	int sentbytes = 0;
 	if (mBio->cansend(timeout))
 	{
-		RsStackMutex stack(mStreamerMtx); /**** LOCKED MUTEX ****/
+		RsStackMutex stack(mStreamerMtx);
 		sentbytes = handleoutgoing_locked();
 	}
+//	else
+//		RsDbg() << "PQISTREAMER pqistreamer::tick_send mBio->cansend false";
     
+	if (!(mBio->isactive()))
+	{
+//		RsDbg() << "PQISTREAMER pqistreamer::tick_send mBio->isactive false";
+		RsStackMutex stack(mStreamerMtx);
+		free_pend();
+	}
+
 	return sentbytes;
 }
 
@@ -537,6 +562,7 @@ int	pqistreamer::handleoutgoing_locked()
 		    	mPkt_wpending_size = 0 ;
 	    }
 
+//	    RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped mBio->isactive() false";
 	    return 0;
     }
 
@@ -614,10 +640,11 @@ int	pqistreamer::handleoutgoing_locked()
 			{
 				if(slice_size > 0xffff || !mAcceptsPacketSlicing)
 				{
-					std::cerr << "(EE) protocol error in pqitreamer: slice size is too large and cannot be encoded." ;
+					std::cerr << "(EE) protocol error in pqistreamer: slice size is too large and cannot be encoded." ;
 					free(mPkt_wpending) ;
 					mPkt_wpending_size = 0;
-					return -1 ;
+//					RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped error slice size is too large";
+					return sentbytes ;
 				}
 #ifdef DEBUG_PACKET_SLICING
 				std::cerr << "sending partial slice, packet ID=" << std::hex << slice_packet_id << std::dec << ", size=" << slice_size << std::endl;
@@ -674,7 +701,8 @@ int	pqistreamer::handleoutgoing_locked()
 
 			    // pkt_wpending will kept til next time.
 			    // ensuring exactly the same data is written (openSSL requirement).
-			    return -1;
+//			    RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped sending failed only " << std::dec << ss << " bytes out of " << mPkt_wpending_size;
+			    return sentbytes;
 		    }
 #ifdef DEBUG_PQISTREAMER
             else
@@ -700,10 +728,10 @@ int	pqistreamer::handleoutgoing_locked()
 	    }
     }
 
-#ifdef DEBUG_PQISTREAMER
-    if (sentbytes >0)
-            RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped outqueue empty, nsent " << std::dec << nsent << " sentbytes " << sentbytes << " maxbytes " << maxbytes;
-#endif
+//#ifdef DEBUG_PQISTREAMER
+//    if (sentbytes >0)
+//            RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped outqueue empty, nsent " << std::dec << nsent << " sentbytes " << sentbytes << " maxbytes " << maxbytes;
+//#endif
 
     return sentbytes;
 }
@@ -725,6 +753,7 @@ int pqistreamer::handleincoming()
 	    RsStackMutex stack(mStreamerMtx);
 	    mReading_state = reading_state_initial ;
 	    free_pend();
+//	    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading bio->isactive() false";
 	    return 0;
     }
     else
@@ -769,7 +798,8 @@ start_packet_read:
 			    pqioutput(PQL_DEBUG_BASIC, pqistreamerzone, "pqistreamer::handleincoming() read blocked");
 			    std::cerr << "[" << (void*)pthread_self() << "] " << "given up 1" << std::endl ;
 #endif
-			    return 0;
+//			    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading read blocked";
+			    return readbytes;
 		    }
 		    else if (tmplen < 0)
 		    {
@@ -780,7 +810,8 @@ start_packet_read:
 #ifdef DEBUG_PQISTREAMER
 			    std::cerr << "[" << (void*)pthread_self() << "] " << "given up 2, state = " << mReading_state << std::endl ;
 #endif
-			    return 0;
+//			    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading error in bio read";
+			    return readbytes;
 		    }
 		    else // tmplen > 0
 		    {
@@ -792,7 +823,8 @@ start_packet_read:
 
 			    std::cerr << "[" << (void*)pthread_self() << "] " << "given up 3" << std::endl ;
 #endif
-			    return -1;
+//			    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading strange reading of " << std::dec << tmplen;
+			    return readbytes;
 		    }
 	    }
 #ifdef DEBUG_PQISTREAMER
@@ -813,7 +845,8 @@ start_packet_read:
 #endif
             mReading_state = reading_state_initial ;	// restart at state 1.
             mFailed_read_attempts = 0 ;
-            return 0;
+//	    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading enabled packet slicing";
+	    return readbytes;
         }
     }
 continue_packet:
@@ -893,7 +926,9 @@ continue_packet:
 		    mBio->close();	
 		    mReading_state = reading_state_initial ;	// restart at state 1.
 		    mFailed_read_attempts = 0 ;
-		    return -1;
+		    
+//		    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading read packet too big";
+		    return readbytes;
 
 		    // Used to exit now! exit(1);
 	    }
@@ -948,14 +983,16 @@ continue_packet:
 				    mBio->close();	
 				    mReading_state = reading_state_initial ;	// restart at state 1.
 				    mFailed_read_attempts = 0 ;
-				    return -1;
+//				    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading unexpected read error";
+				    return readbytes;
 			    }
 			    else
 			    {
 #ifdef DEBUG_PQISTREAMER
 				    std::cerr << "[" << (void*)pthread_self() << "] " << "given up 5, state = " << mReading_state << std::endl ;
 #endif
-				    return 0 ;	// this is just a SSL_WANT_READ error. Don't panic, we'll re-try the read soon.
+//				    RsDbg() << "PQISTREAMER pqistreamer::handleincoming() stopped reading too many read fail";
+				    return readbytes ;	// this is just a SSL_WANT_READ error. Don't panic, we'll re-try the read soon.
 				    // we assume readdata() returned either -1 or the complete read size.
 			    }
 		    }
@@ -1184,6 +1221,13 @@ int     pqistreamer::outAllowedBytes_locked()
 	RsDbg() << "PQISTREAMER pqistreamer::outAllowedBytes_locked() dt " << std::dec << (int)(1000 * dt) << "ms, mAvgDtOut " << (int)(1000 * mAvgDtOut) << "ms, maxout " << (int)(maxout) << " bytes/s, mCurrSent " << mCurrSent << " bytes, quota " << (int)(quota) << " bytes";
 #endif
 
+/*	RsDbg() << "PQISTREAMER pqistreamer::outAllowedBytes_locked() dt "
+        << std::fixed << std::setprecision(1) << (1000.0 * dt) << "ms, mAvgDtOut "
+        << (1000.0 * mAvgDtOut) << "ms, maxout "
+        << (int)(maxout) << " bytes/s, mCurrSent "
+        << mCurrSent << " bytes, quota "
+        << (int)(quota) << " bytes";
+*/
 	return quota;
 }
 
@@ -1223,12 +1267,20 @@ int     pqistreamer::inAllowedBytes()
 
 	// we now calculate the max amount of data allowed to be received during the next round
 	// we take into account the excess/deficit of the previous round
-	double quota = mAvgDtIn * maxin - mCurrRead;
+//	double quota = mAvgDtIn * maxin - mCurrRead;
+	double quota = mAvgDtIn * maxin;
 
 #ifdef DEBUG_PQISTREAMER
 	RsDbg() << "PQISTREAMER pqistreamer::inAllowedBytes() dt " << std::dec << (int)(1000 * dt) << "ms, mAvgDtIn " << (int)(1000 * mAvgDtIn) << "ms, maxin " << (int)(maxin) << " bytes/s, mCurrRead " << mCurrRead << " bytes, quota " << (int)(quota) << " bytes";
 #endif
 
+/*	RsDbg() << "PQISTREAMER pqistreamer::inAllowedBytes() dt " 
+        << std::fixed << std::setprecision(1) << (1000.0 * dt) << "ms, mAvgDtIn " 
+        << (1000.0 * mAvgDtIn) << "ms, maxin " 
+        << (int)(maxin) << " bytes/s, mCurrRead " 
+        << mCurrRead << " bytes, quota " 
+        << (int)(quota) << " bytes";
+*/
 	return quota;
 }
 
