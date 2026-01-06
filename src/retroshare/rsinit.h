@@ -247,6 +247,8 @@ public:
 	static bool RsClearAutoLogin() ;
 
     static std::string executablePath() ;
+	static const char* libRetroShareVersion();
+
 private:
 	/** @brief Lock profile directory
 	 * param[in] accountDir account directory to lock

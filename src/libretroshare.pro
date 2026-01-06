@@ -1348,3 +1348,14 @@ android-* {
         rs_android/errorconditionwrap.cpp
 }
 
+# [Added] Engine Versioning
+# We use 'git -C $$PWD' to ensure we retrieve the hash/tag of the submodule (libretroshare)
+# and not the parent repository.
+LIB_GIT_HASH = $$system(git -C $$PWD describe --tags --always --dirty)
+
+!isEmpty(LIB_GIT_HASH) {
+    DEFINES += RS_LIB_VERSION_HASH=\\\"$$LIB_GIT_HASH\\\"
+} else {
+    # Fallback if git is not available or if not a git repo
+    DEFINES += RS_LIB_VERSION_HASH=\\\"Unknown-Lib\\\"
+}

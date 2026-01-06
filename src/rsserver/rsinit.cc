@@ -296,6 +296,19 @@ bool doPortRestrictions = false;
 #endif
 #endif
 
+/**
+ * @brief Returns the specific version of the libretroshare engine.
+ * This version is retrieved from the git submodule hash during compilation.
+ */
+const char* RsInit::libRetroShareVersion()
+{
+#ifdef RS_LIB_VERSION_HASH
+    return RS_LIB_VERSION_HASH;
+#else
+    return "Unknown-Lib";
+#endif
+}
+
 /********
  * LOCALNET_TESTING - allows port restrictions
  *
