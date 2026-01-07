@@ -25,9 +25,12 @@
 #include <inttypes.h>
 #include <string>
 #include <list>
+#include <vector>
+#include <iostream>
 
 #include "retroshare/rstokenservice.h"
 #include "retroshare/rsgxsifacehelper.h"
+#include "retroshare/rsevents.h"
 
 /* The Main Interface Class - for information about your Peers */
 class RsWiki;
@@ -61,40 +64,49 @@ extern RsWiki *rsWiki;
 #define FLAG_MSG_TYPE_WIKI_SNAPSHOT	0x0001
 #define FLAG_MSG_TYPE_WIKI_COMMENT	0x0002
 
-class CollectionRef
+/** Wiki Event Codes */
+enum class RsWikiEventCode : uint8_t
 {
-	public:
+	UPDATED_SNAPSHOT   = 0x01,
+	UPDATED_COLLECTION = 0x02
+};
 
-	std::string KeyWord;
-        std::string CollectionId;
+/** Specific Wiki Event for UI updates */
+struct RsGxsWikiEvent : public RsEvent
+{
+	/* Constructor accepts dynamic event type */
+	RsGxsWikiEvent(RsEventType type) : RsEvent(type) {}
+	virtual ~RsGxsWikiEvent() override = default;
+
+	RsWikiEventCode mWikiEventCode;
+	RsGxsGroupId mWikiGroupId;
+
+	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx) override
+	{
+		RsEvent::serial_process(j, ctx);
+		RS_SERIAL_PROCESS(mWikiEventCode);
+		RS_SERIAL_PROCESS(mWikiGroupId);
+	}
 };
 
 struct RsWikiCollection: RsGxsGenericGroupData
 {
-	public:
 	std::string mDescription;
 	std::string mCategory;
-
 	std::string mHashTags;
-
-	// std::map<std::string, CollectionRef> linkReferences;
 };
 
 class RsWikiSnapshot
 {
-	public:
-
+public:
 	RsMsgMetaData mMeta;
-
-	std::string mPage; // all the text is stored here.
+	std::string mPage; 
 	std::string mHashTags;
 };
 
-
 class RsWikiComment
 {
-	public:
-
+public:
 	RsMsgMetaData mMeta;
 	std::string mComment; 
 };
@@ -103,32 +115,26 @@ std::ostream &operator<<(std::ostream &out, const RsWikiCollection &group);
 std::ostream &operator<<(std::ostream &out, const RsWikiSnapshot &shot);
 std::ostream &operator<<(std::ostream &out, const RsWikiComment &comment);
 
-
 class RsWiki: public RsGxsIfaceHelper
 {
 public:
-
 	RsWiki(RsGxsIface& gxs): RsGxsIfaceHelper(gxs) {}
 	virtual ~RsWiki() {}
 
-	/* Specific Service Data */
-virtual bool getCollections(const uint32_t &token, std::vector<RsWikiCollection> &collections) = 0;
-virtual bool getSnapshots(const uint32_t &token, std::vector<RsWikiSnapshot> &snapshots) = 0;
-virtual bool getComments(const uint32_t &token, std::vector<RsWikiComment> &comments) = 0;
+	/* GXS Data Access */
+	virtual bool getCollections(const uint32_t &token, std::vector<RsWikiCollection> &collections) = 0;
+	virtual bool getSnapshots(const uint32_t &token, std::vector<RsWikiSnapshot> &snapshots) = 0;
+	virtual bool getComments(const uint32_t &token, std::vector<RsWikiComment> &comments) = 0;
+	virtual bool getRelatedSnapshots(const uint32_t &token, std::vector<RsWikiSnapshot> &snapshots) = 0;
+	virtual bool submitCollection(uint32_t &token, RsWikiCollection &collection) = 0;
+	virtual bool submitSnapshot(uint32_t &token, RsWikiSnapshot &snapshot) = 0;
+	virtual bool submitComment(uint32_t &token, RsWikiComment &comment) = 0;
+	virtual bool updateCollection(uint32_t &token, RsWikiCollection &collection) = 0;
 
-virtual bool getRelatedSnapshots(const uint32_t &token, std::vector<RsWikiSnapshot> &snapshots) = 0;
-
-virtual bool submitCollection(uint32_t &token, RsWikiCollection &collection) = 0;
-virtual bool submitSnapshot(uint32_t &token, RsWikiSnapshot &snapshot) = 0;
-virtual bool submitComment(uint32_t &token, RsWikiComment &comment) = 0;
-
-virtual bool updateCollection(uint32_t &token, RsWikiCollection &collection) = 0;
-
-	// Blocking Interfaces.
-virtual bool createCollection(RsWikiCollection &collection) = 0;
-virtual bool updateCollection(const RsWikiCollection &collection) = 0;
-virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
-
+	/* Blocking Interfaces */
+	virtual bool createCollection(RsWikiCollection &collection) = 0;
+	virtual bool updateCollection(const RsWikiCollection &collection) = 0;
+	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
 };
 
 #endif
