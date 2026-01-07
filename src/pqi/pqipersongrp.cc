@@ -407,6 +407,7 @@ bool pqipersongrp::getPeerTotalTraffic(const RsPeerId& id, uint64_t& in, uint64_
     in = it->second->pqi->getTraffic(true);
     out = it->second->pqi->getTraffic(false);
     return true;
+}
 
 
 int     pqipersongrp::addPeer(const RsPeerId& id)
