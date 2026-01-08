@@ -98,7 +98,7 @@ class DistributedChatService
 
 	private:
 		/// make some statistics about time shifts, to prevent various issues. 
-		void addTimeShiftStatistics(int shift) ;
+		void addTimeShiftStatistics(int shift, const RsGxsId& gxsId) ;
 
 		void handleRecvChatLobbyListRequest(RsChatLobbyListRequestItem *item) ;
 		void handleRecvChatLobbyList(RsChatLobbyListItem *item) ;

@@ -609,72 +609,94 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
     _should_reset_lobby_counts = false ;
 }
 
-void DistributedChatService::addTimeShiftStatistics(int D)
+void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
 {
-	// Bursts of messages from friends using a wrong system clock can trigger a TIME_SHIFT_PROBLEM event 
-	// We eliminate that by taking into account at most 1 message per second
-	static rstime_t last_stat_time = 0;
-	rstime_t now = time(NULL);
-	if(now <= last_stat_time)
-		return;
-	last_stat_time = now;
+    // --- GLOBAL RATE LIMITER ---
+    // We only take at most 1 sample per second from the whole network.
+    // This provides robustness against network bursts/batching from relays.
+    static rstime_t last_stat_time = 0;
+    rstime_t now = time(NULL);
 
-	static const int S = 50 ; // accuracy up to 2^50 second. Quite conservative!
-	static int total = 0 ;
-	static std::vector<int> log_delay_histogram(S,0) ;
+    if (now <= last_stat_time) {
+        return;
+    }
+    last_stat_time = now;
 
-	int delay = (D<0)?(-D):D ;
+    // Resolve identity name for readable logs
+    std::string identityName = gxsId.toStdString();
+    RsIdentityDetails idDetails;
+    if (rsIdentity && rsIdentity->getIdDetails(gxsId, idDetails)) {
+        // format: Nickname (ShortID)
+        identityName = idDetails.mNickname + " (" + gxsId.toStdString().substr(0, 6) + ")";
+    }
 
-	if(delay < 0)
-		delay = -delay ;
+    // --- EXISTING HISTOGRAM LOGIC ---
+    static const int S = 50; 
+    static int total = 0;
+    static std::vector<int> log_delay_histogram(S, 0);
+    
+    // Track contributors for the current window to debug who caused an alert
+    static std::map<RsGxsId, int> contributors;
 
-	// compute log2.
-	int l = 0 ;
-	while(delay > 0) delay >>= 1, ++l ;
+    int delay = (D < 0) ? (-D) : D;
+    int l = 0;
+    while (delay > 0) {
+        delay >>= 1;
+        ++l;
+    }
 
-	int bin = std::min(S-1,l) ;
-	++log_delay_histogram[bin] ;
-	++total ;
+    int bin = std::min(S - 1, l);
+    ++log_delay_histogram[bin];
+    ++total;
+    contributors[gxsId]++;
 
-#ifdef DEBUG_CHAT_LOBBIES
-	std::cerr << "New delay stat item. delay=" << D << ", log=" << bin << " total=" << total << ", histogram = " ;
+    // Debug Log: Accepted
+    RsDbg() << "[TS-ACCEPT] Accepted sample from " << identityName 
+            << " (Delay: " << D << "s, LogBin: " << bin << ")";
 
-	for(int i=0;i<S;++i)
-		std::cerr << log_delay_histogram[i] << " " ;
-#endif
-
-	if(total > 30)
-	{
-		float t = 0.0f ;
-		int i=0 ;
-		for(;i<S && t<0.5*total;++i)
-			t += log_delay_histogram[i] ;
-
-		if(i == 0) return ;									// cannot happen, since total>0 so i is incremented
-		if(log_delay_histogram[i-1] == 0) return ;	// cannot happen, either, but let's be cautious.
-
-		float expected = ( i * (log_delay_histogram[i-1] - t + total*0.5) + (i-1) * (t - total*0.5) ) / (float)log_delay_histogram[i-1] - 1;
-
-#ifdef DEBUG_CHAT_LOBBIES
-		std::cerr << ". Expected delay: " << expected << std::endl ;
-#endif
-
-		if(expected > 9)	// if more than 20 samples
-        {
-            auto ev = std::make_shared<RsSystemEvent>();
-            ev->mEventCode = RsSystemEventCode::TIME_SHIFT_PROBLEM;
-            ev->mTimeShift = (int)pow(2.0f,expected);
-            rsEvents->postEvent(ev);
+    // When the urn has 30 votes, we calculate the median
+    if (total > 30) {
+        float t = 0.0f;
+        int i = 0;
+        for (; i < S && t < 0.5 * total; ++i) {
+            t += log_delay_histogram[i];
         }
 
-		total = 0.0f ;
-		log_delay_histogram.clear() ;
-		log_delay_histogram.resize(S,0) ;
-	}
-#ifdef DEBUG_CHAT_LOBBIES
-	else
-		std::cerr << std::endl;
-#endif
+        if (i > 0 && log_delay_histogram[i - 1] != 0) {
+            // Median interpolation
+            float expected = ( i * (log_delay_histogram[i-1] - t + total*0.5) + (i-1) * (t - total*0.5) ) / (float)log_delay_histogram[i-1] - 1;
+
+            // Construct the contributors string for the log
+            std::string top_peers = "";
+            for (auto const& [id, count] : contributors) {
+                std::string peerName = id.toStdString().substr(0, 6);
+                RsIdentityDetails pDet;
+                if (rsIdentity && rsIdentity->getIdDetails(id, pDet)) {
+                    peerName = pDet.mNickname;
+                }
+                top_peers += peerName + "(" + std::to_string(count) + ") ";
+            }
+            
+            // Log the result of the election
+            RsDbg() << "[TS-STATS] Window reached. ExpectedLogDelay: " << expected 
+                    << " | Contributors: " << top_peers;
+
+            // Trigger alert if the shift is significant (> 2^9 seconds approx 512s)
+            if (expected > 9) { 
+                RsDbg() << "[TS-ALERT] Time shift problem detected! Significant drift in network clock synchronization.";
+                
+                auto ev = std::make_shared<RsSystemEvent>();
+                ev->mEventCode = RsSystemEventCode::TIME_SHIFT_PROBLEM;
+                ev->mTimeShift = (int)pow(2.0f, expected);
+                rsEvents->postEvent(ev);
+            }
+        }
+
+        // Reset for the next window
+        total = 0;
+        contributors.clear();
+        log_delay_histogram.assign(S, 0);
+    }
 }
 
 void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *item)
@@ -737,7 +759,6 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 			return ;
 		}
 	}
-	addTimeShiftStatistics((int)now - (int)item->sendTime) ;
 
 	if(now+100 > (rstime_t) item->sendTime + MAX_KEEP_MSG_RECORD)	// the message is older than the max cache keep minus 100 seconds ! It's too old, and is going to make an echo!
 	{
@@ -757,9 +778,11 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 	}
 	// add a routing clue for this peer/GXSid combination. This is quite reliable since the lobby transport is almost instantaneous
 	rsGRouter->addRoutingClue(GRouterKeyId(item->signature.keyId),item->PeerId()) ;
-    
+
 	if(! bounceLobbyObject(item,item->PeerId()))
 		return ;
+
+	addTimeShiftStatistics((int)now - (int)item->sendTime, item->signature.keyId);
 
 #ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "  doing specific job for this status item." << std::endl;
