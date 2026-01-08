@@ -14,3 +14,4 @@ CMakeLists.txt.user
 Makefile.libretroshare
 *.a
 *.o
+build/
