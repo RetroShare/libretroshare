@@ -248,7 +248,7 @@ void p3Msgs::getChatLobbyList(std::list<ChatLobbyId>& lids)
 {
     mChatSrv->getChatLobbyList(lids) ;
 }
-void p3Msgs::invitePeerToLobby(const ChatLobbyId& lobby_id, const RsPeerId& peer_id) 
+void p3Msgs::invitePeerToLobby(const ChatLobbyId& lobby_id, const RsPeerId& peer_id)
 {
 	mChatSrv->invitePeerToLobby(lobby_id,peer_id) ;
 }
@@ -283,7 +283,7 @@ bool p3Msgs::joinVisibleChatLobby(const ChatLobbyId& lobby_id,const RsGxsId& own
     return mChatSrv->joinVisibleChatLobby(lobby_id,own_id) ;
 }
 
-void p3Msgs::getListOfNearbyChatLobbies(std::vector<VisibleChatLobbyRecord>& public_lobbies) 
+void p3Msgs::getListOfNearbyChatLobbies(std::vector<VisibleChatLobbyRecord>& public_lobbies)
 {
 	mChatSrv->getListOfNearbyChatLobbies(public_lobbies) ;
 }
@@ -312,7 +312,7 @@ bool p3Msgs::denyLobbyInvite(const ChatLobbyId& id)
 {
     return mChatSrv->denyLobbyInvite(id) ;
 }
-void p3Msgs::getPendingChatLobbyInvites(std::list<ChatLobbyInvite>& invites) 
+void p3Msgs::getPendingChatLobbyInvites(std::list<ChatLobbyInvite>& invites)
 {
 	mChatSrv->getPendingChatLobbyInvites(invites) ;
 }
@@ -340,7 +340,7 @@ uint32_t p3Msgs::getDistantChatPermissionFlags()
 }
 
 RsMsgs::~RsMsgs() = default;
-Rs::Msgs::MessageInfo::~MessageInfo() = default;
+Rs::Mail::MessageInfo::~MessageInfo() = default;
 MsgInfoSummary::~MsgInfoSummary() = default;
 
 

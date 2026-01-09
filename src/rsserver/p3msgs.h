@@ -22,6 +22,7 @@
  *******************************************************************************/
 #pragma once
 
+#include "retroshare/rschats.h"
 #include "retroshare/rsmail.h"
 #include "retroshare/rsgxsifacetypes.h"
 
@@ -63,14 +64,14 @@ public:
 	  /*!
 	   * @param msgList ref to list summarising client's msgs
 	   */
-      virtual bool getMessageSummaries(Rs::Msgs::BoxName box,std::list<Rs::Msgs::MsgInfoSummary> &msgList) override;
-      virtual bool getMessage(const std::string &mId, Rs::Msgs::MessageInfo &msg)override ;
+      virtual bool getMessageSummaries(Rs::Mail::BoxName box,std::list<Rs::Msgs::MsgInfoSummary> &msgList) override;
+      virtual bool getMessage(const std::string &mId, Rs::Mail::MessageInfo &msg)override ;
       virtual void getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox)override ;
 
 	RS_DEPRECATED_FOR(sendMail)
-      virtual bool MessageSend(Rs::Msgs::MessageInfo &info)override ;
+      virtual bool MessageSend(Rs::Mail::MessageInfo &info)override ;
       virtual bool SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag)override ;
-      virtual bool MessageToDraft(Rs::Msgs::MessageInfo &info, const std::string &msgParentId)override ;
+      virtual bool MessageToDraft(Rs::Mail::MessageInfo &info, const std::string &msgParentId)override ;
       virtual bool MessageToTrash(const std::string &mid, bool bTrash)override ;
       virtual bool MessageDelete(const std::string &mid)override ;
       virtual bool MessageRead(const std::string &mid, bool unreadByUser)override ;
@@ -81,15 +82,15 @@ public:
       virtual bool MessageLoadEmbeddedImages(const std::string &mid, bool load)override ;
       virtual bool getMsgParentId(const std::string &msgId, std::string &msgParentId)override ;
 
-      virtual bool getMessageTagTypes(Rs::Msgs::MsgTagType& tags)override ;
+      virtual bool getMessageTagTypes(Rs::Mail::MsgTagType& tags)override ;
       virtual bool setMessageTagType(uint32_t tagId, std::string& text, uint32_t rgb_color)override ;
       virtual bool removeMessageTagType(uint32_t tagId)override ;
 
-      virtual bool getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info)override ;
+      virtual bool getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info)override ;
 	  /* set == false && tagId == 0 --> remove all */
       virtual bool setMessageTag(const std::string &msgId, uint32_t tagId, bool set)override ;
 
-      virtual bool resetMessageStandardTagTypes(Rs::Msgs::MsgTagType& tags)override ;
+      virtual bool resetMessageStandardTagTypes(Rs::Mail::MsgTagType& tags)override ;
 
       virtual uint32_t getDistantMessagingPermissionFlags() override ;
       virtual void setDistantMessagingPermissionFlags(uint32_t flags) override ;
@@ -123,7 +124,7 @@ public:
 	   * retrieves peer's custom status
 	   */
       virtual std::string getCustomStateString(const RsPeerId& peer_id) override ;
-	  
+
 
 	  /*!
        * Send a chat message.
@@ -181,7 +182,7 @@ public:
 
     virtual uint32_t getDistantChatPermissionFlags() override ;
     virtual bool setDistantChatPermissionFlags(uint32_t flags) override ;
-    
+
    private:
 
 	  p3MsgService  *mMsgSrv;
