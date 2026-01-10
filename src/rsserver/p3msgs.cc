@@ -135,17 +135,17 @@ bool p3Msgs::MessageRead(const std::string &mid, bool unreadByUser)
 
 bool p3Msgs::MessageReplied(const std::string &mid, bool replied)
 {
-	return mMsgSrv->setMsgFlag(mid, replied ? RS_MSG_FLAGS_REPLIED : 0, RS_MSG_FLAGS_REPLIED);
+	return mMsgSrv->MessageReplied(mid, replied);
 }
 
 bool p3Msgs::MessageForwarded(const std::string &mid, bool forwarded)
 {
-	return mMsgSrv->setMsgFlag(mid, forwarded ? RS_MSG_FLAGS_FORWARDED : 0, RS_MSG_FLAGS_FORWARDED);
+	return mMsgSrv->MessageForwarded(mid, forwarded);
 }
 
 bool p3Msgs::MessageLoadEmbeddedImages(const std::string &mid, bool load)
 {
-	return mMsgSrv->setMsgFlag(mid, load ? RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES : 0, RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES);
+	return mMsgSrv->MessageLoadEmbeddedImages(mid, load);
 }
 
 bool 	p3Msgs::getMessageTagTypes(MsgTagType& tags)
@@ -155,12 +155,12 @@ bool 	p3Msgs::getMessageTagTypes(MsgTagType& tags)
 
 bool p3Msgs::MessageStar(const std::string &mid, bool star)
 {
-	return mMsgSrv->setMsgFlag(mid, star ? RS_MSG_FLAGS_STAR : 0, RS_MSG_FLAGS_STAR);
+	return mMsgSrv->MessageStar(mid, star);
 }
 
 bool p3Msgs::MessageJunk(const std::string &mid, bool junk)
 {
-	return mMsgSrv->setMsgFlag(mid, junk ? RS_MSG_FLAGS_SPAM : 0, RS_MSG_FLAGS_SPAM);
+	return mMsgSrv->MessageJunk(mid, junk);
 }
 
 bool  p3Msgs::setMessageTagType(uint32_t tagId, std::string& text, uint32_t rgb_color)
