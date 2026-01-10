@@ -36,7 +36,7 @@ class RsChatMsgItem;
  * custom status, avatar and
  * chats (public(group) and private) to peers
  */
-class p3Msgs: public RsMail
+class p3Msgs: public RsMail, public RsChats
 {
 public:
 
