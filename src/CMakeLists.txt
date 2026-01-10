@@ -21,7 +21,6 @@ list(
 	retroshare/rsgxstrans.h
 	retroshare/rsgxstunnel.h
 	retroshare/rsids.h
-	retroshare/rsnotify.h
 	retroshare/rsphoto.h
 	retroshare/rsplugin.h
 	retroshare/rsreputations.h
@@ -274,7 +273,6 @@ list(
 	pqi/pqistore.cc
 	pqi/authgpg.cc
 	pqi/p3cfgmgr.cc
-	pqi/p3notify.cc
 	pqi/p3servicecontrol.cc
 	pqi/pqifdbin.cc
 	pqi/pqinetstatebox.cc
@@ -303,7 +301,6 @@ list(
 	pqi/p3historymgr.h
 	pqi/p3linkmgr.h
 	pqi/p3netmgr.h
-	pqi/p3notify.h
 	pqi/p3peermgr.h
 	pqi/p3servicecontrol.h
 	pqi/p3upnpmgr.h
