@@ -26,8 +26,6 @@
 #include <map>
 #include <iostream>
 
-#include "retroshare/rsmsgs.h"
-
 #include "pqi/pqi.h"
 #include "pqi/pqiindic.h"
 
@@ -39,6 +37,7 @@
 #include "util/rsthreads.h"
 #include "util/rsdebug.h"
 #include "retroshare/rsgxsifacetypes.h"
+#include "retroshare/rsmail.h"
 
 #include "grouter/p3grouter.h"
 #include "grouter/grouterclientservice.h"
@@ -53,14 +52,18 @@ typedef uint32_t MessageIdentifier;
 
 // Temp tweak to test grouter
 class p3MsgService :
-        public p3Service, public p3Config, public pqiServiceMonitor, GRouterClientService,
-        GxsTransClient
+        public RsMail,
+        public p3Service,
+        public p3Config,
+        public pqiServiceMonitor,
+        public GRouterClientService,
+        public GxsTransClient
 {
 public:
 	p3MsgService(p3ServiceControl *sc, p3IdService *id_service, p3GxsTrans& gxsMS);
     virtual ~p3MsgService();
 
-	virtual RsServiceInfo getServiceInfo();
+    virtual RsServiceInfo getServiceInfo() override;
 
 	/// @see RsMsgs::sendMail
 	uint32_t sendMail(const RsGxsId from,
@@ -73,35 +76,40 @@ public:
 	        std::set<RsMailIdRecipientIdPair>& trackingIds =
 	            RS_DEFAULT_STORAGE_PARAM(std::set<RsMailIdRecipientIdPair>),
 	        std::string& errorMsg =
-	            RS_DEFAULT_STORAGE_PARAM(std::string) );
+                RS_DEFAULT_STORAGE_PARAM(std::string) ) override;
 
     /* External Interface */
-    bool 	getMessageSummaries(Rs::Msgs::BoxName box, std::list<Rs::Msgs::MsgInfoSummary> &msgList);
-    bool 	getMessage(const std::string& mid, Rs::Msgs::MessageInfo &msg);
-	void	getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox);
+    bool 	getMessageSummaries(Rs::Mail::BoxName box, std::list<Rs::Mail::MsgInfoSummary> &msgList) override;
+    bool 	getMessage(const std::string& mid, Rs::Mail::MessageInfo &msg) override;
+    void	getMessageCount(uint32_t &nInbox, uint32_t &nInboxNew, uint32_t &nOutbox, uint32_t &nDraftbox, uint32_t &nSentbox, uint32_t &nTrashbox) override;
 
-    bool    deleteMessage(const std::string &mid);
-    bool    markMsgIdRead(const std::string &mid, bool bUnreadByUser);
-    bool    setMsgFlag(const std::string &mid, uint32_t flag, uint32_t mask);
-    bool    getMsgParentId(const std::string &msgId, std::string &msgParentId);
+    bool    MessageDelete(const std::string &mid) override;
+    bool    MessageRead(const std::string &mid, bool bUnreadByUser) override;
+    bool    MessageJunk(const std::string &mid, bool bUnreadByUser) override;
+    bool    MessageReplied(const std::string &mid, bool bUnreadByUser) override;
+    bool 	MessageForwarded(const std::string &mid, bool forwarded) override;
+    bool 	MessageStar(const std::string &mid, bool star) override;
+    bool 	MessageLoadEmbeddedImages(const std::string &mid, bool load) override;
+
+    bool    getMsgParentId(const std::string &msgId, std::string &msgParentId) override;
     // msgParentId == 0 --> remove
     bool    setMsgParentId(uint32_t msgId, uint32_t msgParentId);
 
 	RS_DEPRECATED_FOR(sendMail)
-    bool    MessageSend(Rs::Msgs::MessageInfo &info);
-    bool    SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag);
-    bool    MessageToDraft(Rs::Msgs::MessageInfo &info, const std::string &msgParentId);
-    bool    MessageToTrash(const std::string &mid, bool bTrash);
+    bool    MessageSend(Rs::Mail::MessageInfo &info) override;
+    bool    SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag) override;
+    bool    MessageToDraft(Rs::Mail::MessageInfo &info, const std::string &msgParentId) override;
+    bool    MessageToTrash(const std::string &mid, bool bTrash) override;
 
-    bool 	getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
-    bool 	getMessageTagTypes(Rs::Msgs::MsgTagType& tags);
-    bool  	setMessageTagType(uint32_t tagId, std::string& text, uint32_t rgb_color);
-    bool    removeMessageTagType(uint32_t tagId);
+    bool 	getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info) override;
+    bool 	getMessageTagTypes(Rs::Mail::MsgTagType& tags) override;
+    bool  	setMessageTagType(uint32_t tagId, std::string& text, uint32_t rgb_color) override;
+    bool    removeMessageTagType(uint32_t tagId) override;
 
     /* set == false && tagId == 0 --> remove all */
-    bool 	setMessageTag(const std::string &msgId, uint32_t tagId, bool set);
+    bool 	setMessageTag(const std::string &msgId, uint32_t tagId, bool set) override;
 
-    bool    resetMessageStandardTagTypes(Rs::Msgs::MsgTagType& tags);
+    bool    resetMessageStandardTagTypes(Rs::Mail::MsgTagType& tags) override;
 
     void    loadWelcomeMsg(); /* startup message */
 
@@ -109,17 +117,17 @@ public:
     //std::list<RsMsgItem *> &getMsgList();
     //std::list<RsMsgItem *> &getMsgOutList();
 
-    int	tick();
+    int	tick() override;
 
     /*** Overloaded from p3Config ****/
-    virtual RsSerialiser *setupSerialiser();
-    virtual bool saveList(bool& cleanup, std::list<RsItem*>&);
-    virtual bool loadList(std::list<RsItem*>& load);
-    virtual void saveDone();
+    virtual RsSerialiser *setupSerialiser() override;
+    virtual bool saveList(bool& cleanup, std::list<RsItem*>&) override;
+    virtual bool loadList(std::list<RsItem*>& load) override;
+    virtual void saveDone() override;
     /*** Overloaded from p3Config ****/
 
     /*** Overloaded from pqiMonitor ***/
-    virtual void    statusChange(const std::list<pqiServicePeer> &plist);
+    virtual void    statusChange(const std::list<pqiServicePeer> &plist) override;
 
 	/// iterate through the outgoing queue if online, send
 	int checkOutgoingMessages();
@@ -127,7 +135,7 @@ public:
 
     /*** overloaded from p3turtle   ***/
 
-    virtual void connectToGlobalRouter(p3GRouter *) ;
+    virtual void connectToGlobalRouter(p3GRouter *)  override;
 
     struct DistantMessengingInvite
     {
@@ -143,21 +151,23 @@ public:
     void enableDistantMessaging(bool b) ;
     bool distantMessagingEnabled() ;
 
-    void setDistantMessagingPermissionFlags(uint32_t flags) ;
-    uint32_t getDistantMessagingPermissionFlags() ;
+    void setDistantMessagingPermissionFlags(uint32_t flags)  override;
+    uint32_t getDistantMessagingPermissionFlags()  override;
 
 	/// @see GxsTransClient::receiveGxsTransMail(...)
 	virtual bool receiveGxsTransMail( const RsGxsId& authorId,
 	                                  const RsGxsId& recipientId,
-	                                  const uint8_t* data, uint32_t dataSize );
+                                      const uint8_t* data, uint32_t dataSize ) override;
 
 	/// @see GxsTransClient::notifyGxsTransSendStatus(...)
 	virtual bool notifyGxsTransSendStatus( RsGxsTransId mailId,
-	                                       GxsTransSendStatus status );
+                                           GxsTransSendStatus status ) override;
 
 private:
+    bool setMsgFlag(const std::string &mid, uint32_t flag, uint32_t mask);
+
     void locked_sendDistantMsgItem(RsMsgItem *msgitem, const RsGxsId &from, uint32_t msgId);
-    bool locked_getMessageTag(const std::string &msgId, Rs::Msgs::MsgTagInfo& info);
+    bool locked_getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info);
     void locked_checkForDuplicates();
     RsMailStorageItem *locked_getMessageData(uint32_t mid) const;
 
@@ -170,9 +180,9 @@ private:
 	RsMutex gxsOngoingMutex;
 
     // Overloaded from GRouterClientService
-    virtual bool acceptDataFromPeer(const RsGxsId& gxs_id) ;
-    virtual void receiveGRouterData(const RsGxsId& destination_key,const RsGxsId& signing_key, GRouterServiceId &client_id, uint8_t *data, uint32_t data_size) ;
-    virtual void notifyDataStatus(const GRouterMsgPropagationId& msg_id,const RsGxsId& signer_id,uint32_t data_status) ;
+    virtual bool acceptDataFromPeer(const RsGxsId& gxs_id)  override;
+    virtual void receiveGRouterData(const RsGxsId& destination_key,const RsGxsId& signing_key, GRouterServiceId &client_id, uint8_t *data, uint32_t data_size)  override;
+    virtual void notifyDataStatus(const GRouterMsgPropagationId& msg_id,const RsGxsId& signer_id,uint32_t data_status)  override;
 
     // Utility functions
 
@@ -181,31 +191,31 @@ private:
 
     void manageDistantPeers() ;
 
-    void handleIncomingItem(RsMsgItem *, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to) ;
+    void handleIncomingItem(RsMsgItem *, const Rs::Mail::MsgAddress &from, const Rs::Mail::MsgAddress &to) ;
 
     uint32_t getNewUniqueMsgId();
-    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Msgs::MsgAddress &from, const Rs::Msgs::MsgAddress &to, uint32_t flags);
+    MessageIdentifier internal_sendMessage(MessageIdentifier id, const Rs::Mail::MsgAddress &from, const Rs::Mail::MsgAddress &to, uint32_t flags);
     uint32_t sendDistantMessage(RsMsgItem *item,const RsGxsId& signing_gxs_id);
     void    checkSizeAndSendMessage(RsMsgItem *msg, const RsPeerId &destination);
     void cleanListOfReceivedMessageHashes();
 
     int 	incomingMsgs();
-    void    processIncomingMsg(RsMsgItem *mi,const Rs::Msgs::MsgAddress& from,const Rs::Msgs::MsgAddress& to) ;
+    void    processIncomingMsg(RsMsgItem *mi,const Rs::Mail::MsgAddress& from,const Rs::Mail::MsgAddress& to) ;
     bool checkAndRebuildPartialMessage(RsMsgItem*) ;
 
     // These two functions generate MessageInfo and MessageInfoSummary structures for the UI to use
 
-    void    initRsMI (const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to, uint32_t flags, Rs::Msgs::MessageInfo&    mi );
-    void 	initRsMIS(const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& from, const Rs::Msgs::MsgAddress& to,MessageIdentifier mid,Rs::Msgs::MsgInfoSummary& mis);
+    void    initRsMI (const RsMailStorageItem& msi, const Rs::Mail::MsgAddress& from, const Rs::Mail::MsgAddress& to, uint32_t flags, Rs::Mail::MessageInfo&    mi );
+    void 	initRsMIS(const RsMailStorageItem& msi, const Rs::Mail::MsgAddress& from, const Rs::Mail::MsgAddress& to,MessageIdentifier mid,Rs::Mail::MsgInfoSummary& mis);
 
     // Creates a RsMsgItem from a RsMailStorageItem, and a 'to' fields.
-    RsMsgItem *createOutgoingMessageItem(const RsMailStorageItem& msi, const Rs::Msgs::MsgAddress& to);
+    RsMsgItem *createOutgoingMessageItem(const RsMailStorageItem& msi, const Rs::Mail::MsgAddress& to);
 
     // Creates a RsMailStorageItem from a message info and a 'from' field.
-    RsMailStorageItem *initMIRsMsg(const Rs::Msgs::MessageInfo &info);
+    RsMailStorageItem *initMIRsMsg(const Rs::Mail::MessageInfo &info);
 
     // Creates a RsMailStorageItem from a MessageInfo.
-    bool initMIRsMsg(RsMailStorageItem *msi, const Rs::Msgs::MessageInfo &info) ;
+    bool initMIRsMsg(RsMailStorageItem *msi, const Rs::Mail::MessageInfo &info) ;
 
     void    initStandardTagTypes();
 

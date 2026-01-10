@@ -24,7 +24,7 @@
 #include <map>
 
 #include "retroshare/rstypes.h"
-#include "retroshare/rsmsgs.h"
+#include "retroshare/rsmail.h"
 #include "serialiser/rstlvkeys.h"
 #include "rsitems/rsserviceids.h"
 #include "serialiser/rsserial.h"
@@ -185,8 +185,8 @@ struct RsOutgoingMessageInfo: public RsSerializable
         RS_SERIAL_PROCESS(grouter_id);
     }
 
-    Rs::Msgs::MsgAddress origin;
-    Rs::Msgs::MsgAddress destination;
+    Rs::Mail::MsgAddress origin;
+    Rs::Mail::MsgAddress destination;
     uint32_t flags;
     GRouterMsgPropagationId grouter_id;
 };
@@ -231,9 +231,9 @@ class RsMailStorageItem : public RsMessageItem
         // ----------- Specific fields ------------- //
         //
 
-        Rs::Msgs::MsgAddress from;
-        Rs::Msgs::MsgAddress to;
-        Rs::Msgs::MsgTagInfo tagIds;
+        Rs::Mail::MsgAddress from;
+        Rs::Mail::MsgAddress to;
+        Rs::Mail::MsgTagInfo tagIds;
         uint32_t parentId;
         RsMsgItem msg;
 };

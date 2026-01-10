@@ -33,7 +33,6 @@
 
 #include "rsitems/rsmsgitems.h"
 
-#include "retroshare/rsmsgs.h"
 #include "retroshare/rsidentity.h"
 #include "retroshare/rsiface.h"
 
