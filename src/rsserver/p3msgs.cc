@@ -222,7 +222,7 @@ void p3Msgs::setOwnAvatarData(const unsigned char *data,int size)
 
 void p3Msgs::getAvatarData(const RsPeerId& pid,unsigned char *& data,int& size)
 {
-	mChatSrv->getAvatarJpegData(pid,data,size) ;
+	mChatSrv->getAvatarData(pid,data,size) ;
 }
 
 std::string p3Msgs::getCustomStateString(const RsPeerId& peer_id)
