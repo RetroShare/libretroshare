@@ -130,7 +130,7 @@ bool p3Msgs::MessageRead(const std::string &mid, bool unreadByUser)
 	//std::cerr << "p3Msgs::MessageRead() ";
 	//std::cerr << "mid: " << mid << std::endl;
 
-	return mMsgSrv -> markMsgIdRead(mid, unreadByUser);
+	return mMsgSrv -> MessageRead(mid, unreadByUser);
 }
 
 bool p3Msgs::MessageReplied(const std::string &mid, bool replied)
