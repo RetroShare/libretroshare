@@ -21,7 +21,6 @@ list(
 	retroshare/rsgxstrans.h
 	retroshare/rsgxstunnel.h
 	retroshare/rsids.h
-	retroshare/rsnotify.h
 	retroshare/rsphoto.h
 	retroshare/rsplugin.h
 	retroshare/rsreputations.h
@@ -36,7 +35,8 @@ list(
 	retroshare/rsgxsifacehelper.h
 	retroshare/rshistory.h
 	retroshare/rsidentity.h
-	retroshare/rsmsgs.h
+	retroshare/rschats.h
+	retroshare/rsmail.h
 	retroshare/rsgxschannels.h
 	retroshare/rsgxscircles.h
 	retroshare/rsgxsiface.h
@@ -273,7 +273,6 @@ list(
 	pqi/pqistore.cc
 	pqi/authgpg.cc
 	pqi/p3cfgmgr.cc
-	pqi/p3notify.cc
 	pqi/p3servicecontrol.cc
 	pqi/pqifdbin.cc
 	pqi/pqinetstatebox.cc
@@ -302,7 +301,6 @@ list(
 	pqi/p3historymgr.h
 	pqi/p3linkmgr.h
 	pqi/p3netmgr.h
-	pqi/p3notify.h
 	pqi/p3peermgr.h
 	pqi/p3servicecontrol.h
 	pqi/p3upnpmgr.h
@@ -415,7 +413,6 @@ list(
 	rsserver/p3serverconfig.cc
 	rsserver/rsloginhandler.cc
 	rsserver/p3face-server.cc
-	rsserver/p3msgs.cc
 	rsserver/p3peers.cc
 	rsserver/rsaccounts.cc
 	rsserver/rsinit.cc )
@@ -424,7 +421,6 @@ list(
 	APPEND RS_IMPLEMENTATION_HEADERS
 	rsserver/p3face.h
 	rsserver/p3history.h
-	rsserver/p3msgs.h
 	rsserver/p3peers.h
 	rsserver/p3serverconfig.h
 	rsserver/p3status.h
