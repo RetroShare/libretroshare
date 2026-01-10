@@ -339,7 +339,6 @@ uint32_t p3Msgs::getDistantChatPermissionFlags()
 	return mChatSrv->getDistantChatPermissionFlags() ;
 }
 
-RsMsgs::~RsMsgs() = default;
 Rs::Mail::MessageInfo::~MessageInfo() = default;
 MsgInfoSummary::~MsgInfoSummary() = default;
 
