@@ -103,12 +103,12 @@ public:
 	  /*!
 	   * sets clients avatar, image data should be in jpeg format
 	   */
-      virtual void setOwnAvatarData(const unsigned char *data,int size)override ;
+      virtual void setOwnNodeAvatarData(const unsigned char *data,int size)override ;
 
 	  /*!
 	   * retrieve clients avatar, image data in jpeg format
 	   */
-      virtual void getOwnAvatarData(unsigned char *& data,int& size)override ;
+      virtual void getOwnNodeAvatarData(unsigned char *& data,int& size)override ;
 
 	  /*!
 	   * sets clients custom status (e.g. "i'm tired")

@@ -210,14 +210,14 @@ void p3Msgs::clearChatLobby(const ChatId &id)
 	mChatSrv->clearChatLobby(id);
 }
 
-void p3Msgs::getOwnAvatarData(unsigned char *& data,int& size)
+void p3Msgs::getOwnNodeAvatarData(unsigned char *& data,int& size)
 {
-	mChatSrv->getOwnAvatarJpegData(data,size) ;
+	mChatSrv->getOwnNodeAvatarData(data,size) ;
 }
 
-void p3Msgs::setOwnAvatarData(const unsigned char *data,int size)
+void p3Msgs::setOwnNodeAvatarData(const unsigned char *data,int size)
 {
-	mChatSrv->setOwnNodeAvatarJpegData(data,size) ;
+	mChatSrv->setOwnNodeAvatarData(data,size) ;
 }
 
 void p3Msgs::getAvatarData(const RsPeerId& pid,unsigned char *& data,int& size)
