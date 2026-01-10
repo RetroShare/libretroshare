@@ -40,7 +40,7 @@ class p3Msgs: public RsMail
 {
 public:
 
-	p3Msgs(p3MsgService *p3m) :
+	p3Msgs(p3MsgService *p3m, p3ChatService *p3c) :
 	    mMsgSrv(p3m), mChatSrv(p3c) {}
 	~p3Msgs() override = default;
 
