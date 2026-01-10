@@ -230,7 +230,7 @@ std::string p3Msgs::getCustomStateString(const RsPeerId& peer_id)
 	return mChatSrv->getCustomStateString(peer_id) ;
 }
 
-std::string p3Msgs::getCustomStateString()
+std::string p3Msgs::getOwnCustomStateString()
 {
 	return mChatSrv->getOwnCustomStateString() ;
 }

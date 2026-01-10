@@ -118,7 +118,7 @@ public:
 	  /*!
 	   * retrieves client's custom status
 	   */
-      virtual std::string getCustomStateString() override ;
+      virtual std::string getOwnCustomStateString() override ;
 
 	  /*!
 	   * retrieves peer's custom status

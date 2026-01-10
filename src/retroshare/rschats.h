@@ -444,7 +444,7 @@ public:
     virtual void setCustomStateString(const std::string &status_string) = 0;
 
     /**
-     * @brief getCustomStateString get your custom status message
+     * @brief getOwnCustomStateString get your custom status message
      * @return status message
      */
     virtual std::string getOwnCustomStateString() = 0;
