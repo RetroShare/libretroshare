@@ -394,7 +394,8 @@ bool rsGetRecordByNameSpecDNS(const std::string& servername, unsigned short serv
 		if(data_len==4 && rtype==DNST_A)
 		{
 			in_addr ipv4Add;
-			ipv4Add.s_addr=*(in_addr_t*)&buf[curRecSize];
+			// fix possible byte missalignment
+			memcpy(&ipv4Add.s_addr, &buf[curRecSize], sizeof(in_addr_t));
 #ifdef DEBUG_SPEC_DNS
 			RS_DBG("Retrieve address: ", rs_inet_ntoa(ipv4Add));
 #endif
@@ -404,8 +405,8 @@ bool rsGetRecordByNameSpecDNS(const std::string& servername, unsigned short serv
 		else if(data_len==16 && rtype==DNST_AAAA)
 		{
 			in6_addr ipv6Add;
-			ipv6Add =*(in6_addr*)&buf[curRecSize];
-
+			// fix possible byte missalignment
+			memcpy(&ipv6Add, &buf[curRecSize], sizeof(in6_addr));
 			struct sockaddr_storage ss;
 			sockaddr_storage_clear(ss);
 			sockaddr_in6 addr_ipv6;
