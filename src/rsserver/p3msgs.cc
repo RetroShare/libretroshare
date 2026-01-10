@@ -237,7 +237,7 @@ std::string p3Msgs::getCustomStateString()
 
 void p3Msgs::setCustomStateString(const std::string& state_string)
 {
-	mChatSrv->setOwnCustomStateString(state_string) ;
+	mChatSrv->setCustomStateString(state_string) ;
 }
 
 bool p3Msgs::getChatLobbyInfo(const ChatLobbyId& id,ChatLobbyInfo& linfo)
