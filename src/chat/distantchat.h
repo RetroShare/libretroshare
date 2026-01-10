@@ -23,7 +23,7 @@
 #pragma once
 
 #include <chat/rschatitems.h>
-#include <retroshare/rsmsgs.h>
+#include <retroshare/rschats.h>
 #include <retroshare/rsgxstunnel.h>
 
 class RsGixs ;
