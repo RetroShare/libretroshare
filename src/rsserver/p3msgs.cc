@@ -34,7 +34,6 @@
 #include "rsserver/p3msgs.h"
 
 #include "services/p3msgservice.h"
-#include "chat/p3chatservice.h"
 
 #include "pqi/authgpg.h"
 

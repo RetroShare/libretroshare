@@ -22,6 +22,7 @@
  *******************************************************************************/
 #pragma once
 
+#include "chat/p3chatservice.h"
 #include "retroshare/rschats.h"
 #include "retroshare/rsmail.h"
 #include "retroshare/rsgxsifacetypes.h"
