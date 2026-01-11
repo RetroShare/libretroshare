@@ -1349,3 +1349,15 @@ android-* {
         rs_android/errorconditionwrap.cpp
 }
 
+# --- [Added] Engine Versioning ---
+# We use 'git -C $$PWD' to ensure we retrieve the hash/tag of the submodule (libretroshare)
+LIB_GIT_HASH = $$system(git -C $$PWD describe --tags --always --dirty)
+
+# [Fix] Remove the leading 'v' if present (e.g. v0.6.7 -> 0.6.7) to match GUI style
+LIB_GIT_HASH ~= s/^v//
+
+!isEmpty(LIB_GIT_HASH) {
+    DEFINES += RS_LIB_VERSION_HASH=\\\"$$LIB_GIT_HASH\\\"
+} else {
+    DEFINES += RS_LIB_VERSION_HASH=\\\"[version not available]\\\"
+}
