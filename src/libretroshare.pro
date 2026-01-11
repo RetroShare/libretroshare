@@ -1359,5 +1359,5 @@ LIB_GIT_HASH ~= s/^v//
 !isEmpty(LIB_GIT_HASH) {
     DEFINES += RS_LIB_VERSION_HASH=\\\"$$LIB_GIT_HASH\\\"
 } else {
-    DEFINES += RS_LIB_VERSION_HASH=\\\"Unknown-Lib\\\"
+    DEFINES += RS_LIB_VERSION_HASH=\\\"[version not available]\\\"
 }

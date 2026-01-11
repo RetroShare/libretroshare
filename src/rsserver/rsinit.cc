@@ -306,7 +306,7 @@ const char* RsInit::libRetroShareVersion()
 #ifdef RS_LIB_VERSION_HASH
     return RS_LIB_VERSION_HASH;
 #else
-    return "Unknown-Lib";
+    return "[version not available]";
 #endif
 }
 
