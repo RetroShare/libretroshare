@@ -241,6 +241,9 @@ bool RetroDb::execSQL(const std::string &query){
 RetroCursor* RetroDb::sqlQuery(const std::string& tableName, const std::list<std::string>& columns,
                                const std::string& selection, const std::string& orderBy){
 
+    // [TRACE] Start individual query timer
+    auto start_sql = std::chrono::steady_clock::now();
+
     if(tableName.empty() || columns.empty()){
         std::cerr << "RetroDb::sqlQuery(): No table or columns given" << std::endl;
         return NULL;
@@ -279,7 +282,15 @@ RetroCursor* RetroDb::sqlQuery(const std::string& tableName, const std::list<std
 #endif
 
     sqlite3_prepare_v2(mDb, sqlQuery.c_str(), sqlQuery.length(), &stmt, NULL);
-    return (new RetroCursor(stmt));
+    RetroCursor* cursor = new RetroCursor(stmt);
+
+    // [TRACE] End timer and log using the same "Batch SQL" tag for direct comparison
+    auto end_sql = std::chrono::steady_clock::now();
+    auto sql_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_sql - start_sql).count();
+    
+    RsDbg() << "DEBUG [DataService]: Batch SQL for group individual_query took " << sql_ms << "ms." << std::endl;
+
+    return cursor;
 }
 
 bool RetroDb::isOpen() const {

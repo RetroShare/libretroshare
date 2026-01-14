@@ -3515,6 +3515,9 @@ void RsGxsNetService::runVetting()
 
 void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 {
+    // [TRACE] Start global timer for the network transaction
+    auto start_net = std::chrono::steady_clock::now();
+
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(tr->mTransaction->PeerId()) << "locked_genSendMsgsTransaction() Generating Msg data send fron TransN: " << tr->mTransaction->transactionNumber << std::endl;
 #endif
@@ -3702,8 +3705,14 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 	    delete newTr;
     }
 
+    // [TRACE] End global timer and log with the exact same format as V3
+    auto end_net = std::chrono::steady_clock::now();
+    auto net_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_net - start_net).count();
+    RsDbg() << "DEBUG [NetService]: TOTAL locked_genSendMsgsTransaction for " << tr->mItems.size() << " items took " << net_ms << "ms." << std::endl;
+
     return;
 }
+
 uint32_t RsGxsNetService::locked_getTransactionId()
 {
 	return ++mTransactionN;

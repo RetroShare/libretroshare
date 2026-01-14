@@ -1537,12 +1537,15 @@ bool RsGenExchange::getGroupData(const uint32_t &token, std::vector<RsGxsGrpItem
 
 bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 {
+    // [TRACE] Start CPU/Deserialization timer
+    auto start_time = std::chrono::steady_clock::now();
 	RS_STACK_MUTEX(mGenMtx) ;
 	NxsMsgDataResult msgResult;
 	bool ok = mDataAccess->getMsgData(token, msgResult);
 
 	if(ok)
 	{
+		uint32_t count = 0;
 		NxsMsgDataResult::iterator mit = msgResult.begin();
 		for(; mit != msgResult.end(); ++mit)
 		{
@@ -1565,6 +1568,7 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 					{
 						mItem->meta = *((*vit)->metaData); // get meta info from nxs msg
 						gxsMsgItems.push_back(mItem);
+						count++;
 					}
 					else
 					{
@@ -1581,7 +1585,15 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 				delete msg;
 			}
 		}
+		// [TRACE] Log the number of items processed
+		RsDbg() << "DEBUG [GenExch]: Deserialized " << count << " items." << std::endl;
 	}
+
+    // [TRACE] End timer and log total processing time
+    auto end_time = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    RsDbg() << "DEBUG [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms." << std::endl;
+
 	return ok;
 }
 
