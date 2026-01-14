@@ -3320,7 +3320,7 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 
 	std::list<RsNxsItem*>::iterator lit = tr->mItems.begin();
 
-    	t_RsGxsGenericDataTemporaryMap<RsGxsGroupId,RsNxsGrp> grps ;
+    t_RsGxsGenericDataTemporaryMap<RsGxsGroupId,RsNxsGrp> grps ;
 
 	for(;lit != tr->mItems.end(); ++lit)
 	{
@@ -3360,11 +3360,18 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	RsPeerId peerId = tr->mTransaction->PeerId();
 	for(;mit != grps.end(); ++mit)
 	{
+        /* BATCH OPTIMIZATION SAFETY:
+         * Check if the group was actually retrieved from the database. */
+        if (mit->second == NULL)
+        {
+            continue;
+        }
+
 #warning csoler: Should make sure that no private key information is sneaked in here for the grp
 		mit->second->PeerId(peerId); // set so it gets sent to right peer
 		mit->second->transactionNumber = transN;
 		newTr->mItems.push_back(mit->second);
-        	mit->second = NULL ; // avoids deletion
+        mit->second = NULL ; // avoids deletion
 #ifdef NXS_NET_DEBUG_1
 		GXSNETDEBUG_PG(tr->mTransaction->PeerId(),mit->first) << "RsGxsNetService::locked_genSendGrpsTransaction(): adding grp data of group \"" << mit->first << "\" to transaction" << std::endl;
 #endif
@@ -3386,7 +3393,7 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	ntr->transactionNumber = transN;
 	ntr->transactFlag = RsNxsTransacItem::FLAG_BEGIN_P1 | RsNxsTransacItem::FLAG_TYPE_GRPS;
 	ntr->updateTS = updateTS;
-	ntr->nItems = grps.size();
+	ntr->nItems = newTr->mItems.size();
 	ntr->PeerId(tr->mTransaction->PeerId());
 
 	newTr->mTransaction = new RsNxsTransacItem(*ntr);
@@ -3398,10 +3405,10 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	if(locked_addTransaction(newTr))
 		generic_sendItem(ntr);
 	else
-        {
-            delete ntr ;
-            delete newTr;
-        }
+    {
+        delete ntr ;
+        delete newTr;
+    }
 
     return;
 }
@@ -3515,6 +3522,8 @@ void RsGxsNetService::runVetting()
 
 void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 {
+    auto start_net = std::chrono::steady_clock::now();
+
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(tr->mTransaction->PeerId()) << "locked_genSendMsgsTransaction() Generating Msg data send fron TransN: " << tr->mTransaction->transactionNumber << std::endl;
 #endif
@@ -3556,32 +3565,13 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 	    }
     }
 
-#ifdef CODE_TO_ENCRYPT_MESSAGE_DATA
-    // now if transaction is limited to an external group, encrypt it for members of the group.
-
-    RsGxsCircleId encryption_circle ;
-    std::map<RsGxsGroupId, RsGxsGrpMetaData*> grp;
-    grp[grpId] = NULL ;
-
-    mDataStore->retrieveGxsGrpMetaData(grp);
-
-    RsGxsGrpMetaData *grpMeta = grp[grpId] ;
-
-    if(grpMeta == NULL)
-    {
-	    std::cerr << "(EE) cannot retrieve group meta data for message transaction " << tr->mTransaction->transactionNumber << std::endl;
-	    return ;
-    }
-
-    encryption_circle = grpMeta->mCircleId ;
-    delete grpMeta ;
-    grp.clear() ;
-#ifdef NXS_NET_DEBUG_7
-    GXSNETDEBUG_PG(tr->mTransaction->PeerId(),grpId) << "  Msg transaction items will be encrypted for circle " << std::endl;
-#endif
-#endif
-
+    // Measure the DataStore retrieval time
+    auto start_ds = std::chrono::steady_clock::now();
     mDataStore->retrieveNxsMsgs(msgIds, msgs, false);
+    auto end_ds = std::chrono::steady_clock::now();
+    auto ds_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_ds - start_ds).count();
+    
+    RsDbg() << "DEBUG [NetService]: DataStore retrieval (retrieveNxsMsgs) took " << ds_ms << "ms." << std::endl;
 
     NxsTransaction* newTr = new NxsTransaction();
     newTr->mFlag = NxsTransaction::FLAG_STATE_WAITING_CONFIRM;
@@ -3601,69 +3591,32 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 	    for(; vit != msgV.end(); ++vit)
 	    {
 		    RsNxsMsg* msg = *vit;
+
+            /* SAFETY CHECK: Batching might return NULL if an ID was not found or 
+             * the SQL query failed for a specific chunk. Skipping to avoid SIGSEGV. */
+            if (msg == NULL)
+            {
+                continue;
+            }
+
 		    msg->PeerId(peerId);
 		    msg->transactionNumber = transN;
 
-		    // Quick trick to clamp messages with an exceptionnally large size. Signature will fail on client side, and the message
-		    // will be rejected.
-
 		    if(msg->msg.bin_len > MAX_ALLOWED_GXS_MESSAGE_SIZE)
 		    {
-			    std::cerr << "(WW) message with ID " << msg->msgId << " in group " << msg->grpId << " exceeds size limit of " << MAX_ALLOWED_GXS_MESSAGE_SIZE << " bytes. Actual size is " << msg->msg.bin_len << " bytes. Message will be truncated and rejected at client." << std::endl;
-			    msg->msg.bin_len = 1 ;	// arbitrary small size, but not 0. No need to send the data since it's going to be rejected.
+			    std::cerr << "(WW) message with ID " << msg->msgId << " in group " << msg->grpId << " exceeds size limit. Truncating." << std::endl;
+			    msg->msg.bin_len = 1 ;
 		    }
 
-#ifdef 	NXS_FRAG
-		    MsgFragments fragments;
-		    fragmentMsg(*msg, fragments);
-
-		    delete msg ;
-
-		    MsgFragments::iterator mit = fragments.begin();
-
-		    for(; mit != fragments.end(); ++mit)
-		    {
-			    newTr->mItems.push_back(*mit);
-			    msgSize++;
-		    }
-#else
-
-		    msg->count = 1;	// only one piece. This is to keep compatibility if we ever implement fragmenting in the future.
+		    msg->count = 1;
 		    msg->pos = 0;
 
 #ifdef NXS_NET_DEBUG_0
-			GXSNETDEBUG_PG(tr->mTransaction->PeerId(),msg->grpId) << "   sending msg Id " << msg->msgId << " in Group " << msg->grpId << std::endl;
+			GXSNETDEBUG_PG(tr->mTransaction->PeerId(),msg->grpId) << "   sending msg Id " << msg->msgId << std::endl;
 #endif
 
 		    newTr->mItems.push_back(msg);
 		    msgSize++;
-#endif
-
-#ifdef CODE_TO_ENCRYPT_MESSAGE_DATA
-		    // encrypt
-
-		    if(!encryption_circle.isNull())
-		    {
-			    uint32_t status = RS_NXS_ITEM_ENCRYPTION_STATUS_UNKNOWN ;
-
-			    RsNxsEncryptedDataItem encrypted_msg_item = NULL ;
-
-			    if(encryptSingleNxsItem(msg,encryption_circle,encrypted_msg_item,status))
-			    {
-				    newTr->mItems.push_back(msg);
-				    delete msg ;
-			    }
-			    else
-			    {
-			    }
-		    }
-		    else
-		    {
-			    newTr->mItems.push_back(msg);
-
-			    msgSize++;
-		    }
-#endif
 	    }
     }
 
@@ -3672,14 +3625,11 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 	    return;
     }
 
-    // now send a transaction item and store the transaction data
-
     uint32_t updateTS = mServerMsgUpdateMap[grpId].msgUpdateTS;
 
     RsNxsTransacItem* ntr = new RsNxsTransacItem(mServType);
     ntr->transactionNumber = transN;
-    ntr->transactFlag = RsNxsTransacItem::FLAG_BEGIN_P1 |
-                    RsNxsTransacItem::FLAG_TYPE_MSGS;
+    ntr->transactFlag = RsNxsTransacItem::FLAG_BEGIN_P1 | RsNxsTransacItem::FLAG_TYPE_MSGS;
     ntr->updateTS = updateTS;
     ntr->nItems = msgSize;
     ntr->PeerId(peerId);
@@ -3689,8 +3639,7 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
     newTr->mTimeOut = time(NULL) + mTransactionTimeOut;
 
 #ifdef NXS_NET_DEBUG_5
-    GXSNETDEBUG_PG (peerId,grpId) << "Service " << std::hex << ((mServiceInfo.mServiceType >> 8)& 0xffff) << std::dec << " - sending message update to peer " << peerId << " for group " << grpId << " with TS=" << nice_time_stamp(time(NULL),updateTS) <<" (secs ago)" << std::endl;
-
+    GXSNETDEBUG_PG (peerId,grpId) << "Service " << std::hex << ((mServiceInfo.mServiceType >> 8)& 0xffff) << std::dec << " - sending message update " << std::endl;
 #endif
     ntr->PeerId(tr->mTransaction->PeerId());
 
@@ -3702,12 +3651,17 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 	    delete newTr;
     }
 
-    return;
+    auto end_net = std::chrono::steady_clock::now();
+    auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_net - start_net).count();
+    
+    RsDbg() << "DEBUG [NetService]: TOTAL locked_genSendMsgsTransaction for " << msgSize << " items took " << total_ms << "ms." << std::endl;
 }
+
 uint32_t RsGxsNetService::locked_getTransactionId()
 {
 	return ++mTransactionN;
 }
+
 bool RsGxsNetService::locked_addTransaction(NxsTransaction* tr)
 {
     const RsPeerId& peer = tr->mTransaction->PeerId();

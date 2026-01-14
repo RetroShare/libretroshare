@@ -240,61 +240,54 @@ bool RetroDb::execSQL(const std::string &query){
     return ok;
 }
 
-RetroCursor* RetroDb::sqlQuery(const std::string& table, const std::list<std::string>& colu, const std::string& selection, const std::string& sort)
+RetroCursor* RetroDb::sqlQuery(const std::string& table, const std::list<std::string>& columns, const std::string& selection, const std::string& order)
 {
-    std::string sql = "SELECT ";
-
-    if(colu.empty()){
-        sql += "*";
-    }else{
-        for(std::list<std::string>::const_iterator it = colu.begin(); it != colu.end(); ++it){
-            if(it != colu.begin()){
-                sql += ", ";
-            }
-            sql += *it;
-        }
-    }
-
-    sql += " FROM " + table;
-
-    if(!selection.empty()){
-        sql += " WHERE " + selection;
-    }
-
-    if(!sort.empty()){
-        sql += " ORDER BY " + sort;
-    }
-
-    sql += ";";
-
-    sqlite3_stmt *stmt;
+    auto start_sql = std::chrono::steady_clock::now();
     
-    // --- RETRY LOOP START ---
-    int rc;
-    time_t start_time = time(NULL);
-    
-    do {
-        rc = sqlite3_prepare_v2(mDb, sql.c_str(), -1, &stmt, 0);
-        
-        if (rc == SQLITE_BUSY || rc == SQLITE_LOCKED) {
-            // Wait 10ms (needs #include <unistd.h>)
-            usleep(10000); 
-        } else {
-            break; 
-        }
-    } while (difftime(time(NULL), start_time) < TIME_LIMIT);
-    // --- RETRY LOOP END ---
+	std::string statement = "SELECT ";
+	std::list<std::string>::const_iterator it = columns.begin();
+	for(; it != columns.end(); ++it)
+	{
+		statement += *it;
+		std::list<std::string>::const_iterator next_it = it;
+		if(++next_it != columns.end())
+			statement += ",";
+	}
 
-    if(rc != SQLITE_OK){
-        if(rc == SQLITE_BUSY){
-             std::cerr << "RetroDb::sqlQuery() SQLITE_BUSY timeout! " << sql << std::endl;
-        } else {
-             std::cerr << "RetroDb::sqlQuery() SQL Error : " << sqlite3_errmsg(mDb) << std::endl;
-        }
-        return NULL;
+	statement += " FROM " + table;
+
+	if (selection != "")
+		statement += " WHERE " + selection;
+
+	if (order != "")
+		statement += " ORDER BY " + order;
+
+	statement += ";";
+
+	RetroCursor* cursor = NULL;
+	sqlite3_stmt* stmt = NULL;
+	int res = sqlite3_prepare_v2(mDb, statement.c_str(), -1, &stmt, NULL);
+
+	if (res == SQLITE_OK)
+    {
+        // FIX: Constructor only takes the statement pointer
+		cursor = new RetroCursor(stmt);
+    }
+	else
+	{
+		RsErr() << "RetroDb::sqlQuery() sqlite3_prepare_v2 failed: " << sqlite3_errmsg(mDb) << std::endl;
+		RsErr() << "Statement was: " << statement << std::endl;
+	}
+
+    auto end_sql = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_sql - start_sql).count();
+    
+    // Log slow queries to identify heavy database operations
+    if (elapsed > 100) {
+        RsDbg() << "DEBUG [RetroDb]: SLOW QUERY (" << elapsed << "ms): " << statement.substr(0, 100) << "..." << std::endl;
     }
 
-    return new RetroCursor(stmt);
+	return cursor;
 }
 
 bool RetroDb::isOpen() const {

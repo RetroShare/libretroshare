@@ -1462,6 +1462,13 @@ bool RsGenExchange::getGroupData(const uint32_t &token, std::vector<RsGxsGrpItem
 	{
 		for(; lit != nxsGrps.end(); ++lit)
 		{
+            /* SAFETY FIX: Ensure the pointer from mDataAccess is not NULL before accessing members.
+             * This prevents the SIGSEGV reported at the bin_len check. */
+            if (*lit == NULL)
+            {
+                continue;
+            }
+
 			RsTlvBinaryData& data = (*lit)->grp;
 			RsItem* item = NULL;
 
@@ -1537,12 +1544,14 @@ bool RsGenExchange::getGroupData(const uint32_t &token, std::vector<RsGxsGrpItem
 
 bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 {
+    auto start_time = std::chrono::steady_clock::now();
 	RS_STACK_MUTEX(mGenMtx) ;
 	NxsMsgDataResult msgResult;
 	bool ok = mDataAccess->getMsgData(token, msgResult);
 
 	if(ok)
 	{
+        uint32_t deserialized_count = 0;
 		NxsMsgDataResult::iterator mit = msgResult.begin();
 		for(; mit != msgResult.end(); ++mit)
 		{
@@ -1552,6 +1561,8 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			std::vector<RsNxsMsg*>::iterator vit = nxsMsgsV.begin();
 			for(; vit != nxsMsgsV.end(); ++vit)
 			{
+                if (*vit == NULL) continue;
+
 				RsNxsMsg*& msg = *vit;
 				RsItem* item = NULL;
 
@@ -1565,23 +1576,23 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 					{
 						mItem->meta = *((*vit)->metaData); // get meta info from nxs msg
 						gxsMsgItems.push_back(mItem);
+                        deserialized_count++;
 					}
 					else
 					{
-						std::cerr << "RsGenExchange::getMsgData() deserialisation/dynamic_cast ERROR";
-						std::cerr << std::endl;
+						std::cerr << "RsGenExchange::getMsgData() deserialisation/dynamic_cast ERROR" << std::endl;
 						delete item;
 					}
-				}
-				else
-				{
-					std::cerr << "RsGenExchange::getMsgData() deserialisation ERROR";
-					std::cerr << std::endl;
 				}
 				delete msg;
 			}
 		}
+        RsDbg() << "DEBUG [GenExch]: Deserialized " << deserialized_count << " items." << std::endl;
 	}
+
+    auto end_time = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    RsDbg() << "DEBUG [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms." << std::endl;
 	return ok;
 }
 
