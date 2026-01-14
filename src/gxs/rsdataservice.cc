@@ -1174,10 +1174,16 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
     int resultCount = 0;
 #endif
 
+    // [TRACE] Start the database retrieval timer
+    RsDbg() << "DEBUG [DataService]: START retrieveNxsMsgs for " << reqIds.size() << " groups." << std::endl;
+    auto start_all = std::chrono::steady_clock::now();
+
 	for(auto mit = reqIds.begin(); mit != reqIds.end(); ++mit)
     {
-
         const RsGxsGroupId& grpId = mit->first;
+
+        // [TRACE] Start timer for this specific group
+        auto start_group = std::chrono::steady_clock::now();
 
         // if vector empty then request all messages
         const std::set<RsGxsMessageId>& msgIdV = mit->second;
@@ -1222,12 +1228,23 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 
         msg[grpId] = msgSet;
 
+        // [TRACE] Log time per group to monitor progress
+        auto end_group = std::chrono::steady_clock::now();
+        auto group_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_group - start_group).count();
+        RsDbg() << "DEBUG [DataService]: Group " << grpId.toStdString() 
+                << " (Total " << msgSet.size() << " msgs) processed in " << group_ms << "ms." << std::endl;
+
         msgSet.clear();
     }
 
 #ifdef RS_DATA_SERVICE_DEBUG_TIME
     std::cerr << "RsDataService::retrieveNxsMsgs() " << mDbName << ", Requests: " << reqIds.size() << ", Results: " << resultCount << ", Time: " << timer.duration() << std::endl;
 #endif
+
+    // [TRACE] Log total database time
+    auto end_all = std::chrono::steady_clock::now();
+    auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count();
+    RsDbg() << "DEBUG [DataService]: END retrieveNxsMsgs total time: " << total_ms << "ms." << std::endl;
 
     return 1;
 }
