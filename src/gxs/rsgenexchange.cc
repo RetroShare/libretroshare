@@ -2059,126 +2059,104 @@ void RsGenExchange::setMsgServiceString(uint32_t& token, const RsGxsGrpMsgIdPair
 
 void RsGenExchange::processMsgMetaChanges()
 {
-    std::map<uint32_t,  MsgLocMetaData> metaMap;
-
+    std::map<uint32_t, MsgLocMetaData> metaMap;
     {
         RS_STACK_MUTEX(mGenMtx);
-        if (mMsgLocMetaMap.empty())
-        {
-            return;
-        }
+        if (mMsgLocMetaMap.empty()) return;
         metaMap = mMsgLocMetaMap;
         mMsgLocMetaMap.clear();
     }
 
-    GxsMsgReq msgIds;
+    // --- STEP 1: PREPARE ALL IDs FOR BATCH READ ---
+    // We populate this request object with every ID from the map.
+    // NO database access is performed here.
+    GxsMsgReq fullReq;
+    for (auto const& pair : metaMap) {
+        const MsgLocMetaData& m = pair.second;
+        fullReq[m.msgId.first].insert(m.msgId.second);
+    }
 
-    // --- OPTIMIZATION START ---
-    // Prepare vectors for batch processing
+    // --- STEP 2: SINGLE DATABASE CALL TO READ ALL METADATA ---
+    // This is the optimized part: one single hit to the DB for the whole batch.
+    GxsMsgMetaResult allMetaResult;
+    mDataStore->retrieveGxsMsgMetaData(fullReq, allMetaResult);
+
     std::vector<MsgLocMetaData> batchMetaData;
     std::vector<uint32_t> batchTokens;
     std::vector<bool> batchChanged;
 
-    std::map<uint32_t, MsgLocMetaData>::iterator mit;
-    
-    // 1. PREPARATION PHASE
-    for (mit = metaMap.begin(); mit != metaMap.end(); ++mit)
+    // --- STEP 3: PROCESS IN-MEMORY (Ultra fast) ---
+    // We iterate over our map and look up the data in the result we just fetched.
+    for (auto& mit : metaMap)
     {
-        MsgLocMetaData& m = mit->second;
-
-        int32_t value, mask;
+        uint32_t token = mit.first;
+        MsgLocMetaData& m = mit.second;
         bool changed = false;
 
-        if(m.val.getAsInt32(RsGeneralDataService::MSG_META_STATUS, value))
+        auto grpIt = allMetaResult.find(m.msgId.first);
+        if (grpIt != allMetaResult.end())
         {
-            if(m.val.getAsInt32(RsGeneralDataService::MSG_META_STATUS+GXS_MASK, mask))
+            // The result is a vector of shared_ptr, we find our specific message
+            const std::vector<std::shared_ptr<RsGxsMsgMetaData>>& metaV = grpIt->second;
+            std::shared_ptr<RsGxsMsgMetaData> foundMeta = nullptr;
+            for(const auto& ptr : metaV) {
+                if(ptr->mMsgId == m.msgId.second) {
+                    foundMeta = ptr;
+                    break;
+                }
+            }
+
+            if (foundMeta)
             {
-                GxsMsgReq req;
-                std::set<RsGxsMessageId> msgIdV;
-                msgIdV.insert(m.msgId.second);
-                req.insert(std::make_pair(m.msgId.first, msgIdV));
-                GxsMsgMetaResult result;
-                mDataStore->retrieveGxsMsgMetaData(req, result);
-                GxsMsgMetaResult::iterator mit_res = result.find(m.msgId.first);
-
-                if(mit_res != result.end())
+                int32_t value, mask;
+                if (m.val.getAsInt32(RsGeneralDataService::MSG_META_STATUS, value))
                 {
-                    const auto& msgMetaV = mit_res->second;
-
-                    if(!msgMetaV.empty())
+                    if (m.val.getAsInt32(RsGeneralDataService::MSG_META_STATUS + GXS_MASK, mask))
                     {
-                        const auto& meta = *(msgMetaV.begin());
-                        value = (meta->mMsgStatus & ~mask) | (mask & value);
-                        changed = (static_cast<int64_t>(meta->mMsgStatus) != value);
-                        m.val.put(RsGeneralDataService::MSG_META_STATUS, value);
+                        // Compare and apply bits
+                        int32_t newValue = (foundMeta->mMsgStatus & ~mask) | (mask & value);
+                        changed = (static_cast<int64_t>(foundMeta->mMsgStatus) != newValue);
+                        
+                        m.val.put(RsGeneralDataService::MSG_META_STATUS, newValue);
+                        m.val.removeKeyValue(RsGeneralDataService::MSG_META_STATUS + GXS_MASK);
                     }
                 }
-                m.val.removeKeyValue(RsGeneralDataService::MSG_META_STATUS+GXS_MASK);
             }
         }
-
         batchMetaData.push_back(m);
-        batchTokens.push_back(mit->first);
+        batchTokens.push_back(token);
         batchChanged.push_back(changed);
     }
 
-    // 2. EXECUTION PHASE (Batch Write)
-    bool batchSuccess = false;
-    if(!batchMetaData.empty())
-    {
-        batchSuccess = (mDataStore->updateMessageMetaData(batchMetaData) == 1);
-    }
+    // --- STEP 4: SINGLE DATABASE CALL TO WRITE EVERYTHING ---
+    // This calls the optimized RsDataService::updateMessageMetaData (the one with beginTransaction)
+    bool batchSuccess = (mDataStore->updateMessageMetaData(batchMetaData) == 1);
 
-    // 3. POST-PROCESSING (Notifications & Tokens)
-    for(size_t i=0; i < batchMetaData.size(); ++i)
+    // --- STEP 5: STATUS UPDATE AND NOTIFICATIONS ---
+    GxsMsgReq msgIdsToNotify;
+    for (size_t i = 0; i < batchMetaData.size(); ++i)
     {
         uint32_t token = batchTokens[i];
-        bool changed = batchChanged[i];
-        const MsgLocMetaData& m = batchMetaData[i];
-
-        if(batchSuccess)
-        {
+        if (batchSuccess) {
             mDataAccess->updatePublicRequestStatus(token, RsTokenService::COMPLETE);
-            if (changed)
-            {
-                msgIds[m.msgId.first].insert(m.msgId.second);
+            if (batchChanged[i]) {
+                msgIdsToNotify[batchMetaData[i].msgId.first].insert(batchMetaData[i].msgId.second);
             }
-        }
-        else
-        {
+        } else {
             mDataAccess->updatePublicRequestStatus(token, RsTokenService::FAILED);
         }
-
-        {
-            RS_STACK_MUTEX(mGenMtx);
-            mMsgNotify.insert(std::make_pair(token, m.msgId));
-        }
     }
-    // --- OPTIMIZATION END ---
 
-    // --- GUI CRASH FIX (Anti-Flood) ---
-    if (!msgIds.empty())
-    {
+    // Notify UI (Avoid flooding: if many changes, notify group instead of individual posts)
+    if (!msgIdsToNotify.empty()) {
         RS_STACK_MUTEX(mGenMtx);
-
-        for(auto it = msgIds.begin(); it != msgIds.end(); ++it)
-        {
-            const RsGxsGroupId& grpId = it->first;
-            const std::set<RsGxsMessageId>& msgs = it->second;
-
-            // PROTECTION THRESHOLD: If more than 10 messages change in the same group,
-            // send a single global notification.
-            // This prevents the UI from freezing due to thousands of events.
-            if(msgs.size() > 10) 
-            {
-                 // TYPE_STATISTICS_CHANGED forces the group tree to re-calculate counters
-                 mNotifications.push_back(new RsGxsGroupChange(RsGxsNotify::TYPE_STATISTICS_CHANGED, grpId, false));
-            }
-            else
-            {
-                // Standard behavior for individual clicks
-                for(const auto& msg_id : msgs)
-                    mNotifications.push_back(new RsGxsMsgChange(RsGxsNotify::TYPE_PROCESSED, grpId, msg_id, false));
+        for (auto const& it : msgIdsToNotify) {
+            if (it.second.size() > 50) {
+                mNotifications.push_back(new RsGxsGroupChange(RsGxsNotify::TYPE_STATISTICS_CHANGED, it.first, false));
+            } else {
+                for (const auto& mid : it.second) {
+                    mNotifications.push_back(new RsGxsMsgChange(RsGxsNotify::TYPE_PROCESSED, it.first, mid, false));
+                }
             }
         }
     }
