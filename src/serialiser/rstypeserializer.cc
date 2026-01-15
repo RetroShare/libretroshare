@@ -409,7 +409,7 @@ bool RsTypeSerializer::from_JSON( const std::string& memberName,
 //============================================================================//
 
 template<> uint32_t RsTypeSerializer::serial_size(uint16_t /* type_subtype */,const std::string& s)
-{ 
+{
 	return GetTlvStringSize(s) ;
 }
 
@@ -711,7 +711,7 @@ bool RsTypeSerializer::RawMemoryWrapper::freshMemCheck()
 		 * must be null and size 0 at this point */
 
 		RsWarn() << __PRETTY_FUNCTION__ << " got uninitialized "
-		         << " or pre-allocated buffer! Buffer pointer: " << first
+		         << " or pre-allocated buffer! Buffer pointer: " << (void *)first
 		         << " must be null and size: " << second << " must be 0 at "
 		         << "this point. Does your item costructor initialize them "
 		         << "properly?" << std::endl;
