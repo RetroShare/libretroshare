@@ -110,6 +110,9 @@ bool p3BandwidthControl::checkAvailableBandwidth()
 	std::map<RsPeerId, RsBwRates> rateMap;
 	RsBwRates total;
 
+	/* VERIFICATION DEBUG */
+	//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] checkAvailableBandwidth: triggering ExtractRates";
+
 	mPg->ExtractRates(rateMap, total);
 	std::map<RsPeerId, RsBwRates>::iterator it;
 	std::map<RsPeerId, BwCtrlData>::iterator bit;
@@ -161,6 +164,9 @@ bool p3BandwidthControl::checkAvailableBandwidth()
 		/* update rates info */
 		bit->second.mRates = it->second;
 		bit->second.mRateUpdateTs = now;
+
+		/* VERIFICATION DEBUG */
+		//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] Bridge active for Peer: " << bit->first << " | Bytes: " << bit->second.mRates.mQueueOutBytes;
 
 		if (updatePeer)
 		{
@@ -225,6 +231,7 @@ bool p3BandwidthControl::processIncoming()
 	return true;
 }
 
+
 int  p3BandwidthControl::getTotalBandwidthRates(RsConfigDataRates &rates)
 {
 	RsStackMutex stack(mBwMtx); /****** LOCKED MUTEX *******/
@@ -242,9 +249,14 @@ int  p3BandwidthControl::getTotalBandwidthRates(RsConfigDataRates &rates)
 
 	rates.mQueueIn = mTotalRates.mQueueIn;
 	rates.mQueueOut = mTotalRates.mQueueOut;
+	rates.mQueueOutBytes = mTotalRates.mQueueOutBytes;
+
+	/* DEBUG OPTIONNEL pour vérifier le total global */
+	//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] GLOBAL TOTAL Bridge: " << rates.mQueueOutBytes;
 
 	return 1;
 }
+
 
 int p3BandwidthControl::getAllBandwidthRates(std::map<RsPeerId, RsConfigDataRates> &ratemap)
 {
@@ -268,10 +280,14 @@ int p3BandwidthControl::getAllBandwidthRates(std::map<RsPeerId, RsConfigDataRate
 
         	rates.mQueueIn = bit->second.mRates.mQueueIn;
         	rates.mQueueOut = bit->second.mRates.mQueueOut;
+		rates.mQueueOutBytes = bit->second.mRates.mQueueOutBytes;
+
+		/* FINAL API DEBUG */
+		//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] Final API Exit for Peer: " << bit->first << " | Bytes: " << rates.mQueueOutBytes;
 
 		ratemap[bit->first] = rates;
 	}			
-	return true ;
+	return 1 ;
 
 
 }
@@ -280,11 +296,6 @@ int     p3BandwidthControl::ExtractTrafficInfo(std::list<RSTrafficClue>& out_sta
 {
     return mPg->ExtractTrafficInfo(out_stats,in_stats) ;
 }
-
-
-
-
-
 
 int p3BandwidthControl::printRateInfo_locked(std::ostream &out)
 {

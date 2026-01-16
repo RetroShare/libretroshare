@@ -287,39 +287,48 @@ int     pqihandler::ExtractTrafficInfo(std::list<RSTrafficClue>& out_lst,std::li
 }
 
 // NEW extern fn to extract rates.
-int     pqihandler::ExtractRates(std::map<RsPeerId, RsBwRates> &ratemap, RsBwRates &total)
+
+int pqihandler::ExtractRates(std::map<RsPeerId, RsBwRates> &ratemap, RsBwRates &total)
 {
+	/* Initialize standard totals */
 	total.mMaxRateIn = getMaxRate(true);
 	total.mMaxRateOut = getMaxRate(false);
 	total.mRateIn = 0;
 	total.mRateOut = 0;
 	total.mQueueIn = 0;
 	total.mQueueOut = 0;
+	total.mQueueOutBytes = 0;
 
 	/* Lock once rates have been retrieved */
 	RS_STACK_MUTEX(coreMtx); /**************** LOCKED MUTEX ****************/
 
 	std::map<RsPeerId, SearchModule *>::iterator it;
+
 	for(it = mods.begin(); it != mods.end(); ++it)
 	{
 		SearchModule *mod = (it -> second);
 
 		RsBwRates peerRates;
+		
+		/* Call the relay in pqiperson (which calls pqistreamer) */
 		mod -> pqi -> getRates(peerRates);
 
+		/* Accumulate standard statistics */
 		total.mRateIn  += peerRates.mRateIn;
 		total.mRateOut += peerRates.mRateOut;
 		total.mQueueIn  += peerRates.mQueueIn;
 		total.mQueueOut += peerRates.mQueueOut;
+		total.mQueueOutBytes += peerRates.mQueueOutBytes;
 
+		/* Store individual peer rates in the result map */
 		ratemap[it->first] = peerRates;
 
+		/* Clean debug message for this layer */
+		//RsDbg() << "OUTQUEUEBYTES [pqihandler] Collected Peer: " << it->first << " | Bytes: " << peerRates.mQueueOutBytes;
 	}
 
 	return 1;
 }
-
-
 
 // internal fn to send updates
 int     pqihandler::UpdateRates()

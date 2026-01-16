@@ -317,6 +317,13 @@ static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_ENCRYPTION_ERROR    = 0x03 ;
 static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_SERIALISATION_ERROR = 0x04 ;
 static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_GXS_KEY_MISSING     = 0x05 ;
 
+#include <iomanip> // Required for decimal formatting
+
+/* Global file-scope statics shared by all functions in this file */
+static std::map<RsPeerId, RsConfigDataRates> g_cachedRateMap;
+static RsConfigDataRates g_totalRates;
+static rstime_t g_lastRateCheck = 0;
+
 // Debug system to allow to print only for some IDs (group, Peer, etc)
 
 #if defined(NXS_NET_DEBUG_0) || defined(NXS_NET_DEBUG_1) || defined(NXS_NET_DEBUG_2)  || defined(NXS_NET_DEBUG_3) \
@@ -4040,6 +4047,31 @@ void RsGxsNetService::handleRecvSyncGroup(RsNxsSyncGrpReqItem *item)
 	    return;
 
     RsPeerId peer = item->PeerId();
+
+	rstime_t now = time(NULL);
+
+	/* Update global cache and print debug info every 5 seconds */
+	if (now - g_lastRateCheck >= 5) 
+	{
+		g_lastRateCheck = now;
+		rsConfig->getTotalBandwidthRates(g_totalRates);
+		rsConfig->getAllBandwidthRates(g_cachedRateMap);
+
+		/* Log Global Totals with exactly 1 decimal for speed */
+		RsDbg() << "OUTQUEUE [GXS Sync] --- GLOBAL NETWORK TOTALS ---";
+		RsDbg() << "OUTQUEUE TOTAL | Queue: " << g_totalRates.mQueueOut << " items / " << g_totalRates.mQueueOutBytes << " bytes"
+		        << " | Speed: " << std::fixed << std::setprecision(1) << g_totalRates.mRateOut << " kB/s";
+
+		/* Log individual stats for every peer in the cache */
+		RsDbg() << "OUTQUEUE [GXS Sync] --- PER PEER STATISTICS ---";
+		for(auto const& [id, pRate] : g_cachedRateMap)
+		{
+			RsDbg() << "OUTQUEUE -> Peer: " << id 
+			        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
+			        << " | Speed: " << std::fixed << std::setprecision(1) << pRate.mRateOut << " kB/s";
+		}
+	}
+
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(peer) << "HandleRecvSyncGroup(): Service: " << mServType << " from " << peer << ", Last update TS (from myself) sent from peer is T = " << std::dec<< time(NULL) - item->updateTS << " secs ago" << std::endl;
 #endif
@@ -4365,9 +4397,10 @@ void RsGxsNetService::handleRecvSyncMessage(RsNxsSyncMsgReqItem *item,bool item_
     if (!item)
 	    return;
 
-    RS_STACK_MUTEX(mNxsMutex) ;
-
     const RsPeerId& peer = item->PeerId();
+
+    RS_STACK_MUTEX(mNxsMutex) ;
+    
     bool grp_is_known = false;
     bool was_circle_protected = item_was_encrypted || bool(item->flag & RsNxsSyncMsgReqItem::FLAG_USE_HASHED_GROUP_ID);
 

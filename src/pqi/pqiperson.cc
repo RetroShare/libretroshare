@@ -559,15 +559,20 @@ int	pqiperson::connect(uint32_t type, const sockaddr_storage &raddr,
 	return 1;
 }
 
-
 void pqiperson::getRates(RsBwRates &rates)
 {
 	RS_STACK_MUTEX(mPersonMtx);
 
-	// get the rate from the active one.
+	/* Check if the peer connection is established and active */
 	if ((!active) || (activepqi == NULL))
+	{
 		return;
+	}
 
+	/* Clean debug message for the relay layer */
+	//RsDbg() << "OUTQUEUEBYTES [Person] Peer: " << PeerId() << " | Relaying rate request";
+
+	/* Forward the request to the active streamer (pqiconnect) */
 	activepqi->getRates(rates);
 }
 
