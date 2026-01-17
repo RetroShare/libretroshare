@@ -4050,26 +4050,44 @@ void RsGxsNetService::handleRecvSyncGroup(RsNxsSyncGrpReqItem *item)
 
 	rstime_t now = time(NULL);
 
-	/* Update global cache and print debug info every 5 seconds */
+	/* MASTER UPDATE: Refresh cache and print global stats every 5 seconds */
 	if (now - g_lastRateCheck >= 5) 
 	{
 		g_lastRateCheck = now;
 		rsConfig->getTotalBandwidthRates(g_totalRates);
 		rsConfig->getAllBandwidthRates(g_cachedRateMap);
 
-		/* Log Global Totals with exactly 1 decimal for speed */
-		RsDbg() << "OUTQUEUE [GXS Sync] --- GLOBAL NETWORK TOTALS ---";
-		RsDbg() << "OUTQUEUE TOTAL | Queue: " << g_totalRates.mQueueOut << " items / " << g_totalRates.mQueueOutBytes << " bytes"
+		/* 
+		RsDbg() << "OUTQUEUEBYTES [GXS Sync] --- GLOBAL NETWORK TOTALS ---";
+		RsDbg() << "TOTAL | Queue: " << g_totalRates.mQueueOut << " items / " << g_totalRates.mQueueOutBytes << " bytes"
 		        << " | Speed: " << std::fixed << std::setprecision(1) << g_totalRates.mRateOut << " kB/s";
-
-		/* Log individual stats for every peer in the cache */
-		RsDbg() << "OUTQUEUE [GXS Sync] --- PER PEER STATISTICS ---";
+		RsDbg() << "OUTQUEUEBYTES [GXS Sync] --- PER PEER STATISTICS ---";
 		for(auto const& [id, pRate] : g_cachedRateMap)
 		{
-			RsDbg() << "OUTQUEUE -> Peer: " << id 
+			RsDbg() << "  -> Peer: " << id 
 			        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
 			        << " | Speed: " << std::fixed << std::setprecision(1) << pRate.mRateOut << " kB/s";
 		}
+		*/
+	}
+
+	/* --- CALCULATION PHASE --- */
+	const RsConfigDataRates& pRate = g_cachedRateMap[peer];
+	
+	/* Calculate drain time using a speed floor of 1.0 kB/s to prevent division by zero */
+	float effectiveSpeed = std::max((float)pRate.mRateOut, 1.0f);
+	float drainTime = (float)pRate.mQueueOutBytes / (effectiveSpeed * 1024.0f);
+
+	/* --- DECISION PHASE --- */
+	bool rejectQueueLimit = (pRate.mQueueOutBytes > 200 * 1024 * 1024);
+	bool rejectDrainLimit = (drainTime > 30.0f && pRate.mQueueOutBytes > 100 * 1024);
+
+	if (rejectQueueLimit || rejectDrainLimit) {
+		RsDbg() << "OUTQUEUE [GXS SyncGrp] Rejected Peer: " << peer 
+		        << " | Drain: " << std::fixed << std::setprecision(1) << drainTime << "s"
+		        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
+		        << " | Speed: " << pRate.mRateOut << " kB/s";
+		return;
 	}
 
 #ifdef NXS_NET_DEBUG_0
@@ -4398,6 +4416,26 @@ void RsGxsNetService::handleRecvSyncMessage(RsNxsSyncMsgReqItem *item,bool item_
 	    return;
 
     const RsPeerId& peer = item->PeerId();
+
+	/* --- CALCULATION PHASE --- */
+	/* Uses the existing g_cachedRateMap without refreshing it */
+	const RsConfigDataRates& pRate = g_cachedRateMap[peer];
+	
+	/* Calculate drain time (Floor: 1.0 kB/s) */
+	float effectiveSpeed = std::max((float)pRate.mRateOut, 1.0f);
+	float drainTime = (float)pRate.mQueueOutBytes / (effectiveSpeed * 1024.0f);
+
+	/* --- DECISION PHASE --- */
+	bool rejectQueueLimit = (pRate.mQueueOutBytes > 200 * 1024 * 1024);
+	bool rejectDrainLimit = (drainTime > 30.0f && pRate.mQueueOutBytes > 100 * 1024);
+
+	if (rejectQueueLimit || rejectDrainLimit) {
+		RsDbg() << "OUTQUEUE [GXS SyncMsg] Rejected Peer: " << peer 
+		        << " | Drain: " << std::fixed << std::setprecision(1) << drainTime << "s"
+		        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
+		        << " | Speed: " << pRate.mRateOut << " kB/s";
+		return;
+	}
 
     RS_STACK_MUTEX(mNxsMutex) ;
     
