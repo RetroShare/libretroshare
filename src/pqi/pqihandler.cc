@@ -298,6 +298,8 @@ int pqihandler::ExtractRates(std::map<RsPeerId, RsBwRates> &ratemap, RsBwRates &
 	total.mQueueIn = 0;
 	total.mQueueOut = 0;
 	total.mQueueOutBytes = 0;
+	total.mTotalIn = 0;
+	total.mTotalOut = 0;
 
 	/* Lock once rates have been retrieved */
 	RS_STACK_MUTEX(coreMtx); /**************** LOCKED MUTEX ****************/
@@ -320,11 +322,19 @@ int pqihandler::ExtractRates(std::map<RsPeerId, RsBwRates> &ratemap, RsBwRates &
 		total.mQueueOut += peerRates.mQueueOut;
 		total.mQueueOutBytes += peerRates.mQueueOutBytes;
 
+		/* Accumulate cumulative statistics into global totals */
+		total.mTotalIn += peerRates.mTotalIn;
+		total.mTotalOut += peerRates.mTotalOut;
+
 		/* Store individual peer rates in the result map */
 		ratemap[it->first] = peerRates;
 
 		/* Clean debug message for this layer */
 		//RsDbg() << "OUTQUEUEBYTES [pqihandler] Collected Peer: " << it->first << " | Bytes: " << peerRates.mQueueOutBytes;
+
+		/* Debug message for extraction layer */
+		//RsDbg() << "BWSUM Handler [ExtractRates] Peer: " << it->first << " | In: " << peerRates.mTotalIn << " | Out: " << peerRates.mTotalOut;
+
 	}
 
 	return 1;

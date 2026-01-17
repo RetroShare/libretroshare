@@ -1386,11 +1386,18 @@ void pqistreamer::getRates(RsBwRates &rates)
 		/* Fetch standard item count */
 		rates.mQueueOut = locked_out_queue_size();
 
-		/* Step 2: Extract the actual queue size in bytes */
+		/* Extract the actual queue size in bytes */
 		/* locked_compute_out_pkt_size() returns the sum of serialized sizes of all items in queue */
 		rates.mQueueOutBytes = (uint32_t)locked_compute_out_pkt_size();
 
-		/* Single clean debug message for the source */
+		/* Populate cumulative totals from internal variables */
+     		rates.mTotalIn = (uint64_t)mTotalRead;
+		rates.mTotalOut = (uint64_t)mTotalSent;
+
+		/* Debug message */
+		//RsDbg() << "BWSUM Source [Streamer] Peer: " << PeerId() << " | In: " << rates.mTotalIn << " | Out: " << rates.mTotalOut;
+
+		/* Debus message */ 
 		//RsDbg() << "OUTQUEUEBYTES [Streamer] Peer: " << PeerId() << " | Bytes: " << rates.mQueueOutBytes;
 	}
 }

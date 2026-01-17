@@ -569,11 +569,14 @@ void pqiperson::getRates(RsBwRates &rates)
 		return;
 	}
 
+	/* Forward the request to the active streamer (pqiconnect) */
+	activepqi->getRates(rates);
+
 	/* Clean debug message for the relay layer */
 	//RsDbg() << "OUTQUEUEBYTES [Person] Peer: " << PeerId() << " | Relaying rate request";
 
-	/* Forward the request to the active streamer (pqiconnect) */
-	activepqi->getRates(rates);
+	/* Debug to confirm the relay layer receives cumulative totals */
+	//RsDbg() << "BWSUM Relay [Person] Peer: " << PeerId() << " | In: " << rates.mTotalIn << " | Out: " << rates.mTotalOut;
 }
 
 int pqiperson::gatherStatistics(std::list<RSTrafficClue>& out_lst,

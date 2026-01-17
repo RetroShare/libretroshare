@@ -165,8 +165,11 @@ bool p3BandwidthControl::checkAvailableBandwidth()
 		bit->second.mRates = it->second;
 		bit->second.mRateUpdateTs = now;
 
-		/* VERIFICATION DEBUG */
+		/* Debug message */
 		//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] Bridge active for Peer: " << bit->first << " | Bytes: " << bit->second.mRates.mQueueOutBytes;
+
+		/* Debug to confirm data reached the Bandwidth Control service */
+		//RsDbg() << "BWSUM Service [checkAvailableBandwidth] Peer: " << bit->first << " | In: " << bit->second.mRates.mTotalIn << " | Out: " << bit->second.mRates.mTotalOut;
 
 		if (updatePeer)
 		{
@@ -251,8 +254,15 @@ int  p3BandwidthControl::getTotalBandwidthRates(RsConfigDataRates &rates)
 	rates.mQueueOut = mTotalRates.mQueueOut;
 	rates.mQueueOutBytes = mTotalRates.mQueueOutBytes;
 
+	/* Copy global cumulative totals to the output structure */
+	rates.mTotalIn = mTotalRates.mTotalIn;
+	rates.mTotalOut = mTotalRates.mTotalOut;
+
 	/* DEBUG OPTIONNEL pour vérifier le total global */
 	//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] GLOBAL TOTAL Bridge: " << rates.mQueueOutBytes;
+	
+	/* Debug message for global totals */
+	//RsDbg() << "BWSUM Final API [Global Total] | In: " << rates.mTotalIn << " | Out: " << rates.mTotalOut;
 
 	return 1;
 }
@@ -282,8 +292,13 @@ int p3BandwidthControl::getAllBandwidthRates(std::map<RsPeerId, RsConfigDataRate
         	rates.mQueueOut = bit->second.mRates.mQueueOut;
 		rates.mQueueOutBytes = bit->second.mRates.mQueueOutBytes;
 
-		/* FINAL API DEBUG */
+		/* Copy individual cumulative totals to the API structure */
+		rates.mTotalIn = bit->second.mRates.mTotalIn;
+		rates.mTotalOut = bit->second.mRates.mTotalOut;
+
+		/* Debug message */
 		//RsDbg() << "OUTQUEUEBYTES [p3bwctrl] Final API Exit for Peer: " << bit->first << " | Bytes: " << rates.mQueueOutBytes;
+		//RsDbg() << "BWSUM Final API [Peer] " << bit->first << " | In: " << rates.mTotalIn << " | Out: " << rates.mTotalOut;
 
 		ratemap[bit->first] = rates;
 	}			
