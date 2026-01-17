@@ -156,8 +156,8 @@ class pqistreamer: public PQInterface
 		uint32_t mIncomingSize_bytes; // size of Incoming in btyes
 
 		// data for network stats.
-		int mTotalRead;
-		int mTotalSent;
+		uint64_t mTotalRead;
+		uint64_t mTotalSent;
 
 		// these are representative (but not exact)
 		int mCurrRead;
