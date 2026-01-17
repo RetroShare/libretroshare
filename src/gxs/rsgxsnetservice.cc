@@ -317,13 +317,6 @@ static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_ENCRYPTION_ERROR    = 0x03 ;
 static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_SERIALISATION_ERROR = 0x04 ;
 static const uint32_t RS_NXS_ITEM_ENCRYPTION_STATUS_GXS_KEY_MISSING     = 0x05 ;
 
-#include <iomanip> // Required for decimal formatting
-
-/* Global file-scope statics shared by all functions in this file */
-static std::map<RsPeerId, RsConfigDataRates> g_cachedRateMap;
-static RsConfigDataRates g_totalRates;
-static rstime_t g_lastRateCheck = 0;
-
 // Debug system to allow to print only for some IDs (group, Peer, etc)
 
 #if defined(NXS_NET_DEBUG_0) || defined(NXS_NET_DEBUG_1) || defined(NXS_NET_DEBUG_2)  || defined(NXS_NET_DEBUG_3) \
@@ -4047,49 +4040,6 @@ void RsGxsNetService::handleRecvSyncGroup(RsNxsSyncGrpReqItem *item)
 	    return;
 
     RsPeerId peer = item->PeerId();
-
-	rstime_t now = time(NULL);
-
-	/* MASTER UPDATE: Refresh cache and print global stats every 5 seconds */
-	if (now - g_lastRateCheck >= 5) 
-	{
-		g_lastRateCheck = now;
-		rsConfig->getTotalBandwidthRates(g_totalRates);
-		rsConfig->getAllBandwidthRates(g_cachedRateMap);
-
-		/* 
-		RsDbg() << "OUTQUEUEBYTES [GXS Sync] --- GLOBAL NETWORK TOTALS ---";
-		RsDbg() << "TOTAL | Queue: " << g_totalRates.mQueueOut << " items / " << g_totalRates.mQueueOutBytes << " bytes"
-		        << " | Speed: " << std::fixed << std::setprecision(1) << g_totalRates.mRateOut << " kB/s";
-		RsDbg() << "OUTQUEUEBYTES [GXS Sync] --- PER PEER STATISTICS ---";
-		for(auto const& [id, pRate] : g_cachedRateMap)
-		{
-			RsDbg() << "  -> Peer: " << id 
-			        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
-			        << " | Speed: " << std::fixed << std::setprecision(1) << pRate.mRateOut << " kB/s";
-		}
-		*/
-	}
-
-	/* --- CALCULATION PHASE --- */
-	const RsConfigDataRates& pRate = g_cachedRateMap[peer];
-	
-	/* Calculate drain time using a speed floor of 1.0 kB/s to prevent division by zero */
-	float effectiveSpeed = std::max((float)pRate.mRateOut, 1.0f);
-	float drainTime = (float)pRate.mQueueOutBytes / (effectiveSpeed * 1024.0f);
-
-	/* --- DECISION PHASE --- */
-	bool rejectQueueLimit = (pRate.mQueueOutBytes > 200 * 1024 * 1024);
-	bool rejectDrainLimit = (drainTime > 30.0f && pRate.mQueueOutBytes > 100 * 1024);
-
-	if (rejectQueueLimit || rejectDrainLimit) {
-		RsDbg() << "OUTQUEUE [GXS SyncGrp] Rejected Peer: " << peer 
-		        << " | Drain: " << std::fixed << std::setprecision(1) << drainTime << "s"
-		        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
-		        << " | Speed: " << pRate.mRateOut << " kB/s";
-		return;
-	}
-
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(peer) << "HandleRecvSyncGroup(): Service: " << mServType << " from " << peer << ", Last update TS (from myself) sent from peer is T = " << std::dec<< time(NULL) - item->updateTS << " secs ago" << std::endl;
 #endif
@@ -4415,30 +4365,9 @@ void RsGxsNetService::handleRecvSyncMessage(RsNxsSyncMsgReqItem *item,bool item_
     if (!item)
 	    return;
 
-    const RsPeerId& peer = item->PeerId();
-
-	/* --- CALCULATION PHASE --- */
-	/* Uses the existing g_cachedRateMap without refreshing it */
-	const RsConfigDataRates& pRate = g_cachedRateMap[peer];
-	
-	/* Calculate drain time (Floor: 1.0 kB/s) */
-	float effectiveSpeed = std::max((float)pRate.mRateOut, 1.0f);
-	float drainTime = (float)pRate.mQueueOutBytes / (effectiveSpeed * 1024.0f);
-
-	/* --- DECISION PHASE --- */
-	bool rejectQueueLimit = (pRate.mQueueOutBytes > 200 * 1024 * 1024);
-	bool rejectDrainLimit = (drainTime > 30.0f && pRate.mQueueOutBytes > 100 * 1024);
-
-	if (rejectQueueLimit || rejectDrainLimit) {
-		RsDbg() << "OUTQUEUE [GXS SyncMsg] Rejected Peer: " << peer 
-		        << " | Drain: " << std::fixed << std::setprecision(1) << drainTime << "s"
-		        << " | Queue: " << pRate.mQueueOut << " items / " << pRate.mQueueOutBytes << " bytes"
-		        << " | Speed: " << pRate.mRateOut << " kB/s";
-		return;
-	}
-
     RS_STACK_MUTEX(mNxsMutex) ;
-    
+
+    const RsPeerId& peer = item->PeerId();
     bool grp_is_known = false;
     bool was_circle_protected = item_was_encrypted || bool(item->flag & RsNxsSyncMsgReqItem::FLAG_USE_HASHED_GROUP_ID);
 
