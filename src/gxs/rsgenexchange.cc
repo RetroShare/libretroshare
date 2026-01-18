@@ -1586,13 +1586,13 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			}
 		}
 		// [TRACE] Log the number of items processed
-		RsDbg() << "DEBUG [GenExch]: Deserialized " << count << " items." << std::endl;
+		RsDbg() << "DEBUG [GenExch]: Deserialized " << count << " items";
 	}
 
     // [TRACE] End timer and log total processing time
     auto end_time = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    RsDbg() << "DEBUG [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms." << std::endl;
+    RsDbg() << "DEBUG [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms";
 
 	return ok;
 }
