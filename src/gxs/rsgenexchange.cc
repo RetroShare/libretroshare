@@ -1552,10 +1552,14 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			const RsGxsGroupId& grpId = mit->first;
 			std::vector<RsGxsMsgItem*>& gxsMsgItems = msgItems[grpId];
 			std::vector<RsNxsMsg*>& nxsMsgsV = mit->second;
-			std::vector<RsNxsMsg*>::iterator vit = nxsMsgsV.begin();
-			for(; vit != nxsMsgsV.end(); ++vit)
+			
+			// Pre-allocate a temporary vector for results to avoid locking in the parallel loop
+			std::vector<RsGxsMsgItem*> tempItems(nxsMsgsV.size(), nullptr);
+
+			#pragma omp parallel for
+			for(size_t i = 0; i < nxsMsgsV.size(); ++i)
 			{
-				RsNxsMsg*& msg = *vit;
+				RsNxsMsg* msg = nxsMsgsV[i];
 				RsItem* item = NULL;
 
 				if(msg->msg.bin_len != 0)
@@ -1563,26 +1567,34 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 
 				if (item)
 				{
-					RsGxsMsgItem* mItem = dynamic_cast<RsGxsMsgItem*>(item);
+					// Use static_cast as we expect the serializer to return the correct type for this service
+					// dynamic_cast can be slower and we want speed here.
+					RsGxsMsgItem* mItem = static_cast<RsGxsMsgItem*>(item);
 					if (mItem)
 					{
-						mItem->meta = *((*vit)->metaData); // get meta info from nxs msg
-						gxsMsgItems.push_back(mItem);
-						count++;
+						mItem->meta = *(msg->metaData); // get meta info from nxs msg
+						tempItems[i] = mItem;
 					}
 					else
 					{
-						std::cerr << "RsGenExchange::getMsgData() deserialisation/dynamic_cast ERROR";
-						std::cerr << std::endl;
+						// Should almost never happen if serializer is correct
 						delete item;
 					}
 				}
 				else
 				{
-					std::cerr << "RsGenExchange::getMsgData() deserialisation ERROR";
-					std::cerr << std::endl;
+                    // Deserialization failed (corrupt data?)
+					// std::cerr << "RsGenExchange::getMsgData() deserialisation ERROR" << std::endl;
 				}
-				delete msg;
+				delete msg; 
+			}
+
+			// Serial merge of successful items
+			for(size_t i = 0; i < tempItems.size(); ++i) {
+				if(tempItems[i]) {
+					gxsMsgItems.push_back(tempItems[i]);
+					count++;
+				}
 			}
 		}
 		// [TRACE] Log the number of items processed
