@@ -288,7 +288,7 @@ RetroCursor* RetroDb::sqlQuery(const std::string& tableName, const std::list<std
     auto end_sql = std::chrono::steady_clock::now();
     auto sql_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_sql - start_sql).count();
     
-    RsDbg() << "DEBUG [DataService]: Batch SQL for group individual_query took " << sql_ms << "ms";
+    //RsDbg() << "DEBUG [RetroDb]: Batch SQL for group individual_query took " << sql_ms << "ms";
 
     return cursor;
 }
