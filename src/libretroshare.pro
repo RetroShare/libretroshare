@@ -167,8 +167,6 @@ linux-* {
     CONFIG += link_pkgconfig
 
 	QMAKE_CXXFLAGS *= -D_FILE_OFFSET_BITS=64
-	QMAKE_CXXFLAGS += -fopenmp
-	LIBS += -fopenmp
 	QMAKE_CC = $${QMAKE_CXX}
 
     no_sqlcipher {
@@ -244,8 +242,6 @@ win32-x-g++ {
 ################################# Windows ##########################################
 
 win32-g++|win32-clang-g++ {
-	QMAKE_CXXFLAGS += -fopenmp
-	LIBS += -fopenmp
 	QMAKE_CC = $${QMAKE_CXX}
 	OBJECTS_DIR = temp/obj
 	MOC_DIR = temp/moc
