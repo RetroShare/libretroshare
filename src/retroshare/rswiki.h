@@ -26,6 +26,7 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <map>
 #include <iostream>
 
 #include "retroshare/rstokenservice.h"
@@ -94,6 +95,8 @@ struct RsWikiCollection: RsGxsGenericGroupData
 	std::string mDescription;
 	std::string mCategory;
 	std::string mHashTags;
+	std::list<RsGxsId> mModeratorList;
+	std::map<RsGxsId, rstime_t> mModeratorTerminationDates;
 };
 
 class RsWikiSnapshot
@@ -135,6 +138,12 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) = 0;
 	virtual bool updateCollection(const RsWikiCollection &collection) = 0;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
+
+	/* Moderator Management */
+	virtual bool addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
+	virtual bool removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
+	virtual bool getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& moderators) = 0;
+	virtual bool isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime) = 0;
 };
 
 #endif

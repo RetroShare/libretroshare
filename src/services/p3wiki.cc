@@ -24,6 +24,8 @@
 #include "rsitems/rswikiitems.h"
 #include "util/rsrandom.h"
 #include "retroshare/rsevents.h"
+#include <algorithm>
+#include <memory>
 
 RsWiki *rsWiki = NULL;
 
@@ -227,6 +229,155 @@ bool p3Wiki::getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<
 		if (!requestGroupInfo(token, opts, groupIds) || waitToken(token) != RsTokenService::COMPLETE ) return false;
 	}
 	return getCollections(token, groups) && !groups.empty();
+}
+
+bool p3Wiki::addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId)
+{
+	std::vector<RsWikiCollection> collections;
+	if (!getCollections({grpId}, collections) || collections.empty())
+		return false;
+
+	RsWikiCollection& collection = collections.front();
+	collection.mModeratorList.push_back(moderatorId);
+	collection.mModeratorList.sort();
+	collection.mModeratorList.unique();
+	collection.mModeratorTerminationDates.erase(moderatorId);
+
+	uint32_t token;
+	return updateCollection(token, collection) && waitToken(token) == RsTokenService::COMPLETE;
+}
+
+bool p3Wiki::removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId)
+{
+	std::vector<RsWikiCollection> collections;
+	if (!getCollections({grpId}, collections) || collections.empty())
+		return false;
+
+	RsWikiCollection& collection = collections.front();
+	collection.mModeratorList.remove(moderatorId);
+	collection.mModeratorTerminationDates[moderatorId] = time(nullptr);
+
+	uint32_t token;
+	return updateCollection(token, collection) && waitToken(token) == RsTokenService::COMPLETE;
+}
+
+bool p3Wiki::getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& moderators)
+{
+	std::vector<RsWikiCollection> collections;
+	if (!getCollections({grpId}, collections) || collections.empty())
+		return false;
+
+	moderators = collections.front().mModeratorList;
+	return true;
+}
+
+bool p3Wiki::isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime)
+{
+	RsWikiCollection collection;
+	if (!getCollectionData(grpId, collection))
+		return false;
+
+	if (std::find(collection.mModeratorList.begin(), collection.mModeratorList.end(), authorId) == collection.mModeratorList.end())
+		return false;
+
+	auto it = collection.mModeratorTerminationDates.find(authorId);
+	// Reject edits made at or after the termination timestamp (termination is inclusive)
+	if (it != collection.mModeratorTerminationDates.end() && editTime >= it->second)
+		return false;
+
+	return true;
+}
+
+bool p3Wiki::acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t /*size*/)
+{
+	if (!msgMeta)
+		return false;
+
+	if (msgMeta->mOrigMsgId.isNull() || msgMeta->mOrigMsgId == msgMeta->mMsgId)
+		return true;
+
+	RsGxsId originalAuthorId;
+	if (!getOriginalMessageAuthor(msgMeta->mGroupId, msgMeta->mOrigMsgId, originalAuthorId))
+	{
+		std::cerr << "p3Wiki: Rejecting edit " << msgMeta->mMsgId
+		          << " in group " << msgMeta->mGroupId
+		          << " without original author data." << std::endl;
+		return false;
+	}
+
+	if (msgMeta->mAuthorId == originalAuthorId)
+		return true;
+
+	if (!checkModeratorPermission(msgMeta->mGroupId, msgMeta->mAuthorId, originalAuthorId, msgMeta->mPublishTs))
+	{
+		std::cerr << "p3Wiki: Rejecting edit from non-moderator " << msgMeta->mAuthorId
+		          << " in group " << msgMeta->mGroupId
+		          << " on message by " << originalAuthorId << std::endl;
+		return false;
+	}
+
+	return true;
+}
+
+bool p3Wiki::checkModeratorPermission(const RsGxsGroupId& grpId, const RsGxsId& authorId, const RsGxsId& originalAuthorId, rstime_t editTime)
+{
+	if (authorId == originalAuthorId)
+		return true;
+
+	return isActiveModerator(grpId, authorId, editTime);
+}
+
+bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection) const
+{
+	if (!mDataAccess || !mSerialiser)
+		return false;
+
+	RsNxsGrp* grpData = nullptr;
+	if (!mDataAccess->getGroupData(grpId, grpData) || !grpData)
+		return false;
+
+	std::unique_ptr<RsNxsGrp> grpCleanup(grpData);
+	RsItem* item = nullptr;
+	RsTlvBinaryData& data = grpData->grp;
+
+	if (data.bin_len != 0)
+		item = mSerialiser->deserialise(data.bin_data, &data.bin_len);
+
+	std::unique_ptr<RsItem> itemCleanup(item);
+	auto collectionItem = dynamic_cast<RsGxsWikiCollectionItem*>(item);
+	if (!collectionItem)
+		return false;
+
+	collection = collectionItem->collection;
+	return true;
+}
+
+bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId) const
+{
+	if (!mDataStore)
+		return false;
+
+	GxsMsgReq req;
+	req[grpId].insert(msgId);
+
+	GxsMsgMetaResult metaResult;
+	if (mDataStore->retrieveGxsMsgMetaData(req, metaResult) != 1)
+		return false;
+
+	auto groupIt = metaResult.find(grpId);
+	if (groupIt == metaResult.end())
+		return false;
+
+	for (const auto& metaPtr : groupIt->second)
+	{
+		if (metaPtr && metaPtr->mMsgId == msgId)
+		{
+			authorId = metaPtr->mAuthorId;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /* Stream operators for debugging */
