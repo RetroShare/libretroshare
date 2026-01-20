@@ -144,6 +144,25 @@ public:
 	virtual bool removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
 	virtual bool getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& moderators) = 0;
 	virtual bool isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime) = 0;
+
+	/* Content fetching for merge operations (Todo 3) */
+	/**
+	 * @brief Get page content from a single snapshot for merging
+	 * @param snapshotId The message ID of the snapshot
+	 * @param content Output parameter for page content
+	 * @return true if snapshot found and content retrieved
+	 */
+	virtual bool getSnapshotContent(const RsGxsMessageId& snapshotId, 
+	                                std::string& content) = 0;
+
+	/**
+	 * @brief Get page content from multiple snapshots efficiently (bulk fetch)
+	 * @param snapshotIds Vector of snapshot message IDs to fetch
+	 * @param contents Output map of snapshotId -> content
+	 * @return true if the operation completed successfully (contents may be empty)
+	 */
+	virtual bool getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
+	                                 std::map<RsGxsMessageId, std::string>& contents) = 0;
 };
 
 #endif

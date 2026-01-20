@@ -26,6 +26,7 @@
 #include "retroshare/rsevents.h"
 #include <algorithm>
 #include <memory>
+#include <set>
 
 RsWiki *rsWiki = NULL;
 
@@ -285,6 +286,155 @@ bool p3Wiki::isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorI
 	if (it != collection.mModeratorTerminationDates.end() && editTime >= it->second)
 		return false;
 
+	return true;
+}
+
+bool p3Wiki::getSnapshotContent(const RsGxsMessageId& snapshotId, std::string& content)
+{
+	// First, retrieve the list of all wiki group IDs
+	uint32_t grpToken;
+	RsTokReqOptions grpOpts;
+	grpOpts.mReqType = GXS_REQUEST_TYPE_GROUP_IDS;
+
+	if (!requestGroupInfo(grpToken, grpOpts))
+	{
+		std::cerr << "p3Wiki::getSnapshotContent() requestGroupInfo failed" << std::endl;
+		return false;
+	}
+
+	if (waitToken(grpToken) != RsTokenService::COMPLETE)
+	{
+		std::cerr << "p3Wiki::getSnapshotContent() group request failed" << std::endl;
+		return false;
+	}
+
+	std::list<RsGxsGroupId> grpIds;
+	if (!getGroupList(grpToken, grpIds) || grpIds.empty())
+	{
+		// If there are no wiki groups, the snapshot cannot exist.
+		// Return false as documented: "true if snapshot found and content retrieved"
+		std::cerr << "p3Wiki::getSnapshotContent() failed to get group list or list is empty" << std::endl;
+		return false;
+	}
+
+	// Use token-based request to fetch snapshots for all groups
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+	
+	if (!requestMsgInfo(token, opts, grpIds))
+	{
+		std::cerr << "p3Wiki::getSnapshotContent() requestMsgInfo failed" << std::endl;
+		return false;
+	}
+	
+	// Wait for request to complete
+	if (waitToken(token) != RsTokenService::COMPLETE)
+	{
+		std::cerr << "p3Wiki::getSnapshotContent() request failed" << std::endl;
+		return false;
+	}
+	
+	// Get snapshot data
+	std::vector<RsWikiSnapshot> snapshots;
+	if (!getSnapshots(token, snapshots))
+	{
+		std::cerr << "p3Wiki::getSnapshotContent() failed to get snapshots" << std::endl;
+		return false;
+	}
+	
+	// Find the specific snapshot by ID
+	for (const auto& snapshot : snapshots)
+	{
+		if (snapshot.mMeta.mMsgId == snapshotId)
+		{
+			content = snapshot.mPage;
+			return true;
+		}
+	}
+	
+	std::cerr << "p3Wiki::getSnapshotContent() snapshot not found: " << snapshotId << std::endl;
+	return false;
+}
+
+bool p3Wiki::getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
+                                 std::map<RsGxsMessageId, std::string>& contents)
+{
+	// Allow empty input - just return success with empty map
+	if (snapshotIds.empty())
+		return true;
+
+	// Ensure output map does not contain stale entries from previous calls
+	contents.clear();
+	
+	// First, retrieve the list of all wiki group IDs
+	uint32_t grpToken;
+	RsTokReqOptions grpOpts;
+	grpOpts.mReqType = GXS_REQUEST_TYPE_GROUP_IDS;
+
+	if (!requestGroupInfo(grpToken, grpOpts))
+	{
+		std::cerr << "p3Wiki::getSnapshotsContent() requestGroupInfo failed" << std::endl;
+		return false;
+	}
+
+	if (waitToken(grpToken) != RsTokenService::COMPLETE)
+	{
+		std::cerr << "p3Wiki::getSnapshotsContent() group request failed" << std::endl;
+		return false;
+	}
+
+	// GXS API requires non-empty GroupIds to fetch specific messages. Since we only
+	// have MessageIds without their GroupIds, fetch all wiki group IDs and then
+	// filter the resulting snapshots by the requested MessageIds.
+	std::list<RsGxsGroupId> grpIds;
+	if (!getGroupList(grpToken, grpIds) || grpIds.empty())
+	{
+		// If there are no wiki groups, there cannot be any snapshots to return.
+		// Return true as the operation succeeded, but with an empty result set.
+		// This matches the documented behavior: "true if operation completed successfully"
+		return true;
+	}
+	
+	// Use token-based request to fetch all snapshots
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+	
+	if (!requestMsgInfo(token, opts, grpIds))
+	{
+		std::cerr << "p3Wiki::getSnapshotsContent() requestMsgInfo failed" << std::endl;
+		return false;
+	}
+	
+	// Wait for request to complete
+	if (waitToken(token) != RsTokenService::COMPLETE)
+	{
+		std::cerr << "p3Wiki::getSnapshotsContent() request failed" << std::endl;
+		return false;
+	}
+	
+	// Get snapshot data
+	std::vector<RsWikiSnapshot> snapshots;
+	if (!getSnapshots(token, snapshots))
+	{
+		std::cerr << "p3Wiki::getSnapshotsContent() failed to get snapshots" << std::endl;
+		return false;
+	}
+	
+	// Create a set of requested IDs for fast lookup
+	std::set<RsGxsMessageId> requestedIds(snapshotIds.begin(), snapshotIds.end());
+	
+	// Map snapshotId -> content for requested snapshots only
+	for (const auto& snapshot : snapshots)
+	{
+		if (requestedIds.find(snapshot.mMeta.mMsgId) != requestedIds.end())
+		{
+			contents[snapshot.mMeta.mMsgId] = snapshot.mPage;
+		}
+	}
+	
+	// Return true even if no snapshots found - successful operation with zero results
 	return true;
 }
 
