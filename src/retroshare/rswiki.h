@@ -95,7 +95,9 @@ struct RsWikiCollection: RsGxsGenericGroupData
 	std::string mDescription;
 	std::string mCategory;
 	std::string mHashTags;
+	// List of current/active moderator IDs for this collection.
 	std::list<RsGxsId> mModeratorList;
+	// Map of moderator IDs to their termination timestamps (for removed moderators).
 	std::map<RsGxsId, rstime_t> mModeratorTerminationDates;
 };
 
@@ -140,9 +142,37 @@ public:
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
 
 	/* Moderator Management */
+	/**
+	 * @brief Add a moderator to a wiki collection
+	 * @param grpId The ID of the wiki collection/group
+	 * @param moderatorId The ID of the user to add as moderator
+	 * @return true if the moderator was successfully added, false otherwise
+	 */
 	virtual bool addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
+	
+	/**
+	 * @brief Remove a moderator from a wiki collection
+	 * @param grpId The ID of the wiki collection/group
+	 * @param moderatorId The ID of the moderator to remove
+	 * @return true if the moderator was successfully removed, false otherwise
+	 */
 	virtual bool removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
+	
+	/**
+	 * @brief Get the list of moderators for a wiki collection
+	 * @param grpId The ID of the wiki collection/group
+	 * @param moderators Output parameter that will contain the list of moderator IDs
+	 * @return true if the list was successfully retrieved, false otherwise
+	 */
 	virtual bool getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& moderators) = 0;
+	
+	/**
+	 * @brief Check if a user is an active moderator at a given time
+	 * @param grpId The ID of the wiki collection/group
+	 * @param authorId The ID of the user to check
+	 * @param editTime The time at which to check moderator status
+	 * @return true if the user is an active moderator at the specified time, false otherwise
+	 */
 	virtual bool isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime) = 0;
 
 	/* Content fetching for merge operations (Todo 3) */
