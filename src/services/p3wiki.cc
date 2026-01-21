@@ -313,7 +313,7 @@ bool p3Wiki::getSnapshotContent(const RsGxsMessageId& snapshotId, std::string& c
 	}
 
 	std::list<RsGxsGroupId> grpIds;
-	if (!getGroupList(grpToken, grpIds) || grpIds.empty())
+	if (!RsGenExchange::getGroupList(grpToken, grpIds) || grpIds.empty())
 	{
 		// If there are no wiki groups, the snapshot cannot exist.
 		// Return false as documented: "true if snapshot found and content retrieved"
@@ -392,7 +392,7 @@ bool p3Wiki::getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
 	// have MessageIds without their GroupIds, fetch all wiki group IDs and then
 	// filter the resulting snapshots by the requested MessageIds.
 	std::list<RsGxsGroupId> grpIds;
-	if (!getGroupList(grpToken, grpIds) || grpIds.empty())
+	if (!RsGenExchange::getGroupList(grpToken, grpIds) || grpIds.empty())
 	{
 		// If there are no wiki groups, there cannot be any snapshots to return.
 		// Return true as the operation succeeded, but with an empty result set.
@@ -480,11 +480,8 @@ bool p3Wiki::checkModeratorPermission(const RsGxsGroupId& grpId, const RsGxsId& 
 
 bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection) const
 {
-	if (!mDataAccess || !mSerialiser)
-		return false;
-
 	RsNxsGrp* grpData = nullptr;
-	if (!mDataAccess->getGroupData(grpId, grpData) || !grpData)
+	if (!retrieveNxsGrp(grpId, grpData) || !grpData)
 		return false;
 
 	std::unique_ptr<RsNxsGrp> grpCleanup(grpData);
@@ -492,7 +489,11 @@ bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& coll
 	RsTlvBinaryData& data = grpData->grp;
 
 	if (data.bin_len != 0)
-		item = mSerialiser->deserialise(data.bin_data, &data.bin_len);
+	{
+		// Create a local serialiser instance for deserializing
+		RsGxsWikiSerialiser serialiser;
+		item = serialiser.deserialise(data.bin_data, &data.bin_len);
+	}
 
 	std::unique_ptr<RsItem> itemCleanup(item);
 	auto collectionItem = dynamic_cast<RsGxsWikiCollectionItem*>(item);
@@ -505,14 +506,15 @@ bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& coll
 
 bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId) const
 {
-	if (!mDataStore)
+	RsGeneralDataService* dataStore = getDataStore();
+	if (!dataStore)
 		return false;
 
 	GxsMsgReq req;
 	req[grpId].insert(msgId);
 
 	GxsMsgMetaResult metaResult;
-	if (mDataStore->retrieveGxsMsgMetaData(req, metaResult) != 1)
+	if (dataStore->retrieveGxsMsgMetaData(req, metaResult) != 1)
 		return false;
 
 	auto groupIt = metaResult.find(grpId);
