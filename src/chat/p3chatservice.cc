@@ -1793,7 +1793,6 @@ RsSerialiser *p3ChatService::setupSerialiser()
 }
 
 /*************** pqiMonitor callback ***********************/
-
 void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 {
 	for (auto it = plist.cbegin(); it != plist.cend(); ++it)
@@ -1843,6 +1842,25 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 
 			if (changed)
 				IndicateConfigChanged();
+
+			/* Mandatory avatar exchange on connection to handle offline changes */
+			RsDbg() << "AVATAR peer connected, initiating exchange with: " << it->id.toStdString().c_str();
+
+			// 1. Request the peer's avatar to check for updates while we were offline
+			sendAvatarRequest(it->id);
+
+			// 2. Notify the peer that our own avatar is available
+			if(_own_avatar != nullptr && _own_avatar->_image_size > 0)
+			{
+				RsChatMsgItem *nav = new RsChatMsgItem();
+				nav->PeerId(it->id);
+				
+				// Signal that our avatar is available without sending the full image yet
+				nav->chatFlags = RS_CHAT_FLAG_PRIVATE | RS_CHAT_FLAG_AVATAR_AVAILABLE;
+				nav->sendTime = time(NULL);
+
+				sendChatItem(nav);
+			}
 		}
 		else if (it->actions & RS_SERVICE_PEER_REMOVED) 
 		{
@@ -1861,3 +1879,4 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 		}
 	}
 }
+
