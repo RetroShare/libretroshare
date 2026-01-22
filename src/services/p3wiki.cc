@@ -480,9 +480,14 @@ bool p3Wiki::checkModeratorPermission(const RsGxsGroupId& grpId, const RsGxsId& 
 
 bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection) const
 {
-	RsNxsGrp* grpData = nullptr;
-	if (!retrieveNxsGrp(grpId, grpData) || !grpData)
+	std::map<RsGxsGroupId, RsNxsGrp*> grpMap;
+	grpMap[grpId] = nullptr;
+	std::map<RsGxsGroupId, RsNxsGrp*>::const_iterator grp_it;
+	
+	if (!mDataStore->retrieveNxsGrps(grpMap, true) || grpMap.end() == (grp_it = grpMap.find(grpId)) || !grp_it->second)
 		return false;
+	
+	RsNxsGrp* grpData = grp_it->second;
 
 	std::unique_ptr<RsNxsGrp> grpCleanup(grpData);
 	RsItem* item = nullptr;
@@ -506,15 +511,14 @@ bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& coll
 
 bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId) const
 {
-	RsGeneralDataService* dataStore = getDataStore();
-	if (!dataStore)
+	if (!mDataStore)
 		return false;
 
 	GxsMsgReq req;
 	req[grpId].insert(msgId);
 
 	GxsMsgMetaResult metaResult;
-	if (dataStore->retrieveGxsMsgMetaData(req, metaResult) != 1)
+	if (mDataStore->retrieveGxsMsgMetaData(req, metaResult) != 1)
 		return false;
 
 	auto groupIt = metaResult.find(grpId);
