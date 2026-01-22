@@ -1362,45 +1362,62 @@ void p3ChatService::setCustomStateString(const std::string& s)
 
 void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 {
-	RsStackMutex stack(mChatMtx); /********** STACK LOCKED MTX ******/
+	std::set<RsPeerId> onlineList;
 
-	RsDbg() << "AVATAR setting own node avatar data, size: " << size;
+	{
+		/* Use a limited scope for the mutex to avoid deadlocks during broadcast */
+		RsStackMutex stack(mChatMtx); /********** STACK LOCKED MTX ******/
+
+		RsDbg() << "AVATAR setting own node avatar data, size: " << size;
 
 #ifdef CHAT_DEBUG
-	std::cerr << "p3chatservice: Setting own avatar to new image." << std::endl ;
+		std::cerr << "p3chatservice: Setting own avatar to new image." << std::endl ;
 #endif
 
-	/* Safety check: ensure size is positive and within RetroShare limits */
-	if(size < 0 || (uint32_t)size > MAX_AVATAR_JPEG_SIZE)
+		/* Safety check: ensure size is positive and within RetroShare limits */
+		if(size < 0 || (uint32_t)size > MAX_AVATAR_JPEG_SIZE)
+		{
+			std::cerr << "Supplied avatar image is too big or invalid. Maximum size is " << MAX_AVATAR_JPEG_SIZE << ", supplied image has size " << size << std::endl;
+			return ;
+		}
+
+		if(_own_avatar != NULL)
+		{
+			delete _own_avatar ;
+		}
+
+		/* Create the new avatar info object in memory */
+		_own_avatar = new AvatarInfo(data, (uint32_t)size) ;
+
+		/* Notify the Graphical User Interface (GUI) to refresh the display */
+		if(rsEvents)
+		{
+			auto e = std::make_shared<RsFriendListEvent>();
+			e->mEventCode = RsFriendListEventCode::OWN_AVATAR_CHANGED;
+			e->mSslId = mServiceCtrl->getOwnId();
+			rsEvents->postEvent(e);
+		}
+
+		/* Mark own avatar as new for all cached peers for internal consistency */
+		for(std::map<RsPeerId,AvatarInfo *>::iterator it(_avatars.begin()); it != _avatars.end(); ++it)
+		{
+			it->second->_own_is_new = true ;
+		}
+
+		/* Get the list of currently online peers while the mutex is still held */
+		mServiceCtrl->getPeersConnected(getServiceInfo().mServiceType, onlineList);
+
+	} /* mChatMtx is automatically released here when 'stack' goes out of scope */
+
+	/* BROADCAST: Now safely send the avatar to all online peers without deadlock.
+	 * sendAvatarJpegData will acquire the mutex internally via makeOwnAvatarItem. */
+	for(std::set<RsPeerId>::iterator it = onlineList.begin(); it != onlineList.end(); ++it)
 	{
-		std::cerr << "Supplied avatar image is too big or invalid. Maximum size is " << MAX_AVATAR_JPEG_SIZE << ", supplied image has size " << size << std::endl;
-		return ;
+		RsDbg() << "AVATAR broadcasting image data to peer: " << it->toStdString().c_str();
+		sendAvatarJpegData(*it);
 	}
 
-	if(_own_avatar != NULL)
-	{
-		delete _own_avatar ;
-	}
-
-	/* Create the new avatar info object in memory using a cast for consistency */
-	_own_avatar = new AvatarInfo(data, (uint32_t)size) ;
-
-	/* Notify the Graphical User Interface (GUI) to refresh the display */
-	if(rsEvents)
-	{
-		auto e = std::make_shared<RsFriendListEvent>();
-		e->mEventCode = RsFriendListEventCode::OWN_AVATAR_CHANGED;
-		e->mSslId = mServiceCtrl->getOwnId();
-		rsEvents->postEvent(e);
-	}
-
-	/* Mark own avatar as new for all connected peers to trigger network sync */
-	for(std::map<RsPeerId,AvatarInfo *>::iterator it(_avatars.begin()); it != _avatars.end(); ++it)
-	{
-		it->second->_own_is_new = true ;
-	}
-
-	/* Indicate that configuration has changed to trigger the saveList() call at exit */
+	/* Trigger configuration save to persist the new avatar to disk */
 	IndicateConfigChanged();
 }
 
@@ -1793,6 +1810,7 @@ RsSerialiser *p3ChatService::setupSerialiser()
 }
 
 /*************** pqiMonitor callback ***********************/
+
 void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 {
 	for (auto it = plist.cbegin(); it != plist.cend(); ++it)
@@ -1805,7 +1823,9 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 			std::vector<RsChatMsgItem*> to_send;
 
 			{
-				RS_STACK_MUTEX(mChatMtx);
+				/* The mutex is scoped here in original code, which prevents deadlocks 
+				 * with the subsequent avatar sync calls below. */
+				RS_STACK_MUTEX(mChatMtx); /********** STACK LOCKED MTX ******/
 
 				for( auto cit = privateOutgoingMap.begin();
 				     cit != privateOutgoingMap.end(); )
@@ -1823,7 +1843,7 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 
 					++cit;
 				}
-			}
+			} /* Lock is released here */
 
 			for(auto toIt = to_send.begin(); toIt != to_send.end(); ++toIt)
 			{
@@ -1843,23 +1863,17 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 			if (changed)
 				IndicateConfigChanged();
 
-			/* Mandatory avatar exchange on connection to handle offline changes */
-			RsDbg() << "AVATAR peer connected, initiating exchange with: " << it->id.toStdString().c_str();
+			/* AVATAR: Proactive direct broadcast on connection to sync potential offline changes */
+			RsDbg() << "AVATAR peer connected, initiating direct exchange with: " << it->id.toStdString().c_str();
 
-			// 1. Request the peer's avatar to check for updates while we were offline
+			// 1. Proactively request the peer's avatar
 			sendAvatarRequest(it->id);
 
-			// 2. Notify the peer that our own avatar is available
+			// 2. Directly push our own avatar data to the connecting peer.
+			// Safety: This is called outside the mutex block to avoid recursive locking deadlock.
 			if(_own_avatar != nullptr && _own_avatar->_image_size > 0)
 			{
-				RsChatMsgItem *nav = new RsChatMsgItem();
-				nav->PeerId(it->id);
-				
-				// Signal that our avatar is available without sending the full image yet
-				nav->chatFlags = RS_CHAT_FLAG_PRIVATE | RS_CHAT_FLAG_AVATAR_AVAILABLE;
-				nav->sendTime = time(NULL);
-
-				sendChatItem(nav);
+				sendAvatarJpegData(it->id);
 			}
 		}
 		else if (it->actions & RS_SERVICE_PEER_REMOVED) 
@@ -1879,4 +1893,3 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 		}
 	}
 }
-
