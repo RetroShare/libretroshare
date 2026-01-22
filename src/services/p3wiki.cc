@@ -68,6 +68,7 @@ void p3Wiki::notifyChanges(std::vector<RsGxsNotify*>& changes)
         for(auto change : changes) {
             std::shared_ptr<RsGxsWikiEvent> event = std::make_shared<RsGxsWikiEvent>(wikiEventType);
             event->mWikiGroupId = change->mGroupId; 
+            event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
             
             // Handle message changes (snapshots and comments)
             RsGxsMsgChange* msgChange = dynamic_cast<RsGxsMsgChange*>(change);
@@ -91,6 +92,12 @@ void p3Wiki::notifyChanges(std::vector<RsGxsNotify*>& changes)
                         event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
                     }
                 }
+            }
+
+            // Handle message delete changes (no message data available)
+            RsGxsMsgDeletedChange* msgDeletedChange = dynamic_cast<RsGxsMsgDeletedChange*>(change);
+            if (msgDeletedChange) {
+                event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
             }
             
             // Handle group changes (collections)
