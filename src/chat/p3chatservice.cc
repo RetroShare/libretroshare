@@ -1365,7 +1365,8 @@ void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 	std::set<RsPeerId> onlineList;
 
 	{
-		/* Use a limited scope for the mutex to avoid deadlocks during broadcast */
+		/* We use a scoped block to release the mutex before broadcasting, 
+		 * preventing the deadlock you saw in GDB. */
 		RsStackMutex stack(mChatMtx); /********** STACK LOCKED MTX ******/
 
 		RsDbg() << "AVATAR setting own node avatar data, size: " << size;
@@ -1374,22 +1375,17 @@ void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 		std::cerr << "p3chatservice: Setting own avatar to new image." << std::endl ;
 #endif
 
-		/* Safety check: ensure size is positive and within RetroShare limits */
 		if(size < 0 || (uint32_t)size > MAX_AVATAR_JPEG_SIZE)
 		{
-			std::cerr << "Supplied avatar image is too big or invalid. Maximum size is " << MAX_AVATAR_JPEG_SIZE << ", supplied image has size " << size << std::endl;
+			std::cerr << "Supplied avatar image is too big. Max is " << MAX_AVATAR_JPEG_SIZE << std::endl;
 			return ;
 		}
 
 		if(_own_avatar != NULL)
-		{
 			delete _own_avatar ;
-		}
 
-		/* Create the new avatar info object in memory */
-		_own_avatar = new AvatarInfo(data, (uint32_t)size) ;
+		_own_avatar = new AvatarInfo(data,(uint32_t)size) ;
 
-		/* Notify the Graphical User Interface (GUI) to refresh the display */
 		if(rsEvents)
 		{
 			auto e = std::make_shared<RsFriendListEvent>();
@@ -1398,26 +1394,18 @@ void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 			rsEvents->postEvent(e);
 		}
 
-		/* Mark own avatar as new for all cached peers for internal consistency */
-		for(std::map<RsPeerId,AvatarInfo *>::iterator it(_avatars.begin()); it != _avatars.end(); ++it)
-		{
+		for(std::map<RsPeerId,AvatarInfo *>::iterator it(_avatars.begin());it!=_avatars.end();++it)
 			it->second->_own_is_new = true ;
-		}
 
-		/* Get the list of currently online peers while the mutex is still held */
 		mServiceCtrl->getPeersConnected(getServiceInfo().mServiceType, onlineList);
+	} 
 
-	} /* mChatMtx is automatically released here when 'stack' goes out of scope */
-
-	/* BROADCAST: Now safely send the avatar to all online peers without deadlock.
-	 * sendAvatarJpegData will acquire the mutex internally via makeOwnAvatarItem. */
 	for(std::set<RsPeerId>::iterator it = onlineList.begin(); it != onlineList.end(); ++it)
 	{
-		RsDbg() << "AVATAR broadcasting image data to peer: " << it->toStdString().c_str();
+		RsDbg() << "AVATAR broadcasting to peer: " << it->toStdString().c_str();
 		sendAvatarJpegData(*it);
 	}
 
-	/* Trigger configuration save to persist the new avatar to disk */
 	IndicateConfigChanged();
 }
 
@@ -1596,14 +1584,16 @@ RsChatStatusItem *p3ChatService::makeOwnCustomStateStringItem()
 
 RsChatAvatarItem *p3ChatService::makeOwnAvatarItem()
 {
-	RsStackMutex stack(mChatMtx); /********** STACK LOCKED MTX ******/
+	/* Mutex is removed here to prevent recursive deadlock from parent calls */
 	RsChatAvatarItem *ci = new RsChatAvatarItem();
 
-	_own_avatar->toUnsignedChar(ci->image_data,ci->image_size) ;
+	if(_own_avatar != nullptr)
+	{
+		_own_avatar->toUnsignedChar(ci->image_data,ci->image_size) ;
+	}
 
 	return ci ;
 }
-
 
 void p3ChatService::sendAvatarJpegData(const RsPeerId& peer_id)
 {
@@ -1646,92 +1636,98 @@ std::cerr << "p3chatservice: sending requested status string for peer " << peer_
 
 bool p3ChatService::loadList(std::list<RsItem*>& load)
 {
-	RsDbg() << "AVATAR entering loadList";
+	RsDbg() << "AVATAR entering loadList, total items: " << (int)load.size();
 
 	for(std::list<RsItem*>::iterator it(load.begin()); it != load.end(); )
 	{
-		/* STEP 2: Handle avatars stored in KV sets (Own and Peers) */
-		RsConfigKeyValueSet *kvs = dynamic_cast<RsConfigKeyValueSet *>(*it);
+		bool item_handled = false;
+		RsItem *item = *it;
+
+		/* 1. Attempt to handle Avatar data (local p3ChatService logic) */
+		RsConfigKeyValueSet *kvs = dynamic_cast<RsConfigKeyValueSet *>(item);
 		if(kvs)
 		{
-			bool handled = false;
+			/* Fixed: Using 'kv' to match the loop variable name */
 			for(auto const& kv : kvs->tlvkvs.pairs)
 			{
 				if(kv.key == "AV_CACHE:OWN")
 				{
-					RsDbg() << "AVATAR loading own avatar from KV set";
 					std::vector<uint8_t> decoded_data = Radix64::decode(kv.value);
 					if(!decoded_data.empty() && decoded_data.size() <= MAX_AVATAR_JPEG_SIZE)
 					{
 						RS_STACK_MUTEX(mChatMtx);
 						if(_own_avatar != NULL) delete _own_avatar;
 						_own_avatar = new AvatarInfo(decoded_data.data(), (uint32_t)decoded_data.size());
+						item_handled = true;
 					}
-					handled = true;
 				}
 				else if(kv.key.find("AV_CACHE:") == 0)
 				{
-					std::string id_str = kv.key.substr(9); 
-					RsPeerId pid(id_str);
-
+					RsPeerId pid(kv.key.substr(9));
 					if(!pid.isNull())
 					{
-						RsDbg() << "AVATAR loading cached peer avatar for ID: " << pid.toStdString().c_str();
 						std::vector<uint8_t> decoded_data = Radix64::decode(kv.value);
-
 						if(!decoded_data.empty() && decoded_data.size() <= MAX_AVATAR_JPEG_SIZE)
 						{
 							RS_STACK_MUTEX(mChatMtx);
 							if (_avatars.count(pid)) delete _avatars[pid];
 							_avatars[pid] = new AvatarInfo(decoded_data.data(), (uint32_t)decoded_data.size());
+							item_handled = true;
 						}
 					}
-					handled = true;
 				}
 			}
-			if(handled) {
-				delete *it;
-				it = load.erase(it);
-				continue;
-			}
 		}
 
-		/* Legacy avatar handling: we skip it for peers but keep it for cleanup */
-		RsChatAvatarItem *ai = dynamic_cast<RsChatAvatarItem *>(*it);
-		if(ai)
+		/* 2. Handle original Chat Service items (Status & Outgoing) */
+		if (!item_handled)
 		{
-			delete *it;
-			it = load.erase(it);
-			continue;
-		}
-
-		/* Original developer code: Handle custom status string */
-		RsChatStatusItem *mitem = dynamic_cast<RsChatStatusItem *>(*it);
-		if(mitem)
-		{
-			_custom_status_string = mitem->status_string ;
-			delete *it;
-			it = load.erase(it);
-			continue;
-		}
-
-		/* Original developer code: Handle saved outgoing messages */
-		PrivateOugoingMapItem* om = dynamic_cast<PrivateOugoingMapItem*>(*it);
-		if(om)
-		{
-			RS_STACK_MUTEX(mChatMtx);
-			for( auto& pair : om->store )
+			RsChatStatusItem *mitem = dynamic_cast<RsChatStatusItem *>(item);
+			if(mitem)
 			{
-				privateOutgoingMap.insert(
-							outMP::value_type(pair.first,
-											  new RsChatMsgItem(pair.second)) );
+				_custom_status_string = mitem->status_string ;
+				item_handled = true;
 			}
-			delete *it;
-			it = load.erase(it);
-			continue;
+
+			PrivateOugoingMapItem* om = dynamic_cast<PrivateOugoingMapItem*>(item);
+			if(om)
+			{
+				RS_STACK_MUTEX(mChatMtx);
+				for( auto& pair : om->store )
+					privateOutgoingMap.insert(outMP::value_type(pair.first, new RsChatMsgItem(pair.second)));
+				item_handled = true;
+			}
 		}
 
-		++it;
+		/* 3. THE RELAY: This is what restores your lobbies. 
+		 * If we haven't handled the item, we ask the parents if they recognize it. */
+		if (!item_handled)
+		{
+			if (DistributedChatService::processLoadListItem(item)) 
+			{
+				item_handled = true;
+			}
+		}
+
+		if (!item_handled)
+		{
+			if (DistantChatService::processLoadListItem(item)) 
+			{
+				item_handled = true;
+			}
+		}
+
+		/* 4. Final Decision: Only remove items that were successfully processed */
+		if(item_handled)
+		{
+			delete item;
+			it = load.erase(it);
+		}
+		else
+		{
+			/* If unhandled, move to the next item so other services can see it */
+			++it;
+		}
 	}
 
 	return true ;
@@ -1741,53 +1737,42 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
 {
 	cleanup = true;
 
-	RsDbg() << "AVATAR entering saveList";
-
-	/* Save own avatar using KV Set for better reliability */
+	/* 1. Save avatars */
 	if(_own_avatar != NULL && _own_avatar->_image_size > 0)
 	{
-		RsDbg() << "AVATAR saving own avatar in KV set for peer: " << mServiceCtrl->getOwnId().toStdString().c_str();
-
-		RsConfigKeyValueSet *avatar_item = new RsConfigKeyValueSet();
-		RsTlvKeyValue kv;
-		kv.key = "AV_CACHE:OWN";
+		RsConfigKeyValueSet *item = new RsConfigKeyValueSet();
+		RsTlvKeyValue kv; kv.key = "AV_CACHE:OWN";
 		Radix64::encode(_own_avatar->_image_data, _own_avatar->_image_size, kv.value);
-		avatar_item->tlvkvs.pairs.push_back(kv);
-		list.push_back(avatar_item);
+		item->tlvkvs.pairs.push_back(kv);
+		list.push_back(item);
 	}
 
-	/* STEP 1: Loop through cached peer avatars and save them using KV sets */
-	for(auto const& it : _avatars)
+	for(auto const& [pid, info] : _avatars)
 	{
-		if (it.second != nullptr && it.second->_image_size > 0 && !it.first.isNull())
+		if (info != NULL && info->_image_size > 0 && !pid.isNull())
 		{
-			RsDbg() << "AVATAR saving peer avatar in KV set for peer: " << it.first.toStdString().c_str();
-
-			RsConfigKeyValueSet *avatar_item = new RsConfigKeyValueSet();
-			RsTlvKeyValue kv;
-			kv.key = "AV_CACHE:" + it.first.toStdString();
-			Radix64::encode(it.second->_image_data, it.second->_image_size, kv.value);
-			avatar_item->tlvkvs.pairs.push_back(kv);
-			list.push_back(avatar_item);
+			RsConfigKeyValueSet *item = new RsConfigKeyValueSet();
+			RsTlvKeyValue kv; kv.key = "AV_CACHE:" + pid.toStdString();
+			Radix64::encode(info->_image_data, info->_image_size, kv.value);
+			item->tlvkvs.pairs.push_back(kv);
+			list.push_back(item);
 		}
 	}
 
-	mChatMtx.lock(); /****** MUTEX LOCKED *******/
+	/* 2. Original developer items (Messages & Status) */
+	mChatMtx.lock(); 
 
-	/* Original developer code: Save outgoing messages waiting for peer connection */
 	PrivateOugoingMapItem* om =  new PrivateOugoingMapItem;
-	typedef std::map<uint64_t, RsChatMsgItem>::value_type vT;
 	for( auto& pair : privateOutgoingMap )
-		om->store.insert(vT(pair.first, *pair.second));
+		om->store.insert(std::map<uint64_t, RsChatMsgItem>::value_type(pair.first, *pair.second));
 	list.push_back(om);
 
-	/* Original developer code: Save custom status string */
 	RsChatStatusItem *di = new RsChatStatusItem ;
 	di->status_string = _custom_status_string ;
 	di->flags = RS_CHAT_FLAG_CUSTOM_STATE ;
 	list.push_back(di);
 
-	/* Mandatory calls to parent services for their own data persistence */
+	/* 3. CRITICAL: Save Chat Lobbies and Distant Chat subscriptions */
 	DistributedChatService::addToSaveList(list) ;
 	DistantChatService::addToSaveList(list) ;
 
@@ -1815,35 +1800,28 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 {
 	for (auto it = plist.cbegin(); it != plist.cend(); ++it)
 	{
-		if (it->actions & RS_SERVICE_PEER_CONNECTED) 
+		if (it->actions & RS_SERVICE_PEER_CONNECTED)
 		{
 			/* send the saved outgoing messages */
 			bool changed = false;
-
 			std::vector<RsChatMsgItem*> to_send;
 
 			{
-				/* The mutex is scoped here in original code, which prevents deadlocks 
-				 * with the subsequent avatar sync calls below. */
-				RS_STACK_MUTEX(mChatMtx); /********** STACK LOCKED MTX ******/
-
-				for( auto cit = privateOutgoingMap.begin();
-				     cit != privateOutgoingMap.end(); )
+				RS_STACK_MUTEX(mChatMtx);
+				for( auto cit = privateOutgoingMap.begin(); cit != privateOutgoingMap.end(); )
 				{
 					RsChatMsgItem *c = cit->second;
 					if (c->PeerId() == it->id)
 					{
 						//mHistoryMgr->addMessage(false, c->PeerId(), ownId, c);
-
 						to_send.push_back(c) ;
 						changed = true;
 						cit = privateOutgoingMap.erase(cit);
 						continue;
 					}
-
 					++cit;
 				}
-			} /* Lock is released here */
+			}
 
 			for(auto toIt = to_send.begin(); toIt != to_send.end(); ++toIt)
 			{
@@ -1863,27 +1841,21 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 			if (changed)
 				IndicateConfigChanged();
 
-			/* AVATAR: Proactive direct broadcast on connection to sync potential offline changes */
-			RsDbg() << "AVATAR peer connected, initiating direct exchange with: " << it->id.toStdString().c_str();
-
-			// 1. Proactively request the peer's avatar
+			/* AVATAR Handshake on connection */
+			RsDbg() << "AVATAR peer connected, initiating sync with: " << it->id.toStdString().c_str();
 			sendAvatarRequest(it->id);
-
-			// 2. Directly push our own avatar data to the connecting peer.
-			// Safety: This is called outside the mutex block to avoid recursive locking deadlock.
 			if(_own_avatar != nullptr && _own_avatar->_image_size > 0)
 			{
 				sendAvatarJpegData(it->id);
 			}
 		}
-		else if (it->actions & RS_SERVICE_PEER_REMOVED) 
+		else if (it->actions & RS_SERVICE_PEER_REMOVED)
 		{
 			/* now handle remove */
 			mHistoryMgr->clear(ChatId(it->id));
 
 			RS_STACK_MUTEX(mChatMtx);
-			for ( auto cit = privateOutgoingMap.begin();
-			      cit != privateOutgoingMap.end(); )
+			for ( auto cit = privateOutgoingMap.begin(); cit != privateOutgoingMap.end(); )
 			{
 				RsChatMsgItem *c = cit->second;
 				if (c->PeerId() == it->id) cit = privateOutgoingMap.erase(cit);
