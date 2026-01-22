@@ -68,8 +68,12 @@ extern RsWiki *rsWiki;
 /** Wiki Event Codes */
 enum class RsWikiEventCode : uint8_t
 {
-	UPDATED_SNAPSHOT   = 0x01,
-	UPDATED_COLLECTION = 0x02
+	UPDATED_SNAPSHOT           = 0x01, // Existing page modified
+	UPDATED_COLLECTION         = 0x02, // Existing wiki group modified
+	NEW_SNAPSHOT               = 0x03, // First-time page creation
+	NEW_COLLECTION             = 0x04, // New wiki group creation
+	SUBSCRIBE_STATUS_CHANGED   = 0x05, // User subscribed/unsubscribed
+	NEW_COMMENT                = 0x06  // New comment added
 };
 
 /** Specific Wiki Event for UI updates */

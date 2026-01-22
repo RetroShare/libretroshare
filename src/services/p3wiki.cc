@@ -32,7 +32,8 @@ RsWiki *rsWiki = NULL;
 
 p3Wiki::p3Wiki(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs *gixs)
 	:RsGenExchange(gds, nes, new RsGxsWikiSerialiser(), RS_SERVICE_GXS_TYPE_WIKI, gixs, wikiAuthenPolicy()), 
-	RsWiki(static_cast<RsGxsIface&>(*this))
+	RsWiki(static_cast<RsGxsIface&>(*this)),
+	mKnownWikisMutex("GXS wiki known collections timestamp cache")
 {
 }
 
@@ -68,12 +69,65 @@ void p3Wiki::notifyChanges(std::vector<RsGxsNotify*>& changes)
             std::shared_ptr<RsGxsWikiEvent> event = std::make_shared<RsGxsWikiEvent>(wikiEventType);
             event->mWikiGroupId = change->mGroupId; 
             
-            if (dynamic_cast<RsGxsMsgChange*>(change)) {
-                event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
-            } else {
-                // This handles new Wikis
-                event->mWikiEventCode = RsWikiEventCode::UPDATED_COLLECTION;
+            // Handle message changes (snapshots and comments)
+            RsGxsMsgChange* msgChange = dynamic_cast<RsGxsMsgChange*>(change);
+            if (msgChange) {
+                // Check if this is a comment or a snapshot
+                if (nullptr != dynamic_cast<RsGxsWikiCommentItem*>(msgChange->mNewMsgItem)) {
+                    // This is a comment
+                    if (msgChange->getType() == RsGxsNotify::TYPE_RECEIVED_NEW || 
+                        msgChange->getType() == RsGxsNotify::TYPE_PUBLISHED) {
+                        event->mWikiEventCode = RsWikiEventCode::NEW_COMMENT;
+                    } else {
+                        // Comments are typically not updated, but handle it as UPDATED_SNAPSHOT
+                        event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
+                    }
+                } else {
+                    // This is a snapshot (page)
+                    if (msgChange->getType() == RsGxsNotify::TYPE_RECEIVED_NEW || 
+                        msgChange->getType() == RsGxsNotify::TYPE_PUBLISHED) {
+                        event->mWikiEventCode = RsWikiEventCode::NEW_SNAPSHOT;
+                    } else {
+                        event->mWikiEventCode = RsWikiEventCode::UPDATED_SNAPSHOT;
+                    }
+                }
             }
+            
+            // Handle group changes (collections)
+            RsGxsGroupChange* grpChange = dynamic_cast<RsGxsGroupChange*>(change);
+            if (grpChange) {
+                switch (grpChange->getType()) {
+                    case RsGxsNotify::TYPE_PROCESSED:
+                        // User subscribed/unsubscribed to wiki
+                        event->mWikiEventCode = RsWikiEventCode::SUBSCRIBE_STATUS_CHANGED;
+                        break;
+                    
+                    case RsGxsNotify::TYPE_RECEIVED_NEW:
+                    case RsGxsNotify::TYPE_PUBLISHED:
+                    {
+                        // Check if this is a new wiki or an update
+                        bool isNew;
+                        {
+                            RS_STACK_MUTEX(mKnownWikisMutex);
+                            isNew = (mKnownWikis.find(grpChange->mGroupId) == mKnownWikis.end());
+                            mKnownWikis[grpChange->mGroupId] = time(NULL);
+                        }
+                        
+                        if (isNew) {
+                            event->mWikiEventCode = RsWikiEventCode::NEW_COLLECTION;
+                        } else {
+                            event->mWikiEventCode = RsWikiEventCode::UPDATED_COLLECTION;
+                        }
+                        break;
+                    }
+                    
+                    default:
+                        // For other group events, use UPDATED_COLLECTION
+                        event->mWikiEventCode = RsWikiEventCode::UPDATED_COLLECTION;
+                        break;
+                }
+            }
+            
             rsEvents->postEvent(event);
             delete change;
         }
