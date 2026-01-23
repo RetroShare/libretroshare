@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <sys/stat.h>
 #include "util/rsdebug.h"
+#include "util/rsendian.h"
 
 #include "ftfilecreator.h"
 #include "util/rstime.h"
@@ -811,12 +812,12 @@ bool ftFileCreator::checkForMp4Index()
         if (fseek(f, currentPos, SEEK_SET) != 0 || fread(&header, 1, 8, f) != 8)
             break;
 
-        uint32_t atomSize = be32toh(header.size);
+        uint32_t atomSize = rs_endian_fix(header.size);
         uint64_t realAtomSize = atomSize;
 
         if (atomSize == 1) {
              uint64_t bigSize;
-             if (fread(&bigSize, 1, 8, f) == 8) realAtomSize = be64toh(bigSize);
+             if (fread(&bigSize, 1, 8, f) == 8) realAtomSize = rs_endian_fix(bigSize);
         }
 
         // Create a null-terminated string for logging safely
