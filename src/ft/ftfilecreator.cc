@@ -23,6 +23,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <sys/stat.h>
+#include "util/rsdebug.h"
 
 #include "ftfilecreator.h"
 #include "util/rstime.h"
@@ -49,8 +50,9 @@
 ***********************************************************/
 
 ftFileCreator::ftFileCreator(const std::string& path, uint64_t size, const RsFileHash& hash,bool assume_availability)
-	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability)
+	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability), _mp4_index_found(false), _mp4_index_offset(0)
 {
+    RsDbg() << "STREAMING: ftFileCreator CONSTRUCTOR for " << path;
 	/* 
          * FIXME any inits to do?
          */
@@ -239,6 +241,13 @@ bool ftFileCreator::addFileData(uint64_t offset, uint32_t chunk_size, void *data
 		 * Notify ftFileChunker about chunks received 
 		 */
 		locked_notifyReceived(offset,chunk_size);
+        
+        // MP4 Smart Preview hook
+        RsDbg() << "STREAMING: addFileData offset=" << offset << " strat=" << chunkMap.getStrategy();
+        if (!_mp4_index_found)
+        {
+             checkForMp4Index();
+        }
 
 		complete = chunkMap.isComplete();
 	}
@@ -497,15 +506,16 @@ void ftFileCreator::setChunkStrategy(FileChunksInfo::ChunkStrategy s)
 	RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
 
 	// Let's check, for safety.
-	if(s != FileChunksInfo::CHUNK_STRATEGY_STREAMING && s != FileChunksInfo::CHUNK_STRATEGY_RANDOM && s != FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE)
+	if(s != FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL && s != FileChunksInfo::CHUNK_STRATEGY_RANDOM && s != FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE && s != FileChunksInfo::CHUNK_STRATEGY_STREAMING)
 	{
-		std::cerr << "ftFileCreator::ERROR: invalid chunk strategy " << s << "!" << " setting default value " << FileChunksInfo::CHUNK_STRATEGY_STREAMING << std::endl ;
+		std::cerr << "ftFileCreator::ERROR: invalid chunk strategy " << s << "!" << " setting default value " << FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL << std::endl ;
 		s = FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE ;
 	}
 
 #ifdef FILE_DEBUG
 	std::cerr << "ftFileCtreator: setting chunk strategy to " << s << std::endl ;
 #endif
+    RsDbg() << "STREAMING: ftFileCreator::setChunkStrategy " << s;
 	chunkMap.setStrategy(s) ;
 }
 
@@ -759,6 +769,96 @@ bool ftFileCreator::verifyChunk(uint32_t chunk_number,const Sha1CheckSum& sum)
 
 	delete[] buff ;
 	return true ;
+}
+
+bool ftFileCreator::checkForMp4Index()
+{
+    int strat = (int)chunkMap.getStrategy();
+
+    // STRICT RULE: Only active in STREAMING_PRIO_END
+    if (strat != FileChunksInfo::CHUNK_STRATEGY_STREAMING)
+    {
+         // RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index ignored. Strategy=" << strat;
+         return false;
+    }
+
+    // Phase 1: Just log that we passed the guard
+    RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index RUNNING. Strategy=" << strat << ". Parsing loop start.";
+    
+    // Phase 2: Atom Parsing (Observer Mode)
+    if (_mp4_index_found) return true;
+
+    // Open file to read atoms
+    FILE* f = fopen(file_name.c_str(), "rb");
+    if (!f) 
+    {
+        RsDbg() << "STREAMING: Failed to open file " << file_name;
+        return false;
+    }
+
+    uint64_t currentPos = 0;
+    
+    // MP4 Atom Header
+    struct {
+        uint32_t size;
+        char type[4];
+    } header;
+
+    int safe_loop_count = 0;
+
+    while (true)
+    {
+        if (fseek(f, currentPos, SEEK_SET) != 0 || fread(&header, 1, 8, f) != 8)
+            break;
+
+        uint32_t atomSize = be32toh(header.size);
+        uint64_t realAtomSize = atomSize;
+
+        if (atomSize == 1) {
+             uint64_t bigSize;
+             if (fread(&bigSize, 1, 8, f) == 8) realAtomSize = be64toh(bigSize);
+        }
+
+        // Create a null-terminated string for logging safely
+        char typeStr[5] = {0};
+        memcpy(typeStr, header.type, 4);
+
+        RsDbg() << "STREAMING: Found atom '" << typeStr << "' at " << currentPos << " size " << realAtomSize;
+
+        if (strncmp(header.type, "moov", 4) == 0) {
+            RsDbg() << "STREAMING: MOOV atom found at " << currentPos << " (Beginning of file?). Stop.";
+            _mp4_index_found = true;
+            break;
+        }
+
+        if (strncmp(header.type, "mdat", 4) == 0) {
+            uint64_t predictedMoov = currentPos + realAtomSize;
+            RsDbg() << "STREAMING: MDAT found. Size: " << realAtomSize << ". Predicted MOOV at: " << predictedMoov;
+            
+            // Phase 3: Actuation
+            // Calculate chunks covering the MOOV index (from predictedMoov to end of file)
+            uint32_t chunkSize = ChunkMap::CHUNKMAP_FIXED_CHUNK_SIZE; 
+            uint32_t startChunk = predictedMoov / chunkSize;
+            uint32_t endChunk   = mSize / chunkSize;
+            
+            RsDbg() << "STREAMING: Setting High Priority Range: " << startChunk << " -> " << endChunk;
+            chunkMap.setHighPriorityRange(startChunk, endChunk);
+
+            _mp4_index_found = true; 
+            break;
+        }
+
+        currentPos += realAtomSize;
+        if (realAtomSize == 0 || currentPos >= mSize) break; 
+        
+        if (++safe_loop_count > 50) {
+             RsDbg() << "STREAMING: Safety break (too many atoms)";
+             break; 
+        }
+    }
+
+    fclose(f);
+    return false;
 }
 
 
