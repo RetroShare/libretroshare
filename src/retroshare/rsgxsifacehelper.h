@@ -72,7 +72,7 @@ public:
 	    mGxs(gxs), mTokenService(*gxs.getTokenService()), mMtx("GxsIfaceHelper")
 	{}
 
-	~RsGxsIfaceHelper() = default;
+	virtual ~RsGxsIfaceHelper() = default;
 
 #ifdef TO_REMOVE
     /*!
