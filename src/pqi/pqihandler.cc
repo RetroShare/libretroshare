@@ -287,39 +287,58 @@ int     pqihandler::ExtractTrafficInfo(std::list<RSTrafficClue>& out_lst,std::li
 }
 
 // NEW extern fn to extract rates.
-int     pqihandler::ExtractRates(std::map<RsPeerId, RsBwRates> &ratemap, RsBwRates &total)
+
+int pqihandler::ExtractRates(std::map<RsPeerId, RsBwRates> &ratemap, RsBwRates &total)
 {
+	/* Initialize standard totals */
 	total.mMaxRateIn = getMaxRate(true);
 	total.mMaxRateOut = getMaxRate(false);
 	total.mRateIn = 0;
 	total.mRateOut = 0;
 	total.mQueueIn = 0;
 	total.mQueueOut = 0;
+	total.mQueueOutBytes = 0;
+	total.mTotalIn = 0;
+	total.mTotalOut = 0;
 
 	/* Lock once rates have been retrieved */
 	RS_STACK_MUTEX(coreMtx); /**************** LOCKED MUTEX ****************/
 
 	std::map<RsPeerId, SearchModule *>::iterator it;
+
 	for(it = mods.begin(); it != mods.end(); ++it)
 	{
 		SearchModule *mod = (it -> second);
 
 		RsBwRates peerRates;
+		
+		/* Call the relay in pqiperson (which calls pqistreamer) */
 		mod -> pqi -> getRates(peerRates);
 
+		/* Accumulate standard statistics */
 		total.mRateIn  += peerRates.mRateIn;
 		total.mRateOut += peerRates.mRateOut;
 		total.mQueueIn  += peerRates.mQueueIn;
 		total.mQueueOut += peerRates.mQueueOut;
+		total.mQueueOutBytes += peerRates.mQueueOutBytes;
 
+		/* Accumulate cumulative statistics into global totals */
+		total.mTotalIn += peerRates.mTotalIn;
+		total.mTotalOut += peerRates.mTotalOut;
+
+		/* Store individual peer rates in the result map */
 		ratemap[it->first] = peerRates;
+
+		/* Clean debug message for this layer */
+		//RsDbg() << "OUTQUEUEBYTES [pqihandler] Collected Peer: " << it->first << " | Bytes: " << peerRates.mQueueOutBytes;
+
+		/* Debug message for extraction layer */
+		//RsDbg() << "BWSUM Handler [ExtractRates] Peer: " << it->first << " | In: " << peerRates.mTotalIn << " | Out: " << peerRates.mTotalOut;
 
 	}
 
 	return 1;
 }
-
-
 
 // internal fn to send updates
 int     pqihandler::UpdateRates()
@@ -464,12 +483,16 @@ int     pqihandler::UpdateRates()
 	{
 		SearchModule *mod = (it -> second);
 
-		// for our down bandwidth we use the calculated value without taking into account the max up provided by peers via BwCtrl
-		// this is harmless as they will control their up bw on their side
+		// attn: the bwctrl service only passes to the peers a max in value, therefore we are not aware of our peers max out
+		// see p3bwctrl and rsconfig.h
+
+		// for our down bandwidth we use the calculated value as is, because BwCtrl does not provide a max out from our peers
+		// this down limit will be passed to our peers via BwCtrl
 		mod -> pqi -> setMaxRate(true, in_max_bw);
 
-		// for our up bandwidth we take into account the max down provided by peers via BwCtrl
-		// because we don't want to clog our outqueues, the TCP buffers, and the peers inbound queues
+		// for our up bandwidth we take into account the max in provided by peers via BwCtrl
+		// we don't want to clog our outqueues, the TCP buffers, and the peers inbound queues
+		// attn: this up limit will not passed to our peers via BwCtrl
 		mod -> pqi -> setMaxRate(false, out_max_bw);
 		if ((rateMap_it = rateMap.find(mod->pqi->PeerId())) != rateMap.end())
 			if (rateMap_it->second.mAllowedOut > 0)

@@ -52,13 +52,18 @@ class RsBwRates
 {
 	public:
 	RsBwRates()
-	:mRateIn(0), mRateOut(0), mMaxRateIn(0), mMaxRateOut(0), mQueueIn(0), mQueueOut(0) {return;}
+        : mRateIn(0), mRateOut(0), mMaxRateIn(0), mMaxRateOut(0), 
+          mQueueIn(0), mQueueOut(0), mQueueOutBytes(0),
+          mTotalIn(0), mTotalOut(0) { return; }
 	float mRateIn;
 	float mRateOut;
 	float mMaxRateIn;
 	float mMaxRateOut;
 	int   mQueueIn;
 	int   mQueueOut;
+	uint32_t mQueueOutBytes;
+	uint64_t mTotalIn;
+	uint64_t mTotalOut;
 };
 
 
@@ -238,6 +243,8 @@ public:
 		}
 		uint64_t traf_in;
 		uint64_t traf_out;
+
+		virtual float getQueueSize_seconds() { return 0.0f; }
 
 	private:
 
