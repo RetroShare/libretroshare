@@ -197,6 +197,17 @@ public:
 	 */
 	virtual bool getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
 	                                 std::map<RsGxsMessageId, std::string>& contents) = 0;
+
+	/* Notification support */
+	/**
+	 * @brief Get Wiki service statistics for notification counting
+	 * @param stats Output parameter for service statistics including unread message counts
+	 * @return true if statistics were successfully retrieved, false otherwise
+	 * 
+	 * This method is designed for GUI notification systems to efficiently count
+	 * new/unread messages across all Wiki collections.
+	 */
+	virtual bool getWikiStatistics(GxsServiceStatistic& stats) = 0;
 };
 
 #endif

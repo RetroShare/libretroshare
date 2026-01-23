@@ -598,6 +598,12 @@ bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMess
 	return false;
 }
 
+bool p3Wiki::getWikiStatistics(GxsServiceStatistic& stats)
+{
+	// Use the protected blocking helper from RsGxsIfaceHelper
+	return getServiceStatisticsBlocking(stats);
+}
+
 /* Stream operators for debugging */
 
 std::ostream &operator<<(std::ostream &out, const RsWikiCollection &group)
