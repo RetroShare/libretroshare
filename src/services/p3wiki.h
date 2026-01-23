@@ -79,6 +79,9 @@ public:
 	virtual bool getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
 	                                 std::map<RsGxsMessageId, std::string>& contents) override;
 
+	/* Notification support */
+	virtual bool getWikiStatistics(GxsServiceStatistic& stats) override;
+
 protected:
 	bool acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t size) override;
 

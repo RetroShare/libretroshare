@@ -527,6 +527,57 @@ LLwaitTokenBeginLabel:
 		return st;
 	}
 
+	/**
+	 * @brief Get service statistics synchronously (blocking call)
+	 * @param stats Output parameter for service statistics
+	 * @param maxWait Maximum time to wait for the operation in milliseconds (default: 5000ms)
+	 * @return true if statistics were successfully retrieved, false on timeout or error
+	 * 
+	 * This is a convenience wrapper around the async token-based API.
+	 * It blocks the calling thread until results are available or timeout occurs.
+	 * Use this for simple operations like notification counting in GUI code.
+	 */
+	bool getServiceStatisticsBlocking(
+	    GxsServiceStatistic& stats,
+	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(5000))
+	{
+		uint32_t token;
+		if (!requestServiceStatistic(token))
+			return false;
+		
+		auto status = waitToken(token, maxWait);
+		if (status != RsTokenService::COMPLETE)
+			return false;
+		
+		return getServiceStatistic(token, stats);
+	}
+
+	/**
+	 * @brief Get group statistics synchronously (blocking call)
+	 * @param grpId The group ID to get statistics for
+	 * @param stats Output parameter for group statistics
+	 * @param maxWait Maximum time to wait for the operation in milliseconds (default: 5000ms)
+	 * @return true if statistics were successfully retrieved, false on timeout or error
+	 * 
+	 * This is a convenience wrapper around the async token-based API.
+	 * It blocks the calling thread until results are available or timeout occurs.
+	 */
+	bool getGroupStatisticBlocking(
+	    const RsGxsGroupId& grpId,
+	    GxsGroupStatistic& stats,
+	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(5000))
+	{
+		uint32_t token;
+		if (!requestGroupStatistic(token, grpId))
+			return false;
+		
+		auto status = waitToken(token, maxWait);
+		if (status != RsTokenService::COMPLETE)
+			return false;
+		
+		return getGroupStatistic(token, stats);
+	}
+
 private:
 	RsGxsIface& mGxs;
 	RsTokenService& mTokenService;
