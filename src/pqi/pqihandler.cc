@@ -483,12 +483,16 @@ int     pqihandler::UpdateRates()
 	{
 		SearchModule *mod = (it -> second);
 
-		// for our down bandwidth we use the calculated value without taking into account the max up provided by peers via BwCtrl
-		// this is harmless as they will control their up bw on their side
+		// attn: the bwctrl service only passes to the peers a max in value, therefore we are not aware of our peers max out
+		// see p3bwctrl and rsconfig.h
+
+		// for our down bandwidth we use the calculated value as is, because BwCtrl does not provide a max out from our peers
+		// this down limit will be passed to our peers via BwCtrl
 		mod -> pqi -> setMaxRate(true, in_max_bw);
 
-		// for our up bandwidth we take into account the max down provided by peers via BwCtrl
-		// because we don't want to clog our outqueues, the TCP buffers, and the peers inbound queues
+		// for our up bandwidth we take into account the max in provided by peers via BwCtrl
+		// we don't want to clog our outqueues, the TCP buffers, and the peers inbound queues
+		// attn: this up limit will not passed to our peers via BwCtrl
 		mod -> pqi -> setMaxRate(false, out_max_bw);
 		if ((rateMap_it = rateMap.find(mod->pqi->PeerId())) != rateMap.end())
 			if (rateMap_it->second.mAllowedOut > 0)
