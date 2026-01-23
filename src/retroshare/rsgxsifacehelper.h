@@ -530,7 +530,7 @@ LLwaitTokenBeginLabel:
 	/**
 	 * @brief Get service statistics synchronously (blocking call)
 	 * @param stats Output parameter for service statistics
-	 * @param maxWait Maximum time to wait for the operation in milliseconds (default: 5000ms)
+	 * @param maxWait Maximum time to wait for the operation in milliseconds (default: 10000ms)
 	 * @return true if statistics were successfully retrieved, false on timeout or error
 	 * 
 	 * This is a convenience wrapper around the async token-based API.
@@ -539,7 +539,7 @@ LLwaitTokenBeginLabel:
 	 */
 	bool getServiceStatisticsBlocking(
 	    GxsServiceStatistic& stats,
-	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(5000))
+	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(10000))
 	{
 		uint32_t token;
 		if (!requestServiceStatistic(token))
@@ -556,7 +556,7 @@ LLwaitTokenBeginLabel:
 	 * @brief Get group statistics synchronously (blocking call)
 	 * @param grpId The group ID to get statistics for
 	 * @param stats Output parameter for group statistics
-	 * @param maxWait Maximum time to wait for the operation in milliseconds (default: 5000ms)
+	 * @param maxWait Maximum time to wait for the operation in milliseconds (default: 10000ms)
 	 * @return true if statistics were successfully retrieved, false on timeout or error
 	 * 
 	 * This is a convenience wrapper around the async token-based API.
@@ -565,7 +565,7 @@ LLwaitTokenBeginLabel:
 	bool getGroupStatisticBlocking(
 	    const RsGxsGroupId& grpId,
 	    GxsGroupStatistic& stats,
-	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(5000))
+	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(10000))
 	{
 		uint32_t token;
 		if (!requestGroupStatistic(token, grpId))
