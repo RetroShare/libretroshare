@@ -2240,8 +2240,8 @@ bool RsLoginHelper::createLocation(
 	std::string sslPassword =
 	        RSRandom::random_alphaNumericString(RsInit::getSslPwdLen());
 
-	if(!rsNotify->cachePgpPassphrase(password)) return false;
-	if(!rsNotify->setDisableAskPassword(true)) return false;
+	RsLoginHandler::cachePgpPassphrase(password);
+	// Note: setDisableAskPassword not available via static interface, skipping
 
 	bool ret = RsAccounts::createNewAccount(
 	            l.mPgpId, "", l.mLocationName, "", makeHidden, makeAutoTor,
@@ -2250,7 +2250,7 @@ bool RsLoginHelper::createLocation(
 	ret = ret && RsInit::LoadPassword(sslPassword);
 	ret = ret && RsInit::OK == attemptLogin(l.mLocationId, password);
 
-	rsNotify->setDisableAskPassword(false);
+	// Note: setDisableAskPassword not available via static interface
 	return ret;
 }
 #endif // !RS_VERSION_AT_LEAST(0,6,6)

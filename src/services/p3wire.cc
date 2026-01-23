@@ -298,16 +298,14 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 switch (grpChange->getType())
                 {
 
-//                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
-//                {
-//                    auto ev = std::make_shared<RsWireEvent>();
-//                    ev->mWireGroupId = grpChange->mGroupId;
-//                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
-//                    rsEvents->postEvent(ev);
-
-//                    unprocessedGroups.insert(grpChange->mGroupId);
-//                }
-//                    break;
+                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+                    rsEvents->postEvent(ev);
+                }
+                    break;
 
                 case RsGxsNotify::TYPE_PROCESSED:	// happens when the post is updated
                     std::cout << "type processed"<<std::endl;
@@ -334,8 +332,6 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 }
                     break;
 
-                case RsGxsNotify::TYPE_PUBLISHED:
-                    std::cout << "type publish"<<std::endl;
                 case RsGxsNotify::TYPE_RECEIVED_NEW:	// happens when the wire is updated
                 {
                     auto ev = std::make_shared<RsWireEvent>();
