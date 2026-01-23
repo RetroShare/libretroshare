@@ -26,6 +26,7 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <map>
 #include <iostream>
 
 #include "retroshare/rstokenservice.h"
@@ -67,8 +68,12 @@ extern RsWiki *rsWiki;
 /** Wiki Event Codes */
 enum class RsWikiEventCode : uint8_t
 {
-	UPDATED_SNAPSHOT   = 0x01,
-	UPDATED_COLLECTION = 0x02
+	UPDATED_SNAPSHOT           = 0x01, // Existing page modified
+	UPDATED_COLLECTION         = 0x02, // Existing wiki group modified
+	NEW_SNAPSHOT               = 0x03, // First-time page creation
+	NEW_COLLECTION             = 0x04, // New wiki group creation
+	SUBSCRIBE_STATUS_CHANGED   = 0x05, // User subscribed/unsubscribed
+	NEW_COMMENT                = 0x06  // New comment added
 };
 
 /** Specific Wiki Event for UI updates */
@@ -94,6 +99,10 @@ struct RsWikiCollection: RsGxsGenericGroupData
 	std::string mDescription;
 	std::string mCategory;
 	std::string mHashTags;
+	// List of current/active moderator IDs for this collection.
+	std::list<RsGxsId> mModeratorList;
+	// Map of moderator IDs to their termination timestamps (for removed moderators).
+	std::map<RsGxsId, rstime_t> mModeratorTerminationDates;
 };
 
 class RsWikiSnapshot
@@ -135,6 +144,70 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) = 0;
 	virtual bool updateCollection(const RsWikiCollection &collection) = 0;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
+
+	/* Moderator Management */
+	/**
+	 * @brief Add a moderator to a wiki collection
+	 * @param grpId The ID of the wiki collection/group
+	 * @param moderatorId The ID of the user to add as moderator
+	 * @return true if the moderator was successfully added, false otherwise
+	 */
+	virtual bool addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
+	
+	/**
+	 * @brief Remove a moderator from a wiki collection
+	 * @param grpId The ID of the wiki collection/group
+	 * @param moderatorId The ID of the moderator to remove
+	 * @return true if the moderator was successfully removed, false otherwise
+	 */
+	virtual bool removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) = 0;
+	
+	/**
+	 * @brief Get the list of moderators for a wiki collection
+	 * @param grpId The ID of the wiki collection/group
+	 * @param moderators Output parameter that will contain the list of moderator IDs
+	 * @return true if the list was successfully retrieved, false otherwise
+	 */
+	virtual bool getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& moderators) = 0;
+	
+	/**
+	 * @brief Check if a user is an active moderator at a given time
+	 * @param grpId The ID of the wiki collection/group
+	 * @param authorId The ID of the user to check
+	 * @param editTime The time at which to check moderator status
+	 * @return true if the user is an active moderator at the specified time, false otherwise
+	 */
+	virtual bool isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime) = 0;
+
+	/* Content fetching for merge operations (Todo 3) */
+	/**
+	 * @brief Get page content from a single snapshot for merging
+	 * @param snapshotId The message ID of the snapshot
+	 * @param content Output parameter for page content
+	 * @return true if snapshot found and content retrieved
+	 */
+	virtual bool getSnapshotContent(const RsGxsMessageId& snapshotId, 
+	                                std::string& content) = 0;
+
+	/**
+	 * @brief Get page content from multiple snapshots efficiently (bulk fetch)
+	 * @param snapshotIds Vector of snapshot message IDs to fetch
+	 * @param contents Output map of snapshotId -> content
+	 * @return true if the operation completed successfully (contents may be empty)
+	 */
+	virtual bool getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
+	                                 std::map<RsGxsMessageId, std::string>& contents) = 0;
+
+	/* Notification support */
+	/**
+	 * @brief Get Wiki service statistics for notification counting
+	 * @param stats Output parameter for service statistics including unread message counts
+	 * @return true if statistics were successfully retrieved, false otherwise
+	 * 
+	 * This method is designed for GUI notification systems to efficiently count
+	 * new/unread messages across all Wiki collections.
+	 */
+	virtual bool getWikiStatistics(GxsServiceStatistic& stats) = 0;
 };
 
 #endif

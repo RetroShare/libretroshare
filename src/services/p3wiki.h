@@ -66,6 +66,33 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) override;
 	virtual bool updateCollection(const RsWikiCollection &collection) override;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) override;
+
+	/* Moderator management */
+	virtual bool addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) override;
+	virtual bool removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) override;
+	virtual bool getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& moderators) override;
+	virtual bool isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime) override;
+
+	/* Content fetching for merge operations (Todo 3) */
+	virtual bool getSnapshotContent(const RsGxsMessageId& snapshotId, 
+	                                std::string& content) override;
+	virtual bool getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
+	                                 std::map<RsGxsMessageId, std::string>& contents) override;
+
+	/* Notification support */
+	virtual bool getWikiStatistics(GxsServiceStatistic& stats) override;
+
+protected:
+	bool acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t size) override;
+
+private:
+	bool checkModeratorPermission(const RsGxsGroupId& grpId, const RsGxsId& authorId, const RsGxsId& originalAuthorId, rstime_t editTime);
+	bool getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection) const;
+	bool getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId) const;
+	
+	// Track known wikis to distinguish NEW from UPDATED
+	std::map<RsGxsGroupId, rstime_t> mKnownWikis;
+	RsMutex mKnownWikisMutex;
 };
 
 #endif 
