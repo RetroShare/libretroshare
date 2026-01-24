@@ -130,6 +130,8 @@ private:
 	std::string genRandomId();
 
 	void refreshSubscribedGroups();
+	bool getGroupStats(const RsGxsGroupId& groupId,
+		uint32_t& pulses, uint32_t& replies, uint32_t& republishes, uint32_t& likes);
 
 	RsMutex mWireMtx;
     RsMutex mKnownWireMutex;

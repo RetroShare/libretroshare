@@ -397,6 +397,15 @@ bool p3Wire::getGroupData(const uint32_t &token, std::vector<RsWireGroup> &group
 					group.mGroupFollowing = followingCount;
 				}
 
+				uint32_t pulses, replies, republishes, likes;
+				if (getGroupStats(group.mMeta.mGroupId, pulses, replies, republishes, likes))
+				{
+					group.mGroupPulses = pulses;
+					group.mGroupReplies = replies;
+					group.mGroupRepublishes = republishes;
+					group.mGroupLikes = likes;
+				}
+
 				delete item;
 				groups.push_back(group);
 
@@ -441,6 +450,15 @@ bool p3Wire::getGroupPtrData(const uint32_t &token, std::map<RsGxsGroupId, RsWir
 				if (item->meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_ADMIN)
 				{
 					pGroup->mGroupFollowing = followingCount;
+				}
+
+				uint32_t pulses, replies, republishes, likes;
+				if (getGroupStats(pGroup->mMeta.mGroupId, pulses, replies, republishes, likes))
+				{
+					pGroup->mGroupPulses = pulses;
+					pGroup->mGroupReplies = replies;
+					pGroup->mGroupRepublishes = republishes;
+					pGroup->mGroupLikes = likes;
 				}
 
 				delete item;
@@ -1985,6 +2003,50 @@ bool p3Wire::getSubscribedGroups(std::list<RsGxsGroupId>& groupIds)
     {
         groupIds.push_back(pair.first);
     }
+    return true;
+}
+
+/********************************************************************************************/
+/********************************************************************************************/
+bool p3Wire::getGroupStats(const RsGxsGroupId& groupId,
+    uint32_t& pulses, uint32_t& replies, uint32_t& republishes, uint32_t& likes)
+{
+    pulses = 0;
+    replies = 0;
+    republishes = 0;
+    likes = 0;
+
+    uint32_t token;
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+
+    std::list<RsGxsGroupId> groupIds;
+    groupIds.push_back(groupId);
+
+    if (!requestMsgInfo(token, opts, groupIds) ||
+        waitToken(token, std::chrono::seconds(5)) != RsTokenService::COMPLETE)
+    {
+        return false;
+    }
+
+    std::vector<RsWirePulse> pulsesData;
+    if (!getPulseData(token, pulsesData))
+        return false;
+
+    for (const auto& pulse : pulsesData)
+    {
+        uint32_t ptype = pulse.mPulseType;
+
+        if (ptype & WIRE_PULSE_TYPE_ORIGINAL)
+            ++pulses;
+        else if (ptype & WIRE_PULSE_TYPE_LIKE)
+            ++likes;
+        else if (ptype & WIRE_PULSE_TYPE_REPUBLISH)
+            ++republishes;
+        else if (ptype & WIRE_PULSE_TYPE_REPLY)
+            ++replies;
+    }
+
     return true;
 }
 
