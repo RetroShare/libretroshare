@@ -1453,6 +1453,12 @@ bool p3Wire::updatePulseChildren(RsWirePulseSPtr pParent,  uint32_t token)
 
 bool p3Wire::updateGroups(std::list<RsWirePulseSPtr> &pulsePtrs)
 {
+	// Early return if no pulses - nothing to update
+	if (pulsePtrs.empty())
+	{
+		return true;
+	}
+
 	std::set<RsGxsGroupId> pulseGroupIds;
 
 	std::list<RsWirePulseSPtr>::iterator it;
@@ -1650,6 +1656,12 @@ bool p3Wire::fetchGroupPtrs(const std::list<RsGxsGroupId> &groupIds,
 {
 	std::cerr << "p3Wire::fetchGroupPtrs()";
 	std::cerr << std::endl;
+
+	// Handle empty list gracefully - nothing to fetch
+	if (groupIds.empty())
+	{
+		return true;
+	}
 
 	uint32_t token;
 	RsTokReqOptions opts;
