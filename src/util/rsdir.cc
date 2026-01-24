@@ -34,9 +34,9 @@
 #include <openssl/sha.h>
 #include <iomanip>
 #include <sstream>
-#include <fstream>
 #include <stdexcept>
 
+#include "util/rsdebug.h"
 #include "util/rsdir.h"
 #include "util/rsstring.h"
 #include "util/rsrandom.h"
@@ -52,6 +52,7 @@
 #include "util/rsstring.h"
 #include "wtypes.h"
 #include <winioctl.h>
+#include <io.h>
 #else
 #include <errno.h>
 #endif
@@ -885,7 +886,25 @@ FILE *RsDirUtil::rs_fopen(const char* filename, const char* mode)
 	std::wstring wmode;
 	librs::util::ConvertUtf8ToUtf16(mode, wmode);
 
-	return _wfopen(wfilename.c_str(), wmode.c_str());
+	FILE *f = _wfopen(wfilename.c_str(), wmode.c_str());
+
+	if(f)
+	{
+		// Attempt to set sparse flag
+		int fd = _fileno(f);
+		HANDLE hChunkFile = (HANDLE) _get_osfhandle(fd);
+
+		if (hChunkFile != INVALID_HANDLE_VALUE)
+		{
+			DWORD dwTemp;
+			if (!DeviceIoControl(hChunkFile, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &dwTemp, NULL))
+			{
+				// Warn but don't fail, as it might just be a filesystem not supporting it (e.g. FAT32)
+				RsDbg() << "FILESYSTEM RsDirUtil::rs_fopen: Warning: Failed to set sparse flag for " << filename << ". Error: " << GetLastError();
+			}
+		}
+	}
+	return f;
 #else
 	return fopen64(filename, mode);
 #endif
