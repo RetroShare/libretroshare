@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <stdio.h>
 #include <dirent.h>
