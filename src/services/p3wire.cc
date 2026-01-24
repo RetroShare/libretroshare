@@ -32,6 +32,7 @@ RsWire *rsWire = NULL;
 
 RsWireGroup::RsWireGroup()
 	:mGroupPulses(0),mGroupRepublishes(0),mGroupLikes(0),mGroupReplies(0)
+	,mGroupFollowing(0),mGroupFollowers(0)
 	,mRefMentions(0),mRefRepublishes(0),mRefLikes(0),mRefReplies(0)
 {
 	return;
@@ -58,7 +59,9 @@ uint32_t RsWirePulse::ImageCount()
 p3Wire::p3Wire(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs *gixs)
 	:RsGenExchange(gds, nes, new RsGxsWireSerialiser(), RS_SERVICE_GXS_TYPE_WIRE, gixs, wireAuthenPolicy()),
     RsWire(static_cast<RsGxsIface&>(*this)), mWireMtx("WireMtx"),
-    mKnownWireMutex("KnownWireMutex")
+    mKnownWireMutex("KnownWireMutex"),
+    mSubscribedGroupsMutex("WireSubscribedGroupsMutex"),
+    mSubscribedGroupsLoaded(false)
 {
 
 }
@@ -374,7 +377,8 @@ bool p3Wire::getGroupData(const uint32_t &token, std::vector<RsWireGroup> &group
 
 	std::vector<RsGxsGrpItem*> grpData;
 	bool ok = RsGenExchange::getGroupData(token, grpData);
-	
+	uint32_t followingCount = getFollowingCount();
+
 	if(ok)
 	{
 		std::vector<RsGxsGrpItem*>::iterator vit = grpData.begin();
@@ -387,6 +391,12 @@ bool p3Wire::getGroupData(const uint32_t &token, std::vector<RsWireGroup> &group
 			{
 				RsWireGroup group = item->group;
 				group.mMeta = item->meta;
+
+				if (item->meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_ADMIN)
+				{
+					group.mGroupFollowing = followingCount;
+				}
+
 				delete item;
 				groups.push_back(group);
 
@@ -413,6 +423,7 @@ bool p3Wire::getGroupPtrData(const uint32_t &token, std::map<RsGxsGroupId, RsWir
 
 	std::vector<RsGxsGrpItem*> grpData;
 	bool ok = RsGenExchange::getGroupData(token, grpData);
+	uint32_t followingCount = getFollowingCount();
 
 	if(ok)
 	{
@@ -426,6 +437,12 @@ bool p3Wire::getGroupPtrData(const uint32_t &token, std::map<RsGxsGroupId, RsWir
 			{
 				RsWireGroupSPtr pGroup = std::make_shared<RsWireGroup>(item->group);
 				pGroup->mMeta = item->meta;
+
+				if (item->meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_ADMIN)
+				{
+					pGroup->mGroupFollowing = followingCount;
+				}
+
 				delete item;
 
 				groups[pGroup->mMeta.mGroupId] = pGroup;
@@ -1853,6 +1870,122 @@ void p3Wire::setMessageReadStatus(uint32_t &token, const RsGxsGrpMsgIdPair &msgI
         ev->mWireEventCode = RsWireEventCode::READ_STATUS_CHANGED;
         rsEvents->postEvent(ev);
     }
+}
+
+/********************************************************************************************/
+/********************************************************************************************/
+
+bool p3Wire::subscribeToGroup(uint32_t& token, const RsGxsGroupId& groupId, bool subscribe)
+{
+#ifdef WIRE_DEBUG
+    std::cerr << "p3Wire::subscribeToGroup() id: " << groupId << " subscribe: " << subscribe;
+    std::cerr << std::endl;
+#endif
+
+    bool response = RsGenExchange::subscribeToGroup(token, groupId, subscribe);
+
+    if (response)
+    {
+        refreshSubscribedGroups();
+
+        if (rsEvents)
+        {
+            auto ev = std::make_shared<RsWireEvent>();
+            ev->mWireGroupId = groupId;
+            ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+            rsEvents->postEvent(ev);
+        }
+    }
+
+    return response;
+}
+
+void p3Wire::refreshSubscribedGroups()
+{
+    uint32_t token;
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_GROUP_META;
+
+    if (!requestGroupInfo(token, opts) || waitToken(token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << "p3Wire::refreshSubscribedGroups() failed to request group meta" << std::endl;
+        return;
+    }
+
+    std::list<RsGroupMetaData> groupMetas;
+    if (!getGroupMeta(token, groupMetas))
+    {
+        std::cerr << "p3Wire::refreshSubscribedGroups() failed to get group meta" << std::endl;
+        return;
+    }
+
+    RS_STACK_MUTEX(mSubscribedGroupsMutex);
+    mSubscribedGroups.clear();
+
+    for (const auto& meta : groupMetas)
+    {
+        if (meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED)
+        {
+            mSubscribedGroups[meta.mGroupId] = meta;
+        }
+    }
+    mSubscribedGroupsLoaded = true;
+
+#ifdef WIRE_DEBUG
+    std::cerr << "p3Wire::refreshSubscribedGroups() loaded " << mSubscribedGroups.size() << " subscribed groups" << std::endl;
+#endif
+}
+
+uint32_t p3Wire::getFollowingCount()
+{
+    {
+        RS_STACK_MUTEX(mSubscribedGroupsMutex);
+        if (!mSubscribedGroupsLoaded)
+        {
+            // Need to refresh - release lock first
+        }
+        else
+        {
+            return static_cast<uint32_t>(mSubscribedGroups.size());
+        }
+    }
+
+    // Refresh outside of lock
+    refreshSubscribedGroups();
+
+    RS_STACK_MUTEX(mSubscribedGroupsMutex);
+    return static_cast<uint32_t>(mSubscribedGroups.size());
+}
+
+bool p3Wire::getSubscribedGroups(std::list<RsGxsGroupId>& groupIds)
+{
+    {
+        RS_STACK_MUTEX(mSubscribedGroupsMutex);
+        if (!mSubscribedGroupsLoaded)
+        {
+            // Need to refresh - release lock first
+        }
+        else
+        {
+            groupIds.clear();
+            for (const auto& pair : mSubscribedGroups)
+            {
+                groupIds.push_back(pair.first);
+            }
+            return true;
+        }
+    }
+
+    // Refresh outside of lock
+    refreshSubscribedGroups();
+
+    RS_STACK_MUTEX(mSubscribedGroupsMutex);
+    groupIds.clear();
+    for (const auto& pair : mSubscribedGroups)
+    {
+        groupIds.push_back(pair.first);
+    }
+    return true;
 }
 
 /********************************************************************************************/

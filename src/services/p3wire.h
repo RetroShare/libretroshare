@@ -93,6 +93,10 @@ public:
     bool getWireGroupStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat) override;
     void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
+    bool subscribeToGroup(uint32_t& token, const RsGxsGroupId& groupId, bool subscribe) override;
+    uint32_t getFollowingCount() override;
+    bool getSubscribedGroups(std::list<RsGxsGroupId>& groupIds) override;
+
 private:
 	// Internal Service Data.
 	// They should eventually all be here.
@@ -125,10 +129,16 @@ private:
 	virtual void generateDummyData();
 	std::string genRandomId();
 
+	void refreshSubscribedGroups();
+
 	RsMutex mWireMtx;
     RsMutex mKnownWireMutex;
 
     std::map<RsGxsGroupId,rstime_t> mKnownWire;
+
+    RsMutex mSubscribedGroupsMutex;
+    std::map<RsGxsGroupId, RsGroupMetaData> mSubscribedGroups;
+    bool mSubscribedGroupsLoaded;
 };
 
 #endif 
