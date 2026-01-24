@@ -283,8 +283,8 @@ private:
         /// if so, the chat item will be turned to NULL
 	bool locked_checkAndRebuildPartialMessage(RsChatMsgItem *&) ;
 
-	RsChatAvatarItem *makeOwnAvatarItem() ;
-	RsChatStatusItem *makeOwnCustomStateStringItem() ;
+	RsChatAvatarItem *locked_makeOwnAvatarItem() ;
+	RsChatStatusItem *locked_makeOwnCustomStateStringItem() ;
 
 	p3ServiceControl *mServiceCtrl;
 	p3LinkMgr *mLinkMgr;
