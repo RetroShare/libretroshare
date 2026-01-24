@@ -287,6 +287,9 @@ public:
      * @param[in] link           link attached to the post. Should be a https/http link
      * @param[in] notes          text attached to the post.
      * @param[in] authorId       signing author. Should be our own ID.
+     * @param[in] origPostId     If this is supposed to replace an already
+     *                           existent post, the id of the old post. If left
+     *                           blank a new post will be created.
      * @param[in] image          optional post image.
      * @param[out] postId        id of the post after it's been generated
      * @param[out] error_message possible error message if the method returns false
@@ -298,8 +301,9 @@ public:
                       const std::string& notes,
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
-                      RsGxsMessageId& postId,
-                      std::string& error_message) =0;
+                      const RsGxsMessageId& origPostId = RsGxsMessageId(),
+                      RsGxsMessageId& postId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
+                      std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string) ) = 0;
 
     /** @brief Add a comment on a post or on another comment. Blocking API.
      * @jsonapi{development}

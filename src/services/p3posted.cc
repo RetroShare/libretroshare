@@ -729,8 +729,8 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
                             const std::string& notes,
                             const RsGxsId& authorId,
                             const RsGxsImage& image,
-                            RsGxsMessageId& postId,
-                            std::string& error_message)
+                            const RsGxsMessageId& origPostId,
+                            RsGxsMessageId& postId, std::string& errorMessage )
 {
     // check boardId
 
@@ -738,8 +738,8 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
 
     if(!getBoardsInfo( { boardId }, groupsInfo))
     {
-        error_message = "Board with Id " + boardId.toStdString() + " does not exist.";
-        RsErr() << error_message;
+        errorMessage = "Board with Id " + boardId.toStdString() + " does not exist.";
+        RsErr() << errorMessage;
         return false;
     }
 
@@ -747,13 +747,41 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
 
     if(!rsIdentity->isOwnId(authorId))
     {
-        error_message = "Attempt to create a board post with an author that is not a own ID: " + authorId.toStdString() ;
-        RsErr() << error_message;
+        errorMessage = "Attempt to create a board post with an author that is not a own ID: " + authorId.toStdString() ;
+        RsErr() << errorMessage;
         return false;
+    }
+
+    RsGxsMessageId top_level_parent ;	// left blank intentionaly
+
+    if(!origPostId.isNull())
+    {
+        std::set<RsGxsMessageId> s({origPostId});
+        std::vector<RsPostedPost> posts;
+        std::vector<RsGxsComment> comments;
+        std::vector<RsGxsVote> votes;
+
+        if(!getBoardContent(boardId,s,posts,comments,votes) || posts.size()!=1)
+        {
+            errorMessage = "You cannot edit post " + origPostId.toStdString()
+            + " of board with Id " + boardId.toStdString()
+            + ": this post does not exist locally!";
+            return false;
+        }
+
+        // All post versions should have the same mOrigMsgId, so we copy that of the post we're editing.
+        // The edited post may not have an original post ID if it is itself the first version. In this case, the
+        // mOrigId is set to be the ID of the edited post.
+
+        top_level_parent = posts[0].mMeta.mOrigMsgId;
+
+        if(top_level_parent.isNull())
+            top_level_parent = origPostId;
     }
 
     RsPostedPost post;
     post.mMeta.mGroupId = boardId;
+    post.mMeta.mOrigMsgId = top_level_parent;
     post.mLink = link.toString();
     post.mImage = image;
     post.mNotes = notes;
@@ -766,8 +794,8 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
     post.serial_process(RsGenericSerializer::SIZE_ESTIMATE,ctx);
 
     if(ctx.mSize > 200000) {
-        error_message = "Maximum size of 200000 bytes exceeded for board post.";
-        RsErr() << error_message;
+        errorMessage = "Maximum size of 200000 bytes exceeded for board post.";
+        RsErr() << errorMessage;
         return false;
     }
 
