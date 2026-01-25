@@ -1372,16 +1372,33 @@ int     pqistreamer::getQueueSize_bytes(bool in)
         }
 }
 
-void    pqistreamer::getRates(RsBwRates &rates)
+void pqistreamer::getRates(RsBwRates &rates)
 {
+	/* Call base RateInterface to get basic bandwidth numbers */
 	RateInterface::getRates(rates);
 
-// no mutex is needed here because this is atomic
+	// No mutex is needed here for mIncomingSize as it is atomic
 	rates.mQueueIn = mIncomingSize;
 
 	{
 		RsStackMutex stack(mStreamerMtx); /**** LOCKED MUTEX ****/
+		
+		/* Fetch standard item count */
 		rates.mQueueOut = locked_out_queue_size();
+
+		/* Extract the actual queue size in bytes */
+		/* locked_compute_out_pkt_size() returns the sum of serialized sizes of all items in queue */
+		rates.mQueueOutBytes = (uint32_t)locked_compute_out_pkt_size();
+
+		/* Populate cumulative totals from internal variables */
+     		rates.mTotalIn = (uint64_t)mTotalRead;
+		rates.mTotalOut = (uint64_t)mTotalSent;
+
+		/* Debug message */
+		//RsDbg() << "BWSUM Source [Streamer] Peer: " << PeerId() << " | In: " << rates.mTotalIn << " | Out: " << rates.mTotalOut;
+
+		/* Debus message */ 
+		//RsDbg() << "OUTQUEUEBYTES [Streamer] Peer: " << PeerId() << " | Bytes: " << rates.mQueueOutBytes;
 	}
 }
 

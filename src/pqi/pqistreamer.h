@@ -80,6 +80,10 @@ class pqistreamer: public PQInterface
 		virtual float getMaxRate(bool b) ;
 		virtual float getMaxRate_locked(bool b);
 
+		/* Public getters for cumulative traffic */
+		uint64_t getTotalRead() const { return (uint64_t)mTotalRead; }
+		uint64_t getTotalSent() const { return (uint64_t)mTotalSent; }
+
 	protected:
        		virtual int reset() ;
 
@@ -152,8 +156,8 @@ class pqistreamer: public PQInterface
 		uint32_t mIncomingSize_bytes; // size of Incoming in btyes
 
 		// data for network stats.
-		int mTotalRead;
-		int mTotalSent;
+		uint64_t mTotalRead;
+		uint64_t mTotalSent;
 
 		// these are representative (but not exact)
 		int mCurrRead;
