@@ -78,6 +78,11 @@ bool  RsTlvKeyValue::GetTlv(void *data, uint32_t size, uint32_t *offset)
 	
 	uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
 	uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
+
+	/* check that there is size */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false; /* not enough space */
+
 	uint32_t tlvend = *offset + tlvsize;
 
 	if (size < tlvend)    /* check size */
@@ -217,6 +222,11 @@ bool  RsTlvKeyValueSet::GetTlv(void *data, uint32_t size, uint32_t *offset)
 
 	uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
 	uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
+
+	/* check that there is size */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false; /* not enough space */
+
 	uint32_t tlvend = *offset + tlvsize;
 
 	if (size < tlvend)    /* check size */

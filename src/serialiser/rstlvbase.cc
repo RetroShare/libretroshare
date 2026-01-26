@@ -223,6 +223,10 @@ bool GetTlvUInt32(void *data, uint32_t size, uint32_t *offset,
 	uint16_t tlvtype = GetTlvType(tlvstart);
 	uint32_t tlvsize = GetTlvSize(tlvstart);
 
+	/* check that there is size - SAFE CHECK */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false;
+
 	/* check that there is size */
 	uint32_t tlvend = *offset + tlvsize;
 	if (size < tlvend)
@@ -314,6 +318,10 @@ bool GetTlvUInt16(void *data, uint32_t size, uint32_t *offset,
 	void *tlvstart = right_shift_void_pointer(data, *offset);
 	uint16_t tlvtype = GetTlvType(tlvstart);
 	uint32_t tlvsize = GetTlvSize(tlvstart);
+
+	/* check that there is size - SAFE CHECK */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false;
 
 	/* check that there is size */
 	uint32_t tlvend = *offset + tlvsize;
@@ -424,6 +432,10 @@ bool GetTlvUInt64(void *data, uint32_t size, uint32_t *offset,
 	void *tlvstart = right_shift_void_pointer(data, *offset);
 	uint16_t tlvtype = GetTlvType(tlvstart);
 	uint32_t tlvsize = GetTlvSize(tlvstart);
+
+	/* check that there is size - SAFE CHECK */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false;
 
 	/* check that there is size */
 	uint32_t tlvend = *offset + tlvsize;
@@ -863,6 +875,10 @@ bool GetTlvIpAddrPortV4(void *data, uint32_t size, uint32_t *offset,
 	uint16_t tlvtype = GetTlvType(tlvstart);
 	uint32_t tlvsize = GetTlvSize(tlvstart);
 
+	/* check that there is size - SAFE CHECK */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false;
+
 	/* check that there is size */
 	uint32_t tlvend = *offset + tlvsize;
 	if (size < tlvend)
@@ -960,6 +976,10 @@ bool GetTlvIpAddrPortV6(void *data, uint32_t size, uint32_t *offset,
 	void *tlvstart = right_shift_void_pointer(data, *offset);
 	uint16_t tlvtype = GetTlvType(tlvstart);
 	uint32_t tlvsize = GetTlvSize(tlvstart);
+
+	/* check that there is size - SAFE CHECK */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false;
 
 	/* check that there is size */
 	uint32_t tlvend = *offset + tlvsize;
