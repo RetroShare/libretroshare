@@ -32,6 +32,7 @@ RsWire *rsWire = NULL;
 
 RsWireGroup::RsWireGroup()
 	:mGroupPulses(0),mGroupRepublishes(0),mGroupLikes(0),mGroupReplies(0)
+	,mGroupFollowing(0),mGroupFollowers(0)
 	,mRefMentions(0),mRefRepublishes(0),mRefLikes(0),mRefReplies(0)
 {
 	return;
@@ -58,7 +59,9 @@ uint32_t RsWirePulse::ImageCount()
 p3Wire::p3Wire(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs *gixs)
 	:RsGenExchange(gds, nes, new RsGxsWireSerialiser(), RS_SERVICE_GXS_TYPE_WIRE, gixs, wireAuthenPolicy()),
     RsWire(static_cast<RsGxsIface&>(*this)), mWireMtx("WireMtx"),
-    mKnownWireMutex("KnownWireMutex")
+    mKnownWireMutex("KnownWireMutex"),
+    mSubscribedGroupsMutex("WireSubscribedGroupsMutex"),
+    mSubscribedGroupsLoaded(false)
 {
 
 }
@@ -298,16 +301,14 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 switch (grpChange->getType())
                 {
 
-//                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
-//                {
-//                    auto ev = std::make_shared<RsWireEvent>();
-//                    ev->mWireGroupId = grpChange->mGroupId;
-//                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
-//                    rsEvents->postEvent(ev);
-
-//                    unprocessedGroups.insert(grpChange->mGroupId);
-//                }
-//                    break;
+                case RsGxsNotify::TYPE_PUBLISHED:	//  happens when the wire user is followed/unfollowed
+                {
+                    auto ev = std::make_shared<RsWireEvent>();
+                    ev->mWireGroupId = grpChange->mGroupId;
+                    ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+                    rsEvents->postEvent(ev);
+                }
+                    break;
 
                 case RsGxsNotify::TYPE_PROCESSED:	// happens when the post is updated
                     std::cout << "type processed"<<std::endl;
@@ -334,8 +335,6 @@ void p3Wire::notifyChanges(std::vector<RsGxsNotify*> &changes)
                 }
                     break;
 
-                case RsGxsNotify::TYPE_PUBLISHED:
-                    std::cout << "type publish"<<std::endl;
                 case RsGxsNotify::TYPE_RECEIVED_NEW:	// happens when the wire is updated
                 {
                     auto ev = std::make_shared<RsWireEvent>();
@@ -378,7 +377,8 @@ bool p3Wire::getGroupData(const uint32_t &token, std::vector<RsWireGroup> &group
 
 	std::vector<RsGxsGrpItem*> grpData;
 	bool ok = RsGenExchange::getGroupData(token, grpData);
-	
+	uint32_t followingCount = getFollowingCount();
+
 	if(ok)
 	{
 		std::vector<RsGxsGrpItem*>::iterator vit = grpData.begin();
@@ -391,6 +391,21 @@ bool p3Wire::getGroupData(const uint32_t &token, std::vector<RsWireGroup> &group
 			{
 				RsWireGroup group = item->group;
 				group.mMeta = item->meta;
+
+				if (item->meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_ADMIN)
+				{
+					group.mGroupFollowing = followingCount;
+				}
+
+				uint32_t pulses, replies, republishes, likes;
+				if (getGroupStats(group.mMeta.mGroupId, pulses, replies, republishes, likes))
+				{
+					group.mGroupPulses = pulses;
+					group.mGroupReplies = replies;
+					group.mGroupRepublishes = republishes;
+					group.mGroupLikes = likes;
+				}
+
 				delete item;
 				groups.push_back(group);
 
@@ -417,6 +432,7 @@ bool p3Wire::getGroupPtrData(const uint32_t &token, std::map<RsGxsGroupId, RsWir
 
 	std::vector<RsGxsGrpItem*> grpData;
 	bool ok = RsGenExchange::getGroupData(token, grpData);
+	uint32_t followingCount = getFollowingCount();
 
 	if(ok)
 	{
@@ -430,6 +446,21 @@ bool p3Wire::getGroupPtrData(const uint32_t &token, std::map<RsGxsGroupId, RsWir
 			{
 				RsWireGroupSPtr pGroup = std::make_shared<RsWireGroup>(item->group);
 				pGroup->mMeta = item->meta;
+
+				if (item->meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_ADMIN)
+				{
+					pGroup->mGroupFollowing = followingCount;
+				}
+
+				uint32_t pulses, replies, republishes, likes;
+				if (getGroupStats(pGroup->mMeta.mGroupId, pulses, replies, republishes, likes))
+				{
+					pGroup->mGroupPulses = pulses;
+					pGroup->mGroupReplies = replies;
+					pGroup->mGroupRepublishes = republishes;
+					pGroup->mGroupLikes = likes;
+				}
+
 				delete item;
 
 				groups[pGroup->mMeta.mGroupId] = pGroup;
@@ -823,6 +854,7 @@ bool p3Wire::createOriginalPulse(const RsGxsGroupId &grpId, RsWirePulseSPtr pPul
 	pulse.mPulseType = WIRE_PULSE_TYPE_ORIGINAL;
 	pulse.mSentiment = pPulse->mSentiment;
 	pulse.mPulseText = pPulse->mPulseText;
+	pulse.mMeta.mMsgName = pPulse->mPulseText.substr(0, 50);
 	pulse.mImage1 = pPulse->mImage1;
 	pulse.mImage2 = pPulse->mImage2;
 	pulse.mImage3 = pPulse->mImage3;
@@ -937,15 +969,21 @@ bool p3Wire::createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGro
 	responsePulse.mPulseType = WIRE_PULSE_TYPE_RESPONSE | reply_type;
 	responsePulse.mSentiment = pPulse->mSentiment;
 	responsePulse.mPulseText = pPulse->mPulseText;
+	responsePulse.mMeta.mMsgName = pPulse->mPulseText.substr(0, 50);
 	responsePulse.mImage1 = pPulse->mImage1;
 	responsePulse.mImage2 = pPulse->mImage2;
 	responsePulse.mImage3 = pPulse->mImage3;
 	responsePulse.mImage4 = pPulse->mImage4;
 
+	RsGxsMessageId refMsgId = replyToPulse->mMeta.mOrigMsgId;
+	if (refMsgId.isNull()) {
+		refMsgId = replyToPulse->mMeta.mMsgId;
+	}
+
 	// mRefs refer to parent post.
 	responsePulse.mRefGroupId   = replyToPulse->mMeta.mGroupId;
 	responsePulse.mRefGroupName = replyToGroup.mMeta.mGroupName;
-	responsePulse.mRefOrigMsgId = replyToPulse->mMeta.mOrigMsgId;
+	responsePulse.mRefOrigMsgId = refMsgId;
 	responsePulse.mRefAuthorId  = replyToPulse->mMeta.mAuthorId;
 	responsePulse.mRefPublishTs = replyToPulse->mMeta.mPublishTs;
 	responsePulse.mRefPulseText = replyToPulse->mPulseText;
@@ -984,56 +1022,38 @@ bool p3Wire::createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGro
 	std::cerr << responsePair.second.toStdString() << ")";
 	std::cerr << std::endl;
 
-	// retrieve newly generated message.
-	// **********************************************************
-	RsWirePulseSPtr createdResponsePulse;
-	if (!fetchPulse(responsePair.first, responsePair.second, createdResponsePulse))
-	{
-		std::cerr << "p3Wire::createReplyPulse() fetch createdReponsePulse FAILED";
-		std::cerr << std::endl;
-		return false;
-	}
-
-	/* Check that pulses is created properly */
-	if ((createdResponsePulse->mMeta.mGroupId != responsePulse.mMeta.mGroupId) ||
-	    (createdResponsePulse->mPulseText != responsePulse.mPulseText) ||
-	    (createdResponsePulse->mRefGroupId != responsePulse.mRefGroupId) ||
-	    (createdResponsePulse->mRefOrigMsgId != responsePulse.mRefOrigMsgId))
-	{
-		std::cerr << "p3Wire::createReplyPulse() fetch createdReponsePulse FAILED";
-		std::cerr << std::endl;
-		return false;
-	}
-
 	// create ReplyTo Ref Msg.
-    std::cerr << "PulseAddDialog::postRefPulse() create Reference!";
+	std::cerr << "p3Wire::createReplyPulse() create Reference!";
 	std::cerr << std::endl;
+
+	RsGxsMessageId parentMsgId = replyToPulse->mMeta.mOrigMsgId;
+	if (parentMsgId.isNull()) {
+		parentMsgId = replyToPulse->mMeta.mMsgId;
+	}
 
 	// Reference Pulse. posted on Parent's Group.
     RsWirePulse refPulse;
 
     refPulse.mMeta.mGroupId  = replyToPulse->mMeta.mGroupId;
     refPulse.mMeta.mAuthorId = replyWithGroup.mMeta.mAuthorId; // own author Id.
-    refPulse.mMeta.mThreadId = replyToPulse->mMeta.mOrigMsgId;
-    refPulse.mMeta.mParentId = replyToPulse->mMeta.mOrigMsgId;
+    refPulse.mMeta.mThreadId = parentMsgId;
+    refPulse.mMeta.mParentId = parentMsgId;
     refPulse.mMeta.mOrigMsgId.clear();
 
     refPulse.mPulseType = WIRE_PULSE_TYPE_REFERENCE | reply_type;
-    refPulse.mSentiment = 0; // should this be =? createdResponsePulse->mSentiment;
+    refPulse.mSentiment = 0;
 
     // Dont put parent PulseText into refPulse - it is available on Thread Msg.
-    // otherwise gives impression it is correctly setup Parent / Reply...
-    // when in fact the parent PublishTS, and AuthorId are wrong.
     refPulse.mPulseText = "";
 
-    // refs refer back to own Post.
+    // refs refer back to own Post - use responsePair.second as OrigMsgId
     refPulse.mRefGroupId   = replyWithGroup.mMeta.mGroupId;
     refPulse.mRefGroupName = replyWithGroup.mMeta.mGroupName;
-    refPulse.mRefOrigMsgId = createdResponsePulse->mMeta.mOrigMsgId;
+    refPulse.mRefOrigMsgId = responsePair.second;
     refPulse.mRefAuthorId  = replyWithGroup.mMeta.mAuthorId;
-    refPulse.mRefPublishTs = createdResponsePulse->mMeta.mPublishTs;
-    refPulse.mRefPulseText = createdResponsePulse->mPulseText;
-    refPulse.mRefImageCount = createdResponsePulse->ImageCount();
+    refPulse.mRefPublishTs = time(NULL);
+    refPulse.mRefPulseText = responsePulse.mPulseText;
+    refPulse.mRefImageCount = responsePulse.ImageCount();
 
     // publish Ref Msg.
     if (!createPulse(token, refPulse))
@@ -1422,6 +1442,12 @@ bool p3Wire::updatePulseChildren(RsWirePulseSPtr pParent,  uint32_t token)
 
 bool p3Wire::updateGroups(std::list<RsWirePulseSPtr> &pulsePtrs)
 {
+	// Early return if no pulses - nothing to update
+	if (pulsePtrs.empty())
+	{
+		return true;
+	}
+
 	std::set<RsGxsGroupId> pulseGroupIds;
 
 	std::list<RsWirePulseSPtr>::iterator it;
@@ -1619,6 +1645,12 @@ bool p3Wire::fetchGroupPtrs(const std::list<RsGxsGroupId> &groupIds,
 {
 	std::cerr << "p3Wire::fetchGroupPtrs()";
 	std::cerr << std::endl;
+
+	// Handle empty list gracefully - nothing to fetch
+	if (groupIds.empty())
+	{
+		return true;
+	}
 
 	uint32_t token;
 	RsTokReqOptions opts;
@@ -1857,6 +1889,166 @@ void p3Wire::setMessageReadStatus(uint32_t &token, const RsGxsGrpMsgIdPair &msgI
         ev->mWireEventCode = RsWireEventCode::READ_STATUS_CHANGED;
         rsEvents->postEvent(ev);
     }
+}
+
+/********************************************************************************************/
+/********************************************************************************************/
+
+bool p3Wire::subscribeToGroup(uint32_t& token, const RsGxsGroupId& groupId, bool subscribe)
+{
+#ifdef WIRE_DEBUG
+    std::cerr << "p3Wire::subscribeToGroup() id: " << groupId << " subscribe: " << subscribe;
+    std::cerr << std::endl;
+#endif
+
+    bool response = RsGenExchange::subscribeToGroup(token, groupId, subscribe);
+
+    if (response)
+    {
+        refreshSubscribedGroups();
+
+        if (rsEvents)
+        {
+            auto ev = std::make_shared<RsWireEvent>();
+            ev->mWireGroupId = groupId;
+            ev->mWireEventCode = RsWireEventCode::FOLLOW_STATUS_CHANGED;
+            rsEvents->postEvent(ev);
+        }
+    }
+
+    return response;
+}
+
+void p3Wire::refreshSubscribedGroups()
+{
+    uint32_t token;
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_GROUP_META;
+
+    if (!requestGroupInfo(token, opts) || waitToken(token) != RsTokenService::COMPLETE)
+    {
+        std::cerr << "p3Wire::refreshSubscribedGroups() failed to request group meta" << std::endl;
+        return;
+    }
+
+    std::list<RsGroupMetaData> groupMetas;
+    if (!getGroupMeta(token, groupMetas))
+    {
+        std::cerr << "p3Wire::refreshSubscribedGroups() failed to get group meta" << std::endl;
+        return;
+    }
+
+    RS_STACK_MUTEX(mSubscribedGroupsMutex);
+    mSubscribedGroups.clear();
+
+    for (const auto& meta : groupMetas)
+    {
+        if (meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED)
+        {
+            mSubscribedGroups[meta.mGroupId] = meta;
+        }
+    }
+    mSubscribedGroupsLoaded = true;
+
+#ifdef WIRE_DEBUG
+    std::cerr << "p3Wire::refreshSubscribedGroups() loaded " << mSubscribedGroups.size() << " subscribed groups" << std::endl;
+#endif
+}
+
+uint32_t p3Wire::getFollowingCount()
+{
+    {
+        RS_STACK_MUTEX(mSubscribedGroupsMutex);
+        if (!mSubscribedGroupsLoaded)
+        {
+            // Need to refresh - release lock first
+        }
+        else
+        {
+            return static_cast<uint32_t>(mSubscribedGroups.size());
+        }
+    }
+
+    // Refresh outside of lock
+    refreshSubscribedGroups();
+
+    RS_STACK_MUTEX(mSubscribedGroupsMutex);
+    return static_cast<uint32_t>(mSubscribedGroups.size());
+}
+
+bool p3Wire::getSubscribedGroups(std::list<RsGxsGroupId>& groupIds)
+{
+    {
+        RS_STACK_MUTEX(mSubscribedGroupsMutex);
+        if (!mSubscribedGroupsLoaded)
+        {
+            // Need to refresh - release lock first
+        }
+        else
+        {
+            groupIds.clear();
+            for (const auto& pair : mSubscribedGroups)
+            {
+                groupIds.push_back(pair.first);
+            }
+            return true;
+        }
+    }
+
+    // Refresh outside of lock
+    refreshSubscribedGroups();
+
+    RS_STACK_MUTEX(mSubscribedGroupsMutex);
+    groupIds.clear();
+    for (const auto& pair : mSubscribedGroups)
+    {
+        groupIds.push_back(pair.first);
+    }
+    return true;
+}
+
+/********************************************************************************************/
+/********************************************************************************************/
+bool p3Wire::getGroupStats(const RsGxsGroupId& groupId,
+    uint32_t& pulses, uint32_t& replies, uint32_t& republishes, uint32_t& likes)
+{
+    pulses = 0;
+    replies = 0;
+    republishes = 0;
+    likes = 0;
+
+    uint32_t token;
+    RsTokReqOptions opts;
+    opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+
+    std::list<RsGxsGroupId> groupIds;
+    groupIds.push_back(groupId);
+
+    if (!requestMsgInfo(token, opts, groupIds) ||
+        waitToken(token, std::chrono::seconds(5)) != RsTokenService::COMPLETE)
+    {
+        return false;
+    }
+
+    std::vector<RsWirePulse> pulsesData;
+    if (!getPulseData(token, pulsesData))
+        return false;
+
+    for (const auto& pulse : pulsesData)
+    {
+        uint32_t ptype = pulse.mPulseType;
+
+        if (ptype & WIRE_PULSE_TYPE_ORIGINAL)
+            ++pulses;
+        else if (ptype & WIRE_PULSE_TYPE_LIKE)
+            ++likes;
+        else if (ptype & WIRE_PULSE_TYPE_REPUBLISH)
+            ++republishes;
+        else if (ptype & WIRE_PULSE_TYPE_REPLY)
+            ++replies;
+    }
+
+    return true;
 }
 
 /********************************************************************************************/

@@ -78,9 +78,9 @@ class RsWireGroup: public RsGxsGenericGroupData
 	uint32_t mGroupRepublishes;
 	uint32_t mGroupLikes;
 	uint32_t mGroupReplies;
-	// how do we handle these. TODO
-	// uint32_t mGroupFollowing;
-	// uint32_t mGroupFollowers;
+
+	uint32_t mGroupFollowing;
+	uint32_t mGroupFollowers;
 
 	// These are this groups REF / RESPONSE msgs from others.
 	uint32_t mRefMentions; // TODO how to handle this?
@@ -272,6 +272,10 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
 
     virtual bool getContentSummaries( const RsGxsGroupId& groupId,
                                       std::vector<RsMsgMetaData>& summaries ) = 0;
+
+    virtual bool subscribeToGroup(uint32_t& token, const RsGxsGroupId& groupId, bool subscribe) = 0;
+    virtual uint32_t getFollowingCount() = 0;
+    virtual bool getSubscribedGroups(std::list<RsGxsGroupId>& groupIds) = 0;
 
 };
 
