@@ -854,6 +854,7 @@ bool p3Wire::createOriginalPulse(const RsGxsGroupId &grpId, RsWirePulseSPtr pPul
 	pulse.mPulseType = WIRE_PULSE_TYPE_ORIGINAL;
 	pulse.mSentiment = pPulse->mSentiment;
 	pulse.mPulseText = pPulse->mPulseText;
+	pulse.mMeta.mMsgName = pPulse->mPulseText.substr(0, 50);
 	pulse.mImage1 = pPulse->mImage1;
 	pulse.mImage2 = pPulse->mImage2;
 	pulse.mImage3 = pPulse->mImage3;
@@ -968,15 +969,21 @@ bool p3Wire::createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGro
 	responsePulse.mPulseType = WIRE_PULSE_TYPE_RESPONSE | reply_type;
 	responsePulse.mSentiment = pPulse->mSentiment;
 	responsePulse.mPulseText = pPulse->mPulseText;
+	responsePulse.mMeta.mMsgName = pPulse->mPulseText.substr(0, 50);
 	responsePulse.mImage1 = pPulse->mImage1;
 	responsePulse.mImage2 = pPulse->mImage2;
 	responsePulse.mImage3 = pPulse->mImage3;
 	responsePulse.mImage4 = pPulse->mImage4;
 
+	RsGxsMessageId refMsgId = replyToPulse->mMeta.mOrigMsgId;
+	if (refMsgId.isNull()) {
+		refMsgId = replyToPulse->mMeta.mMsgId;
+	}
+
 	// mRefs refer to parent post.
 	responsePulse.mRefGroupId   = replyToPulse->mMeta.mGroupId;
 	responsePulse.mRefGroupName = replyToGroup.mMeta.mGroupName;
-	responsePulse.mRefOrigMsgId = replyToPulse->mMeta.mOrigMsgId;
+	responsePulse.mRefOrigMsgId = refMsgId;
 	responsePulse.mRefAuthorId  = replyToPulse->mMeta.mAuthorId;
 	responsePulse.mRefPublishTs = replyToPulse->mMeta.mPublishTs;
 	responsePulse.mRefPulseText = replyToPulse->mPulseText;
@@ -1015,56 +1022,38 @@ bool p3Wire::createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGro
 	std::cerr << responsePair.second.toStdString() << ")";
 	std::cerr << std::endl;
 
-	// retrieve newly generated message.
-	// **********************************************************
-	RsWirePulseSPtr createdResponsePulse;
-	if (!fetchPulse(responsePair.first, responsePair.second, createdResponsePulse))
-	{
-		std::cerr << "p3Wire::createReplyPulse() fetch createdReponsePulse FAILED";
-		std::cerr << std::endl;
-		return false;
-	}
-
-	/* Check that pulses is created properly */
-	if ((createdResponsePulse->mMeta.mGroupId != responsePulse.mMeta.mGroupId) ||
-	    (createdResponsePulse->mPulseText != responsePulse.mPulseText) ||
-	    (createdResponsePulse->mRefGroupId != responsePulse.mRefGroupId) ||
-	    (createdResponsePulse->mRefOrigMsgId != responsePulse.mRefOrigMsgId))
-	{
-		std::cerr << "p3Wire::createReplyPulse() fetch createdReponsePulse FAILED";
-		std::cerr << std::endl;
-		return false;
-	}
-
 	// create ReplyTo Ref Msg.
-    std::cerr << "PulseAddDialog::postRefPulse() create Reference!";
+	std::cerr << "p3Wire::createReplyPulse() create Reference!";
 	std::cerr << std::endl;
+
+	RsGxsMessageId parentMsgId = replyToPulse->mMeta.mOrigMsgId;
+	if (parentMsgId.isNull()) {
+		parentMsgId = replyToPulse->mMeta.mMsgId;
+	}
 
 	// Reference Pulse. posted on Parent's Group.
     RsWirePulse refPulse;
 
     refPulse.mMeta.mGroupId  = replyToPulse->mMeta.mGroupId;
     refPulse.mMeta.mAuthorId = replyWithGroup.mMeta.mAuthorId; // own author Id.
-    refPulse.mMeta.mThreadId = replyToPulse->mMeta.mOrigMsgId;
-    refPulse.mMeta.mParentId = replyToPulse->mMeta.mOrigMsgId;
+    refPulse.mMeta.mThreadId = parentMsgId;
+    refPulse.mMeta.mParentId = parentMsgId;
     refPulse.mMeta.mOrigMsgId.clear();
 
     refPulse.mPulseType = WIRE_PULSE_TYPE_REFERENCE | reply_type;
-    refPulse.mSentiment = 0; // should this be =? createdResponsePulse->mSentiment;
+    refPulse.mSentiment = 0;
 
     // Dont put parent PulseText into refPulse - it is available on Thread Msg.
-    // otherwise gives impression it is correctly setup Parent / Reply...
-    // when in fact the parent PublishTS, and AuthorId are wrong.
     refPulse.mPulseText = "";
 
-    // refs refer back to own Post.
+    // refs refer back to own Post - use responsePair.second as OrigMsgId
     refPulse.mRefGroupId   = replyWithGroup.mMeta.mGroupId;
     refPulse.mRefGroupName = replyWithGroup.mMeta.mGroupName;
-    refPulse.mRefOrigMsgId = createdResponsePulse->mMeta.mOrigMsgId;
+    refPulse.mRefOrigMsgId = responsePair.second;
     refPulse.mRefAuthorId  = replyWithGroup.mMeta.mAuthorId;
-    refPulse.mRefPublishTs = createdResponsePulse->mMeta.mPublishTs;
-    refPulse.mRefPulseText = createdResponsePulse->mPulseText;
-    refPulse.mRefImageCount = createdResponsePulse->ImageCount();
+    refPulse.mRefPublishTs = time(NULL);
+    refPulse.mRefPulseText = responsePulse.mPulseText;
+    refPulse.mRefImageCount = responsePulse.ImageCount();
 
     // publish Ref Msg.
     if (!createPulse(token, refPulse))
