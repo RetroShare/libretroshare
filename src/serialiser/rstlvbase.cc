@@ -567,17 +567,17 @@ bool GetTlvString(const void *data, uint32_t size, uint32_t *offset,
     uint32_t tlvsize = GetTlvSize(tlvstart);
 
     /* check that there is size */
-    uint32_t tlvend = *offset + tlvsize;
-    if (size < tlvend)
+    if (tlvsize > size || *offset > size - tlvsize)
     {
 #ifdef TLV_BASE_DEBUG
         std::cerr << "GetTlvString() FAILED - not enough space" << std::endl;
         std::cerr << "GetTlvString() size: " << size << std::endl;
         std::cerr << "GetTlvString() tlvsize: " << tlvsize << std::endl;
-        std::cerr << "GetTlvString() tlvend: " << tlvend << std::endl;
+        std::cerr << "GetTlvString() offset: " << *offset << std::endl;
 #endif
         return false;
     }
+    uint32_t tlvend = *offset + tlvsize;
 
     if (type != tlvtype)
     {
