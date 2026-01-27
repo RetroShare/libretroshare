@@ -1131,8 +1131,7 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
     else
         group.mMeta.mGroupFlags |= GXS_SERV::FLAG_PRIVACY_PUBLIC;
 
-    // Fixed: Explicitly update timestamp to ensure network propagation
-    group.mMeta.mPublishTs = time(NULL);
+
 
 	uint32_t token;
     bool ret = true;
