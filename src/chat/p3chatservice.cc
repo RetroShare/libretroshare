@@ -43,7 +43,7 @@
 #include "chat/p3chatservice.h"
 #include "rsitems/rsconfigitems.h"
 
-#define CHAT_DEBUG 1
+//#define CHAT_DEBUG 1
 
 RsChats *rsChats = nullptr;
 
@@ -359,7 +359,7 @@ class p3ChatService::AvatarInfo
 {
 public:
     /* Fix: Initialize in the exact order of declaration (_image_size then _image_data) */
-    AvatarInfo() : _image_size(0), _image_data(NULL), _peer_is_new(false), _own_is_new(false), _last_request_time(0) {}
+    AvatarInfo() : _image_size(0), _image_data(NULL), _peer_is_new(false), _own_is_new(false), _last_request_time(0), _timestamp(0) {}
 
     ~AvatarInfo() { if (_image_data) free(_image_data); }
 
@@ -377,6 +377,7 @@ public:
         _peer_is_new = false;
         _own_is_new = false;
         _last_request_time = 0;
+        _timestamp = 0;
     }
 
     /* Fix: Use the 3-argument encode required by your SDK */
@@ -399,7 +400,14 @@ public:
     }
 
     /* Order must be identical here too */
-    AvatarInfo(const unsigned char *jpeg_data, int size) : _image_size(0), _image_data(NULL) { init(jpeg_data, size); }
+    AvatarInfo(const unsigned char *jpeg_data, int size) : _image_size(0), _image_data(NULL) 
+    { 
+        init(jpeg_data, size); 
+        _peer_is_new = false;
+        _own_is_new = false;
+        _last_request_time = 0;
+        _timestamp = time(NULL);
+    }
 
     void toUnsignedChar(unsigned char *& data, uint32_t& size) const
     {
@@ -414,6 +422,7 @@ public:
     bool _peer_is_new;
     bool _own_is_new;
     time_t _last_request_time;
+    time_t _timestamp;
 };
 
 void p3ChatService::sendGroupChatStatusString(const std::string& status_string)
@@ -899,6 +908,9 @@ void p3ChatService::handleIncomingItem(RsItem *item)
 		break;
 	case RS_PKT_SUBTYPE_CHAT_AVATAR:
 		handleRecvChatAvatarItem(dynamic_cast<RsChatAvatarItem*>(item));
+		break;
+	case RS_PKT_SUBTYPE_CHAT_AVATAR_INFO:
+		handleRecvChatAvatarInfoItem(dynamic_cast<RsChatAvatarInfoItem*>(item));
 		break;
 	default:
 	{
@@ -1403,7 +1415,7 @@ void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 	for(std::set<RsPeerId>::iterator it = onlineList.begin(); it != onlineList.end(); ++it)
 	{
 		RsDbg() << "AVATAR broadcasting to peer: " << it->toStdString().c_str();
-		sendAvatarJpegData(*it);
+		sendAvatarInfo(*it);
 	}
 
 	IndicateConfigChanged();
@@ -1648,6 +1660,61 @@ std::cerr << "p3chatservice: sending requested status string for peer " << peer_
 	sendChatItem(cs);
 }
 
+RsChatAvatarInfoItem *p3ChatService::locked_makeOwnAvatarInfoItem()
+{
+    RsChatAvatarInfoItem *ci = new RsChatAvatarInfoItem();
+    if(_own_avatar != nullptr)
+    {
+        ci->timestamp = (uint32_t)_own_avatar->_timestamp;
+    }
+    return ci;
+}
+
+void p3ChatService::sendAvatarInfo(const RsPeerId& peer_id)
+{
+#ifdef CHAT_DEBUG
+    RsDbg() << "AVATAR p3ChatService::sendAvatarInfo: Sending Info to " << peer_id;
+#endif
+    RS_STACK_MUTEX(mChatMtx); 
+    if(_own_avatar != nullptr)
+    {
+        RsChatAvatarInfoItem *ci = locked_makeOwnAvatarInfoItem();
+        ci->PeerId(peer_id);
+        sendChatItem(ci);
+    }
+}
+
+void p3ChatService::handleRecvChatAvatarInfoItem(RsChatAvatarInfoItem *item)
+{
+    RsPeerId pid = item->PeerId();
+    if(pid.isNull()) return;
+
+    RS_STACK_MUTEX(mChatMtx);
+    std::map<RsPeerId,AvatarInfo*>::iterator it = _avatars.find(pid);
+    
+    bool need_update = false;
+    if(it == _avatars.end())
+    {
+        need_update = true;
+    }
+    else
+    {
+        if(it->second->_timestamp < item->timestamp)
+        {
+            need_update = true;
+        }
+    }
+    
+    if(need_update)
+    {
+#ifdef CHAT_DEBUG
+        RsDbg() << "AVATAR p3ChatService::handleRecvChatAvatarInfoItem: Peer " << pid << " has newer avatar (remote TS=" << item->timestamp << "). Requesting.";
+#endif
+        sendAvatarRequest(pid);
+    }
+}
+
+
 bool p3ChatService::loadList(std::list<RsItem*>& load)
 {
     for(std::list<RsItem*>::iterator it(load.begin()); it != load.end(); )
@@ -1871,11 +1938,9 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 				IndicateConfigChanged();
 
 			/* AVATAR Handshake on connection */
-			RsDbg() << "AVATAR peer connected, initiating sync with: " << it->id.toStdString().c_str();
-			sendAvatarRequest(it->id);
 			if(_own_avatar != nullptr && _own_avatar->_image_size > 0)
 			{
-				sendAvatarJpegData(it->id);
+				sendAvatarInfo(it->id);
 			}
 		}
 		else if (it->actions & RS_SERVICE_PEER_REMOVED)

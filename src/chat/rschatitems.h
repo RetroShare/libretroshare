@@ -84,6 +84,7 @@ const uint8_t RS_PKT_SUBTYPE_CHAT_LOBBY_INVITE            = 0x1B ;
 const uint8_t RS_PKT_SUBTYPE_OUTGOING_MAP                 = 0x1C ;
 
 const uint8_t RS_PKT_SUBTYPE_SUBSCRIBED_CHAT_LOBBY_CONFIG = 0x1D ;
+const uint8_t RS_PKT_SUBTYPE_CHAT_AVATAR_INFO             = 0x1E ;
 
 typedef uint64_t 		ChatLobbyId ;
 typedef uint64_t 		ChatLobbyMsgId ;
@@ -360,6 +361,17 @@ public:
 
 	uint32_t image_size; /// size of data in bytes
 	unsigned char* image_data ; /// image data
+};
+
+class RsChatAvatarInfoItem: public RsChatItem
+{
+public:
+    RsChatAvatarInfoItem(): RsChatItem(RS_PKT_SUBTYPE_CHAT_AVATAR_INFO), timestamp(0) {}
+    virtual ~RsChatAvatarInfoItem() {}
+
+    void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
+
+    uint32_t timestamp;
 };
 
 
