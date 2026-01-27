@@ -74,9 +74,11 @@ public:
 	virtual bool isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorId, rstime_t editTime) override;
 
 	/* Content fetching for merge operations (Todo 3) */
-	virtual bool getSnapshotContent(const RsGxsMessageId& snapshotId, 
+	virtual bool getSnapshotContent(const RsGxsGroupId& grpId,
+	                                const RsGxsMessageId& snapshotId,
 	                                std::string& content) override;
-	virtual bool getSnapshotsContent(const std::vector<RsGxsMessageId>& snapshotIds,
+	virtual bool getSnapshotsContent(const RsGxsGroupId& grpId,
+	                                 const std::vector<RsGxsMessageId>& snapshotIds,
 	                                 std::map<RsGxsMessageId, std::string>& contents) override;
 
 	/* Notification support */
