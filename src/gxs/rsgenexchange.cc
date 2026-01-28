@@ -73,6 +73,8 @@ static const uint32_t INTEGRITY_CHECK_PERIOD = 60*31; // 31 minutes
  *  #define GEN_EXCH_DEBUG	1
  */
 
+//#define GXSPROFILING
+
 #if defined(GEN_EXCH_DEBUG)
 static const uint32_t service_to_print  = RS_SERVICE_GXS_TYPE_FORUMS;// use this to allow to this service id only, or 0 for all services
                                                                         // warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
@@ -1537,8 +1539,10 @@ bool RsGenExchange::getGroupData(const uint32_t &token, std::vector<RsGxsGrpItem
 
 bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 {
+#ifdef GXSPROFILING
     // [TRACE] Start CPU/Deserialization timer
     auto start_time = std::chrono::steady_clock::now();
+#endif
 	RS_STACK_MUTEX(mGenMtx) ;
 	NxsMsgDataResult msgResult;
 	bool ok = mDataAccess->getMsgData(token, msgResult);
@@ -1598,13 +1602,17 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			}
 		}
 		// [TRACE] Log the number of items processed
-		RsDbg() << "DEBUG [GenExch]: Deserialized " << count << " items";
+#ifdef GXSPROFILING
+		RsDbg() << "GXSPROFILING [GenExch]: Deserialized " << count << " items";
+#endif
 	}
 
+#ifdef GXSPROFILING
     // [TRACE] End timer and log total processing time
     auto end_time = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    RsDbg() << "DEBUG [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms";
+    RsDbg() << "GXSPROFILING [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms";
+#endif
 
 	return ok;
 }
