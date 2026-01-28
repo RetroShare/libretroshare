@@ -32,7 +32,7 @@
 #include "util/rsdebug.h"
 
 #ifdef RS_DEEP_FORUMS_INDEX
-#include "deep_search/forumsindex.hpp"
+#include "deep_search/forumsindex_fts5.hpp"
 #endif
 
 
@@ -135,6 +135,8 @@ public:
     /// @see RsGxsForums::subscribeToForum
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
                                    bool subscribe ) override;
+
+    virtual void reindexAll() override;
 
 	/// @see RsGxsForums
 	bool exportForumLink(
@@ -254,6 +256,6 @@ private:
 	RsMutex mKnownForumsMutex;
 
 #ifdef RS_DEEP_FORUMS_INDEX
-	DeepForumsIndex mDeepIndex;
+	DeepForumsIndexFTS5 mDeepIndex;
 #endif
 };
