@@ -177,11 +177,6 @@ public:
      */
     RsTokenService* getTokenService();
 
-    /*!
-     * @return pointer to the data store
-     */
-    RsGeneralDataService* getDataStore() const { return mDataStore; }
-
 	void threadTick() override; /// @see RsTickingThread
 
     /*!

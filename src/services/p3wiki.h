@@ -89,8 +89,8 @@ protected:
 
 private:
 	bool checkModeratorPermission(const RsGxsGroupId& grpId, const RsGxsId& authorId, const RsGxsId& originalAuthorId, rstime_t editTime);
-	bool getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection) const;
-	bool getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId) const;
+	bool getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection);
+	bool getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId);
 	
 	// Track known wikis to distinguish NEW from UPDATED
 	std::map<RsGxsGroupId, rstime_t> mKnownWikis;

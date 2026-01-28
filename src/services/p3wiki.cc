@@ -515,58 +515,41 @@ bool p3Wiki::checkModeratorPermission(const RsGxsGroupId& grpId, const RsGxsId& 
 	return isActiveModerator(grpId, authorId, editTime);
 }
 
-bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection) const
+bool p3Wiki::getCollectionData(const RsGxsGroupId& grpId, RsWikiCollection& collection)
 {
-	std::map<RsGxsGroupId, RsNxsGrp*> grpMap;
-	grpMap[grpId] = nullptr;
-	std::map<RsGxsGroupId, RsNxsGrp*>::const_iterator grp_it;
-	
-	if (!getDataStore()->retrieveNxsGrps(grpMap, true) || grpMap.end() == (grp_it = grpMap.find(grpId)) || !grp_it->second)
-		return false;
-	
-	RsNxsGrp* grpData = grp_it->second;
-
-	std::unique_ptr<RsNxsGrp> grpCleanup(grpData);
-	RsItem* item = nullptr;
-	RsTlvBinaryData& data = grpData->grp;
-
-	if (data.bin_len != 0)
-	{
-		// Create a local serialiser instance for deserializing
-		RsGxsWikiSerialiser serialiser;
-		item = serialiser.deserialise(data.bin_data, &data.bin_len);
-	}
-
-	std::unique_ptr<RsItem> itemCleanup(item);
-	auto collectionItem = dynamic_cast<RsGxsWikiCollectionItem*>(item);
-	if (!collectionItem)
+	std::vector<RsWikiCollection> collections;
+	if (!getCollections({grpId}, collections) || collections.empty())
 		return false;
 
-	collection = collectionItem->collection;
+	collection = collections.front();
 	return true;
 }
 
-bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId) const
+bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMessageId& msgId, RsGxsId& authorId)
 {
-	if (!getDataStore())
-		return false;
-
 	GxsMsgReq req;
 	req[grpId].insert(msgId);
 
-	GxsMsgMetaResult metaResult;
-	if (getDataStore()->retrieveGxsMsgMetaData(req, metaResult) != 1)
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_META;
+
+	uint32_t token;
+	if (!requestMsgInfo(token, opts, req) || waitToken(token) != RsTokenService::COMPLETE)
 		return false;
 
-	auto groupIt = metaResult.find(grpId);
-	if (groupIt == metaResult.end())
+	GxsMsgMetaMap metaMap;
+	if (!RsGenExchange::getMsgMeta(token, metaMap))
 		return false;
 
-	for (const auto& metaPtr : groupIt->second)
+	auto groupIt = metaMap.find(grpId);
+	if (groupIt == metaMap.end())
+		return false;
+
+	for (const auto& meta : groupIt->second)
 	{
-		if (metaPtr && metaPtr->mMsgId == msgId)
+		if (meta.mMsgId == msgId)
 		{
-			authorId = metaPtr->mAuthorId;
+			authorId = meta.mAuthorId;
 			return true;
 		}
 	}
