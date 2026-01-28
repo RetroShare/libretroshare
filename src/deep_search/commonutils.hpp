@@ -19,13 +19,24 @@
  *******************************************************************************/
 #pragma once
 
+#include <string>
+
+#include "util/rstime.h"
+
+namespace DeepSearch
+{
+// Common utilities (always available, used by FTS5)
+std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc);
+}
+
+// Xapian-specific code (only for channels/files indexing)
+#if defined(RS_DEEP_CHANNEL_INDEX) || defined(RS_DEEP_FILES_INDEX)
+
 #include <xapian.h>
 #include <memory>
 #include <functional>
 #include <queue>
 #include <mutex>
-
-#include "util/rstime.h"
 
 #ifndef XAPIAN_AT_LEAST
 #define XAPIAN_AT_LEAST(A,B,C) (XAPIAN_MAJOR_VERSION > (A) || \
@@ -67,3 +78,5 @@ private:
 };
 
 }
+
+#endif // RS_DEEP_CHANNEL_INDEX || RS_DEEP_FILES_INDEX
