@@ -23,6 +23,8 @@
 #include <math.h>
 #include <sstream>
 #include <unistd.h>
+#include <iomanip>
+#include <algorithm>
 
 #include "util/rsdir.h"
 #include "util/radix64.h"
@@ -363,39 +365,66 @@ public:
 
     ~AvatarInfo() { if (_image_data) free(_image_data); }
 
-    /* Fix: Constructor for Radix64 loading (Peer Storage) */
-    AvatarInfo(const std::string& r64_data) : _image_size(0), _image_data(NULL)
+    /* Fix: Constructor for combined TS + Radix64 loading */
+    AvatarInfo(const std::string& encoded_data) : _image_size(0), _image_data(NULL)
     {
-        if (!r64_data.empty())
+        if (encoded_data.length() > 16)
         {
-            /* Use the vector-based decode required by your SDK */
+            std::string ts_hex = encoded_data.substr(0, 16);
+            std::string r64_data = encoded_data.substr(16);
+
+            try {
+                _timestamp = std::stoull(ts_hex, nullptr, 16);
+            } catch (...) {
+                _timestamp = 0;
+            }
+
             std::vector<unsigned char> tmp = Radix64::decode(r64_data);
             if (!tmp.empty()) {
                 init(tmp.data(), (int)tmp.size());
             }
         }
+        else if (!encoded_data.empty())
+        {
+            /* Backward compatibility: if no TS prefix, just decode as Radix64 */
+            std::vector<unsigned char> tmp = Radix64::decode(encoded_data);
+            if (!tmp.empty()) {
+                init(tmp.data(), (int)tmp.size());
+            }
+            /* Assign current time as timestamp for old avatars to prevent re-download */
+            _timestamp = time(NULL);
+        }
+        else
+        {
+            _timestamp = 0;
+        }
         _peer_is_new = false;
         _own_is_new = false;
         _last_request_time = 0;
-        _timestamp = 0;
     }
 
-    /* Fix: Use the 3-argument encode required by your SDK */
+    /* Fix: Returns TS (16 hex chars) + Radix64 image data */
     std::string toRadix64() const
     {
+        std::stringstream ss;
+        ss << std::setfill('0') << std::setw(16) << std::hex << (uint64_t)_timestamp;
+        
         std::string out;
         if (_image_data && _image_size > 0) {
             Radix64::encode(_image_data, (size_t)_image_size, out);
         }
-        return out;
+        ss << out;
+        return ss.str();
     }
 
     void init(const unsigned char *jpeg_data, int size)
     {
+        if (_image_data) { free(_image_data); _image_data = NULL; _image_size = 0; }
         if (size > 0) {
             _image_size = size;
             _image_data = (unsigned char*)rs_malloc(size);
             memcpy(_image_data, jpeg_data, size);
+            _timestamp = time(NULL);  // Update timestamp when image is set
         }
     }
 
@@ -1454,8 +1483,15 @@ void p3ChatService::receiveAvatarJpegData(RsChatAvatarItem *ci)
 
 	RS_STACK_MUTEX(mChatMtx); 
 	RsDbg() << "AVATAR: [RECV] Received valid avatar for peer: " << pid.toStdString();
-	if (_avatars.count(pid)) delete _avatars[pid];
-	_avatars[pid] = new AvatarInfo(ci->image_data, ci->image_size);
+	
+	if (_avatars.count(pid)) 
+	{
+		_avatars[pid]->init(ci->image_data, ci->image_size);
+	}
+	else
+	{
+		_avatars[pid] = new AvatarInfo(ci->image_data, ci->image_size);
+	}
 	_avatars[pid]->_peer_is_new = true;
 
 	IndicateConfigChanged();
@@ -1695,12 +1731,15 @@ void p3ChatService::handleRecvChatAvatarInfoItem(RsChatAvatarInfoItem *item)
     bool need_update = false;
     if(it == _avatars.end())
     {
+        _avatars[pid] = new AvatarInfo();
+        _avatars[pid]->_timestamp = (time_t)item->timestamp;
         need_update = true;
     }
     else
     {
-        if(it->second->_timestamp < item->timestamp)
+        if((uint32_t)it->second->_timestamp < item->timestamp)
         {
+            it->second->_timestamp = (time_t)item->timestamp;
             need_update = true;
         }
     }
@@ -1757,13 +1796,21 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
                 {
                     RsPeerId pid(mit->key);
                     if (!pid.isNull()) {
-#ifdef CHAT_DEBUG
-                        RsDbg() << "AVATAR p3ChatService::loadList: Loading avatar for " << pid << ", size=" << mit->value.size() << ".";
-#endif
+                        RsDbg() << "AVATAR p3ChatService::loadList: Loading avatar for " << pid << ", encoded_size=" << mit->value.size() << ".";
                         if (_avatars.count(pid)) delete _avatars[pid];
-                        _avatars[pid] = new AvatarInfo(mit->value); 
+                        _avatars[pid] = new AvatarInfo(mit->value);
+                        RsDbg() << "AVATAR p3ChatService::loadList: Loaded avatar for " << pid << ", image_size=" << _avatars[pid]->_image_size << ", timestamp=" << _avatars[pid]->_timestamp << ".";
                         found_avatar = true;
                     }
+                }
+                else if (mit->key == "OWN_AVATAR_TS")
+                {
+                    if (_own_avatar) {
+                        try {
+                            _own_avatar->_timestamp = (time_t)std::stoull(mit->value, nullptr, 10);
+                        } catch(...) {}
+                    }
+                    found_avatar = true;
                 }
             }
             if(found_avatar) item_handled = true;
@@ -1809,6 +1856,14 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
         RsChatAvatarItem *ai = locked_makeOwnAvatarItem();
         ai->PeerId(RsPeerId()); 
         list.push_back(ai);
+
+        /* Save own TS in a KV set */
+        RsConfigKeyValueSet *okv = new RsConfigKeyValueSet();
+        RsTlvKeyValue pair;
+        pair.key = "OWN_AVATAR_TS";
+        pair.value = std::to_string((uint64_t)_own_avatar->_timestamp);
+        okv->tlvkvs.pairs.push_back(pair);
+        list.push_back(okv);
     }
 
     /* 2. Save PEER avatars: Key-Value Set (name/kvs convention) */
@@ -1830,12 +1885,11 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
                     count_in_chunk = 0;
                 }
 
-#ifdef CHAT_DEBUG
-                RsDbg() << "AVATAR p3ChatService::saveList: Saving avatar for " << it->first << ", size=" << it->second->_image_size << ".";
-#endif
+                RsDbg() << "AVATAR p3ChatService::saveList: Saving avatar for " << it->first << ", image_size=" << it->second->_image_size << ", timestamp=" << it->second->_timestamp << ".";
                 RsTlvKeyValue pair;
                 pair.key = it->first.toStdString();
                 pair.value = it->second->toRadix64();
+                RsDbg() << "AVATAR p3ChatService::saveList: Encoded value size=" << pair.value.size() << ", first 32 chars: " << pair.value.substr(0, std::min((size_t)32, pair.value.size()));
                 kv->tlvkvs.pairs.push_back(pair);
                 count_in_chunk++;
 
@@ -1941,6 +1995,16 @@ void p3ChatService::statusChange(const std::list<pqiServicePeer> &plist)
 			if(_own_avatar != nullptr && _own_avatar->_image_size > 0)
 			{
 				sendAvatarInfo(it->id);
+			}
+			
+			/* Request peer's avatar only if we don't have one (backward compatibility with old code) */
+			{
+				RS_STACK_MUTEX(mChatMtx);
+				std::map<RsPeerId,AvatarInfo*>::const_iterator it_avatar = _avatars.find(it->id);
+				if(it_avatar == _avatars.end() || it_avatar->second->_image_size == 0)
+				{
+					sendAvatarRequest(it->id);
+				}
 			}
 		}
 		else if (it->actions & RS_SERVICE_PEER_REMOVED)
