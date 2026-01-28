@@ -46,6 +46,7 @@
 #include "rsitems/rsconfigitems.h"
 
 //#define CHAT_DEBUG 1
+//#define AVATAR_DEBUG 1
 
 RsChats *rsChats = nullptr;
 
@@ -1410,7 +1411,9 @@ void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 		 * preventing the deadlock you saw in GDB. */
 		RsStackMutex stack(mChatMtx); /********** STACK LOCKED MTX ******/
 
+#ifdef AVATAR_DEBUG
 		RsDbg() << "AVATAR setting own node avatar data, size: " << size;
+#endif
 
 #ifdef CHAT_DEBUG
 		std::cerr << "p3chatservice: Setting own avatar to new image." << std::endl ;
@@ -1443,7 +1446,9 @@ void p3ChatService::setOwnNodeAvatarData(const unsigned char *data, int size)
 
 	for(std::set<RsPeerId>::iterator it = onlineList.begin(); it != onlineList.end(); ++it)
 	{
+#ifdef AVATAR_DEBUG
 		RsDbg() << "AVATAR broadcasting to peer: " << it->toStdString().c_str();
+#endif
 		sendAvatarInfo(*it);
 	}
 
@@ -1477,13 +1482,16 @@ void p3ChatService::receiveAvatarJpegData(RsChatAvatarItem *ci)
 
 	/* Safety: Do not let network packets overwrite local 'Self' data */
 	if(pid.isNull() || (!ownId.isNull() && pid == ownId)) {
+#ifdef AVATAR_DEBUG
 		RsDbg() << "AVATAR: [RECV] Ignored incoming avatar packet identifying as SELF.";
+#endif
 		return;
 	}
 
 	RS_STACK_MUTEX(mChatMtx); 
+#ifdef AVATAR_DEBUG
 	RsDbg() << "AVATAR: [RECV] Received valid avatar for peer: " << pid.toStdString();
-	
+#endif	
 	if (_avatars.count(pid)) 
 	{
 		_avatars[pid]->init(ci->image_data, ci->image_size);
@@ -1578,7 +1586,7 @@ void p3ChatService::getAvatarData(const RsPeerId& peer_id,unsigned char *& data,
 
             time_t now = time(NULL);
             if (now - it->second->_last_request_time > 60) {
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
 			    RsDbg() << "AVATAR p3ChatService::getAvatarData: No avatar for peer " << peer_id << ". Requesting it (throttled).";
 #endif
                 it->second->_last_request_time = now;
@@ -1602,7 +1610,7 @@ void p3ChatService::sendAvatarRequest(const RsPeerId& peer_id)
 	ci->sendTime = time(NULL);
 	ci->message.erase();
 
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
 	RsDbg() << "AVATAR p3ChatService::sendAvatarRequest: sending request for avatar to peer " << peer_id;
 #endif
 
@@ -1708,7 +1716,7 @@ RsChatAvatarInfoItem *p3ChatService::locked_makeOwnAvatarInfoItem()
 
 void p3ChatService::sendAvatarInfo(const RsPeerId& peer_id)
 {
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
     RsDbg() << "AVATAR p3ChatService::sendAvatarInfo: Sending Info to " << peer_id;
 #endif
     RS_STACK_MUTEX(mChatMtx); 
@@ -1746,7 +1754,7 @@ void p3ChatService::handleRecvChatAvatarInfoItem(RsChatAvatarInfoItem *item)
     
     if(need_update)
     {
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
         RsDbg() << "AVATAR p3ChatService::handleRecvChatAvatarInfoItem: Peer " << pid << " has newer avatar (remote TS=" << item->timestamp << "). Requesting.";
 #endif
         sendAvatarRequest(pid);
@@ -1782,7 +1790,7 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
              * we iterate and check keys. */
             bool found_avatar = false;
             RS_STACK_MUTEX(mChatMtx);
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
             RsDbg() << "AVATAR p3ChatService::loadList: Checking KvSet with " << kv->tlvkvs.pairs.size() << " pairs.";
             if(!kv->tlvkvs.pairs.empty()) {
                 RsDbg() << "AVATAR p3ChatService::loadList: First key is: " << kv->tlvkvs.pairs.front().key;
@@ -1796,10 +1804,14 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
                 {
                     RsPeerId pid(mit->key);
                     if (!pid.isNull()) {
-                        RsDbg() << "AVATAR p3ChatService::loadList: Loading avatar for " << pid << ", encoded_size=" << mit->value.size() << ".";
-                        if (_avatars.count(pid)) delete _avatars[pid];
-                        _avatars[pid] = new AvatarInfo(mit->value);
-                        RsDbg() << "AVATAR p3ChatService::loadList: Loaded avatar for " << pid << ", image_size=" << _avatars[pid]->_image_size << ", timestamp=" << _avatars[pid]->_timestamp << ".";
+#ifdef AVATAR_DEBUG
+			RsDbg() << "AVATAR p3ChatService::loadList: Loading avatar for " << pid << ", encoded_size=" << mit->value.size() << ".";
+#endif
+    			if (_avatars.count(pid)) delete _avatars[pid];
+			    _avatars[pid] = new AvatarInfo(mit->value);
+#ifdef AVATAR_DEBUG
+			RsDbg() << "AVATAR p3ChatService::loadList: Loaded avatar for " << pid << ", image_size=" << _avatars[pid]->_image_size << ", timestamp=" << _avatars[pid]->_timestamp << ".";
+#endif
                         found_avatar = true;
                     }
                 }
@@ -1869,7 +1881,7 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
     /* 2. Save PEER avatars: Key-Value Set (name/kvs convention) */
     if (!_avatars.empty())
     {
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
         RsDbg() << "AVATAR p3ChatService::saveList: Total avatars in memory map: " << _avatars.size();
 #endif
         RsConfigKeyValueSet *kv = NULL;
@@ -1885,11 +1897,15 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
                     count_in_chunk = 0;
                 }
 
+#ifdef AVATAR_DEBUG
                 RsDbg() << "AVATAR p3ChatService::saveList: Saving avatar for " << it->first << ", image_size=" << it->second->_image_size << ", timestamp=" << it->second->_timestamp << ".";
+#endif
                 RsTlvKeyValue pair;
                 pair.key = it->first.toStdString();
                 pair.value = it->second->toRadix64();
+#ifdef AVATAR_DEBUG
                 RsDbg() << "AVATAR p3ChatService::saveList: Encoded value size=" << pair.value.size() << ", first 32 chars: " << pair.value.substr(0, std::min((size_t)32, pair.value.size()));
+#endif
                 kv->tlvkvs.pairs.push_back(pair);
                 count_in_chunk++;
 
@@ -1898,7 +1914,7 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
                     kv = NULL;
                 }
             }
-#ifdef CHAT_DEBUG
+#ifdef AVATAR_DEBUG
             else if (it->first != ownId) {
                  RsDbg() << "AVATAR p3ChatService::saveList: SKIPPING avatar for " << it->first 
                          << " (Size=" << (it->second ? it->second->_image_size : -1) 
