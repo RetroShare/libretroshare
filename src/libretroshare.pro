@@ -1043,12 +1043,15 @@ rs_jsonapi {
     SOURCES += jsonapi/jsonapi.cpp
 }
 
+
 rs_deep_forums_index {
     HEADERS *= deep_search/commonutils.hpp
     SOURCES *= deep_search/commonutils.cpp
 
-    HEADERS += deep_search/forumsindex.hpp
-    SOURCES += deep_search/forumsindex.cpp
+    
+    # FTS5 implementation (parallel to Xapian for now)
+    HEADERS += deep_search/forumsindex_fts5.hpp
+    SOURCES += deep_search/forumsindex_fts5.cpp
 }
 
 rs_deep_channels_index {
