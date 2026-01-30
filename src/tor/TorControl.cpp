@@ -551,7 +551,7 @@ void TorControl::shutdownSync()
         timeout_cnt++;
     }
     
-    if (timeout_count >= MAX_WAIT_ITERATIONS) {
+    if (timeout_cnt >= MAX_WAIT_ITERATIONS) {
         RsWarn() << "torctrl: Timeout waiting for socket to flush during shutdown, forcing close";
     }
     
