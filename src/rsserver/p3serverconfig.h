@@ -29,20 +29,14 @@
 #include "pqi/p3cfgmgr.h"
 #include "pqi/pqihandler.h"
 
-class p3ServerConfig: public RsServerConfig, public p3Config
+class p3ServerConfig: public RsServerConfig
 {
 	public:
 
-	p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg, p3ConfigMgr *cfgMgr);
+	p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg);
 	virtual ~p3ServerConfig() = default;
 
 	void load_config();
-
-	// p3Config interface for persistence
-protected:
-	virtual RsSerialiser *setupSerialiser() override;
-	virtual bool saveList(bool &cleanup, std::list<RsItem *>& items) override;
-	virtual bool loadList(std::list<RsItem *>& load) override;
 
 public:
 

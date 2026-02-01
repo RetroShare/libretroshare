@@ -38,7 +38,7 @@ static constexpr float DEFAULT_UPLOAD_KB_RATE   = 10000.0;
 static constexpr float MIN_MINIMAL_RATE = 5.0;
 
 
-p3ServerConfig::p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg, p3ConfigMgr *cfgMgr)
+p3ServerConfig::p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg)
     :  mPeerMgr(peerMgr), mLinkMgr(linkMgr), mNetMgr(netMgr), mPqiHandler(pqih)
     , mGeneralConfig(genCfg)
     , configMtx("p3ServerConfig")
@@ -47,9 +47,6 @@ p3ServerConfig::p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr 
     , mRateDownloadWhenIdle(DEFAULT_DOWNLOAD_KB_RATE), mRateUploadWhenIdle(DEFAULT_UPLOAD_KB_RATE)
     , mIsIdle(false), mOpMode(RsOpMode::FULL)
 {
-    // Register with config manager for persistence
-    if (cfgMgr)
-        cfgMgr->addConfiguration("traffic_stats.cfg", this);
 }
 
 void p3ServerConfig::load_config()
@@ -668,45 +665,3 @@ void p3ServerConfig::setIsIdle(bool isIdle)
 	mIsIdle = isIdle;
 }
 
-/********************* p3Config persistence methods *******/
-
-RsSerialiser *p3ServerConfig::setupSerialiser()
-{
-    RsSerialiser *rss = new RsSerialiser();
-    rss->addSerialType(new RsTrafficStatsSerialiser());
-    return rss;
-}
-
-bool p3ServerConfig::saveList(bool &cleanup, std::list<RsItem *>& items)
-{
-    cleanup = true;
-
-    RsTrafficStatsConfigItem *item = new RsTrafficStatsConfigItem();
-    {
-        RsStackMutex stack(configMtx);
-        item->peerStats = mCumulativeTrafficByPeer;
-        item->serviceStats = mCumulativeTrafficByService;
-    }
-    items.push_back(item);
-    
-    return true;
-}
-
-bool p3ServerConfig::loadList(std::list<RsItem *>& load)
-{
-    RsStackMutex stack(configMtx);
-    
-    for (auto it = load.begin(); it != load.end(); ++it)
-    {
-        RsTrafficStatsConfigItem *item = dynamic_cast<RsTrafficStatsConfigItem*>(*it);
-        if (item)
-        {
-            mCumulativeTrafficByPeer = item->peerStats;
-            mCumulativeTrafficByService = item->serviceStats;
-        }
-        delete *it;
-    }
-    load.clear();
-    
-    return true;
-}
