@@ -83,6 +83,7 @@ public:
 
 	/* Notification support */
 	virtual bool getWikiStatistics(GxsServiceStatistic& stats) override;
+	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
 protected:
 	bool acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t size) override;
