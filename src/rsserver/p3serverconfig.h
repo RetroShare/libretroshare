@@ -29,14 +29,22 @@
 #include "pqi/p3cfgmgr.h"
 #include "pqi/pqihandler.h"
 
-class p3ServerConfig: public RsServerConfig
+class p3ServerConfig: public RsServerConfig, public p3Config
 {
 	public:
 
-	p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg);
+	p3ServerConfig(p3PeerMgr *peerMgr, p3LinkMgr *linkMgr, p3NetMgr *netMgr, pqihandler *pqih, p3GeneralConfig *genCfg, p3ConfigMgr *cfgMgr);
 	virtual ~p3ServerConfig() = default;
 
 	void load_config();
+
+	// p3Config interface for persistence
+protected:
+	virtual RsSerialiser *setupSerialiser() override;
+	virtual bool saveList(bool &cleanup, std::list<RsItem *>& items) override;
+	virtual bool loadList(std::list<RsItem *>& load) override;
+
+public:
 
 	/* From RsIface::RsConfig */
 
@@ -49,6 +57,12 @@ class p3ServerConfig: public RsServerConfig
 	virtual int getTotalBandwidthRates(RsConfigDataRates &rates) override;
 	virtual int getAllBandwidthRates(std::map<RsPeerId, RsConfigDataRates> &ratemap) override;
 	virtual int getTrafficInfo(std::list<RSTrafficClue>& out_lst, std::list<RSTrafficClue> &in_lst) override;
+
+	// Cumulative traffic statistics
+	virtual bool getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeTrafficStats>& stats) override;
+	virtual bool getCumulativeTrafficByService(std::map<uint16_t, RsCumulativeTrafficStats>& stats) override;
+	virtual bool clearCumulativeTraffic(bool clearPeerStats, bool clearServiceStats) override;
+	virtual bool getTotalCumulativeTraffic(RsCumulativeTrafficStats& stats) override;
 
 	/* From RsInit */
 
@@ -115,6 +129,10 @@ private:
 	bool mIsIdle;
 
 	RsOpMode mOpMode;
+
+	// Cumulative traffic statistics storage
+	std::map<RsPeerId, RsCumulativeTrafficStats> mCumulativeTrafficByPeer;
+	std::map<uint16_t, RsCumulativeTrafficStats> mCumulativeTrafficByService;
 };
 
 #endif
