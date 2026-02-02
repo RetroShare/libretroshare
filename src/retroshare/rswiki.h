@@ -68,6 +68,7 @@ extern RsWiki *rsWiki;
 /** Wiki Event Codes */
 enum class RsWikiEventCode : uint8_t
 {
+	UNKNOWN                   = 0x00,
 	UPDATED_SNAPSHOT           = 0x01, // Existing page modified
 	UPDATED_COLLECTION         = 0x02, // Existing wiki group modified
 	NEW_SNAPSHOT               = 0x03, // First-time page creation

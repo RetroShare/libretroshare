@@ -300,6 +300,7 @@ bool p3Wiki::addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId)
 		return false;
 
 	RsWikiCollection& collection = collections.front();
+	// A termination date of 0 means the moderator is active without an expiry.
 	collection.mModeratorTerminationDates[moderatorId] = 0;
 
 	uint32_t token;
@@ -313,7 +314,11 @@ bool p3Wiki::removeModerator(const RsGxsGroupId& grpId, const RsGxsId& moderator
 		return false;
 
 	RsWikiCollection& collection = collections.front();
-	collection.mModeratorTerminationDates[moderatorId] = time(nullptr);
+	auto it = collection.mModeratorTerminationDates.find(moderatorId);
+	if (it == collection.mModeratorTerminationDates.end())
+		return false;
+
+	it->second = time(nullptr);
 
 	uint32_t token;
 	return updateCollection(token, collection) && waitToken(token) == RsTokenService::COMPLETE;
@@ -328,6 +333,7 @@ bool p3Wiki::getModerators(const RsGxsGroupId& grpId, std::list<RsGxsId>& modera
 	moderators.clear();
 	for (const auto& entry : collections.front().mModeratorTerminationDates)
 	{
+		// A termination date of 0 means the moderator is active without an expiry.
 		if (entry.second == 0)
 			moderators.push_back(entry.first);
 	}
@@ -344,6 +350,7 @@ bool p3Wiki::isActiveModerator(const RsGxsGroupId& grpId, const RsGxsId& authorI
 	if (it == collection.mModeratorTerminationDates.end())
 		return false;
 
+	// A termination date of 0 means the moderator is active without an expiry.
 	if (it->second == 0)
 		return true;
 
@@ -560,7 +567,7 @@ bool p3Wiki::getOriginalMessageAuthor(const RsGxsGroupId& grpId, const RsGxsMess
 bool p3Wiki::getWikiStatistics(GxsServiceStatistic& stats)
 {
 	// Use the protected blocking helper from RsGxsIfaceHelper
-	return getServiceStatisticsBlocking(stats);
+	return getServiceStatistics(stats);
 }
 
 void p3Wiki::setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read)

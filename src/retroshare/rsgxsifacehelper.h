@@ -537,7 +537,7 @@ LLwaitTokenBeginLabel:
 	 * It blocks the calling thread until results are available or timeout occurs.
 	 * Use this for simple operations like notification counting in GUI code.
 	 */
-	bool getServiceStatisticsBlocking(
+	bool getServiceStatistics(
 	    GxsServiceStatistic& stats,
 	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(10000))
 	{
@@ -562,7 +562,7 @@ LLwaitTokenBeginLabel:
 	 * This is a convenience wrapper around the async token-based API.
 	 * It blocks the calling thread until results are available or timeout occurs.
 	 */
-	bool getGroupStatisticBlocking(
+	bool getGroupStatistics(
 	    const RsGxsGroupId& grpId,
 	    GxsGroupStatistic& stats,
 	    std::chrono::milliseconds maxWait = std::chrono::milliseconds(10000))
