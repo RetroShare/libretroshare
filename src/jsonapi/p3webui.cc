@@ -96,7 +96,10 @@ public:
 				{ "Content-Length", std::to_string(body.size()) }
 			};
 
-			session->close(restbed::OK, body, headers);
+			session->close(restbed::OK, restbed::Bytes(
+				reinterpret_cast<const std::byte*>(body.data()),
+				reinterpret_cast<const std::byte*>(body.data() + body.size())),
+                headers);
 		}
 		else
 		{
