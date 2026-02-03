@@ -473,17 +473,16 @@ int 	pqistreamer::handleincomingitem(RsItem *pqi,int len)
 
 void pqistreamer::locked_addTrafficClue(const RsItem *pqi,uint32_t pktsize,std::list<RSTrafficClue>& lst)
 {
-    rstime_t now = time(NULL) ;
-
-    if(now > mStatisticsTimeStamp)	// new chunk => get rid of oldest, replace old list by current list, clear current list.
+    // Safety cap to prevent memory leaks if statistics are not collected for a long time.
+    if (lst.size() > 1000)
     {
-	    mPreviousStatsChunk_Out = mCurrentStatsChunk_Out ;
-	    mPreviousStatsChunk_In = mCurrentStatsChunk_In ;
-	    mCurrentStatsChunk_Out.clear() ;
-	    mCurrentStatsChunk_In.clear() ;
-
-	    mStatisticsTimeStamp = now ;
+        // Remove the oldest half of the list to make room
+        auto it = lst.begin();
+        std::advance(it, 500);
+        lst.erase(lst.begin(), it);
     }
+
+    rstime_t now = time(NULL) ;
 
     RSTrafficClue tc ;
     tc.TS = now ;
@@ -1496,8 +1495,11 @@ int pqistreamer::locked_compute_out_pkt_size() const
 
 int pqistreamer::locked_gatherStatistics(std::list<RSTrafficClue>& out_lst,std::list<RSTrafficClue>& in_lst)
 {
-    out_lst = mPreviousStatsChunk_Out ;
-     in_lst = mPreviousStatsChunk_In ;
+    out_lst = std::move(mCurrentStatsChunk_Out) ;
+     in_lst = std::move(mCurrentStatsChunk_In) ;
+
+    mCurrentStatsChunk_Out.clear() ;
+    mCurrentStatsChunk_In.clear() ;
 
     return 1 ;
 }

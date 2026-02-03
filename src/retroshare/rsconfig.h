@@ -423,6 +423,12 @@ public:
 	 */
     virtual bool getTotalCumulativeTraffic(RsCumulativeTrafficStats& stats) = 0;
 
+    /**
+     * @brief updateCumulativeStats triggers a background update of cumulative statistics from the PQI layer.
+     * This should be called periodically by a core service.
+     */
+    virtual void updateCumulativeStats() = 0;
+
     /* From RsInit */
 
     // NOT IMPLEMENTED YET!

@@ -57,6 +57,7 @@ public:
 	virtual bool getCumulativeTrafficByService(std::map<uint16_t, RsCumulativeTrafficStats>& stats) override;
 	virtual bool clearCumulativeTraffic(bool clearPeerStats, bool clearServiceStats) override;
 	virtual bool getTotalCumulativeTraffic(RsCumulativeTrafficStats& stats) override;
+    virtual void updateCumulativeStats() override;
 
 	/* From RsInit */
 
@@ -127,6 +128,10 @@ private:
 	// Cumulative traffic statistics storage
 	std::map<RsPeerId, RsCumulativeTrafficStats> mCumulativeTrafficByPeer;
 	std::map<uint16_t, RsCumulativeTrafficStats> mCumulativeTrafficByService;
+
+    // Recent clues for other consumers of getTrafficInfo()
+    std::list<RSTrafficClue> mRecentClues_In;
+    std::list<RSTrafficClue> mRecentClues_Out;
 };
 
 #endif

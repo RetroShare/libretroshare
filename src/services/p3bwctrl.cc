@@ -90,6 +90,9 @@ int	p3BandwidthControl::tick()
 	if (doCheck)
 	{
 		checkAvailableBandwidth();
+
+        if (rsConfig)
+            rsConfig->updateCumulativeStats();
 	}
 
 	return 0;

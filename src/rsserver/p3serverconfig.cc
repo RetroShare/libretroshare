@@ -178,14 +178,20 @@ int 	p3ServerConfig::getConfigStartup(RsConfigStartup &/*params*/)
 
 int p3ServerConfig::getTrafficInfo(std::list<RSTrafficClue>& out_lst,std::list<RSTrafficClue>& in_lst)
 {
+    updateCumulativeStats();
 
-    if (rsBandwidthControl)
-        return rsBandwidthControl->ExtractTrafficInfo(out_lst,in_lst);
-    else
-        return 0 ;
+    RsStackMutex stack(configMtx);
+
+    out_lst = std::move(mRecentClues_Out);
+    in_lst = std::move(mRecentClues_In);
+
+    mRecentClues_Out.clear();
+    mRecentClues_In.clear();
+
+    return 1;
 }
 
-bool p3ServerConfig::getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeTrafficStats>& stats)
+void p3ServerConfig::updateCumulativeStats()
 {
     RsStackMutex stack(configMtx);
 
@@ -205,6 +211,12 @@ bool p3ServerConfig::getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeT
             peerStats.countOut += clue.count;
             if (peerStats.firstSeen == 0) peerStats.firstSeen = now;
             peerStats.lastSeen = now;
+
+            auto& serviceStats = mCumulativeTrafficByService[clue.service_id];
+            serviceStats.bytesOut += clue.size;
+            serviceStats.countOut += clue.count;
+            if (serviceStats.firstSeen == 0) serviceStats.firstSeen = now;
+            serviceStats.lastSeen = now;
         }
         
         // Accumulate incoming traffic
@@ -215,46 +227,48 @@ bool p3ServerConfig::getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeT
             peerStats.countIn += clue.count;
             if (peerStats.firstSeen == 0) peerStats.firstSeen = now;
             peerStats.lastSeen = now;
-        }
-    }
-    
-    stats = mCumulativeTrafficByPeer;
-    return true;
-}
 
-bool p3ServerConfig::getCumulativeTrafficByService(std::map<uint16_t, RsCumulativeTrafficStats>& stats)
-{
-    RsStackMutex stack(configMtx);
-
-    // First, update cumulative stats from current traffic clues
-    std::list<RSTrafficClue> out_lst, in_lst;
-    if (rsBandwidthControl)
-    {
-        rsBandwidthControl->ExtractTrafficInfo(out_lst, in_lst);
-        
-        rstime_t now = time(nullptr);
-        
-        // Accumulate outgoing traffic by service
-        for (const auto& clue : out_lst)
-        {
-            auto& serviceStats = mCumulativeTrafficByService[clue.service_id];
-            serviceStats.bytesOut += clue.size;
-            serviceStats.countOut += clue.count;
-            if (serviceStats.firstSeen == 0) serviceStats.firstSeen = now;
-            serviceStats.lastSeen = now;
-        }
-        
-        // Accumulate incoming traffic by service
-        for (const auto& clue : in_lst)
-        {
             auto& serviceStats = mCumulativeTrafficByService[clue.service_id];
             serviceStats.bytesIn += clue.size;
             serviceStats.countIn += clue.count;
             if (serviceStats.firstSeen == 0) serviceStats.firstSeen = now;
             serviceStats.lastSeen = now;
         }
+
+        // Also store clues for other consumers (replaces low-level sampling)
+        // We limit the size of these lists to avoid memory leaks if no one consumes them.
+        const size_t MAX_RECENT_CLUES = 5000;
+        
+        mRecentClues_In.splice(mRecentClues_In.end(), in_lst);
+        mRecentClues_Out.splice(mRecentClues_Out.end(), out_lst);
+
+        if (mRecentClues_In.size() > MAX_RECENT_CLUES) {
+            auto it = mRecentClues_In.begin();
+            std::advance(it, mRecentClues_In.size() - MAX_RECENT_CLUES);
+            mRecentClues_In.erase(mRecentClues_In.begin(), it);
+        }
+        if (mRecentClues_Out.size() > MAX_RECENT_CLUES) {
+            auto it = mRecentClues_Out.begin();
+            std::advance(it, mRecentClues_Out.size() - MAX_RECENT_CLUES);
+            mRecentClues_Out.erase(mRecentClues_Out.begin(), it);
+        }
     }
-    
+}
+
+bool p3ServerConfig::getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeTrafficStats>& stats)
+{
+    updateCumulativeStats();
+
+    RsStackMutex stack(configMtx);
+    stats = mCumulativeTrafficByPeer;
+    return true;
+}
+
+bool p3ServerConfig::getCumulativeTrafficByService(std::map<uint16_t, RsCumulativeTrafficStats>& stats)
+{
+    updateCumulativeStats();
+
+    RsStackMutex stack(configMtx);
     stats = mCumulativeTrafficByService;
     return true;
 }
@@ -274,6 +288,8 @@ bool p3ServerConfig::clearCumulativeTraffic(bool clearPeerStats, bool clearServi
 
 bool p3ServerConfig::getTotalCumulativeTraffic(RsCumulativeTrafficStats& stats)
 {
+    updateCumulativeStats();
+
     RsStackMutex stack(configMtx);
     
     stats.clear();

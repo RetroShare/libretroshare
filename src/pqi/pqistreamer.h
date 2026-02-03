@@ -176,9 +176,6 @@ class pqistreamer: public PQInterface
 		rstime_t mLastIncomingTs;
 	
         	// traffic statistics
-
-        	std::list<RSTrafficClue> mPreviousStatsChunk_In ;
-        	std::list<RSTrafficClue> mPreviousStatsChunk_Out ;
         	std::list<RSTrafficClue> mCurrentStatsChunk_In ;
         	std::list<RSTrafficClue> mCurrentStatsChunk_Out ;
 		rstime_t mStatisticsTimeStamp ;
