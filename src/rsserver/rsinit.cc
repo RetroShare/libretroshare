@@ -1422,14 +1422,16 @@ int RsServer::StartupRetroShare()
 
         p3Posted *mPosted = new p3Posted(posted_ds, NULL, mGxsIdService);
 
-        // create GXS photo service
+        // create GXS posted service
         RsGxsNetService* posted_ns = new RsGxsNetService(
-                        RS_SERVICE_GXS_TYPE_POSTED, posted_ds, nxsMgr, 
-			mPosted, mPosted->getServiceInfo(), 
-			mReputations, mGxsCircles,mGxsIdService,
-			pgpAuxUtils);
+                    RS_SERVICE_GXS_TYPE_POSTED, posted_ds, nxsMgr, 
+                    mPosted, mPosted->getServiceInfo(), 
+                    mReputations, mGxsCircles,mGxsIdService,
+                    pgpAuxUtils, mGxsNetTunnel,
+                    RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
+                    RsGxsNetServiceSyncFlags::DISTANT_SYNC);
 
-		mPosted->setNetworkExchangeService(posted_ns) ;
+        mPosted->setNetworkExchangeService(posted_ns) ;
 
         /**** Wiki GXS service ****/
 
@@ -1440,13 +1442,15 @@ int RsServer::StartupRetroShare()
 
         p3Wiki *mWiki = new p3Wiki(wiki_ds, NULL, mGxsIdService);
         // create GXS wiki service
-		RsGxsNetService* wiki_ns = new RsGxsNetService(
-		            RS_SERVICE_GXS_TYPE_WIKI, wiki_ds, nxsMgr,
-		            mWiki, mWiki->getServiceInfo(),
-		            mReputations, mGxsCircles, mGxsIdService,
-		            pgpAuxUtils);
+        RsGxsNetService* wiki_ns = new RsGxsNetService(
+                    RS_SERVICE_GXS_TYPE_WIKI, wiki_ds, nxsMgr,
+                    mWiki, mWiki->getServiceInfo(),
+                    mReputations, mGxsCircles, mGxsIdService,
+                    pgpAuxUtils, mGxsNetTunnel,
+                    RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
+                    RsGxsNetServiceSyncFlags::DISTANT_SYNC );
 
-    mWiki->setNetworkExchangeService(wiki_ns) ;
+        mWiki->setNetworkExchangeService(wiki_ns) ;
 #endif
 
 	/************************* Forum GXS service ******************************/
@@ -1480,16 +1484,16 @@ int RsServer::StartupRetroShare()
         // used on channels, removing the last flag will save lots of memory/network traffic.
 
         RsGxsNetService* gxschannels_ns = new RsGxsNetService(
-		            RS_SERVICE_GXS_TYPE_CHANNELS, gxschannels_ds, nxsMgr,
-		            mGxsChannels, mGxsChannels->getServiceInfo(),
-		            mReputations, mGxsCircles,mGxsIdService,
+                    RS_SERVICE_GXS_TYPE_CHANNELS, gxschannels_ds, nxsMgr,
+                    mGxsChannels, mGxsChannels->getServiceInfo(),
+                    mReputations, mGxsCircles,mGxsIdService,
                     pgpAuxUtils,mGxsNetTunnel,
                     RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
                     RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES |
                     RsGxsNetServiceSyncFlags::DISTANT_SYNC |
                     RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS);
 
-    mGxsChannels->setNetworkExchangeService(gxschannels_ns) ;
+        mGxsChannels->setNetworkExchangeService(gxschannels_ns) ;
 
 #ifdef RS_USE_PHOTO
         /**** Photo service ****/
@@ -1518,12 +1522,14 @@ int RsServer::StartupRetroShare()
 
         // create GXS photo service
         RsGxsNetService* wire_ns = new RsGxsNetService(
-                        RS_SERVICE_GXS_TYPE_WIRE, wire_ds, nxsMgr, 
-			mWire, mWire->getServiceInfo(), 
-			mReputations, mGxsCircles,mGxsIdService,
-			pgpAuxUtils);
+                    RS_SERVICE_GXS_TYPE_WIRE, wire_ds, nxsMgr, 
+                    mWire, mWire->getServiceInfo(), 
+                    mReputations, mGxsCircles,mGxsIdService,
+                    pgpAuxUtils, GxsNetTunnel,
+                    RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
+                    RsGxsNetServiceSyncFlags::DISTANT_SYNC);
 
-		mWire->setNetworkExchangeService(wire_ns);
+        mWire->setNetworkExchangeService(wire_ns);
 #endif
         // now add to p3service
         pqih->addService(gxsid_ns, true);
