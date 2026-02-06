@@ -741,7 +741,7 @@ bool ftTransferModule::locked_tickPeerTransfer(peerInfo &info)
 #endif
 	/* update rate */
 
-    if( (info.lastTransfers > 0 && ageReq > 0) || ageReq > 2)
+	if( (info.lastTransfers > 0 && ageReq > 0) || ageReq > 2)
 	{
 		info.actualRate = info.actualRate * 0.75 + 0.25 * info.lastTransfers / (float)ageReq;
 		info.lastTransfers = 0;
@@ -822,7 +822,7 @@ bool ftTransferModule::locked_tickPeerTransfer(peerInfo &info)
 	std::cerr << "locked_tickPeerTransfer() desired  next_req: " << next_req;
 	std::cerr << std::endl;
 #endif
-	
+
 	/* do request */
 	uint64_t req_offset = 0;
 	uint32_t req_size =0 ;

@@ -23,17 +23,35 @@
 #include "pqi/pqithreadstreamer.h"
 #include <unistd.h>
 
-#define DEFAULT_STREAMER_TIMEOUT	  10000 // 10 ms
-#define DEFAULT_STREAMER_SLEEP		  30000 // 30 ms
-#define DEFAULT_STREAMER_IDLE_SLEEP	1000000 // 1 sec
+// for timeBeginPeriod
+#ifdef WINDOWS_SYS
+#include <windows.h>
+#include <mmsystem.h>
+#endif
+
+#define STREAMER_TIMEOUT_MIN                  0 //  non blocking
+#define STREAMER_TIMEOUT_DELTA		   1000 //  1 ms
+#define STREAMER_TIMEOUT_MAX              10000 // 10 ms
+
+#define STREAMER_SLEEP_MIN		   1000 //  1 ms
+#define STREAMER_SLEEP_DELTA               1000 //  1 ms
+#define STREAMER_SLEEP_MAX                30000 // 30 ms
+
+#define DEFAULT_STREAMER_IDLE_SLEEP	1000000 //  1 sec
 
 // #define PQISTREAMER_DEBUG
 
 pqithreadstreamer::pqithreadstreamer(PQInterface *parent, RsSerialiser *rss, const RsPeerId& id, BinInterface *bio_in, int bio_flags_in)
 :pqistreamer(rss, id, bio_in, bio_flags_in), mParent(parent), mTimeout(0), mThreadMutex("pqithreadstreamer")
 {
-	mTimeout = DEFAULT_STREAMER_TIMEOUT;
-	mSleepPeriod = DEFAULT_STREAMER_SLEEP;
+#ifdef WINDOWS_SYS
+        // On Windows, the default system timer resolution is around 15 ms.
+        // This call allows for sleep durations of less than 15 ms, which is
+        // necessary for frequent polling and high-speed data transfer.
+        timeBeginPeriod(1);
+#endif
+	mTimeout = STREAMER_TIMEOUT_MAX;
+	mSleepPeriod = STREAMER_SLEEP_MAX;
 }
 
 bool pqithreadstreamer::RecvItem(RsItem *item)
@@ -44,58 +62,77 @@ bool pqithreadstreamer::RecvItem(RsItem *item)
 int	pqithreadstreamer::tick()
 {
 	// pqithreadstreamer mutex lock is not needed here
-	// we will only check if the connection is active, and if not we will try to establish it
+	// we only check if the connection is active, and if not we will try to establish it
 	tick_bio();
 
 	return 0;
 }
 
-void	pqithreadstreamer::threadTick()
+void pqithreadstreamer::threadTick()
 {
-	uint32_t recv_timeout = 0;
-	uint32_t sleep_period = 0;
+        static uint32_t recv_timeout = mTimeout;
+        static uint32_t sleep_period = mSleepPeriod;
+        uint32_t readbytes = 0;
+        uint32_t sentbytes = 0;
 	bool isactive = false;
 
+	// Locked section to safely read shared variables
 	{
 		RsStackMutex stack(mStreamerMtx);
-		recv_timeout = mTimeout;
-		sleep_period = mSleepPeriod;
 		isactive = mBio->isactive();
 	}
     
-	// update the connection rates
-	updateRates() ;
-
-	// if the connection est not active, long sleep then return
+	// Long sleep if connection is not active
 	if (!isactive)
 	{
+//		RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() mBio->isactive() false long sleep";
 		rstime::rs_usleep(DEFAULT_STREAMER_IDLE_SLEEP);
 		return ;
 	}
 
-	// fill incoming queue with items from SSL
+	updateRates();
+
+	// Fill incoming queue
 	{
 		RsStackMutex stack(mThreadMutex);
-		tick_recv(recv_timeout);
+		readbytes = tick_recv(recv_timeout);
 	}
 
-	// move items to appropriate service queue or shortcut  to fast service
+	// Process incoming items, move them to relevant service queue or shortcut to fast service
 	RsItem *incoming = NULL;
 	while((incoming = GetItem()))
 	{
 		RecvItem(incoming);
 	}
 
-	// parse the outgoing queue and send items to SSL
+	// Parse outgoing queue and send items
 	{
 		RsStackMutex stack(mThreadMutex);
-		tick_send(0);
+		sentbytes = tick_send(0);
 	}
 
-	// sleep 
-	if (sleep_period)
+        // Adaptive timeout and sleep
+        // Check if any data was processed during previous cycle
+        if (readbytes > 0 || sentbytes > 0)
+        {
+                // Activity detected: switch to maximum reactivity immediately
+                // This ensure fast throughput for data bursts
+                recv_timeout = STREAMER_TIMEOUT_MIN;
+                sleep_period = STREAMER_SLEEP_MIN;
+        }
+        else
+        {
+                // No activity: gradually increase the timeout and sleep to save CPU cycles
+                if (recv_timeout < STREAMER_TIMEOUT_MAX)
+                        recv_timeout += STREAMER_TIMEOUT_DELTA;
+                if (sleep_period < STREAMER_SLEEP_MAX)
+                        sleep_period += STREAMER_SLEEP_DELTA;
+        }
+
+//	RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() recv_timeout " << std::dec << recv_timeout / 1000 << " sleep_period " <<  sleep_period / 1000 << " readbytes " << readbytes << "  sentbytes " << sentbytes;
+
+	if (sleep_period > 0)
 	{
 		rstime::rs_usleep(sleep_period);
 	}
 }
-

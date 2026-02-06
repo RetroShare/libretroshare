@@ -234,7 +234,7 @@ int pqissllistenbase::setuplisten()
 	}
 
 #ifdef WINDOWS_SYS
-	/* Set TCP buffer size for Windows systems */
+	// Set TCP buffer size for Windows systems
 
 	int sockbufsize = 0;
 	int size = sizeof(int);
