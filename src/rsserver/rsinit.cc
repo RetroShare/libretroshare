@@ -1525,7 +1525,7 @@ int RsServer::StartupRetroShare()
                     RS_SERVICE_GXS_TYPE_WIRE, wire_ds, nxsMgr, 
                     mWire, mWire->getServiceInfo(), 
                     mReputations, mGxsCircles,mGxsIdService,
-                    pgpAuxUtils, GxsNetTunnel,
+                    pgpAuxUtils, mGxsNetTunnel,
                     RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
                     RsGxsNetServiceSyncFlags::DISTANT_SYNC);
 
