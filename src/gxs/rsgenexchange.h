@@ -783,6 +783,16 @@ protected:
      * GXS_SERV::GXS_MSG_STATUS_UNPROCESSED and GXS_SERV::GXS_MSG_STATUS_UNREAD
      * @param changes the changes that have occured to data held by this service
      */
+    /*!
+     * processes msg local meta changes
+     */
+    void processMsgMetaChanges();
+
+    /*!
+     * Processes group local meta changes
+     */
+    void processGrpMetaChanges();
+
     virtual void notifyChanges(std::vector<RsGxsNotify*>& changes) = 0;
 
 private:
@@ -805,15 +815,7 @@ private:
 
 	bool checkGroupMetaConsistency(const RsGroupMetaData& meta);
 
-    /*!
-     * processes msg local meta changes
-     */
-    void processMsgMetaChanges();
-
-    /*!
-     * Processes group local meta changes
-     */
-    void processGrpMetaChanges();
+// Moved to protected
 
     /*!
      * Convenience function for properly applying masks for status and subscribe flag

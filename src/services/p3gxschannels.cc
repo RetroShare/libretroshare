@@ -1075,7 +1075,10 @@ void p3GxsChannels::load_unprocessedPosts(uint32_t token)
 #endif
 
 	std::vector<RsGxsChannelPost> posts;
-	if (!getPostData(token, posts))
+	std::vector<RsGxsComment> comments;
+	std::vector<RsGxsVote> votes;
+
+	if (!getPostData(token, posts, comments, votes))
 	{
 		std::cerr << __PRETTY_FUNCTION__ << " ERROR getting post data!"
 		          << std::endl;
@@ -1088,6 +1091,23 @@ void p3GxsChannels::load_unprocessedPosts(uint32_t token)
 		/* autodownload the files */
 		handleUnprocessedPost(*it);
 	}
+
+	for(const auto& comment: comments)
+	{
+		uint32_t token;
+		RsGxsGrpMsgIdPair msgId(comment.mMeta.mGroupId, comment.mMeta.mMsgId);
+		setMessageProcessedStatus(token, msgId, true);
+	}
+
+	for(const auto& vote: votes)
+	{
+		uint32_t token;
+		RsGxsGrpMsgIdPair msgId(vote.mMeta.mGroupId, vote.mMeta.mMsgId);
+		setMessageProcessedStatus(token, msgId, true);
+	}
+
+	/* Force processing of meta changes immediately to ensure persistence */
+	processMsgMetaChanges();
 }
 
 void p3GxsChannels::handleUnprocessedPost(const RsGxsChannelPost &msg)
@@ -1099,8 +1119,11 @@ void p3GxsChannels::handleUnprocessedPost(const RsGxsChannelPost &msg)
 
 	if (!IS_MSG_UNPROCESSED(msg.mMeta.mMsgStatus))
 	{
-		std::cerr << __PRETTY_FUNCTION__ << " ERROR Msg already Processed! "
-		          << "mMsgId: " << msg.mMeta.mMsgId << std::endl;
+		/* Even though the serialized item says processed, the DB metadata may still say UNPROCESSED
+		 * (they can be out of sync). Force marking as processed to fix the DB metadata. */
+		uint32_t token;
+		RsGxsGrpMsgIdPair msgId(msg.mMeta.mGroupId, msg.mMeta.mMsgId);
+		setMessageProcessedStatus(token, msgId, true);
 		return;
 	}
 
@@ -1153,11 +1176,6 @@ void p3GxsChannels::handleUnprocessedPost(const RsGxsChannelPost &msg)
 				          << std::endl;
         }
     }
-
-		/* mark as processed */
-		uint32_t token;
-		RsGxsGrpMsgIdPair msgId(msg.mMeta.mGroupId, msg.mMeta.mMsgId);
-		setMessageProcessedStatus(token, msgId, true);
 	}
 #ifdef GXSCHANNELS_DEBUG
 	else
@@ -1166,6 +1184,12 @@ void p3GxsChannels::handleUnprocessedPost(const RsGxsChannelPost &msg)
 		std::cerr << std::endl;
 	}
 #endif
+
+	/* Always mark as processed, regardless of autodownload setting.
+	 * This prevents the message from being loaded again at every startup. */
+	uint32_t token;
+	RsGxsGrpMsgIdPair msgId(msg.mMeta.mGroupId, msg.mMeta.mMsgId);
+	setMessageProcessedStatus(token, msgId, true);
 }
 
 
