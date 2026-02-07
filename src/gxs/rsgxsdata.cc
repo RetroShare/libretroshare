@@ -42,7 +42,7 @@ uint32_t RsGxsGrpMetaData::serial_size(uint32_t api_version) const
     s += 4;          // mCircleType
     s += 4;          // mAuthenFlag
     s += mAuthorId.serial_size();
-    s += GetTlvStringSize(mServiceString);
+    s += GetTlvStringSize("");
     s += mCircleId.serial_size();
     s += signSet.TlvSize();
     s += keys.TlvSize();
@@ -124,7 +124,7 @@ bool RsGxsGrpMetaData::serialise(void *data, uint32_t &pktsize,uint32_t api_vers
     ok &= setRawUInt32(data, tlvsize, &offset, mCircleType);
     ok &= setRawUInt32(data, tlvsize, &offset, mAuthenFlags);
     ok &= mAuthorId.serialise(data, tlvsize, offset);
-    ok &= SetTlvString(data, tlvsize, &offset, 0, mServiceString);
+    ok &= SetTlvString(data, tlvsize, &offset, 0, "");
     ok &= mCircleId.serialise(data, tlvsize, offset);
 
     ok &= signSet.SetTlv(data, tlvsize, &offset);
@@ -159,7 +159,8 @@ bool RsGxsGrpMetaData::deserialise(void *data, uint32_t &pktsize)
     
        
     ok &= mAuthorId.deserialise(data, pktsize, offset);
-    ok &= GetTlvString(data, pktsize, &offset, 0, mServiceString);
+	std::string temp;
+    ok &= GetTlvString(data, pktsize, &offset, 0, temp);
     ok &= mCircleId.deserialise(data, pktsize, offset);
     ok &= signSet.GetTlv(data, pktsize, &offset);
     ok &= keys.GetTlv(data, pktsize, &offset);
@@ -356,5 +357,6 @@ void RsGxsMsgMetaData::operator =(const RsMsgMetaData& rMeta)
     this->mThreadId = rMeta.mThreadId;
     this->mServiceString = rMeta.mServiceString;
 }
+
 
 
