@@ -54,6 +54,7 @@ RsItem *RsChatSerialiser::create_item(uint16_t service_id,uint8_t item_sub_id) c
 	case RS_PKT_SUBTYPE_CHAT_LOBBY_CONFIG: return new RsChatLobbyConfigItem();
 	case RS_PKT_SUBTYPE_SUBSCRIBED_CHAT_LOBBY_CONFIG: return new RsSubscribedChatLobbyConfigItem();
 	case RS_PKT_SUBTYPE_CHAT_AVATAR_INFO: return new RsChatAvatarInfoItem();
+    case RS_PKT_SUBTYPE_CHAT_AVATAR_CONFIG: return new RsChatAvatarConfigItem();
 	case RS_PKT_SUBTYPE_OUTGOING_MAP: return new PrivateOugoingMapItem();
 	default:
 		std::cerr << "Unknown packet type in chat!" << std::endl;
@@ -179,6 +180,16 @@ void RsChatLobbyConfigItem::serial_process(RsGenericSerializer::SerializeJob j,R
 {
     RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_Id,"lobby_Id") ;
     RsTypeSerializer::serial_process(j,ctx,flags,"flags") ;
+}
+
+void RsChatAvatarConfigItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+	RsTypeSerializer::serial_process(j,ctx,peerId,"peerId");
+	RsTypeSerializer::serial_process(j,ctx,timestamp,"timestamp");
+	{
+		RsTypeSerializer::TlvMemBlock_proxy b(image_data,image_size) ;
+		RsTypeSerializer::serial_process(j,ctx,b,"image data") ;
+	}
 }
 
 /* set data from RsChatMsgItem to RsPrivateChatMsgConfigItem */

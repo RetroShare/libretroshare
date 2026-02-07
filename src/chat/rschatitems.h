@@ -85,6 +85,7 @@ const uint8_t RS_PKT_SUBTYPE_OUTGOING_MAP                 = 0x1C ;
 
 const uint8_t RS_PKT_SUBTYPE_SUBSCRIBED_CHAT_LOBBY_CONFIG = 0x1D ;
 const uint8_t RS_PKT_SUBTYPE_CHAT_AVATAR_INFO             = 0x1E ;
+const uint8_t RS_PKT_SUBTYPE_CHAT_AVATAR_CONFIG           = 0x1F ;
 
 typedef uint64_t 		ChatLobbyId ;
 typedef uint64_t 		ChatLobbyMsgId ;
@@ -372,6 +373,28 @@ public:
     void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
 
     uint32_t timestamp;
+};
+
+class RsChatAvatarConfigItem: public RsChatItem
+{
+public:
+	RsChatAvatarConfigItem():
+	    RsChatItem(RS_PKT_SUBTYPE_CHAT_AVATAR_CONFIG),
+	    timestamp(0), image_size(0), image_data(nullptr)
+	{ setPriorityLevel(QOS_PRIORITY_RS_CHAT_AVATAR_ITEM); }
+
+	~RsChatAvatarConfigItem() override { free(image_data); }
+
+	void serial_process(
+	        RsGenericSerializer::SerializeJob j,
+	        RsGenericSerializer::SerializeContext& ctx) override;
+
+    virtual void clear() override { free(image_data); image_data = nullptr; image_size = 0; timestamp = 0; peerId.clear(); }
+
+    RsPeerId peerId;
+    uint32_t timestamp;
+	uint32_t image_size; /// size of data in bytes
+	unsigned char* image_data ; /// image data
 };
 
 

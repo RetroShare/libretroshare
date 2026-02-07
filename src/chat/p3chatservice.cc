@@ -1781,7 +1781,35 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
             }
         }
 
-        /* B. Handle Key-Value Set (Peer Avatars - name/kvs convention) */
+        /* B. Handle RsChatAvatarConfigItem */
+        RsChatAvatarConfigItem *aci = dynamic_cast<RsChatAvatarConfigItem *>(item);
+        if(aci)
+        {
+            RS_STACK_MUTEX(mChatMtx);
+            RsPeerId pid = aci->peerId;
+
+            if (pid.isNull() || pid == mServiceCtrl->getOwnId()) 
+            {
+#ifdef AVATAR_DEBUG
+                RsDbg() << "AVATAR p3ChatService::loadList: Loading OWN avatar from ConfigItem, timestamp=" << aci->timestamp << ".";
+#endif
+                if (_own_avatar) delete _own_avatar;
+                _own_avatar = new AvatarInfo(aci->image_data, aci->image_size);
+                _own_avatar->_timestamp = (time_t)aci->timestamp;
+            }
+            else
+            {
+#ifdef AVATAR_DEBUG
+                RsDbg() << "AVATAR p3ChatService::loadList: Loading PEER avatar from ConfigItem for " << pid << ", timestamp=" << aci->timestamp << ".";
+#endif
+                if (_avatars.count(pid)) delete _avatars[pid];
+                _avatars[pid] = new AvatarInfo(aci->image_data, aci->image_size);
+                _avatars[pid]->_timestamp = (time_t)aci->timestamp;
+            }
+            item_handled = true;
+        }
+
+        /* C. Handle Key-Value Set (Peer Avatars - name/kvs convention) - BACKWARD COMPATIBILITY */
         RsConfigKeyValueSet *kv = dynamic_cast<RsConfigKeyValueSet *>(item);
 
         if(kv)
@@ -1878,57 +1906,25 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
         list.push_back(okv);
     }
 
-    /* 2. Save PEER avatars: Key-Value Set (name/kvs convention) */
+    /* 2. Save PEER avatars: Use RsChatAvatarConfigItem */
     if (!_avatars.empty())
     {
 #ifdef AVATAR_DEBUG
         RsDbg() << "AVATAR p3ChatService::saveList: Total avatars in memory map: " << _avatars.size();
 #endif
-        RsConfigKeyValueSet *kv = NULL;
-        int count_in_chunk = 0;
-        const int MAX_AVATARS_PER_CHUNK = 10;
-
         for(std::map<RsPeerId, AvatarInfo*>::iterator it = _avatars.begin(); it != _avatars.end(); ++it)
         {
             if (it->second != NULL && it->second->_image_size > 0 && !it->first.isNull() && it->first != ownId)
             {
-                if (kv == NULL) {
-                    kv = new RsConfigKeyValueSet();
-                    count_in_chunk = 0;
-                }
-
 #ifdef AVATAR_DEBUG
                 RsDbg() << "AVATAR p3ChatService::saveList: Saving avatar for " << it->first << ", image_size=" << it->second->_image_size << ", timestamp=" << it->second->_timestamp << ".";
 #endif
-                RsTlvKeyValue pair;
-                pair.key = it->first.toStdString();
-                pair.value = it->second->toRadix64();
-#ifdef AVATAR_DEBUG
-                RsDbg() << "AVATAR p3ChatService::saveList: Encoded value size=" << pair.value.size() << ", first 32 chars: " << pair.value.substr(0, std::min((size_t)32, pair.value.size()));
-#endif
-                kv->tlvkvs.pairs.push_back(pair);
-                count_in_chunk++;
-
-                if (count_in_chunk >= MAX_AVATARS_PER_CHUNK) {
-                    list.push_back(kv);
-                    kv = NULL;
-                }
+                RsChatAvatarConfigItem *item = new RsChatAvatarConfigItem();
+                item->peerId = it->first;
+                item->timestamp = (uint32_t)it->second->_timestamp;
+                it->second->toUnsignedChar(item->image_data, item->image_size);
+                list.push_back(item);
             }
-#ifdef AVATAR_DEBUG
-            else if (it->first != ownId) {
-                 RsDbg() << "AVATAR p3ChatService::saveList: SKIPPING avatar for " << it->first 
-                         << " (Size=" << (it->second ? it->second->_image_size : -1) 
-                         << ", ValidPtr=" << (it->second != NULL) 
-                         << ", ValidId=" << !it->first.isNull() << ")";
-            }
-#endif
-        }
-        
-        if(kv != NULL) {
-            if(!kv->tlvkvs.pairs.empty())
-                list.push_back(kv);
-            else
-                delete kv;
         }
     }
 
