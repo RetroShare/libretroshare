@@ -1890,20 +1890,14 @@ bool p3ChatService::saveList(bool& cleanup, std::list<RsItem*>& list)
     RS_STACK_MUTEX(mChatMtx); 
     RsPeerId ownId = mServiceCtrl->getOwnId();
 
-    /* 1. Save OWN avatar: Binary item with ID 0 */
+    /* 1. Save OWN avatar: Use RsChatAvatarConfigItem */
     if(_own_avatar != NULL && _own_avatar->_image_size > 0)
     {
-        RsChatAvatarItem *ai = locked_makeOwnAvatarItem();
-        ai->PeerId(RsPeerId()); 
+        RsChatAvatarConfigItem *ai = new RsChatAvatarConfigItem();
+        ai->peerId = RsPeerId(); // Use NULL ID for own avatar (convention)
+        ai->timestamp = (uint32_t)_own_avatar->_timestamp;
+        _own_avatar->toUnsignedChar(ai->image_data, ai->image_size);
         list.push_back(ai);
-
-        /* Save own TS in a KV set */
-        RsConfigKeyValueSet *okv = new RsConfigKeyValueSet();
-        RsTlvKeyValue pair;
-        pair.key = "OWN_AVATAR_TS";
-        pair.value = std::to_string((uint64_t)_own_avatar->_timestamp);
-        okv->tlvkvs.pairs.push_back(pair);
-        list.push_back(okv);
     }
 
     /* 2. Save PEER avatars: Use RsChatAvatarConfigItem */
