@@ -27,7 +27,6 @@
 #include <algorithm>
 
 #include "util/rsdir.h"
-#include "util/radix64.h"
 #include "crypto/rsaes.h"
 #include "util/rsrandom.h"
 #include "util/rsstring.h"
@@ -1717,19 +1716,8 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
         bool item_handled = false;
         RsItem *item = *it;
 
-        /* A. Handle Binary Items (Own Avatar ID 0) */
-        RsChatAvatarItem *ai = dynamic_cast<RsChatAvatarItem *>(item);
-        if(ai)
-        {
-            RS_STACK_MUTEX(mChatMtx); 
-            RsPeerId pid = ai->PeerId();
-            if(pid.isNull() || pid == mServiceCtrl->getOwnId()) {
-                if(_own_avatar == NULL) _own_avatar = new AvatarInfo(ai->image_data, ai->image_size);
-                item_handled = true;
-            }
-        }
 
-        /* B. Handle RsChatAvatarConfigItem */
+        /* A. Handle RsChatAvatarConfigItem */
         RsChatAvatarConfigItem *aci = dynamic_cast<RsChatAvatarConfigItem *>(item);
         if(aci)
         {
@@ -1757,72 +1745,8 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
             item_handled = true;
         }
 
-        /* C. Handle Key-Value Set (Peer Avatars - name/kvs convention) - BACKWARD COMPATIBILITY */
-        RsConfigKeyValueSet *kv = dynamic_cast<RsConfigKeyValueSet *>(item);
 
-        if(kv)
-        {
-            /* Check if the KV set contains peer IDs. Since RsConfigKeyValueSet has no name,
-             * we iterate and check keys. */
-            bool found_avatar = false;
-            RS_STACK_MUTEX(mChatMtx);
-#ifdef AVATAR_DEBUG
-            RsDbg() << "AVATAR p3ChatService::loadList: Checking KvSet with " << kv->tlvkvs.pairs.size() << " pairs.";
-            if(!kv->tlvkvs.pairs.empty()) {
-                RsDbg() << "AVATAR p3ChatService::loadList: First key is: " << kv->tlvkvs.pairs.front().key;
-            }
-#endif
-            for(std::list<RsTlvKeyValue>::const_iterator mit = kv->tlvkvs.pairs.begin(); mit != kv->tlvkvs.pairs.end(); ++mit)
-            {
-                // If the key is a valid PeerId, we treat it as an avatar entry
-                // Only attempt conversion if key format is valid (32 hex chars) to avoid noisy errors
-                if (mit->key.length() == 32 && std::all_of(mit->key.begin(), mit->key.end(), ::isxdigit))
-                {
-                    RsPeerId pid(mit->key);
-                    if (!pid.isNull()) {
-#ifdef AVATAR_DEBUG
-			RsDbg() << "AVATAR p3ChatService::loadList: Loading avatar for " << pid << ", encoded_size=" << mit->value.size() << ".";
-#endif
-			    if (_avatars.count(pid)) delete _avatars[pid];
-                
-                /* Backward compatibility: decode KVS string (TS prefix + Radix64) */
-                const std::string& encoded_data = mit->value;
-                if (encoded_data.length() > 16)
-                {
-                    std::string ts_hex = encoded_data.substr(0, 16);
-                    std::string r64_data = encoded_data.substr(16);
-                    time_t ts = 0;
-                    try { ts = (time_t)std::stoull(ts_hex, nullptr, 16); } catch (...) {}
-
-                    std::vector<unsigned char> tmp = Radix64::decode(r64_data);
-                    _avatars[pid] = new AvatarInfo(tmp.data(), (int)tmp.size());
-                    _avatars[pid]->_timestamp = ts;
-                }
-                else
-                {
-                    std::vector<unsigned char> tmp = Radix64::decode(encoded_data);
-                    _avatars[pid] = new AvatarInfo(tmp.data(), (int)tmp.size());
-                }
-#ifdef AVATAR_DEBUG
-			RsDbg() << "AVATAR p3ChatService::loadList: Loaded avatar for " << pid << ", image_size=" << _avatars[pid]->_image_size << ", timestamp=" << _avatars[pid]->_timestamp << ".";
-#endif
-                        found_avatar = true;
-                    }
-                }
-                else if (mit->key == "OWN_AVATAR_TS")
-                {
-                    if (_own_avatar) {
-                        try {
-                            _own_avatar->_timestamp = (time_t)std::stoull(mit->value, nullptr, 10);
-                        } catch(...) {}
-                    }
-                    found_avatar = true;
-                }
-            }
-            if(found_avatar) item_handled = true;
-        }
-
-        /* C. Handle Status & Messages */
+        /* B. Handle Status & Messages */
         if (!item_handled)
         {
             RsChatStatusItem *mitem = dynamic_cast<RsChatStatusItem *>(item);
@@ -1840,7 +1764,7 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
             }
         }
 
-        /* D. RELAY to parents */
+        /* C. RELAY to parents */
         if (!item_handled && DistributedChatService::processLoadListItem(item)) item_handled = true;
         if (!item_handled && DistantChatService::processLoadListItem(item)) item_handled = true;
 
