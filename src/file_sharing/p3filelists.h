@@ -62,6 +62,7 @@
 #include "ft/ftsearch.h"
 #include "ft/ftextralist.h"
 #include "retroshare/rsfiles.h"
+#include "file_sharing/rsfilelistitems.h"
 #include "services/p3service.h"
 #include "util/rstime.h"
 #include "file_sharing/hash_cache.h"
@@ -177,6 +178,12 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
         virtual uint64_t getCumulativeUploadNum() const;
         virtual void addUploadStats(const RsFileHash& hash, uint64_t size);
         void clearUploadStats();
+        void cleanupUploadStats(int days);
+
+        void setUploadStatsRetentionDays(int days);
+        int getUploadStatsRetentionDays() const;
+
+
 
         // interface for hash caching
 
@@ -301,7 +308,11 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
         bool mBannedFileListNeedsUpdate;
         rstime_t mLastPrimaryBanListChangeTimeStamp;
 
-        std::map<RsFileHash, uint64_t> mCumulativeUploaded;
+        /**
+         * @brief Map of uploaded files statistics (bytes + timestamp)
+         */
+        std::map<RsFileHash, TimeBasedUploadStat> mCumulativeUploaded;
+        int mUploadStatsRetentionDays;
 
         void locked_sendBanInfo(const RsPeerId& pid);
         void handleBannedFilesInfo(RsFileListsBannedHashesItem *item);

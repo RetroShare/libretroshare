@@ -41,6 +41,7 @@ const uint8_t RS_PKT_SUBTYPE_FILELISTS_CONFIG_ITEM               = 0x03;
 const uint8_t RS_PKT_SUBTYPE_FILELISTS_BANNED_HASHES_ITEM        = 0x04;
 const uint8_t RS_PKT_SUBTYPE_FILELISTS_BANNED_HASHES_CONFIG_ITEM = 0x05;
 const uint8_t RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM         = 0x06;
+const uint8_t RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM_V2       = 0x07;
 
 /*!
  * Base class for filelist sync items
@@ -137,6 +138,25 @@ public:
 	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 
     std::map<RsFileHash, uint64_t> hash_stats;
+};
+
+struct TimeBasedUploadStat
+{
+    uint64_t last_upload_ts;
+    uint64_t total_bytes;
+
+    bool operator==(const TimeBasedUploadStat& r) const { return last_upload_ts == r.last_upload_ts && total_bytes == r.total_bytes; }
+};
+
+class RsFileListsUploadStatsItemV2: public RsFileListsItem
+{
+public:
+	RsFileListsUploadStatsItemV2() : RsFileListsItem(RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM_V2){}
+
+    virtual void clear() { hash_stats.clear(); }
+	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+
+    std::map<RsFileHash, TimeBasedUploadStat> hash_stats;
 };
 
 class RsFileListsSerialiser : public RsServiceSerializer

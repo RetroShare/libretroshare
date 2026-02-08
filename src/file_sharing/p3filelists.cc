@@ -80,6 +80,7 @@ p3FileDatabase::p3FileDatabase(p3ServiceControl *mpeers)
     mLastDataRecvTS = 0 ;
     mTrustFriendNodesForBannedFiles = TRUST_FRIEND_NODES_FOR_BANNED_FILES_DEFAULT;
 	mLastPrimaryBanListChangeTimeStamp = 0;
+    mUploadStatsRetentionDays = 0;
 
     // This is for the transmission of data
 
@@ -197,6 +198,7 @@ int p3FileDatabase::tick()
     if(mLastCleanupTime + 5 < now)
     {
         cleanup();
+        cleanupUploadStats(mUploadStatsRetentionDays);
         mLastCleanupTime = now ;
     }
 
@@ -379,12 +381,12 @@ cleanup = true;
 
     {
         RS_STACK_MUTEX(mFLSMtx) ;
-        RsFileListsUploadStatsItem *item = nullptr;
+        RsFileListsUploadStatsItemV2 *item = nullptr;
 
         for(auto it(mCumulativeUploaded.begin());it!=mCumulativeUploaded.end();++it)
         {
             if(item == nullptr)
-                item = new RsFileListsUploadStatsItem ;
+                item = new RsFileListsUploadStatsItemV2 ;
 
             item->hash_stats.insert(*it);
 
@@ -497,6 +499,15 @@ cleanup = true;
 
         kv.key = IGNORE_LIST_FLAGS_SS; kv.value = s; rskv->tlvkvs.pairs.push_back(kv);
 	}
+    {
+        std::string s;
+        rs_sprintf(s, "%d", mUploadStatsRetentionDays);
+
+        RsTlvKeyValue kv;
+        kv.key = UPLOAD_STATS_RETENTION_DAYS_SS;
+        kv.value = s;
+        rskv->tlvkvs.pairs.push_back(kv);
+    }
 
     /* Add KeyValue to saveList */
     sList.push_back(rskv);
@@ -618,6 +629,12 @@ bool p3FileDatabase::loadList(std::list<RsItem *>& load)
                 if(sscanf(kit->value.c_str(),"%d",&t) == 1)
                     max_share_depth = (uint32_t)t ;
 			}
+            else if(kit->key == UPLOAD_STATS_RETENTION_DAYS_SS)
+            {
+                int t=0;
+                if(sscanf(kit->value.c_str(),"%d",&t) == 1)
+                    mUploadStatsRetentionDays = t;
+            }
 
             delete *it ;
             continue ;
@@ -654,7 +671,23 @@ bool p3FileDatabase::loadList(std::list<RsItem *>& load)
 
         if(fu)
         {
-            mCumulativeUploaded.insert(fu->hash_stats.begin(), fu->hash_stats.end()) ;
+            // Migration V1 -> V2: Set timestamp to now
+            uint64_t now = time(NULL);
+            RsDbg() << "UPLOADSTATS Migrating V1 stats (count: " << fu->hash_stats.size() << ") to V2";
+            for(auto const& [hash, bytes] : fu->hash_stats)
+            {
+                TimeBasedUploadStat& stat = mCumulativeUploaded[hash];
+                stat.total_bytes = bytes;
+                stat.last_upload_ts = now;
+            }
+        }
+
+        RsFileListsUploadStatsItemV2 *fu2 = dynamic_cast<RsFileListsUploadStatsItemV2*>(*it) ;
+
+        if(fu2)
+        {
+            RsDbg() << "UPLOADSTATS Loading V2 stats (count: " << fu2->hash_stats.size() << ")";
+            mCumulativeUploaded.insert(fu2->hash_stats.begin(), fu2->hash_stats.end()) ;
         }
 
         delete *it ;
@@ -1056,7 +1089,7 @@ uint64_t p3FileDatabase::getCumulativeUpload(const RsFileHash& hash) const
 	RS_STACK_MUTEX(mFLSMtx);
 	auto it = mCumulativeUploaded.find(hash);
 	if (it != mCumulativeUploaded.end())
-		return it->second;
+		return it->second.total_bytes;
 	return 0;
 }
 
@@ -1065,7 +1098,7 @@ uint64_t p3FileDatabase::getCumulativeUploadAll() const
 	RS_STACK_MUTEX(mFLSMtx);
 	uint64_t total = 0;
 	for (auto it = mCumulativeUploaded.begin(); it != mCumulativeUploaded.end(); ++it)
-		total += it->second;
+		total += it->second.total_bytes;
 	return total;
 }
 
@@ -1078,15 +1111,71 @@ uint64_t p3FileDatabase::getCumulativeUploadNum() const
 void p3FileDatabase::addUploadStats(const RsFileHash& hash, uint64_t size)
 {
 	RS_STACK_MUTEX(mFLSMtx);
-	mCumulativeUploaded[hash] += size;
+    TimeBasedUploadStat& stat = mCumulativeUploaded[hash];
+    stat.total_bytes += size;
+    stat.last_upload_ts = time(NULL);
+
+    // RsDbg() << "UPLOADSTATS add stats: " << hash << " + " << size << " bytes. Total: " << stat.total_bytes << " ts: " << stat.last_upload_ts;
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
 }
 
 void p3FileDatabase::clearUploadStats()
 {
+	RS_STACK_MUTEX(mFLSMtx);
+    RsDbg() << "UPLOADSTATS clearing all stats";
 	mCumulativeUploaded.clear();
 }
 
+void p3FileDatabase::cleanupUploadStats(int days)
+{
+    if (days <= 0) return;
+
+    RS_STACK_MUTEX(mFLSMtx);
+    time_t cutoff = time(NULL) - (days * 24 * 3600);
+    uint32_t removed_count = 0;
+
+    // RsDbg() << "UPLOADSTATS cleanup stats older than " << days << " days (cutoff: " << cutoff << ")";
+    
+    for (auto it = mCumulativeUploaded.begin(); it != mCumulativeUploaded.end(); )
+    {
+        if (it->second.last_upload_ts < (uint64_t)cutoff)
+        {
+            RsDbg() << "UPLOADSTATS removing expired stat: " << it->first << " (ts: " << it->second.last_upload_ts << ")";
+            it = mCumulativeUploaded.erase(it);
+            removed_count++;
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (removed_count > 0)
+    {
+        RsDbg() << "UPLOAD cleanup removed " << removed_count << " entries.";
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
+    }
+}
+
+void p3FileDatabase::setUploadStatsRetentionDays(int days)
+{
+    if (mUploadStatsRetentionDays != days)
+    {
+        mUploadStatsRetentionDays = days;
+        RsDbg() << "UPLOADSTATS setting retention days to: " << days;
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
+        
+        // Trigger cleanup immediately if days > 0
+        if (days > 0)
+        {
+            cleanupUploadStats(days);
+        }
+    }
+}
+
+int p3FileDatabase::getUploadStatsRetentionDays() const
+{
+    return mUploadStatsRetentionDays;
+}
 bool p3FileDatabase::removeExtraFile(const RsFileHash& hash)
 {
 	bool ret = false;

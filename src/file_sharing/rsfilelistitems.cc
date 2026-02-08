@@ -21,9 +21,15 @@
  ******************************************************************************/
 #include "serialiser/rsbaseserial.h"
 
-#include "serialiser/rstypeserializer.h"
+#include <serialiser/rstypeserializer.h>
 
 #include "file_sharing/rsfilelistitems.h"
+
+template<> void RsTypeSerializer::serial_process<TimeBasedUploadStat>(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx, TimeBasedUploadStat& v, const std::string& /*name*/)
+{
+    serial_process(j, ctx, v.last_upload_ts, "last_upload_ts");
+    serial_process(j, ctx, v.total_bytes, "total_bytes");
+}
 
 void RsFileListsSyncRequestItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
@@ -55,6 +61,11 @@ void RsFileListsUploadStatsItem::serial_process(RsGenericSerializer::SerializeJo
     RsTypeSerializer::serial_process(j,ctx,hash_stats,"hash_stats") ;
 }
 
+void RsFileListsUploadStatsItemV2::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+    RsTypeSerializer::serial_process(j,ctx,hash_stats,"hash_stats") ;
+}
+
 RsItem *RsFileListsSerialiser::create_item(uint16_t service,uint8_t type) const
 {
     if(service != RS_SERVICE_TYPE_FILE_DATABASE)
@@ -67,6 +78,7 @@ RsItem *RsFileListsSerialiser::create_item(uint16_t service,uint8_t type) const
     case RS_PKT_SUBTYPE_FILELISTS_BANNED_HASHES_ITEM:        return new RsFileListsBannedHashesItem();
     case RS_PKT_SUBTYPE_FILELISTS_BANNED_HASHES_CONFIG_ITEM: return new RsFileListsBannedHashesConfigItem();
     case RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM:         return new RsFileListsUploadStatsItem();
+    case RS_PKT_SUBTYPE_FILELISTS_UPLOAD_STATS_ITEM_V2:      return new RsFileListsUploadStatsItemV2();
     default:
         return NULL ;
     }

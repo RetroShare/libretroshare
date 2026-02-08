@@ -2363,3 +2363,16 @@ void ftServer::clearUploadStats()
 {
 	return mFileDatabase->clearUploadStats();
 }
+
+void ftServer::setUploadStatsRetentionDays(int days)
+{
+    if (mFileDatabase)
+        mFileDatabase->setUploadStatsRetentionDays(days);
+}
+
+int ftServer::getUploadStatsRetentionDays()
+{
+    if (mFileDatabase)
+        return mFileDatabase->getUploadStatsRetentionDays();
+    return 0;
+}

@@ -207,6 +207,9 @@ public:
     virtual void setFilePermDirectDL(uint32_t perm)  override;
     virtual uint32_t filePermDirectDL()  override;
 
+    virtual void setUploadStatsRetentionDays(int days) override;
+    virtual int getUploadStatsRetentionDays() override;
+
 	/// @see RsFiles
 	std::error_condition requestFiles(
 	        const RsFileTree& collection,
