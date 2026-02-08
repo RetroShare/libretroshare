@@ -366,58 +366,6 @@ public:
 
     ~AvatarInfo() { if (_image_data) free(_image_data); }
 
-    /* Fix: Constructor for combined TS + Radix64 loading */
-    AvatarInfo(const std::string& encoded_data) : _image_size(0), _image_data(NULL)
-    {
-        if (encoded_data.length() > 16)
-        {
-            std::string ts_hex = encoded_data.substr(0, 16);
-            std::string r64_data = encoded_data.substr(16);
-
-            try {
-                _timestamp = std::stoull(ts_hex, nullptr, 16);
-            } catch (...) {
-                _timestamp = 0;
-            }
-
-            std::vector<unsigned char> tmp = Radix64::decode(r64_data);
-            if (!tmp.empty()) {
-                init(tmp.data(), (int)tmp.size());
-            }
-        }
-        else if (!encoded_data.empty())
-        {
-            /* Backward compatibility: if no TS prefix, just decode as Radix64 */
-            std::vector<unsigned char> tmp = Radix64::decode(encoded_data);
-            if (!tmp.empty()) {
-                init(tmp.data(), (int)tmp.size());
-            }
-            /* Assign current time as timestamp for old avatars to prevent re-download */
-            _timestamp = time(NULL);
-        }
-        else
-        {
-            _timestamp = 0;
-        }
-        _peer_is_new = false;
-        _own_is_new = false;
-        _last_request_time = 0;
-    }
-
-    /* Fix: Returns TS (16 hex chars) + Radix64 image data */
-    std::string toRadix64() const
-    {
-        std::stringstream ss;
-        ss << std::setfill('0') << std::setw(16) << std::hex << (uint64_t)_timestamp;
-        
-        std::string out;
-        if (_image_data && _image_size > 0) {
-            Radix64::encode(_image_data, (size_t)_image_size, out);
-        }
-        ss << out;
-        return ss.str();
-    }
-
     void init(const unsigned char *jpeg_data, int size)
     {
         if (_image_data) { free(_image_data); _image_data = NULL; _image_size = 0; }
@@ -1835,8 +1783,26 @@ bool p3ChatService::loadList(std::list<RsItem*>& load)
 #ifdef AVATAR_DEBUG
 			RsDbg() << "AVATAR p3ChatService::loadList: Loading avatar for " << pid << ", encoded_size=" << mit->value.size() << ".";
 #endif
-    			if (_avatars.count(pid)) delete _avatars[pid];
-			    _avatars[pid] = new AvatarInfo(mit->value);
+			    if (_avatars.count(pid)) delete _avatars[pid];
+                
+                /* Backward compatibility: decode KVS string (TS prefix + Radix64) */
+                const std::string& encoded_data = mit->value;
+                if (encoded_data.length() > 16)
+                {
+                    std::string ts_hex = encoded_data.substr(0, 16);
+                    std::string r64_data = encoded_data.substr(16);
+                    time_t ts = 0;
+                    try { ts = (time_t)std::stoull(ts_hex, nullptr, 16); } catch (...) {}
+
+                    std::vector<unsigned char> tmp = Radix64::decode(r64_data);
+                    _avatars[pid] = new AvatarInfo(tmp.data(), (int)tmp.size());
+                    _avatars[pid]->_timestamp = ts;
+                }
+                else
+                {
+                    std::vector<unsigned char> tmp = Radix64::decode(encoded_data);
+                    _avatars[pid] = new AvatarInfo(tmp.data(), (int)tmp.size());
+                }
 #ifdef AVATAR_DEBUG
 			RsDbg() << "AVATAR p3ChatService::loadList: Loaded avatar for " << pid << ", image_size=" << _avatars[pid]->_image_size << ", timestamp=" << _avatars[pid]->_timestamp << ".";
 #endif
