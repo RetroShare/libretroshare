@@ -256,6 +256,9 @@ private:
 	/// Send avatar info to peer in jpeg format.
 	void sendAvatarJpegData(const RsPeerId& peer_id) ;
 
+	/// Send avatar info (timestamp) to peer.
+	void sendAvatarInfo(const RsPeerId& peer_id);
+
 	/// Send custom state info to peer
 	void sendCustomState(const RsPeerId& peer_id);
 
@@ -268,6 +271,7 @@ private:
     
 	void handleRecvChatStatusItem(RsChatStatusItem *item) ;
 	void handleRecvChatAvatarItem(RsChatAvatarItem *item) ;
+	void handleRecvChatAvatarInfoItem(RsChatAvatarInfoItem *item);
 
 	/// Sends a request for an avatar to the peer of given id
 	void sendAvatarRequest(const RsPeerId& peer_id) ;
@@ -283,8 +287,9 @@ private:
         /// if so, the chat item will be turned to NULL
 	bool locked_checkAndRebuildPartialMessage(RsChatMsgItem *&) ;
 
-	RsChatAvatarItem *makeOwnAvatarItem() ;
-	RsChatStatusItem *makeOwnCustomStateStringItem() ;
+	RsChatAvatarItem *locked_makeOwnAvatarItem() ;
+	RsChatAvatarInfoItem *locked_makeOwnAvatarInfoItem() ;
+	RsChatStatusItem *locked_makeOwnCustomStateStringItem() ;
 
 	p3ServiceControl *mServiceCtrl;
 	p3LinkMgr *mLinkMgr;
