@@ -1890,7 +1890,14 @@ bool RsGxsDataAccess::checkMsgFilter(const RsTokReqOptions& opts, const std::sha
 		if ( (opts.mStatusMask & opts.mStatusFilter) ==
 		     (opts.mStatusMask & meta->mMsgStatus) )
 		{
-			return true;
+#ifdef DATA_DEBUG
+            GXSDATADEBUG << __PRETTY_FUNCTION__
+			          << " Continue checking Msg as StatusMatches: "
+			          << " Mask: " << opts.mStatusMask
+			          << " StatusFilter: " << opts.mStatusFilter
+			          << " MsgStatus: " << meta->mMsgStatus
+			          << " MsgId: " << meta->mMsgId << std::endl;
+#endif
 		}
 		else
 		{
