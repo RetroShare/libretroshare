@@ -663,10 +663,15 @@ void p3IdService::notifyChanges(std::vector<RsGxsNotify *> &changes)
                         mRejectedIdentities.insert(RsGxsId(groupChange->mGroupId));
                         break;
 
-                    case RsGxsNotify::TYPE_GROUP_DELETED:
                     case RsGxsNotify::TYPE_UPDATED:
                     case RsGxsNotify::TYPE_PUBLISHED:
                     {
+                        // Invalidate cache to force reload of new data (e.g. avatar)
+                        {
+                            RsStackMutex stack(mIdMtx);
+                            mKeyCache.erase(RsGxsId(gid));
+                        }
+
                         auto ev = std::make_shared<RsGxsIdentityEvent>();
                         ev->mIdentityId = gid;
 
@@ -1126,10 +1131,10 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
     else
         group.mMeta.mGroupFlags |= GXS_SERV::FLAG_PRIVACY_PUBLIC;
 
+
+
 	uint32_t token;
     bool ret = true;
-
-    // Cache pgp passphrase to allow a proper re-signing of the group data
 
     if(!pseudonimous && !pgpPassword.empty())
     {
@@ -1140,7 +1145,6 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
             goto LabelUpdateIdentityCleanup;
         }
     }
-    mKeyCache.erase(id);
 
     if(!updateGroup(token, group))
 	{
@@ -2107,25 +2111,6 @@ bool p3IdService::updateGroup(uint32_t& token, RsGxsIdGroup &group)
 #endif
 
     RsGenExchange::updateGroup(token, item);
-
-    // if its in the cache - clear it.
-    {
-        RsStackMutex stack(mIdMtx); /********** STACK LOCKED MTX ******/
-        if (mKeyCache.erase(id))
-        {
-#ifdef DEBUG_IDS
-            std::cerr << "p3IdService::updateGroup() Removed from PublicKeyCache";
-            std::cerr << std::endl;
-#endif
-        }
-        else
-        {
-#ifdef DEBUG_IDS
-            std::cerr << "p3IdService::updateGroup() Not in PublicKeyCache";
-            std::cerr << std::endl;
-#endif
-        }
-    }
 
     return true;
 }

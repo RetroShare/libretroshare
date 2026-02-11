@@ -2801,6 +2801,10 @@ void RsGenExchange::publishGrps()
 
 			    if(ret == SERVICE_CREATE_SUCCESS)
 			    {
+                    // MODIFICATION: Update timestamp BEFORE serialization so the payload matches the meta.
+                    // This fixes propagation issues where peers rejected the update due to stale timestamp in bin data.
+                    grpItem->meta.mPublishTs = time(NULL);
+
 				    uint32_t size = mSerialiser->size(grpItem);
 				    char *gData = new char[size];
 				    serialOk = mSerialiser->serialise(grpItem, gData, &size);
@@ -2816,7 +2820,7 @@ void RsGenExchange::publishGrps()
 			    if(serialOk && servCreateOk)
 			    {
 				    grp->metaData = new RsGxsGrpMetaData();
-				    grpItem->meta.mPublishTs = time(NULL);
+				    // grpItem->meta.mPublishTs = time(NULL); // Moved up
 				    *(grp->metaData) = grpItem->meta;
 
 				    // TODO: change when publish key optimisation added (public groups don't have publish key
