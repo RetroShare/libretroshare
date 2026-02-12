@@ -486,6 +486,65 @@ bool p3Wiki::getSnapshotsContent(const RsGxsGroupId& grpId,
 	return true;
 }
 
+bool p3Wiki::getSnapshot(const RsGxsGrpMsgIdPair& msgId, RsWikiSnapshot& snapshot)
+{
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+	
+	GxsMsgReq msgReq;
+	msgReq[msgId.first].insert(msgId.second);
+	
+	if (!requestMsgInfo(token, opts, msgReq) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+	
+	std::vector<RsWikiSnapshot> snapshots;
+	if (!getSnapshots(token, snapshots) || snapshots.empty())
+		return false;
+	
+	snapshot = snapshots.front();
+	return true;
+}
+
+bool p3Wiki::getSnapshots(const RsGxsGroupId& groupId, std::vector<RsWikiSnapshot>& snapshots)
+{
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
+	opts.mOptions = (RS_TOKREQOPT_MSG_LATEST | RS_TOKREQOPT_MSG_THREAD);
+	
+	std::list<RsGxsGroupId> groupIds;
+	groupIds.push_back(groupId);
+	
+	if (!requestMsgInfo(token, opts, groupIds) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+	
+	return getSnapshots(token, snapshots);
+}
+
+bool p3Wiki::getRelatedSnapshots(const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots)
+{
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
+	opts.mOptions = RS_TOKREQOPT_MSG_VERSIONS;
+	
+	std::vector<RsGxsGrpMsgIdPair> msgIds;
+	msgIds.push_back(msgId);
+	
+	if (!requestMsgRelatedInfo(token, opts, msgIds) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+	
+	return getRelatedSnapshots(token, snapshots);
+}
+
+bool p3Wiki::setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read)
+{
+	uint32_t token;
+	setMessageReadStatus(token, msgId, read);
+	return waitToken(token) == RsTokenService::COMPLETE;
+}
+
 bool p3Wiki::acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t /*size*/)
 {
 	if (!msgMeta)

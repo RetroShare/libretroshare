@@ -146,6 +146,38 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) = 0;
 	virtual bool updateCollection(const RsWikiCollection &collection) = 0;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) = 0;
+	
+	/**
+	 * @brief Get a single wiki snapshot (page/edit). Blocking API.
+	 * @param msgId Group/message identifier pair
+	 * @param snapshot Output parameter for the snapshot
+	 * @return true if snapshot was retrieved, false otherwise
+	 */
+	virtual bool getSnapshot(const RsGxsGrpMsgIdPair& msgId, RsWikiSnapshot& snapshot) = 0;
+	
+	/**
+	 * @brief Get all snapshots (pages/edits) for a wiki group. Blocking API.
+	 * @param groupId The wiki group ID
+	 * @param snapshots Output vector for snapshots
+	 * @return true if snapshots were retrieved, false otherwise
+	 */
+	virtual bool getSnapshots(const RsGxsGroupId& groupId, std::vector<RsWikiSnapshot>& snapshots) = 0;
+	
+	/**
+	 * @brief Get related snapshots (edit history) for a wiki page. Blocking API.
+	 * @param msgId Group/message identifier pair for the page
+	 * @param snapshots Output vector for related snapshots
+	 * @return true if related snapshots were retrieved, false otherwise
+	 */
+	virtual bool getRelatedSnapshots(const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots) = 0;
+	
+	/**
+	 * @brief Set message read status. Blocking API.
+	 * @param msgId Group/message identifier pair
+	 * @param read True to mark as read, false to mark as unread
+	 * @return true if status was updated, false otherwise
+	 */
+	virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
 	/* Moderator Management */
 	/**
@@ -216,7 +248,7 @@ public:
 	virtual bool getWikiStatistics(GxsServiceStatistic& stats) = 0;
 
 	/**
-	 * @brief Update read status for a wiki snapshot/comment
+	 * @brief Update read status for a wiki snapshot/comment (async)
 	 * @param token Output token for async processing
 	 * @param msgId Group/message identifier pair to update
 	 * @param read True to mark as read, false to mark as unread

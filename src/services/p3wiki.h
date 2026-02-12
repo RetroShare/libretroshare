@@ -66,6 +66,10 @@ public:
 	virtual bool createCollection(RsWikiCollection &collection) override;
 	virtual bool updateCollection(const RsWikiCollection &collection) override;
 	virtual bool getCollections(const std::list<RsGxsGroupId> groupIds, std::vector<RsWikiCollection> &groups) override;
+	virtual bool getSnapshot(const RsGxsGrpMsgIdPair& msgId, RsWikiSnapshot& snapshot) override;
+	virtual bool getSnapshots(const RsGxsGroupId& groupId, std::vector<RsWikiSnapshot>& snapshots) override;
+	virtual bool getRelatedSnapshots(const RsGxsGrpMsgIdPair& msgId, std::vector<RsWikiSnapshot>& snapshots) override;
+	virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
 	/* Moderator management */
 	virtual bool addModerator(const RsGxsGroupId& grpId, const RsGxsId& moderatorId) override;
