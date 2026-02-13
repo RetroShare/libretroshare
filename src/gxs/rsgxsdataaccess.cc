@@ -1195,6 +1195,14 @@ bool RsGxsDataAccess::getMsgMetaDataList( const GxsMsgReq& msgIds, const RsTokRe
 						metaV[i] = nullptr;
 						continue;
 					}
+
+					// Apply mStatusMask/mStatusFilter if specified (fixes bug where all msgs were returned
+					// even when filtering for UNPROCESSED status in request_GroupUnprocessedPosts)
+					if (!checkMsgFilter(opts, msgMeta))
+					{
+						metaV[i] = nullptr;
+						continue;
+					}
 				}
     }
 
@@ -1229,6 +1237,9 @@ bool RsGxsDataAccess::getMsgIdList( const GxsMsgReq& msgIds, const RsTokReqOptio
 
     for(auto it(result.begin());it!=result.end();++it)
     {
+        if (it->second.empty())
+            continue;
+
         auto& id_set(msgIdsOut[it->first]);
 
         for(uint32_t i=0;i<it->second.size();++i)
@@ -1890,15 +1901,6 @@ bool RsGxsDataAccess::checkMsgFilter(const RsTokReqOptions& opts, const std::sha
 		}
 		else
 		{
-#ifdef DATA_DEBUG
-            GXSDATADEBUG << __PRETTY_FUNCTION__
-			          << " Dropping Msg due to !StatusMatch "
-			          << " Mask: " << opts.mStatusMask
-			          << " StatusFilter: " << opts.mStatusFilter
-			          << " MsgStatus: " << meta->mMsgStatus
-			          << " MsgId: " << meta->mMsgId << std::endl;
-#endif
-
 			return false;
 		}
 	}
