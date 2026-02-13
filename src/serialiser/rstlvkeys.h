@@ -43,6 +43,8 @@ const uint32_t RSTLV_KEY_DISTRIB_ADMIN          = 0x0040;
 const uint32_t RSTLV_KEY_DISTRIB_IDENTITY       = 0x0080;
 const uint32_t RSTLV_KEY_DISTRIB_MASK           = 0x00f0;
 
+static const std::string UPLOAD_STATS_RETENTION_DAYS_SS = "UPLOAD_STATS_RETENTION_DAYS";
+
 // Old class for RsTlvSecurityKey. Is kept for backward compatibility, but should not be serialised anymore
 
 class RsTlvRSAKey: public RsTlvItem

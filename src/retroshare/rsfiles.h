@@ -792,11 +792,23 @@ public:
 		virtual void setFilePermDirectDL(uint32_t perm)=0;
 
     /**
-     * @brief Get Direct Download File Permission
+     * @brief Set Direct Download File Permission
      * @jsonapi{development}
      * @return mFilePermDirectDLPolicy direct download permission
      */
 		virtual uint32_t filePermDirectDL()=0;
+
+    /**
+     * @brief Set Upload Statistics Retention in Days
+     * @param days Number of days to keep upload statistics (0 = keep forever)
+     */
+    virtual void setUploadStatsRetentionDays(int days) = 0;
+
+    /**
+     * @brief Get Upload Statistics Retention in Days
+     * @return Number of days to keep upload statistics
+     */
+    virtual int getUploadStatsRetentionDays() = 0;
 
 	/**
 	 * @brief Request remote files search
