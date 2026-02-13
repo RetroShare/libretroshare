@@ -1177,7 +1177,7 @@ void p3FileDatabase::cleanupUploadStats(int days)
     }
     if (removed_count > 0)
     {
-        RsDbg() << "UPLOAD cleanup removed " << removed_count << " entries.";
+        RsDbg() << "UPLOADSTATS cleanup removed " << removed_count << " entries.";
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
     }
 }
