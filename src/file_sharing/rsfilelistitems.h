@@ -129,6 +129,10 @@ public:
     std::map<RsFileHash,BannedFileEntry> primary_banned_files_list ;
 };
 
+/**
+ * @deprecated Deprecated on Feb 2026. Use RsFileListsUploadStatsItemV2 instead.
+ * To be removed when no longer needed for migration.
+ */
 class RsFileListsUploadStatsItem: public RsFileListsItem
 {
 public:
@@ -142,7 +146,9 @@ public:
 
 struct TimeBasedUploadStat
 {
-    uint64_t last_upload_ts;
+    TimeBasedUploadStat() : last_upload_ts(0), total_bytes(0) {}
+
+    rstime_t last_upload_ts;
     uint64_t total_bytes;
 
     bool operator==(const TimeBasedUploadStat& r) const { return last_upload_ts == r.last_upload_ts && total_bytes == r.total_bytes; }

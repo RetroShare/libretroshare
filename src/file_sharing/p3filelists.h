@@ -312,6 +312,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
          * @brief Map of uploaded files statistics (bytes + timestamp)
          */
         std::map<RsFileHash, TimeBasedUploadStat> mCumulativeUploaded;
+        uint64_t mCumulativeUploadedAll;
         int mUploadStatsRetentionDays;
 
         void locked_sendBanInfo(const RsPeerId& pid);
