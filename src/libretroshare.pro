@@ -1185,8 +1185,8 @@ message("In rnp_rnplib precompilation code")
 		LIBRNP_CMAKE_PARAMS *= "-DJSON-C_LIBRARY=$$clean_path(/usr/local/opt/json-c/lib/libjson-c.a)"
 		LIBRNP_CMAKE_PARAMS *= "-DJSON-C_VERSION=0.18"
 		# botan
-		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_INCLUDE_DIR=$$clean_path(/usr/local/opt/botan@2/include/botan-2)"
-		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$clean_path(/usr/local/opt/botan@2/lib/libbotan-2.a)"
+		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_INCLUDE_DIR=$$clean_path(/usr/local/Cellar/botan@2/2.19.5/include/botan-2)"
+		LIBRNP_CMAKE_PARAMS *= "-DBOTAN_LIBRARY=$$clean_path(/usr/local/Cellar/botan@2/2.19.5/lib)"
 		# set minimum Mac Version to not get different endresults of min versions
 		LIBRNP_CMAKE_CXXFLAGS = -mmacosx-version-min=10.13
 	}
