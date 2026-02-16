@@ -222,6 +222,48 @@ struct RSTrafficClue : RsSerializable
 	}
 };
 
+/*!
+ * \brief Cumulative traffic statistics for tracking all-time data transfer
+ * Used to persist and display per-peer and per-service data usage
+ */
+struct RsCumulativeTrafficStats : RsSerializable
+{
+    uint64_t bytesIn;      //< Total bytes received
+    uint64_t bytesOut;     //< Total bytes sent
+    uint32_t countIn;      //< Number of incoming packets
+    uint32_t countOut;     //< Number of outgoing packets
+    rstime_t firstSeen;    //< Timestamp of first recorded traffic
+    rstime_t lastSeen;     //< Timestamp of most recent traffic
+
+    RsCumulativeTrafficStats() : 
+        bytesIn(0), bytesOut(0), countIn(0), countOut(0), 
+        firstSeen(0), lastSeen(0) {}
+
+    RsCumulativeTrafficStats& operator+=(const RsCumulativeTrafficStats& other) {
+        bytesIn += other.bytesIn;
+        bytesOut += other.bytesOut;
+        countIn += other.countIn;
+        countOut += other.countOut;
+        if (firstSeen == 0 || (other.firstSeen != 0 && other.firstSeen < firstSeen))
+            firstSeen = other.firstSeen;
+        if (other.lastSeen > lastSeen)
+            lastSeen = other.lastSeen;
+        return *this;
+    }
+
+    void clear() { bytesIn = bytesOut = countIn = countOut = 0; firstSeen = lastSeen = 0; }
+
+    // RsSerializable interface
+    void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) {
+        RS_SERIAL_PROCESS(bytesIn);
+        RS_SERIAL_PROCESS(bytesOut);
+        RS_SERIAL_PROCESS(countIn);
+        RS_SERIAL_PROCESS(countOut);
+        RS_SERIAL_PROCESS(firstSeen);
+        RS_SERIAL_PROCESS(lastSeen);
+    }
+};
+
 struct RsConfigNetStatus : RsSerializable
 {
 	RsConfigNetStatus() : netLocalOk(true)
@@ -347,6 +389,39 @@ public:
 	 * @return returns 1 on succes and 0 otherwise
 	 */
     virtual int getTrafficInfo(std::list<RSTrafficClue>& out_lst,std::list<RSTrafficClue>& in_lst) = 0 ;
+
+	/**
+	 * @brief getCumulativeTrafficByPeer returns cumulative traffic stats grouped by peer
+	 * @jsonapi{development}
+	 * @param[out] stats map of peer ID to cumulative traffic stats
+	 * @return returns true on success
+	 */
+    virtual bool getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeTrafficStats>& stats) = 0;
+
+	/**
+	 * @brief getCumulativeTrafficByService returns cumulative traffic stats grouped by service
+	 * @jsonapi{development}
+	 * @param[out] stats map of service ID to cumulative traffic stats
+	 * @return returns true on success
+	 */
+    virtual bool getCumulativeTrafficByService(std::map<uint16_t, RsCumulativeTrafficStats>& stats) = 0;
+
+	/**
+	 * @brief clearCumulativeTraffic clears all cumulative traffic statistics
+	 * @jsonapi{development}
+	 * @param[in] clearPeerStats if true, clears per-peer stats
+	 * @param[in] clearServiceStats if true, clears per-service stats
+	 * @return returns true on success
+	 */
+    virtual bool clearCumulativeTraffic(bool clearPeerStats = true, bool clearServiceStats = true) = 0;
+
+	/**
+	 * @brief getTotalCumulativeTraffic returns the total cumulative traffic across all peers/services
+	 * @jsonapi{development}
+	 * @param[out] stats total cumulative traffic stats
+	 * @return returns true on success
+	 */
+    virtual bool getTotalCumulativeTraffic(RsCumulativeTrafficStats& stats) = 0;
 
     /* From RsInit */
 

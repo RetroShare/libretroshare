@@ -38,6 +38,8 @@ class p3ServerConfig: public RsServerConfig
 
 	void load_config();
 
+public:
+
 	/* From RsIface::RsConfig */
 
 	virtual int 	getConfigNetStatus(RsConfigNetStatus &status) override;
@@ -49,6 +51,12 @@ class p3ServerConfig: public RsServerConfig
 	virtual int getTotalBandwidthRates(RsConfigDataRates &rates) override;
 	virtual int getAllBandwidthRates(std::map<RsPeerId, RsConfigDataRates> &ratemap) override;
 	virtual int getTrafficInfo(std::list<RSTrafficClue>& out_lst, std::list<RSTrafficClue> &in_lst) override;
+
+	// Cumulative traffic statistics
+	virtual bool getCumulativeTrafficByPeer(std::map<RsPeerId, RsCumulativeTrafficStats>& stats) override;
+	virtual bool getCumulativeTrafficByService(std::map<uint16_t, RsCumulativeTrafficStats>& stats) override;
+	virtual bool clearCumulativeTraffic(bool clearPeerStats, bool clearServiceStats) override;
+	virtual bool getTotalCumulativeTraffic(RsCumulativeTrafficStats& stats) override;
 
 	/* From RsInit */
 
@@ -115,6 +123,10 @@ private:
 	bool mIsIdle;
 
 	RsOpMode mOpMode;
+
+	// Cumulative traffic statistics storage
+	std::map<RsPeerId, RsCumulativeTrafficStats> mCumulativeTrafficByPeer;
+	std::map<uint16_t, RsCumulativeTrafficStats> mCumulativeTrafficByService;
 };
 
 #endif
