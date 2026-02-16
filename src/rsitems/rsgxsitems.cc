@@ -56,6 +56,7 @@
         this->mSubscribeFlags = rGxsMeta.mSubscribeFlags;
         this->mGroupName = rGxsMeta.mGroupName;
         this->mServiceString = rGxsMeta.mServiceString;
+        this->mCountryCode = rGxsMeta.mCountryCode;
         this->mSignFlags = rGxsMeta.mSignFlags;
         this->mCircleId = rGxsMeta.mCircleId;
         this->mCircleType = rGxsMeta.mCircleType;
