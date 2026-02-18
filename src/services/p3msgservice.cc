@@ -518,6 +518,8 @@ int p3MsgService::checkOutgoingMessages()
     if(rsEvents && !pEvent->mChangedMsgIds.empty())
         rsEvents->postEvent(pEvent);
 
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+
     return 0;
 }
 
