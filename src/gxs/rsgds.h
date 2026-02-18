@@ -277,5 +277,10 @@ public:
      * @return whether the size of grp is valid for storage
      */
     virtual bool validSize(RsNxsGrp* grp) const = 0 ;
+    
+    /*!
+     * @return the encryption key used for current data service
+     */
+    virtual std::string getEncryptionKey() const = 0;
 
 };

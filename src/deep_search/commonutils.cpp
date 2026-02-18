@@ -26,6 +26,63 @@
 #include "util/rsthreads.h"
 #include "util/rsdebuglevel0.h"
 
+namespace DeepSearch
+{
+
+std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc)
+{
+	if(rsHtmlDoc.empty()) return rsHtmlDoc;
+
+	const bool isPlainMsg =
+	        rsHtmlDoc[0] != '<' || rsHtmlDoc[rsHtmlDoc.size() - 1] != '>';
+	if(isPlainMsg) return rsHtmlDoc;
+
+	auto oSize = rsHtmlDoc.size();
+	auto bodyTagBegin(rsHtmlDoc.find("<body"));
+	if(bodyTagBegin >= oSize) return rsHtmlDoc;
+
+	auto bodyTagEnd(rsHtmlDoc.find(">", bodyTagBegin));
+	if(bodyTagEnd >= oSize) return rsHtmlDoc;
+
+	std::string retVal(rsHtmlDoc.substr(bodyTagEnd+1));
+
+	// strip also CSS inside <style></style>
+	oSize = retVal.size();
+	auto styleTagBegin(retVal.find("<style"));
+	if(styleTagBegin < oSize)
+	{
+		auto styleEnd(retVal.find("</style>", styleTagBegin));
+		if(styleEnd < oSize)
+			retVal.erase(styleTagBegin, 8+styleEnd-styleTagBegin);
+	}
+
+	std::string::size_type oPos;
+	std::string::size_type cPos;
+	int itCount = 0;
+	while((oPos = retVal.find("<")) < retVal.size())
+	{
+		if((cPos = retVal.find(">")) <= retVal.size())
+			retVal.erase(oPos, 1+cPos-oPos);
+		else break;
+
+		// Avoid infinite loop with crafty input
+		if(itCount > 1000)
+		{
+			RS_WARN( "Breaking stripping loop due to max allowed iterations ",
+			         "rsHtmlDoc: ", rsHtmlDoc, " retVal: ", retVal );
+			break;
+		}
+		++itCount;
+	}
+
+	return retVal;
+}
+
+}
+
+// Xapian-specific code (only for channels/files indexing)
+#if defined(RS_DEEP_CHANNEL_INDEX) || defined(RS_DEEP_FILES_INDEX)
+
 #ifndef XAPIAN_AT_LEAST
 /// Added in Xapian 1.4.2.
 #define XAPIAN_AT_LEAST(A,B,C) \
@@ -168,53 +225,6 @@ std::error_condition StubbornWriteOpQueue::flush(
 	return std::error_condition();
 }
 
-std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc)
-{
-	if(rsHtmlDoc.empty()) return rsHtmlDoc;
-
-	const bool isPlainMsg =
-	        rsHtmlDoc[0] != '<' || rsHtmlDoc[rsHtmlDoc.size() - 1] != '>';
-	if(isPlainMsg) return rsHtmlDoc;
-
-	auto oSize = rsHtmlDoc.size();
-	auto bodyTagBegin(rsHtmlDoc.find("<body"));
-	if(bodyTagBegin >= oSize) return rsHtmlDoc;
-
-	auto bodyTagEnd(rsHtmlDoc.find(">", bodyTagBegin));
-	if(bodyTagEnd >= oSize) return rsHtmlDoc;
-
-	std::string retVal(rsHtmlDoc.substr(bodyTagEnd+1));
-
-	// strip also CSS inside <style></style>
-	oSize = retVal.size();
-	auto styleTagBegin(retVal.find("<style"));
-	if(styleTagBegin < oSize)
-	{
-		auto styleEnd(retVal.find("</style>", styleTagBegin));
-		if(styleEnd < oSize)
-			retVal.erase(styleTagBegin, 8+styleEnd-styleTagBegin);
-	}
-
-	std::string::size_type oPos;
-	std::string::size_type cPos;
-	int itCount = 0;
-	while((oPos = retVal.find("<")) < retVal.size())
-	{
-		if((cPos = retVal.find(">")) <= retVal.size())
-			retVal.erase(oPos, 1+cPos-oPos);
-		else break;
-
-		// Avoid infinite loop with crafty input
-		if(itCount > 1000)
-		{
-			RS_WARN( "Breaking stripping loop due to max allowed iterations ",
-			         "rsHtmlDoc: ", rsHtmlDoc, " retVal: ", retVal );
-			break;
-		}
-		++itCount;
-	}
-
-	return retVal;
 }
 
-}
+#endif // RS_DEEP_CHANNEL_INDEX || RS_DEEP_FILES_INDEX

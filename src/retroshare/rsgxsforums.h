@@ -418,6 +418,11 @@ public:
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
 	                               bool subscribe ) = 0;
 
+	/**
+	 * @brief Re-index all forums content for Full Text Search
+	 */
+	virtual void reindexAll() = 0;
+
 	/// default base URL used for forums links @see exportForumLink
 	static const std::string DEFAULT_FORUM_BASE_URL;
 
