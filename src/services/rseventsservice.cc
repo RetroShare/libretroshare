@@ -207,18 +207,23 @@ void RsEventsService::handleEvent(std::shared_ptr<const RsEvent> event)
 		return;
 	}
 
-	RS_STACK_MUTEX(mHandlerMapMtx);
-	/* It is important to also call the callback under mutex protection to
-	 * ensure they are not unregistered in the meanwhile.
-	 * If a callback try to fiddle with registering/unregistering it will
-	 * deadlock */
+	std::list<std::function<void(std::shared_ptr<const RsEvent>)> > callbacks;
+	{
+		RS_STACK_MUTEX(mHandlerMapMtx);
+		/* It is important to NOT call the callback under mutex protection to
+		 * allow callbacks to send other events or unregister themselves,
+		 * which would otherwise deadlock. */
 
-	// Call all clients that registered a callback for this event type
-	for(auto cbit: mHandlerMaps[static_cast<uint32_t>(event->mType)])
-		cbit.second(event);
+		// Call all clients that registered a callback for this event type
+		for(auto& cbit: mHandlerMaps[static_cast<uint32_t>(event->mType)])
+			callbacks.push_back(cbit.second);
 
-	/* Also call all clients that registered with NONE, meaning that they
-	 * expect all events */
-	for(auto cbit: mHandlerMaps[static_cast<uint32_t>(RsEventType::__NONE)])
-		cbit.second(event);
+		/* Also call all clients that registered with NONE, meaning that they
+		 * expect all events */
+		for(auto& cbit: mHandlerMaps[static_cast<uint32_t>(RsEventType::__NONE)])
+			callbacks.push_back(cbit.second);
+	}
+
+	for(auto& cb: callbacks)
+		cb(event);
 }
