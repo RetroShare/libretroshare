@@ -237,7 +237,40 @@ bool p3IdService::getIdentitiesSummaries(std::list<RsGroupMetaData>& ids)
 	opts.mReqType = GXS_REQUEST_TYPE_GROUP_META;
 	if( !requestGroupInfo(token, opts)
 	        || waitToken(token) != RsTokenService::COMPLETE ) return false;
-	return getGroupSummary(token, ids);
+
+	bool ret = getGroupSummary(token, ids);
+
+    // Merge own IDs that might be missing from the GXS query (e.g. just created)
+    std::list<RsGxsId> ownIds;
+    getOwnIds(ownIds);
+
+    for(const auto& id : ownIds)
+    {
+        bool found = false;
+        for(const auto& meta : ids) {
+            if(meta.mGroupId == RsGxsGroupId::fromBufferUnsafe(id.toByteArray())) {
+                found = true;
+                break;
+            }
+        }
+
+        if(!found)
+        {
+            RsNxsGrp* nxsGrp = nullptr;
+            // Retrieve full group data synchronously from local DB to ensure it's available 
+            // even if GXS indexing is still pending.
+            if(retrieveNxsIdentity(id, nxsGrp) && nxsGrp && nxsGrp->metaData)
+            {
+                ids.push_back(RsGroupMetaData(*(nxsGrp->metaData)));
+                RsGroupMetaData& meta = ids.back();
+                // Ensure privacy flags are set correctly if missing (standard GXS behavior)
+                if((meta.mGroupFlags & GXS_SERV::FLAG_PRIVACY_MASK) == 0)
+                     meta.mGroupFlags |= GXS_SERV::FLAG_PRIVACY_PUBLIC;
+                delete nxsGrp;
+            }
+        }
+    }
+    return ret;
 }
 
 uint32_t p3IdService::idAuthenPolicy()
@@ -276,9 +309,9 @@ bool p3IdService::receiveNewIdentity(RsNxsGrp *identity_grp)
     return true;
 }
 
-bool p3IdService::retrieveNxsIdentity(const RsGxsId& group_id,RsNxsGrp *& identity_grp)
+bool p3IdService::retrieveNxsIdentity(const RsGxsId &id, RsNxsGrp *&grp)
 {
-    return RsGenExchange::retrieveNxsIdentity(RsGxsGroupId(group_id),identity_grp);
+    return RsGenExchange::retrieveNxsIdentity(RsGxsGroupId(id),grp);
 }
 
 bool p3IdService::setAsRegularContact(const RsGxsId& id,bool b)
@@ -834,7 +867,7 @@ bool p3IdService::getOwnSignedIds(std::vector<RsGxsId>& ids)
 {
 	ids.clear();
 
-	std::chrono::seconds maxWait(5);
+	std::chrono::seconds maxWait = std::chrono::seconds(5);
 	auto timeout = std::chrono::steady_clock::now() + maxWait;
 	while( !ownIdsAreLoaded() && std::chrono::steady_clock::now() < timeout )
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1025,11 +1058,21 @@ bool p3IdService::createIdentity( RsGxsId& id, const std::string& name, const Rs
 	}
 
 	id = RsGxsId(meta.mGroupId);
-
+	
+	// Visibility fix: The identity is created, but it might take some time for the GXS
+	// background indexing to make it visible. To ensure immediate visibility in the GUI,
+	// we manually add it to mOwnIds and post an event.
 	{
 		RS_STACK_MUTEX(mIdMtx);
 		mOwnIds.push_back(id);
 		if(!pseudonimous) mOwnSignedIds.push_back(id);
+
+		// Post event immediately to notify GUI of the new local identity
+		// without waiting for the GXS background indexing cycle.
+		auto ev = std::make_shared<RsGxsIdentityEvent>();
+		ev->mIdentityId = meta.mGroupId;
+		ev->mIdentityEventCode = RsGxsIdentityEventCode::NEW_IDENTITY;
+		rsEvents->postEvent(ev);
 	}
 
 LabelCreateIdentityCleanup:
@@ -1041,7 +1084,6 @@ LabelCreateIdentityCleanup:
 
 bool p3IdService::createIdentity(uint32_t& token, RsIdentityParameters &params)
 {
-
     RsGxsIdGroup id;
 
     id.mMeta.mGroupName = params.nickname;
@@ -1163,6 +1205,14 @@ bool p3IdService::updateIdentity( const RsGxsId& id, const std::string& name, co
     // clean the Identity cache as well
     cache_request_load(id);
 
+    // Notify GUI of the identity update immediately.
+    {
+        auto ev = std::make_shared<RsGxsIdentityEvent>();
+        ev->mIdentityId = RsGxsGroupId(id);
+        ev->mIdentityEventCode = RsGxsIdentityEventCode::UPDATED_IDENTITY;
+        rsEvents->postEvent(ev);
+    }
+
 LabelUpdateIdentityCleanup:
     if(!pseudonimous && !pgpPassword.empty())
         RsLoginHandler::clearPgpPassphrase();
@@ -1181,6 +1231,12 @@ bool p3IdService::deleteIdentity(RsGxsId& id)
 	}
 
     waitToken(token);
+
+    // Notify GUI of the identity deletion immediately.
+    auto ev = std::make_shared<RsGxsIdentityEvent>();
+    ev->mIdentityId = RsGxsGroupId(id);
+    ev->mIdentityEventCode = RsGxsIdentityEventCode::DELETED_IDENTITY;
+    rsEvents->postEvent(ev);
 
     // (cyril) There's a bug in the token service: it returns FAILED for unknown tokens
     // and deleteGroup() causes the token to be released right after the group is deleted.
