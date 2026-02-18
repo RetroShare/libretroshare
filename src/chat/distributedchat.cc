@@ -1504,7 +1504,6 @@ bool DistributedChatService::acceptLobbyInvite(const ChatLobbyId& lobby_id,const
 		entry.last_connexion_challenge_time = now ;
 		entry.joined_lobby_packet_sent = false;
 		entry.last_keep_alive_packet_time = now ;
-
 		_chat_lobbys[lobby_id] = entry ;
 
 		_lobby_invites_queue.erase(it) ;		// remove the invite from cache.
@@ -1517,14 +1516,18 @@ bool DistributedChatService::acceptLobbyInvite(const ChatLobbyId& lobby_id,const
 		RsChatLobbyMsgItem *item = new RsChatLobbyMsgItem;
 		item->lobby_id = entry.lobby_id ;
 		item->msg_id = 0 ;
-	        item->parent_msg_id = 0 ;
-        	item->nick = "Chat room management" ;
+		item->parent_msg_id = 0 ;
+		item->nick = "Chat room management" ;
 		item->message = std::string("Welcome to chat lobby") ;
 		item->PeerId(entry.virtual_peer_id) ;
 		item->chatFlags = RS_CHAT_FLAG_PRIVATE | RS_CHAT_FLAG_LOBBY ;
 
 		locked_storeIncomingMsg(item) ;
 	}
+
+	setLobbyAutoSubscribe(lobby_id, true);
+	triggerConfigSave();	// so that we save the subscribed lobbies
+
 #ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "  Notifying of new recvd msg." << std::endl ;
 #endif
@@ -1706,6 +1709,7 @@ ChatLobbyId DistributedChatService::createChatLobby(const std::string& lobby_nam
     ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_LIST_CHANGED;
     rsEvents->postEvent(ev);
 
+    setLobbyAutoSubscribe(lobby_id, true);
     triggerConfigSave();
 
 	return lobby_id ;
@@ -1909,6 +1913,8 @@ bool DistributedChatService::setIdentityForChatLobby(const ChatLobbyId& lobby_id
 
         it->second.gxs_id = nick ;
     }
+
+    triggerConfigSave() ;
 
     return true ;
 }
