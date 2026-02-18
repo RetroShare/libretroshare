@@ -32,6 +32,7 @@
 #include "retroshare/rspeers.h"
 #include "ftchunkmap.h"
 #include "util/rstime.h"
+#include "util/rsdebug.h"
 
 static const uint32_t SOURCE_CHUNK_MAP_UPDATE_PERIOD	=   60 ; //! TTL for chunkmap info
 static const uint32_t INACTIVE_CHUNK_TIME_LAPSE 		= 3600 ; //! TTL for an inactive chunk
@@ -599,14 +600,41 @@ uint32_t ChunkMap::getAvailableChunk(const RsPeerId& peer_id,bool& map_is_too_ol
 	{
 		uint32_t chosen_chunk_number ;
 
+        // Check high priority chunks first (regardless of strategy)
+        if (!_high_priority_chunks.empty())
+        {
+            uint32_t j = 0;
+            for(uint32_t i=0; i<_map.size(); ++i)
+            {
+                if(_map[i] == FileChunksInfo::CHUNK_OUTSTANDING && (peer_chunks->is_full || peer_chunks->cmap[i]))
+                {
+                    if (i < _high_priority_chunks.size() && _high_priority_chunks[i])
+                    {
+                        RsDbg() << "STREAMING: ChunkMap::getAvailableChunk: PRIORITY returning chunk " << i << " for peer " << peer_id;
+                        return i;
+                    }
+                    else
+                        j++;
+                }
+            }
+        }
+
 		switch(_strategy)
 		{
-			case FileChunksInfo::CHUNK_STRATEGY_STREAMING:   chosen_chunk_number = 0 ;
+			case FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL:   chosen_chunk_number = 0 ;
 																		    break ;
 			case FileChunksInfo::CHUNK_STRATEGY_RANDOM:      chosen_chunk_number = rand() % available_chunks ;
 																		    break ;
 			case FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE: chosen_chunk_number = rand() % std::min(available_chunks, available_chunks_before_max_dist+FT_CHUNKMAP_MAX_CHUNK_JUMP) ;
 																		    break ;
+			case FileChunksInfo::CHUNK_STRATEGY_STREAMING:
+																			 {
+                                                                                 // Legacy heuristic removed.
+                                                                                 // Now relies on _high_priority_chunks (checked above)
+                                                                                 // or falls back to standard streaming (0).
+																				 chosen_chunk_number = 0 ;
+																			 }
+																			 break ;
 			default:
 																			 chosen_chunk_number = 0 ;
 		}
@@ -703,6 +731,17 @@ void ChunkMap::buildPlainMap(uint64_t size, CompressedChunkMap& map)
 	uint32_t n = getNumberOfChunks(size) ;
 
 	map = CompressedChunkMap(n,~uint32_t(0)) ;
+}
+
+void ChunkMap::setHighPriorityRange(uint32_t startChunk, uint32_t endChunk)
+{
+    RsDbg() << "STREAMING: ChunkMap::setHighPriorityRange " << startChunk << " -> " << endChunk;
+
+    if (_high_priority_chunks.size() != _map.size())
+        _high_priority_chunks.resize(_map.size(), false);
+
+    for (uint32_t i = startChunk; i <= endChunk && i < _high_priority_chunks.size(); ++i)
+        _high_priority_chunks[i] = true;
 }
 
 
