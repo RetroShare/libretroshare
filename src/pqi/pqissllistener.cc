@@ -493,10 +493,33 @@ int	pqissllistenbase::continueSSL(IncomingSSLInfo& incoming_connexion_info, bool
 
 		if(vres == X509_V_OK && nullptr != rsEvents)
 		{
-			auto ev = std::make_shared<RsAuthSslConnectionAutenticationEvent>();
-			ev->mLocator = RsUrl(incoming_connexion_info.addr);
-			ev->mErrorCode = RsAuthSslError::MISSING_AUTHENTICATION_INFO;
-			rsEvents->postEvent(ev);
+            // Check if denied before posting event
+            bool denied = false;
+            X509 *x509_check = SSL_get_peer_certificate(incoming_connexion_info.ssl);
+            RsPgpId checkedPgpId; // Default 0
+            if(x509_check) {
+                checkedPgpId = RsX509Cert::getCertIssuer(*x509_check);
+                X509_free(x509_check);
+            }
+            
+            if(AuthSSL::instance().isNotifyDenied(checkedPgpId)) {
+                    denied = true;
+                }
+
+            if(!denied) {
+			    auto ev = std::make_shared<RsAuthSslConnectionAutenticationEvent>();
+			    ev->mLocator = RsUrl(incoming_connexion_info.addr);
+                // Try to fill in more info if available
+                if((x509_check = SSL_get_peer_certificate(incoming_connexion_info.ssl))) {
+                     ev->mPgpId = RsX509Cert::getCertIssuer(*x509_check);
+                     ev->mSslId = RsX509Cert::getCertSslId(*x509_check);
+                     ev->mSslCn = RsX509Cert::getCertName(*x509_check);
+                     X509_free(x509_check);
+                }
+
+			    ev->mErrorCode = RsAuthSslError::MISSING_AUTHENTICATION_INFO;
+			    rsEvents->postEvent(ev);
+            }
 		}
 		closeConnection(fd, incoming_connexion_info.ssl);
 
