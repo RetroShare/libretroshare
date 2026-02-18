@@ -1312,6 +1312,14 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
             return std::string();
     };
 
+    auto isStringDenied = [&](const std::string& s) -> bool {
+        RsStackMutex stack(sslMtx);
+        for(const auto& pair : mDenyList) {
+            if(pair.first.toStdString() == s) return true;
+        }
+        return false;
+    };
+
 	using Evt_t = RsAuthSslConnectionAutenticationEvent;
 	std::unique_ptr<Evt_t> ev = std::unique_ptr<Evt_t>(new Evt_t);
 
@@ -1339,14 +1347,14 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 		if(!pgpFpr.isNull())
 			pgpId = PGPHandler::pgpIdFromFingerprint(pgpFpr);	// in the future, we drop PGP ids and keep the fingerprint all along
 	}
-
+    
 	if(sslId.isNull())
 	{
 		std::string errMsg = "x509Cert has invalid sslId!";
 
 		RsInfo() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-		if(rsEvents)
+		if(rsEvents && !isNotifyDenied(pgpId) && !isStringDenied(pgpId.toStdString()))
 		{
 			ev->mSslCn = sslCn;
 			ev->mSslId = sslId;
@@ -1368,7 +1376,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 
 		RsInfo() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-		if(rsEvents)
+		if(rsEvents && !isNotifyDenied(pgpId) && !isStringDenied(pgpId.toStdString()))
 		{
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
