@@ -288,6 +288,8 @@
 
 //#define NXS_FRAG
 
+//#define GXSPROFILING
+
 // The constant below have a direct influence on how fast forums/channels/posted/identity groups propagate and on the overloading of queues:
 //
 // Channels/forums will update at a rate of SYNC_PERIOD*MAX_REQLIST_SIZE/60 messages per minute.
@@ -3515,6 +3517,11 @@ void RsGxsNetService::runVetting()
 
 void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 {
+#ifdef GXSPROFILING
+    // [TRACE] Start global timer for the network transaction
+    auto start_net = std::chrono::steady_clock::now();
+#endif
+
 #ifdef NXS_NET_DEBUG_0
     GXSNETDEBUG_P_(tr->mTransaction->PeerId()) << "locked_genSendMsgsTransaction() Generating Msg data send fron TransN: " << tr->mTransaction->transactionNumber << std::endl;
 #endif
@@ -3702,8 +3709,16 @@ void RsGxsNetService::locked_genSendMsgsTransaction(NxsTransaction* tr)
 	    delete newTr;
     }
 
+#ifdef GXSPROFILING
+    // [TRACE] End global timer and log with the exact same format as V3
+    auto end_net = std::chrono::steady_clock::now();
+    auto net_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_net - start_net).count();
+    RsDbg() << "GXSPROFILING [NetService]: TOTAL locked_genSendMsgsTransaction for " << tr->mItems.size() << " items took " << net_ms << "ms";
+#endif
+
     return;
 }
+
 uint32_t RsGxsNetService::locked_getTransactionId()
 {
 	return ++mTransactionN;
