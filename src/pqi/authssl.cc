@@ -1426,7 +1426,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 
 		RsInfo() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-		if(rsEvents)
+		if(rsEvents && !isNotifyDenied(pgpId))
 		{
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
@@ -1467,7 +1467,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 
 		Dbg1() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-		if(rsEvents)
+		if(rsEvents && !isNotifyDenied(pgpId))
 		{
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
@@ -1874,6 +1874,18 @@ bool AuthSSLimpl::saveList(bool& cleanup, std::list<RsItem*>& lst)
         }
         lst.push_back(vitem);
 
+        /* Save Deny List */
+        if (!mDenyList.empty()) {
+            RsConfigKeyValueSet* denyItem = new RsConfigKeyValueSet;
+            for (const auto& pair : mDenyList) {
+                RsTlvKeyValue kv;
+                kv.key = pair.first.toStdString();
+                kv.value = "DENY:" + pair.second;
+                denyItem->tlvkvs.pairs.push_back(kv);
+            }
+            lst.push_back(denyItem);
+        }
+
         return true ;
 }
 
@@ -1903,6 +1915,11 @@ bool AuthSSLimpl::loadList(std::list<RsItem*>& load)
                                         continue;
                                 }
 
+                                if (kit->value.compare(0, 5, "DENY:") == 0) {
+                                    mDenyList[RsPgpId(kit->key)] = kit->value.substr(5);
+                                    continue;
+                                }
+
                                 X509 *peer = loadX509FromPEM(kit->value);
                                 /* authenticate it */
                                 uint32_t diagnos ;
@@ -1916,6 +1933,32 @@ bool AuthSSLimpl::loadList(std::list<RsItem*>& load)
         }
         load.clear() ;
         return true;
+}
+
+void AuthSSLimpl::addNotifyDeny(const RsPgpId& pgpId, const std::string& name)
+{
+	RsStackMutex stack(sslMtx);
+	mDenyList[pgpId] = name;
+	IndicateConfigChanged();
+}
+
+void AuthSSLimpl::removeNotifyDeny(const RsPgpId& pgpId)
+{
+	RsStackMutex stack(sslMtx);
+	mDenyList.erase(pgpId);
+	IndicateConfigChanged();
+}
+
+bool AuthSSLimpl::isNotifyDenied(const RsPgpId& pgpId)
+{
+	RsStackMutex stack(sslMtx);
+	return mDenyList.find(pgpId) != mDenyList.end();
+}
+
+void AuthSSLimpl::getNotifyDenyList(std::map<RsPgpId, std::string>& ids)
+{
+	RsStackMutex stack(sslMtx);
+	ids = mDenyList;
 }
 
 const EVP_PKEY*RsX509Cert::getPubKey(const X509& x509)
