@@ -1757,6 +1757,7 @@ int RsServer::StartupRetroShare()
 	mConfigMgr->addConfiguration("gxsnettunnel.cfg", mGxsNetTunnel);
 	mConfigMgr->addConfiguration("peers.cfg"       , mPeerMgr);
 	mConfigMgr->addConfiguration("general.cfg"     , mGeneralConfig);
+    mConfigMgr->addConfiguration("authssl.cfg"     , dynamic_cast<p3Config*>(&AuthSSL::instance()));
 	mConfigMgr->addConfiguration("msgs.cfg"        , msgSrv);
 	mConfigMgr->addConfiguration("chat.cfg"        , chatSrv);
 	mConfigMgr->addConfiguration("p3History.cfg"   , mHistoryMgr);
