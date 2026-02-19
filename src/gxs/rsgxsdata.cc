@@ -51,11 +51,6 @@ uint32_t RsGxsGrpMetaData::serial_size(uint32_t api_version) const
     {
         s += 4;      // mSignFlag
     }
-    else if(api_version == RS_GXS_GRP_META_DATA_VERSION_ID_0003)
-    {
-        s += 4;      // mSignFlag
-        s += GetTlvStringSize(mCountryCode);
-    }
     else if(api_version != RS_GXS_GRP_META_DATA_VERSION_ID_0001)
         std::cerr << "(EE) wrong/unknown API version " << api_version << " requested in RsGxsGrpMetaData::serial_size()" << std::endl;
 
@@ -79,7 +74,6 @@ void RsGxsGrpMetaData::clear(){
     keys.TlvClear();
 
     mServiceString.clear();
-    mCountryCode.clear();
     mAuthenFlags = 0;
     mParentGrpId.clear();
 
@@ -142,11 +136,6 @@ bool RsGxsGrpMetaData::serialise(void *data, uint32_t &pktsize,uint32_t api_vers
     {
 	    ok &= setRawUInt32(data, tlvsize, &offset, mSignFlags);	// new in API v2. Was previously missing. Kept in the end for backward compatibility
     }
-    else if(api_version == RS_GXS_GRP_META_DATA_VERSION_ID_0003)
-    {
-	    ok &= setRawUInt32(data, tlvsize, &offset, mSignFlags);	
-        ok &= SetTlvString(data, tlvsize, &offset, 0, mCountryCode);
-    }
 
     return ok;
 }
@@ -182,19 +171,12 @@ bool RsGxsGrpMetaData::deserialise(void *data, uint32_t &pktsize)
     
     switch(getRsItemId(data))
     {
-    case RS_GXS_GRP_META_DATA_VERSION_ID_0003:	
-        ok &= getRawUInt32(data, pktsize, &offset, &mSignFlags);	
-        ok &= GetTlvString(data, pktsize, &offset, 0, mCountryCode);
-	    break ;
-
     case RS_GXS_GRP_META_DATA_VERSION_ID_0002:	
         ok &= getRawUInt32(data, pktsize, &offset, &mSignFlags);	// current API
-        mCountryCode.clear();
 	    break ;
 
     case RS_GXS_GRP_META_DATA_VERSION_ID_0001: 
         mSignFlags = 0;						// old API. Do not leave this uninitialised!
-        mCountryCode.clear();
 	    break ;
 
     default:
@@ -356,7 +338,6 @@ void RsGxsGrpMetaData::operator =(const RsGroupMetaData& rMeta)
     this->mSubscribeFlags = rMeta.mSubscribeFlags;
     this->mGroupName = rMeta.mGroupName;
     this->mServiceString = rMeta.mServiceString;
-    this->mCountryCode = rMeta.mCountryCode;
     this->mSignFlags = rMeta.mSignFlags;
     this->mCircleId = rMeta.mCircleId;
         this->mCircleType = rMeta.mCircleType;

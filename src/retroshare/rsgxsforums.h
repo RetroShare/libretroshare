@@ -71,6 +71,9 @@ struct RsGxsForumGroup : RsSerializable, RsGxsGenericGroupData
 	 * JSON API! */
 	RsTlvGxsMsgIdSet mPinnedPosts;
 
+	/** @brief Forum country code */
+	std::string mCountryCode;
+
 	/// @see RsSerializable
 	virtual void serial_process(
 	        RsGenericSerializer::SerializeJob j,

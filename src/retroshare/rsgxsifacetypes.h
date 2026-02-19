@@ -99,7 +99,6 @@ struct RsGroupMetaData : RsSerializable
 	std::string mServiceString;
     RsPeerId mOriginator;
     RsGxsCircleId mInternalCircle;
-    std::string mCountryCode;
 
 	/// @see RsSerializable
 	void serial_process( RsGenericSerializer::SerializeJob j,
@@ -123,7 +122,6 @@ struct RsGroupMetaData : RsSerializable
 		RS_SERIAL_PROCESS(mServiceString);
 		RS_SERIAL_PROCESS(mOriginator);
 		RS_SERIAL_PROCESS(mInternalCircle);
-		RS_SERIAL_PROCESS(mCountryCode);
 	}
 };
 

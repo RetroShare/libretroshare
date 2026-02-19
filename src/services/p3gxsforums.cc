@@ -1834,6 +1834,7 @@ void RsGxsForumGroup::serial_process(
 {
 	RS_SERIAL_PROCESS(mMeta);
 	RS_SERIAL_PROCESS(mDescription);
+	RS_SERIAL_PROCESS(mCountryCode);
 
 	/* Work around to have usable JSON API, without breaking binary
 	 * serialization retrocompatibility */
