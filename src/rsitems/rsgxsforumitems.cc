@@ -43,6 +43,7 @@ RsItem *RsGxsForumSerialiser::create_item(uint16_t service_id,uint8_t item_subty
 void RsGxsForumGroupItem::clear()
 {
 	mGroup.mDescription.clear();
+	mGroup.mCountryCode.clear();
 }
 
 void RsGxsForumGroupItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
@@ -56,6 +57,11 @@ void RsGxsForumGroupItem::serial_process(RsGenericSerializer::SerializeJob j,RsG
 
     RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroup.mAdminList  ,"admin_list"  ) ;
     RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroup.mPinnedPosts,"pinned_posts") ;
+
+    if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
+        return ;
+
+    RsTypeSerializer::serial_process(j,ctx,TLV_TYPE_STR_LOCATION, mGroup.mCountryCode, "country_code");
 }
 
 void RsGxsForumMsgItem::clear()

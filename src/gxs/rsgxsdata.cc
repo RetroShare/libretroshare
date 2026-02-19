@@ -48,7 +48,9 @@ uint32_t RsGxsGrpMetaData::serial_size(uint32_t api_version) const
     s += keys.TlvSize();
     
     if(api_version == RS_GXS_GRP_META_DATA_VERSION_ID_0002)
+    {
         s += 4;      // mSignFlag
+    }
     else if(api_version != RS_GXS_GRP_META_DATA_VERSION_ID_0001)
         std::cerr << "(EE) wrong/unknown API version " << api_version << " requested in RsGxsGrpMetaData::serial_size()" << std::endl;
 
@@ -131,7 +133,9 @@ bool RsGxsGrpMetaData::serialise(void *data, uint32_t &pktsize,uint32_t api_vers
     ok &= keys.SetTlv(data, tlvsize, &offset);
 
     if(api_version == RS_GXS_GRP_META_DATA_VERSION_ID_0002)
+    {
 	    ok &= setRawUInt32(data, tlvsize, &offset, mSignFlags);	// new in API v2. Was previously missing. Kept in the end for backward compatibility
+    }
 
     return ok;
 }
@@ -167,10 +171,12 @@ bool RsGxsGrpMetaData::deserialise(void *data, uint32_t &pktsize)
     
     switch(getRsItemId(data))
     {
-    case RS_GXS_GRP_META_DATA_VERSION_ID_0002:	ok &= getRawUInt32(data, pktsize, &offset, &mSignFlags);	// current API
+    case RS_GXS_GRP_META_DATA_VERSION_ID_0002:	
+        ok &= getRawUInt32(data, pktsize, &offset, &mSignFlags);	// current API
 	    break ;
 
-    case RS_GXS_GRP_META_DATA_VERSION_ID_0001: mSignFlags = 0;						// old API. Do not leave this uninitialised!
+    case RS_GXS_GRP_META_DATA_VERSION_ID_0001: 
+        mSignFlags = 0;						// old API. Do not leave this uninitialised!
 	    break ;
 
     default:
@@ -332,8 +338,8 @@ void RsGxsGrpMetaData::operator =(const RsGroupMetaData& rMeta)
     this->mSubscribeFlags = rMeta.mSubscribeFlags;
     this->mGroupName = rMeta.mGroupName;
     this->mServiceString = rMeta.mServiceString;
-        this->mSignFlags = rMeta.mSignFlags;
-        this->mCircleId = rMeta.mCircleId;
+    this->mSignFlags = rMeta.mSignFlags;
+    this->mCircleId = rMeta.mCircleId;
         this->mCircleType = rMeta.mCircleType;
         this->mInternalCircle = rMeta.mInternalCircle;
         this->mOriginator = rMeta.mOriginator;

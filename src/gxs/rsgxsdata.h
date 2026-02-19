@@ -33,7 +33,7 @@ struct RsGroupMetaData;
 struct RsMsgMetaData;
 
 static const uint32_t RS_GXS_GRP_META_DATA_VERSION_ID_0001 = 0x0000 ; // change this, and keep old values if the content changes
-static const uint32_t RS_GXS_GRP_META_DATA_VERSION_ID_0002 = 0xaf01 ; // current API
+static const uint32_t RS_GXS_GRP_META_DATA_VERSION_ID_0002 = 0xaf01 ; 
 
 static const uint32_t RS_GXS_MSG_META_DATA_VERSION_ID_0002 = 0x0000 ; // current API
 
