@@ -34,12 +34,6 @@
 #include <fstream>
 #include <stdio.h>
 
-// This works on linux only. I have no clue how to do that on windows. Anyway, this
-// is only needed for an assert that should normaly never be triggered.
-
-#if !defined(_WIN32) && !defined(__MINGW32__)
-#include <sys/syscall.h>
-#endif
 
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
