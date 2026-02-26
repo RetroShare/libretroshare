@@ -43,6 +43,7 @@
 
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
+#include <thread>
 
 #include "TorManager.h"
 #include "TorProcess.h"
@@ -938,9 +939,8 @@ void RsTor::setHiddenServiceDirectory(const std::string& dir)
 
 TorManager *RsTor::instance()
 {
-#if !defined(_WIN32) && !defined(__MINGW32__)
-    assert(getpid() == syscall(SYS_gettid));// make sure we're not in a thread
-#endif
+    static std::thread::id main_thread_id = std::this_thread::get_id();
+    assert(std::this_thread::get_id() == main_thread_id); // make sure we're not in a different thread
 
     if(rsTor == nullptr)
         rsTor = new TorManager;

@@ -18,11 +18,11 @@ class ByteArray: public std::vector<unsigned char>
 public:
     ByteArray() =default;
     explicit ByteArray(int n) : std::vector<unsigned char>(n) {}
-    explicit ByteArray(const unsigned char *d,int n) : std::vector<unsigned char>(n) { memcpy(data(),d,n); }
+    explicit ByteArray(const unsigned char *d,int n) : std::vector<unsigned char>(n) { if (n > 0 && d) memcpy(data(),d,n); }
     virtual ~ByteArray() =default;
 
-    ByteArray(const std::string& c) { resize(c.size()); memcpy(data(),c.c_str(),c.size()); }
-    const ByteArray& operator=(const std::string& c) { resize(c.size()); memcpy(data(),c.c_str(),c.size()); return *this; }
+    ByteArray(const std::string& c) { resize(c.size()); if(c.size() > 0) memcpy(data(),c.c_str(),c.size()); }
+    const ByteArray& operator=(const std::string& c) { resize(c.size()); if(c.size() > 0) memcpy(data(),c.c_str(),c.size()); return *this; }
 
     bool isNull() const { return empty(); }
     ByteArray toHex() const { return ByteArray(RsUtil::BinToHex(data(),size(),0)); }
@@ -53,9 +53,9 @@ public:
 
         return res;
     }
-    bool endsWith(const ByteArray& b) const { return size() >= b.size() && !memcmp(&data()[size()-b.size()],b.data(),b.size()); }
+    bool endsWith(const ByteArray& b) const { return size() >= b.size() && (b.empty() || !memcmp(&data()[size()-b.size()],b.data(),b.size())); }
     bool endsWith(char b) const { return size() > 0 && back()==b; }
-    bool startsWith(const ByteArray& b) const { return b.size() <= size() && !strncmp((char*)b.data(),(char*)data(),std::min(size(),b.size())); }
+    bool startsWith(const ByteArray& b) const { return b.size() <= size() && (b.empty() || !strncmp((char*)b.data(),(char*)data(),std::min(size(),b.size()))); }
     bool startsWith(const char *b) const
     {
         for(uint32_t n=0;b[n]!=0;++n)
@@ -78,7 +78,7 @@ public:
     ByteArray mid(uint32_t n,int s=-1) const
     {
         ByteArray res((s>=0)?s:(size()-n));
-        memcpy(res.data(),&data()[n],res.size());
+        if (!res.empty() && n < size()) memcpy(res.data(),&data()[n],res.size());
         return res;
     }
 
@@ -99,7 +99,8 @@ public:
         }
         ByteArray res ;
 
-        for(uint32_t i=0;i+b1.size()<=size();)
+        uint32_t i=0;
+        for(;i+b1.size()<=size();)
             if(!memcmp(&(*this)[i],b1.data(),b1.size()))
             {
                 res.append(b2);
@@ -107,6 +108,9 @@ public:
             }
             else
                 res.push_back((*this)[i++]);
+
+        for(;i<size();++i)
+            res.push_back((*this)[i]);
 
         return res;
     }
