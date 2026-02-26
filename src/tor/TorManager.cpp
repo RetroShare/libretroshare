@@ -714,6 +714,12 @@ std::string TorManagerPrivate::torExecutablePath() const
 #ifdef __APPLE__
     // on MacOS, try traditional brew installation path
 
+    path = "/opt/homebrew/opt/tor/bin" ;
+    tor_exe_path = RsDirUtil::makePath(path,filename);
+
+    if (RsDirUtil::fileExists(tor_exe_path))
+        return tor_exe_path;
+
     path = "/usr/local/opt/tor/bin" ;
     tor_exe_path = RsDirUtil::makePath(path,filename);
 
