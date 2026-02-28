@@ -291,6 +291,25 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 ################################################################################
 
+if(RS_RNPLIB)
+	# Add RNP build directories to linker search path
+	target_link_directories(${PROJECT_NAME} PRIVATE
+		${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/lib
+		${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/libsexpp
+	)
+
+	# Link libraries by name, including RNP libs and dependencies first
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		rnp             # Link by name
+		sexpp
+	)
+
+	target_include_directories(${PROJECT_NAME} PUBLIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
+		"${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/lib"
+	)
+else()
+
 set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
 if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
 	message(
@@ -310,6 +329,8 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
+
+endif(RS_RNPLIB)
 
 ################################################################################
 
@@ -457,6 +478,7 @@ if(RS_JSON_API)
 
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE "${RESTBED_DEVEL_DIR}/source/" )
+		target_link_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/restbed")
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 	else()
 		message( WARNING
