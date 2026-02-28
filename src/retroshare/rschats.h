@@ -94,6 +94,25 @@ struct DistantChatPeerInfo : RsSerializable
     }
 };
 
+/// A single message entry transmitted as part of lobby history
+struct LobbyHistoryMsgEntry : RsSerializable
+{
+	RsGxsId  author_id;     // GXS identity of the message author
+	std::string nick;       // nickname of the author at time of sending
+	uint32_t send_time;     // original send timestamp
+	std::string message;    // message text content
+	bool     incoming;      // true if the message was received (not sent by us)
+
+	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx) override
+	{
+		RS_SERIAL_PROCESS(author_id);
+		RS_SERIAL_PROCESS(nick);
+		RS_SERIAL_PROCESS(send_time);
+		RS_SERIAL_PROCESS(message);
+		RS_SERIAL_PROCESS(incoming);
+	}
+};
+
 enum class RsChatHistoryChangeFlags: uint8_t
 {
     SAME   = 0x00,
@@ -240,6 +259,8 @@ enum class RsChatLobbyEventCode: uint8_t
     CHAT_LOBBY_EVENT_PEER_JOINED          = 0x07,	 // RS_CHAT_LOBBY_EVENT_PEER_JOINED
     CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME = 0x08,	 // RS_CHAT_LOBBY_EVENT_PEER_CHANGE_NICKNAME
     CHAT_LOBBY_EVENT_KEEP_ALIVE           = 0x09,	 // RS_CHAT_LOBBY_EVENT_KEEP_ALIVE
+    CHAT_LOBBY_EVENT_HISTORY_PROBE_RESPONSE = 0x0a,
+    CHAT_LOBBY_EVENT_HISTORY_DATA         = 0x0b,
 };
 
 enum class RsDistantChatEventCode: uint8_t
@@ -253,16 +274,20 @@ enum class RsDistantChatEventCode: uint8_t
 
 struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
 {
-    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsChatLobbyEventCode::UNKNOWN),mLobbyId(0),mTimeShift(0) {}
+    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsChatLobbyEventCode::UNKNOWN),mLobbyId(0),mTimeShift(0),mGenericCount(0) {}
     virtual ~RsChatLobbyEvent() override = default;
 
     RsChatLobbyEventCode mEventCode;
 
     uint64_t mLobbyId;
     RsGxsId mGxsId;
+    RsPeerId mPeerId;
     std::string mStr;
     ChatMessage mMsg;
     int mTimeShift;
+    uint32_t mGenericCount; // Used for returning probe counts/timestamps
+
+    std::vector<LobbyHistoryMsgEntry> mHistoryMsgs; // Passing history messages
 
     void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
 
@@ -271,9 +296,12 @@ struct RsChatLobbyEvent : RsEvent // This event handles events internal to the d
         RS_SERIAL_PROCESS(mEventCode);
         RS_SERIAL_PROCESS(mLobbyId);
         RS_SERIAL_PROCESS(mGxsId);
+        RS_SERIAL_PROCESS(mPeerId);
         RS_SERIAL_PROCESS(mStr);
         RS_SERIAL_PROCESS(mMsg);
         RS_SERIAL_PROCESS(mTimeShift);
+        RS_SERIAL_PROCESS(mGenericCount);
+        RS_SERIAL_PROCESS(mHistoryMsgs);
     }
 };
 
@@ -585,13 +613,26 @@ public:
      */
     virtual void setLobbyAutoSubscribe(const ChatLobbyId &lobby_id, const bool autoSubscribe) = 0 ;
 
-    /**
-     * @brief getLobbyAutoSubscribe get current value of auto subscribe
-     * @jsonapi{development}
-     * @param[in] lobby_id lobby to get value from
-     * @return wether lobby has auto subscribe enabled or disabled
-     */
     virtual bool getLobbyAutoSubscribe(const ChatLobbyId &lobby_id) = 0 ;
+
+    /**
+     * @brief requestLobbyHistory send a probe to all participating friends of a lobby to check available chat history
+     * @jsonapi{development}
+     * @param[in] lobby_id lobby to check
+     * @return true if probe was sent
+     */
+    virtual bool requestLobbyHistory(const ChatLobbyId& lobby_id) = 0 ;
+
+    /**
+     * @brief requestLobbyHistoryFromPeer request chat history from a specific peer in a lobby
+     * @jsonapi{development}
+     * @param[in] lobby_id lobby for which to request history
+     * @param[in] peer_id peer to request history from
+     * @param[in] max_count maximum number of messages to fetch
+     * @param[in] oldest_ts maximum age (timestamp) of the oldest message
+     * @return true if request was sent
+     */
+    virtual bool requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts) = 0 ;
 
     /**
      * @brief createChatLobby create a new chat lobby

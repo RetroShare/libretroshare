@@ -89,6 +89,8 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
 			RsIdentityDetails details;
 			if (rsIdentity->getIdDetails(cm.lobby_peer_gxs_id, details))
 				peerName = details.mNickname;
+			else if (cm.lobby_peer_gxs_id.isNull() && !cm.peer_alternate_nickname.empty())
+				peerName = cm.peer_alternate_nickname;
 			else
 				peerName = cm.lobby_peer_gxs_id.toStdString();
 		}
