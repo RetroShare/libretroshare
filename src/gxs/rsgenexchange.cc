@@ -1591,6 +1591,9 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			// Pre-allocate a temporary vector for results to avoid locking in the parallel loop
 			std::vector<RsGxsMsgItem*> tempItems(nxsMsgsV.size(), nullptr);
 
+			// THREAD-SAFETY NOTE: This OMP loop performs in-memory deserialization only.
+			// The SQLite/SQLCipher query has already completed above (getMsgData).
+			// The serialiser (mSerialiser) must remain stateless/re-entrant for this to be safe.
 			#pragma omp parallel for
 			for(size_t i = 0; i < nxsMsgsV.size(); ++i)
 			{
@@ -1602,9 +1605,7 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 
 				if (item)
 				{
-					// Use static_cast as we expect the serializer to return the correct type for this service
-					// dynamic_cast can be slower and we want speed here.
-					RsGxsMsgItem* mItem = static_cast<RsGxsMsgItem*>(item);
+					RsGxsMsgItem* mItem = dynamic_cast<RsGxsMsgItem*>(item);
 					if (mItem)
 					{
 						mItem->meta = *(msg->metaData); // get meta info from nxs msg
