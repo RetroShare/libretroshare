@@ -53,13 +53,13 @@ public:
 
         return res;
     }
-    bool endsWith(const ByteArray& b) const { return size() >= b.size() && (b.empty() || !memcmp(&data()[size()-b.size()],b.data(),b.size())); }
+    bool endsWith(const ByteArray& b) const { return size() >= b.size() && (b.empty() || !memcmp(data() + (size() - b.size()), b.data(), b.size())); }
     bool endsWith(char b) const { return size() > 0 && back()==b; }
-    bool startsWith(const ByteArray& b) const { return b.size() <= size() && (b.empty() || !strncmp((char*)b.data(),(char*)data(),std::min(size(),b.size()))); }
+    bool startsWith(const ByteArray& b) const { return size() >= b.size() && (b.empty() || !memcmp(data(), b.data(), b.size())); }
     bool startsWith(const char *b) const
     {
         for(uint32_t n=0;b[n]!=0;++n)
-            if(n >= size() || b[n]!=(*this)[n])
+            if(n >= size() || (unsigned char)b[n]!=(*this)[n])
                 return false;
 
         return true;
@@ -69,16 +69,19 @@ public:
     {
         uint32_t n;
         for(n=0;b[n]!=0;++n)
-            if(n >= size() || b[n]!=(*this)[n])
+            if(n >= size() || (unsigned char)b[n]!=(*this)[n])
                 return false;
 
         return n==size();
     }
 
-    ByteArray mid(uint32_t n,int s=-1) const
+    ByteArray mid(uint32_t n, int s = -1) const
     {
-        ByteArray res((s>=0)?s:(size()-n));
-        if (!res.empty() && n < size()) memcpy(res.data(),&data()[n],res.size());
+        if (n >= size()) return ByteArray();
+        uint32_t max_len = (uint32_t)size() - n;
+        uint32_t len = (s >= 0) ? std::min((uint32_t)s, max_len) : max_len;
+        ByteArray res(len);
+        if (len > 0) memcpy(res.data(), data() + n, len);
         return res;
     }
 

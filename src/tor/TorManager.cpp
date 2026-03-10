@@ -154,11 +154,15 @@ std::string TorManager::torDataDirectory() const
 
 void TorManager::setTorDataDirectory(const std::string &path)
 {
-    assert(RsDirUtil::checkCreateDirectory(std::string(path)));
+    if(!RsDirUtil::checkCreateDirectory(path))
+    {
+        RsErr() << "TorManager::setTorDataDirectory() cannot create directory: " << path ;
+        return ;
+    }
 
     d->dataDir = path;
 
-    if (!d->dataDir.empty() && !ByteArray(d->dataDir).endsWith('/'))
+    if (!d->dataDir.empty() && !(d->dataDir.back() == '/'))
         d->dataDir += '/';
 }
 
@@ -937,10 +941,18 @@ void RsTor::setHiddenServiceDirectory(const std::string& dir)
     instance()->setHiddenServiceDirectory(dir);
 }
 
+#ifdef __APPLE__
+#include <pthread.h>
+#endif
+
 TorManager *RsTor::instance()
 {
+#ifdef __APPLE__
+    assert(pthread_main_np() != 0); // On macOS, ensure we are on the main thread
+#else
     static std::thread::id main_thread_id = std::this_thread::get_id();
     assert(std::this_thread::get_id() == main_thread_id); // make sure we're not in a different thread
+#endif
 
     if(rsTor == nullptr)
         rsTor = new TorManager;
