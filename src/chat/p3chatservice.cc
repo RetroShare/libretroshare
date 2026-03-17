@@ -564,6 +564,17 @@ bool p3ChatService::requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, con
     return DistributedChatService::requestLobbyHistoryFromPeer(lobby_id, peer_id, max_count, oldest_ts) ;
 }
 
+bool p3ChatService::allowHistorySharing(bool allow)
+{
+    DistributedChatService::allowHistorySharing(allow) ;
+    return true ;
+}
+
+bool p3ChatService::isHistorySharingAllowed() const
+{
+    return DistributedChatService::isHistorySharingAllowed() ;
+}
+
 
 void p3ChatService::sendChatItem(RsChatItem *item)
 {

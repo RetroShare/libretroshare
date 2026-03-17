@@ -101,6 +101,7 @@ DistributedChatService::DistributedChatService(uint32_t serv_type,p3ServiceContr
 {
     _time_shift_average = 0.0f ;
     _should_reset_lobby_counts = false ;
+    _allow_history_sharing = false ;
     last_visible_lobby_info_request_time = 0 ;
 }
 
@@ -2206,6 +2207,15 @@ void DistributedChatService::addToSaveList(std::list<RsItem*>& list) const
 		list.push_back(vitem);
 	}
 
+	/* Save Allow History Sharing */
+	{
+		RsConfigKeyValueSet *vitem = new RsConfigKeyValueSet ;
+		RsTlvKeyValue kv;
+		kv.key = "ALLOW_HISTORY_SHARING";
+		kv.value = _allow_history_sharing ? "1" : "0";
+		vitem->tlvkvs.pairs.push_back(kv);
+		list.push_back(vitem);
+	}
 }
 
 bool DistributedChatService::processLoadListItem(const RsItem *item)
@@ -2228,6 +2238,12 @@ bool DistributedChatService::processLoadListItem(const RsItem *item)
 						std::cerr << "ERROR: default identity is malformed." << std::endl;
 				}
 
+				return true;
+			}
+
+			if( kit->key == "ALLOW_HISTORY_SHARING" )
+			{
+				_allow_history_sharing = (kit->value == "1") ;
 				return true;
 			}
 
@@ -2381,6 +2397,13 @@ void DistributedChatService::handleRecvLobbyHistoryProbe(RsChatLobbyHistoryProbe
 		}
 	}
 
+	// Check if we allow sharing history
+	if(!_allow_history_sharing)
+	{
+		std::cerr << "handleRecvLobbyHistoryProbe(): history sharing is disabled. Ignoring." << std::endl;
+		return ;
+	}
+
 	// Retrieve our local history for this lobby
 	std::list<HistoryMsg> msgs ;
 	mHistMgr->getMessages(ChatId(item->lobby_id), msgs, 0) ; // 0 = get all available
@@ -2463,6 +2486,13 @@ void DistributedChatService::handleRecvLobbyHistoryRequest(RsChatLobbyHistoryReq
 			std::cerr << "(WW) handleRecvLobbyHistoryRequest(): lobby " << std::hex << item->lobby_id << std::dec << " not found. Ignoring." << std::endl;
 			return ;
 		}
+	}
+
+	// Check if we allow sharing history
+	if(!_allow_history_sharing)
+	{
+		std::cerr << "handleRecvLobbyHistoryRequest(): history sharing is disabled. Ignoring." << std::endl;
+		return ;
 	}
 
 	// Retrieve local history
