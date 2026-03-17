@@ -87,6 +87,8 @@ class DistributedChatService
 		// Lobby history retrieval protocol
 		bool requestLobbyHistory(const ChatLobbyId& lobby_id) ;
 		bool requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts) ;
+		void allowHistorySharing(bool allow) { _allow_history_sharing = allow; triggerConfigSave(); }
+		bool isHistorySharingAllowed() const { return _allow_history_sharing; }
 
 	protected:
 		bool handleRecvItem(RsChatItem *) ;
@@ -171,6 +173,7 @@ class DistributedChatService
 		rstime_t last_lobby_challenge_time ; 					// prevents bruteforce attack
 		rstime_t last_visible_lobby_info_request_time ;	// allows to ask for updates
 		bool _should_reset_lobby_counts ;
+		bool _allow_history_sharing ;
 		RsGxsId _default_identity;
 		std::map<ChatLobbyId,RsGxsId> _lobby_default_identity;
 

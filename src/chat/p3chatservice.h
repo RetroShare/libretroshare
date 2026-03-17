@@ -141,6 +141,9 @@ public:
     virtual bool requestLobbyHistory(const ChatLobbyId& lobby_id) override;
     virtual bool requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts) override;
 
+    virtual bool allowHistorySharing(bool allow) override;
+    virtual bool isHistorySharingAllowed() const override;
+
     /** methods that will call the DistantChatService parent
      */
     virtual bool setDistantChatPermissionFlags(uint32_t flags) override;

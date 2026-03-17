@@ -635,6 +635,19 @@ public:
     virtual bool requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts) = 0 ;
 
     /**
+     * @brief allowHistorySharing enable or disable sharing of chat history with friends
+     * @param[in] allow set to true to allow sharing, false to disallow
+     * @return true on success
+     */
+    virtual bool allowHistorySharing(bool allow) = 0 ;
+
+    /**
+     * @brief isHistorySharingAllowed check if history sharing is allowed
+     * @return true if sharing is allowed, false otherwise
+     */
+    virtual bool isHistorySharingAllowed() const = 0 ;
+
+    /**
      * @brief createChatLobby create a new chat lobby
      * @jsonapi{development}
      * @param[in] lobby_name lobby name
