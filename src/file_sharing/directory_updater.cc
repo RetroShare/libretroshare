@@ -24,7 +24,6 @@
 
 #include "util/cxx17retrocompat.h"
 #include "util/folderiterator.h"
-#include <algorithm>
 #include "util/rstime.h"
 #include "rsserver/p3face.h"
 #include "directory_storage.h"
@@ -221,9 +220,11 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 		RS_DBG4("recursing into \"", stored_dir_it.name());
 
 		std::string canonical = RsDirUtil::removeSymLinks(stored_dir_it.name());
-		existing_dirs.insert(canonical);
-		std::vector<std::string> current_branch_real_paths;
-		current_branch_real_paths.push_back(canonical);
+		if(!canonical.empty())
+			existing_dirs.insert(canonical);
+		std::set<std::string> current_branch_real_paths;
+		if(!canonical.empty())
+			current_branch_real_paths.insert(canonical);
 		recursUpdateSharedDir(
 		            stored_dir_it.name(), *stored_dir_it,
 		            existing_dirs, current_branch_real_paths, 1, some_files_not_ready );
@@ -244,7 +245,7 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 
 void LocalDirectoryUpdater::recursUpdateSharedDir(
         const std::string& cumulated_path, DirectoryStorage::EntryIndex indx,
-        std::set<std::string>& existing_directories, std::vector<std::string>& current_branch_real_paths, uint32_t current_depth,
+        std::set<std::string>& existing_directories, std::set<std::string>& current_branch_real_paths, uint32_t current_depth,
         bool& some_files_not_ready )
 {
 	RS_DBG4("parsing directory \"", cumulated_path, "\" index: ", indx);
@@ -309,7 +310,13 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 						std::string real_path = RsDirUtil::removeSymLinks(
 						            RsDirUtil::makePath(cumulated_path, dirIt.file_name()) );
 
-						if (std::find(current_branch_real_paths.begin(), current_branch_real_paths.end(), real_path) != current_branch_real_paths.end())
+						if(real_path.empty())
+						{
+							RS_WARN( "Broken/circular symlink: \"", cumulated_path,
+							         "/", dirIt.file_name(), "\". Ignoring." );
+							dir_is_accepted = false;
+						}
+						else if(current_branch_real_paths.end() != current_branch_real_paths.find(real_path))
 						{
 							RS_WARN( "Circular symlink detected: \"", cumulated_path,
 							         "\" points to ancestor \"", real_path,
@@ -381,13 +388,15 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 	{
 		std::string next_path = RsDirUtil::makePath(cumulated_path, stored_dir_it.name());
 		std::string canonical = RsDirUtil::removeSymLinks(next_path);
-		current_branch_real_paths.push_back(canonical);
+		if(!canonical.empty())
+			current_branch_real_paths.insert(canonical);
 
 		recursUpdateSharedDir( next_path,
 		                       *stored_dir_it, existing_directories, current_branch_real_paths,
 		                       current_depth+1, some_files_not_ready );
 
-		current_branch_real_paths.pop_back();
+		if(!canonical.empty())
+			current_branch_real_paths.erase(canonical);
 	}
 }
 
