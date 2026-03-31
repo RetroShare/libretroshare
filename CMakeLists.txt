@@ -48,6 +48,11 @@ cmake_dependent_option(
 	OFF )
 
 option(
+	RS_RNPLIB
+	"Enable use RNP lib for PGP"
+	ON )
+
+option(
 	RS_JSON_API
 	"Use restbed to expose libretroshare as JSON API via HTTP"
 	OFF )
@@ -358,7 +363,7 @@ if(RS_BITDHT)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
 	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht)
-	
+
 	if(RS_BITDHT_STUNNER)
 		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
 
@@ -418,7 +423,7 @@ if(RS_JSON_API)
 	set(
 		JSONAPI_GENERATOR_SOURCE_DIR
 		"${CMAKE_CURRENT_SOURCE_DIR}/src/jsonapi/" )
-		
+
 	set(
 		JSONAPI_GENERATOR_EXECUTABLE
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
@@ -620,7 +625,7 @@ endif(NOT RS_WARN_DEPRECATED)
 
 if(RS_WARN_LESS)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_CPP)
-	
+
 	target_compile_options(
 		${PROJECT_NAME} PRIVATE
 		-Wno-cpp -Wno-inconsistent-missing-override )
