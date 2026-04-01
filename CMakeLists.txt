@@ -315,25 +315,27 @@ if(RS_RNPLIB)
 	)
 else()
 
-set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
-if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
-	message(
-		STATUS
-		"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
-	add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
-else()
-	FetchContent_Declare(
-		openpgpsdk
-		GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
-		GIT_TAG "origin/master"
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
-	)
-	FetchContent_MakeAvailable(openpgpsdk)
-endif()
+	set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
+	if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
+		message(
+			STATUS
+			"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
+		add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
+	else()
+		FetchContent_Declare(
+			openpgpsdk
+			GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
+			GIT_TAG "origin/master"
+			GIT_SHALLOW TRUE
+			GIT_PROGRESS TRUE
+			TIMEOUT 10
+		)
+		FetchContent_MakeAvailable(openpgpsdk)
+	endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
+	target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
+
+	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENPGPSDK)
 
 endif(RS_RNPLIB)
 
