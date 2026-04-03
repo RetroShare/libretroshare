@@ -97,7 +97,8 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
                       RsGxsMessageId& postId,
-                      std::string& error_message) override;
+                      std::string& error_message,
+                      const RsGxsMessageId& origPostId = RsGxsMessageId()) override;
 
     bool voteForPost(const RsGxsGroupId& boardId,
                      const RsGxsMessageId& postMsgId,

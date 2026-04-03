@@ -21,6 +21,7 @@
  *******************************************************************************/
 #include "rsitems/rsposteditems.h"
 #include "serialiser/rstypeserializer.h"
+#include "serialiser/rstlvbase.h"
 
 
 
@@ -45,14 +46,43 @@ void RsGxsPostedPostItem::serial_process(RsGenericSerializer::SerializeJob j,RsG
 void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
 	RsTypeSerializer::serial_process(j,ctx,TLV_TYPE_STR_DESCR ,mDescription,"mDescription") ;
-	
-	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
-        return ;
 
-	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mGroupImage.empty())
-		return ;
+	if(j == RsGenericSerializer::DESERIALIZE)
+	{
+		if(ctx.mOffset == ctx.mSize)
+			return;
 
-	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
+		if(ctx.mSize >= ctx.mOffset + TLV_HEADER_SIZE)
+		{
+			const uint16_t nextTlvType = GetTlvType(
+			            ctx.mData + ctx.mOffset );
+			if(nextTlvType == mGroupImage.TlvType())
+				RsTypeSerializer::serial_process<RsTlvItem>(
+				            j,ctx,mGroupImage,"mGroupImage" );
+		}
+
+		if(ctx.mOffset == ctx.mSize)
+			return;
+
+		if(ctx.mSize >= ctx.mOffset + TLV_HEADER_SIZE)
+		{
+			const uint16_t nextTlvType = GetTlvType(
+			            ctx.mData + ctx.mOffset );
+			if(nextTlvType == mPinnedPosts.TlvType())
+				RsTypeSerializer::serial_process<RsTlvItem>(
+				            j,ctx,mPinnedPosts,"mPinnedPosts" );
+		}
+		return;
+	}
+
+	if(!mGroupImage.empty())
+		RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
+
+	if((j == RsGenericSerializer::SIZE_ESTIMATE
+	    || j == RsGenericSerializer::SERIALIZE)
+	        && mPinnedPosts.ids.empty()) return;
+
+	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mPinnedPosts,"mPinnedPosts") ;
 }
 
 RsItem *RsGxsPostedSerialiser::create_item(uint16_t service_id,uint8_t item_subtype) const
@@ -119,6 +149,7 @@ void RsGxsPostedGroupItem::clear()
 {
 	mDescription.clear();
 	mGroupImage.TlvClear();
+	mPinnedPosts.TlvClear();
 }
 
 bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
@@ -126,6 +157,7 @@ bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
 	clear();
 	meta = group.mMeta;
 	mDescription = group.mDescription;
+	mPinnedPosts = group.mPinnedPosts;
 
 	if (moveImage)
 	{
@@ -144,6 +176,7 @@ bool RsGxsPostedGroupItem::toPostedGroup(RsPostedGroup &group, bool moveImage)
 {
 	group.mMeta = meta;
 	group.mDescription = mDescription;
+	group.mPinnedPosts = mPinnedPosts;
 	if (moveImage)
 	{
 		group.mGroupImage.take((uint8_t *) mGroupImage.binData.bin_data, mGroupImage.binData.bin_len);

@@ -26,6 +26,7 @@
 #include "rsitems/rsgxscommentitems.h"
 #include "rsitems/rsgxsitems.h"
 #include "serialiser/rstlvimage.h"
+#include "serialiser/rstlvidset.h"
 
 #include "retroshare/rsposted.h"
 
@@ -48,6 +49,7 @@ public:
 	
 	std::string mDescription;
 	RsTlvImage mGroupImage;
+	RsTlvGxsMsgIdSet mPinnedPosts;
 
 };
 
