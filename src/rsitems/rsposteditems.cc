@@ -56,7 +56,7 @@ void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,Rs
 		{
 			const uint16_t nextTlvType = GetTlvType(
 			            ctx.mData + ctx.mOffset );
-			if(nextTlvType == mGroupImage.TlvType())
+			if(nextTlvType == TLV_TYPE_IMAGE)
 				RsTypeSerializer::serial_process<RsTlvItem>(
 				            j,ctx,mGroupImage,"mGroupImage" );
 		}
@@ -68,7 +68,7 @@ void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,Rs
 		{
 			const uint16_t nextTlvType = GetTlvType(
 			            ctx.mData + ctx.mOffset );
-			if(nextTlvType == mPinnedPosts.TlvType())
+			if(nextTlvType == TLV_TYPE_GXSMSGIDSET)
 				RsTypeSerializer::serial_process<RsTlvItem>(
 				            j,ctx,mPinnedPosts,"mPinnedPosts" );
 		}
