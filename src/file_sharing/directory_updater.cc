@@ -220,14 +220,17 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 		RS_DBG4("recursing into \"", stored_dir_it.name());
 
 		std::string canonical = RsDirUtil::removeSymLinks(stored_dir_it.name());
+
 		if(!canonical.empty())
+		{
 			existing_dirs.insert(canonical);
-		std::set<std::string> current_branch_real_paths;
-		if(!canonical.empty())
-			current_branch_real_paths.insert(canonical);
-		recursUpdateSharedDir(
-		            stored_dir_it.name(), *stored_dir_it,
-		            existing_dirs, current_branch_real_paths, 1, some_files_not_ready );
+
+			std::set<std::string> current_branch_real_paths = { canonical };
+
+			recursUpdateSharedDir(
+			            stored_dir_it.name(), *stored_dir_it,
+			            existing_dirs, current_branch_real_paths, 1, some_files_not_ready );
+		}
 		/* here we need to use the list that was stored, instead of the shared
 		 * dir list, because the two are not necessarily in the same order. */
 	}
@@ -387,16 +390,18 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 	     stored_dir_it; ++stored_dir_it )
 	{
 		std::string next_path = RsDirUtil::makePath(cumulated_path, stored_dir_it.name());
+
+		// canonical cannot be empty here: directories with unresolvable paths
+		// were already filtered out during the subdirs collection phase above.
 		std::string canonical = RsDirUtil::removeSymLinks(next_path);
-		if(!canonical.empty())
-			current_branch_real_paths.insert(canonical);
+
+		current_branch_real_paths.insert(canonical);
 
 		recursUpdateSharedDir( next_path,
 		                       *stored_dir_it, existing_directories, current_branch_real_paths,
 		                       current_depth+1, some_files_not_ready );
 
-		if(!canonical.empty())
-			current_branch_real_paths.erase(canonical);
+		current_branch_real_paths.erase(canonical);
 	}
 }
 
