@@ -1114,10 +1114,42 @@ int RsGenExchange::validateGrp(RsNxsGrp* grp)
     }
 
     if(idValidate)
+	{
+		// Validate admin signature
+		RsTlvSecurityKeySet keys = metaData.keys;
+		GxsSecurity::createPublicKeysFromPrivateKeys(keys);
+		std::map<RsGxsId, RsTlvPublicRSAKey>& public_keys = keys.public_keys;
+		std::map<RsGxsId, RsTlvPublicRSAKey>::iterator keyMit = public_keys.find(RsGxsId(metaData.mGroupId));
+	
+		if(keyMit == public_keys.end())
+		{
+#ifdef GEN_EXCH_DEBUG
+			std::cerr << "RsGenExchange::validateGrp() admin key not found! " << std::endl;
+#endif
+			return VALIDATE_FAIL;
+		}
+	
+		std::map<SignType, RsTlvKeySignature>& signSet = metaData.signSet.keySignSet;
+		std::map<SignType, RsTlvKeySignature>::iterator mit = signSet.find(INDEX_AUTHEN_ADMIN);
+		if(mit == signSet.end())
+		{
+#ifdef GEN_EXCH_DEBUG
+			std::cerr << "RsGenExchange::validateGrp() admin sign not found! " << std::endl;
+			std::cerr << "RsGenExchange::validateGrp() grpId: " << metaData.mGroupId << std::endl;
+#endif
+			return VALIDATE_FAIL;
+		}
+		RsTlvKeySignature adminSign = mit->second;
+		if (!GxsSecurity::validateNxsGrp(*grp, adminSign, keyMit->second))
+		{
+			return VALIDATE_FAIL;
+		}
 	    return VALIDATE_SUCCESS;
+	}
     else
+	{
 	    return VALIDATE_FAIL;
-
+	}
 }
 
 bool RsGenExchange::checkAuthenFlag(const PrivacyBitPos& pos, const uint8_t& flag) const
