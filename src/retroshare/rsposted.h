@@ -44,16 +44,18 @@ extern RsPosted* rsPosted;
 struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 {
 	std::string mDescription;
-	RsGxsImage mGroupImage;
+        RsGxsImage mGroupImage;
+        std::set<RsGxsMessageId> mPinnedPosts;  // pinned post ids
 
-	/// @see RsSerializable
-	virtual void serial_process( RsGenericSerializer::SerializeJob j,
-								 RsGenericSerializer::SerializeContext& ctx ) override
-	{
-		RS_SERIAL_PROCESS(mMeta);
-		RS_SERIAL_PROCESS(mDescription);
-		RS_SERIAL_PROCESS(mGroupImage);
-	}
+        /// @see RsSerializable
+        virtual void serial_process( RsGenericSerializer::SerializeJob j,
+                                                                 RsGenericSerializer::SerializeContext& ctx ) override
+        {
+                RS_SERIAL_PROCESS(mMeta);
+                RS_SERIAL_PROCESS(mDescription);
+                RS_SERIAL_PROCESS(mGroupImage);
+                RS_SERIAL_PROCESS(mPinnedPosts);
+        }
 };
 
 struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
@@ -435,6 +437,8 @@ public:
 
 	RS_DEPRECATED_FOR(editBoard)
 	virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) = 0;
+
+	virtual bool pinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId, bool pin) = 0;
 
 	virtual bool groupShareKeys(const RsGxsGroupId& group,const std::set<RsPeerId>& peers) = 0 ;
 

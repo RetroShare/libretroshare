@@ -139,6 +139,7 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
     virtual bool createPost(uint32_t &token, RsPostedPost &post) override;
 
     virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) override;
+    bool pinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId, bool pin) override;
     virtual bool groupShareKeys(const RsGxsGroupId &group, const std::set<RsPeerId>& peers) override;
 
     //////////////////////////////////////////////////////////////////////////////

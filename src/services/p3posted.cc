@@ -849,6 +849,7 @@ bool p3Posted::createCommentV2(
     cmt.mMeta.mParentId = parentId;
     cmt.mMeta.mAuthorId = authorId;
     cmt.mMeta.mOrigMsgId = origCommentId;
+
     cmt.mComment = comment;
 
     uint32_t token;
@@ -889,6 +890,23 @@ bool p3Posted::editBoard(RsPostedGroup& board)
 
 	return true;
 }
+
+bool p3Posted::pinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId, bool pin)
+{
+    std::vector<RsPostedGroup> groupsInfo;
+    if(!getBoardsInfo({boardId}, groupsInfo) || groupsInfo.empty())
+        return false;
+
+    RsPostedGroup& grp = groupsInfo[0];
+
+    if(pin)
+        grp.mPinnedPosts.insert(postId);
+    else
+        grp.mPinnedPosts.erase(postId);
+
+    return editBoard(grp);
+}
+
 
 RsPosted::~RsPosted() = default;
 RsGxsPostedEvent::~RsGxsPostedEvent() = default;
