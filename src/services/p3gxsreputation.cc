@@ -1003,6 +1003,38 @@ bool p3GxsReputation::isIdentityBanned(const RsGxsId &id)
 	return info.mOverallReputationLevel == RsReputationLevel::LOCALLY_NEGATIVE;
 }
 
+bool p3GxsReputation::getLocallyBannedIdentities(
+        std::vector<RsBannedIdentityInfo>& identities )
+{
+	RS_STACK_MUTEX(mReputationMtx);
+
+	identities.clear();
+	identities.reserve(mReputations.size());
+
+	for(const auto& entry : mReputations)
+	{
+		const Reputation& rep(entry.second);
+		const bool locallyBanned =
+		        rep.mOwnOpinion == static_cast<int32_t>(RsOpinion::NEGATIVE);
+		const bool remotelyNegative =
+		        rep.mOwnOpinion == static_cast<int32_t>(RsOpinion::NEUTRAL)
+		        && rep.mFriendsPositive + mMinVotesForRemotelyNegative
+		           <= rep.mFriendsNegative;
+
+		if(locallyBanned || remotelyNegative)
+		{
+			RsBannedIdentityInfo info;
+			info.mId = entry.first;
+			info.mOwnOpinionTs = rep.mOwnOpinionTs;
+			info.mLastUsedTS = rep.mLastUsedTS;
+			info.mIsLocallyBanned = locallyBanned;
+			identities.push_back(info);
+		}
+	}
+
+	return true;
+}
+
 bool p3GxsReputation::getOwnOpinion(
         const RsGxsId& gxsid, RsOpinion& opinion )
 {
