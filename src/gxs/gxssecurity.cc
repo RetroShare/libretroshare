@@ -1166,6 +1166,101 @@ bool GxsSecurity::validateNxsGrp(const RsNxsGrp& grp, const RsTlvKeySignature& s
 		return true;
 	}
 
+	// Legacy fallback: try to verify the signature using the mServiceString
+	// that was present at group creation time. Before commit c5135a210,
+	// mServiceString was included in the signed payload. We reconstruct it
+	// and retry verification to maintain backward compatibility with 0.6.7.
+
+	std::cerr << "(WW) GxsSecurity::validateNxsGrp() Standard verification failed for group "
+	          << grpMeta.mGroupId << ". mServiceString=\"" << grpMeta.mServiceString
+	          << "\" (len=" << grpMeta.mServiceString.size() << ")" << std::endl;
+
+	if (!grpMeta.mServiceString.empty())
+	{
+		// Build a list of legacy mServiceString candidates to try.
+		// At creation time, p3idservice sets mServiceString = ssdata.save()
+		// which produces a deterministic string based on the identity type.
+
+		std::vector<std::string> legacyCandidates;
+
+		// Candidate 1: the received mServiceString itself (works if it
+		// hasn't been modified by intermediate nodes since last signing)
+		legacyCandidates.push_back(grpMeta.mServiceString);
+
+		// Candidate 2: creation-time string for anonymous identity
+		legacyCandidates.push_back("v2 {P:K:0 T:0 C:0}{T:F:0 P:0 T:0}{R:5 5 0 0}");
+
+		// Candidate 3: creation-time string for PGP-linked identity
+		// Extract PGP ID from the received mServiceString if present
+		std::string pgpId;
+		std::string::size_type ipos = grpMeta.mServiceString.find("I:");
+		if (ipos != std::string::npos)
+		{
+			ipos += 2; // skip "I:"
+			std::string::size_type end = grpMeta.mServiceString.find_first_of(" }", ipos);
+			if (end != std::string::npos)
+				pgpId = grpMeta.mServiceString.substr(ipos, end - ipos);
+			else
+				pgpId = grpMeta.mServiceString.substr(ipos);
+
+			if (!pgpId.empty())
+				legacyCandidates.push_back("v2 {P:K:1 I:" + pgpId + "}{T:F:0 P:0 T:0}{R:5 5 0 0}");
+		}
+
+		// Save original state and prepare for legacy verification
+		std::string savedServiceString = grpMeta.mServiceString;
+		grpMeta.signSet.TlvClear();
+
+		const unsigned char *keyptr2 = (const unsigned char *) key.keyData.bin_data;
+		RSA *rsakey2 = d2i_RSAPublicKey(NULL, &(keyptr2), keylen);
+
+		if (rsakey2)
+		{
+			EVP_PKEY *signKey2 = EVP_PKEY_new();
+			EVP_PKEY_assign_RSA(signKey2, rsakey2);
+
+			for (uint32_t c = 0; c < legacyCandidates.size() && signOk != 1; ++c)
+			{
+				grpMeta.mServiceString = legacyCandidates[c];
+				grpMeta.mUseLegacyServiceString = true;
+
+				for (uint32_t i = 0; i < api_versions_to_check.size() && signOk != 1; ++i)
+				{
+					uint32_t metaDataLen = grpMeta.serial_size(api_versions_to_check[i]);
+					uint32_t allGrpDataLen = metaDataLen + grp.grp.bin_len;
+
+					RsTemporaryMemory metaData(metaDataLen);
+					RsTemporaryMemory allGrpData(allGrpDataLen);
+
+					grpMeta.serialise(metaData, metaDataLen, api_versions_to_check[i]);
+
+					memcpy(allGrpData, grp.grp.bin_data, grp.grp.bin_len);
+					memcpy(allGrpData + grp.grp.bin_len, metaData, metaDataLen);
+
+					EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
+					EVP_VerifyInit(mdctx, EVP_sha1());
+					EVP_VerifyUpdate(mdctx, allGrpData, allGrpDataLen);
+					signOk = EVP_VerifyFinal(mdctx, sigbuf, siglen, signKey2);
+					EVP_MD_CTX_destroy(mdctx);
+				}
+			}
+
+			EVP_PKEY_free(signKey2);
+		}
+
+		// Restore original state
+		grpMeta.mServiceString = savedServiceString;
+		grpMeta.mUseLegacyServiceString = false;
+		grpMeta.signSet = signSet;
+
+		if (signOk == 1)
+		{
+			std::cerr << "(II) GxsSecurity::validateNxsGrp() Legacy signature verified for group "
+			          << grpMeta.mGroupId << std::endl;
+			return true;
+		}
+	}
+
 #ifdef GXS_SECURITY_DEBUG
 	std::cerr << "GxsSecurity::validateNxsGrp() Signature invalid";
 	std::cerr << std::endl;

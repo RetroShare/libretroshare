@@ -70,6 +70,7 @@ public:
     uint32_t    mSignFlags;
 
     // BELOW HERE IS LOCAL DATA, THAT IS NOT FROM MSG.
+    bool        mUseLegacyServiceString; // Temporary flag for legacy signature verification
 
     uint32_t    mSubscribeFlags;
 
