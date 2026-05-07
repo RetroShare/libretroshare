@@ -1156,6 +1156,9 @@ int RsGenExchange::validateGrp(RsNxsGrp* grp)
 			RsDbg() << "GXSSYNC: Main key " << metaData.mGroupId << " not found or failed validation. Trying fallback keys in public_keys map..." ;
 			for (const auto& pair : public_keys)
 			{
+				if (!(pair.second.keyFlags & RSTLV_KEY_DISTRIB_ADMIN))
+					continue;
+
 				if (GxsSecurity::validateNxsGrp(*grp, adminSign, pair.second))
 				{
 					RsDbg() << "GXSSYNC: Admin signature successfully validated using fallback key ID: " << pair.first ;
@@ -1168,9 +1171,14 @@ int RsGenExchange::validateGrp(RsNxsGrp* grp)
 		if (!admin_validated)
 		{
 			std::ostringstream oss;
-			oss << "Keys tried: [";
+			oss << "Keys in group: [";
 			for (const auto& pair : public_keys) {
-				oss << pair.first << ", ";
+				oss << pair.first << " (flags=0x" << std::hex << pair.second.keyFlags << std::dec;
+				if (pair.second.keyFlags & RSTLV_KEY_DISTRIB_ADMIN)
+					oss << " ADMIN";
+				if (pair.second.keyFlags & RSTLV_KEY_DISTRIB_PUBLISH)
+					oss << " PUBLISH";
+				oss << "), ";
 			}
 			oss << "]";
 			RsDbg() << "GXSSYNC: validateGrp failed for forum " << metaData.mGroupName << " (" << grp->grpId << "). Reason: Admin signature validation failed for all keys. " << oss.str() ;
