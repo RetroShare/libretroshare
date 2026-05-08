@@ -70,8 +70,6 @@ int	pqithreadstreamer::tick()
 
 void pqithreadstreamer::threadTick()
 {
-        static uint32_t recv_timeout = mTimeout;
-        static uint32_t sleep_period = mSleepPeriod;
         uint32_t readbytes = 0;
         uint32_t sentbytes = 0;
 	bool isactive = false;
@@ -95,7 +93,7 @@ void pqithreadstreamer::threadTick()
 	// Fill incoming queue
 	{
 		RsStackMutex stack(mThreadMutex);
-		readbytes = tick_recv(recv_timeout);
+		readbytes = tick_recv(mTimeout);
 	}
 
 	// Process incoming items, move them to relevant service queue or shortcut to fast service
@@ -117,22 +115,22 @@ void pqithreadstreamer::threadTick()
         {
                 // Activity detected: switch to maximum reactivity immediately
                 // This ensure fast throughput for data bursts
-                recv_timeout = STREAMER_TIMEOUT_MIN;
-                sleep_period = STREAMER_SLEEP_MIN;
+                mTimeout = STREAMER_TIMEOUT_MIN;
+                mSleepPeriod = STREAMER_SLEEP_MIN;
         }
         else
         {
                 // No activity: gradually increase the timeout and sleep to save CPU cycles
-                if (recv_timeout < STREAMER_TIMEOUT_MAX)
-                        recv_timeout += STREAMER_TIMEOUT_DELTA;
-                if (sleep_period < STREAMER_SLEEP_MAX)
-                        sleep_period += STREAMER_SLEEP_DELTA;
+                if (mTimeout < STREAMER_TIMEOUT_MAX)
+                        mTimeout += STREAMER_TIMEOUT_DELTA;
+                if (mSleepPeriod < STREAMER_SLEEP_MAX)
+                        mSleepPeriod += STREAMER_SLEEP_DELTA;
         }
 
-//	RsDbg() << "PQISTREAMER pqithreadstreamer::threadTick() recv_timeout " << std::dec << recv_timeout / 1000 << " sleep_period " <<  sleep_period / 1000 << " readbytes " << readbytes << "  sentbytes " << sentbytes;
+	// RsDbg() << "PQISTREAMER " << threadName() << " pqithreadstreamer::threadTick() mTimeout " << std::dec << mTimeout / 1000 << " mSleepPeriod " <<  mSleepPeriod / 1000 << " readbytes " << readbytes << "  sentbytes " << sentbytes;
 
-	if (sleep_period > 0)
+	if (mSleepPeriod > 0)
 	{
-		rstime::rs_usleep(sleep_period);
+		rstime::rs_usleep(mSleepPeriod);
 	}
 }
