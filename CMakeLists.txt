@@ -48,6 +48,11 @@ cmake_dependent_option(
 	OFF )
 
 option(
+	RS_RNPLIB
+	"Enable use RNP lib for PGP"
+	ON )
+
+option(
 	RS_JSON_API
 	"Use restbed to expose libretroshare as JSON API via HTTP"
 	OFF )
@@ -291,25 +296,48 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 ################################################################################
 
-set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
-if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
-	message(
-		STATUS
-		"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
-	add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
-else()
-	FetchContent_Declare(
-		openpgpsdk
-		GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
-		GIT_TAG "origin/master"
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
+if(RS_RNPLIB)
+	# Add RNP build directories to linker search path
+	target_link_directories(${PROJECT_NAME} PRIVATE
+		${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/lib
+		${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/libsexpp
 	)
-	FetchContent_MakeAvailable(openpgpsdk)
-endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
+	# Link libraries by name, including RNP libs and dependencies first
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		rnp             # Link by name
+		sexpp
+	)
+
+	target_include_directories(${PROJECT_NAME} PUBLIC
+		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
+		"${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/lib"
+	)
+else()
+
+	set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
+	if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
+		message(
+			STATUS
+			"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
+		add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
+	else()
+		FetchContent_Declare(
+			openpgpsdk
+			GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
+			GIT_TAG "origin/master"
+			GIT_SHALLOW TRUE
+			GIT_PROGRESS TRUE
+			TIMEOUT 10
+		)
+		FetchContent_MakeAvailable(openpgpsdk)
+	endif()
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
+
+	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENPGPSDK)
+
+endif(RS_RNPLIB)
 
 ################################################################################
 
@@ -337,7 +365,7 @@ if(RS_BITDHT)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
 	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht)
-	
+
 	if(RS_BITDHT_STUNNER)
 		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
 
@@ -397,7 +425,7 @@ if(RS_JSON_API)
 	set(
 		JSONAPI_GENERATOR_SOURCE_DIR
 		"${CMAKE_CURRENT_SOURCE_DIR}/src/jsonapi/" )
-		
+
 	set(
 		JSONAPI_GENERATOR_EXECUTABLE
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
@@ -457,6 +485,7 @@ if(RS_JSON_API)
 
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE "${RESTBED_DEVEL_DIR}/source/" )
+		target_link_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/restbed")
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
 	else()
 		message( WARNING
@@ -598,7 +627,7 @@ endif(NOT RS_WARN_DEPRECATED)
 
 if(RS_WARN_LESS)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_CPP)
-	
+
 	target_compile_options(
 		${PROJECT_NAME} PRIVATE
 		-Wno-cpp -Wno-inconsistent-missing-override )

@@ -230,21 +230,25 @@ endif(RS_JSON_API)
 
 list(
 	APPEND RS_SOURCES
-	pgp/openpgpsdkhandler.cc
 	pgp/pgpauxutils.cc
 	pgp/pgphandler.cc
 	pgp/pgpkeyutil.cc
-	pgp/rscertificate.cc
-	pgp/rnppgphandler.cc )
+	pgp/rscertificate.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
-	pgp/openpgpsdkhandler.h
 	pgp/pgpauxutils.h
 	pgp/pgphandler.h
 	pgp/pgpkeyutil.h
-	pgp/rscertificate.h
-	pgp/rnppgphandler.h )
+	pgp/rscertificate.h )
+
+if(RS_RNPLIB)
+	list(APPEND RS_SOURCES pgp/rnppgphandler.cc)
+	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/rnppgphandler.h)
+else()
+	list(APPEND RS_SOURCES pgp/openpgpsdkhandler.cc)
+	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/openpgpsdkhandler.h)
+endif()
 
 #./plugins/dlfcn_win32.cc
 #./plugins/dlfcn_win32.h
