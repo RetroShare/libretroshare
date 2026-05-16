@@ -38,6 +38,12 @@
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
 #include <thread>
+#if !defined(_WIN32) && !defined(__MINGW32__)
+#include <unistd.h>
+#endif
+#ifdef __linux__
+#include <sys/syscall.h>
+#endif
 
 #include "TorManager.h"
 #include "TorProcess.h"
@@ -156,8 +162,8 @@ void TorManager::setTorDataDirectory(const std::string &path)
 {
     if(!RsDirUtil::checkCreateDirectory(path))
     {
-        RsErr() << "TorManager::setTorDataDirectory() cannot create directory: " << path ;
-        return ;
+        RsFatal() << "TorManager::setTorDataDirectory() cannot create directory: " << path ;
+        exit(1);
     }
 
     d->dataDir = path;
@@ -949,9 +955,8 @@ TorManager *RsTor::instance()
 {
 #ifdef __APPLE__
     assert(pthread_main_np() != 0); // On macOS, ensure we are on the main thread
-#else
-    static std::thread::id main_thread_id = std::this_thread::get_id();
-    assert(std::this_thread::get_id() == main_thread_id); // make sure we're not in a different thread
+#elif defined(__linux__)
+    assert(getpid() == syscall(SYS_gettid)); // On Linux, ensure we are on the main thread
 #endif
 
     if(rsTor == nullptr)

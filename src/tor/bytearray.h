@@ -18,11 +18,11 @@ class ByteArray: public std::vector<unsigned char>
 public:
     ByteArray() =default;
     explicit ByteArray(int n) : std::vector<unsigned char>(n) {}
-    explicit ByteArray(const unsigned char *d,int n) : std::vector<unsigned char>(n) { if (n > 0 && d) memcpy(data(),d,n); }
+    explicit ByteArray(const unsigned char *d,int n) : std::vector<unsigned char>(n) { assert(n >= 0 && (n == 0 || d != nullptr)); if (n > 0 && d) memcpy(data(),d,n); }
     virtual ~ByteArray() =default;
 
-    ByteArray(const std::string& c) { resize(c.size()); if(c.size() > 0) memcpy(data(),c.c_str(),c.size()); }
-    const ByteArray& operator=(const std::string& c) { resize(c.size()); if(c.size() > 0) memcpy(data(),c.c_str(),c.size()); return *this; }
+    ByteArray(const std::string& c) { resize(c.size()); if(c.size() > 0) { assert(c.c_str() != nullptr); memcpy(data(),c.c_str(),c.size()); } }
+    const ByteArray& operator=(const std::string& c) { resize(c.size()); if(c.size() > 0) { assert(c.c_str() != nullptr); memcpy(data(),c.c_str(),c.size()); } return *this; }
 
     bool isNull() const { return empty(); }
     ByteArray toHex() const { return ByteArray(RsUtil::BinToHex(data(),size(),0)); }
