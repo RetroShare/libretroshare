@@ -271,11 +271,11 @@ int p3FileDatabase::tick()
                   mRemoteDirectories[i]->lastSweepTime() = now ;
                }
 
-               mRemoteDirectories[i]->checkSave() ;
+               mRemoteDirectories[i]->checkSave([this](const RsFileHash& h){ return this->locked_getCumulativeUpload(h); }) ;
             }
 
         mLastRemoteDirSweepTS = now;
-		mLocalSharedDirs->checkSave() ;
+		mLocalSharedDirs->checkSave([this](const RsFileHash& h){ return this->locked_getCumulativeUpload(h); }) ;
 
         // This is a hack to make loaded directories show up in the GUI, because the GUI generally isn't ready at the time they are actually loaded up,
         // so the first notify is ignored, and no other notify will happen next. We only do it if no data was received in the last 5 secs, in order to
@@ -1093,6 +1093,11 @@ int p3FileDatabase::getSharedDirStatistics(const RsPeerId& pid,SharedDirStats& s
 uint64_t p3FileDatabase::getCumulativeUpload(const RsFileHash& hash) const
 {
 	RS_STACK_MUTEX(mFLSMtx);
+	return locked_getCumulativeUpload(hash);
+}
+
+uint64_t p3FileDatabase::locked_getCumulativeUpload(const RsFileHash& hash) const
+{
 	auto it = mCumulativeUploaded.find(hash);
 	if (it != mCumulativeUploaded.end())
 		return it->second.total_bytes;
@@ -1439,6 +1444,13 @@ int p3FileDatabase::RequestDirDetails(
     }
 
     d.id = storage->peerId();
+ 
+    if (d.type == DIR_TYPE_FILE)
+    {
+        d.uploads = locked_getCumulativeUpload(d.hash);
+    }
+ 
+
 
 #ifdef DEBUG_FILE_HIERARCHY
     P3FILELISTS_DEBUG() << "ExtractData: ref=" << ref << ", flags=" << flags << " : returning this: " << std::endl;
