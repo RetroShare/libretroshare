@@ -36,10 +36,8 @@ static void inline doSleep(std::chrono::duration<long, std::ratio<1,1000>> timeT
 }
 
 p3I2pSam3::p3I2pSam3(p3PeerMgr *peerMgr) :
-    mConfigLoaded(false), mPeerMgr(peerMgr), mPending(), mLock("p3i2p-sam3")
-#ifdef RS_USE_I2P_SAM3_LIBSAM3
-  , mLockSam3Access("p3i2p-sam3-access")
-#endif
+    mConfigLoaded(false), mPeerMgr(peerMgr), mPending(), mLock("p3i2p-sam3"),
+    mLockSam3Access("p3i2p-sam3-access")
 {
 	RS_DBG4();
 

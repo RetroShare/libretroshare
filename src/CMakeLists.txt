@@ -339,8 +339,10 @@ list(
 	pqi/pqithreadstreamer.h
 	pqi/sslfns.h )
 
-#./pqi/pqissli2psam3.cpp
-#./pqi/pqissli2psam3.h
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES pqi/pqissli2psam3.cpp)
+	list(APPEND RS_IMPLEMENTATION_HEADERS pqi/pqissli2psam3.h)
+endif()
 
 list(
 	APPEND RS_SOURCES
@@ -476,9 +478,10 @@ list(
 	serialiser/rstlvstring.h
 	serialiser/rstypeserializer.h )
 
-# ./services/autoproxy
-#./services/autoproxy/p3i2psam3.cpp
-#./services/autoproxy/p3i2psam3.h
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES services/autoproxy/p3i2psam3.cpp)
+	list(APPEND RS_IMPLEMENTATION_HEADERS services/autoproxy/p3i2psam3.h)
+endif()
 
 list(
 	APPEND RS_SOURCES
@@ -497,7 +500,9 @@ list(
 	services/p3msgservice.cc
 	services/p3idservice.cc
 	services/p3gxschannels.cc
-	services/p3gxsforums.cc )
+	services/p3gxsforums.cc
+	friend_server/fsclient.cc
+	friend_server/fsmanager.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
@@ -517,7 +522,10 @@ list(
 	services/p3service.h
 	services/p3serviceinfo.h
 	services/p3statusservice.h
-	services/rseventsservice.h )
+	services/rseventsservice.h
+	friend_server/fsclient.h
+	friend_server/fsitem.h
+	friend_server/fsmanager.h )
 	
 #./services/p3wiki.cc
 #./services/p3wiki.h
@@ -619,8 +627,10 @@ list(
 	util/rsstacktrace.cc
 	util/rsthreads.cc )
 
-# util/i2pcommon.cpp
-# util/i2pcommon.h
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES util/i2pcommon.cpp)
+	list(APPEND RS_IMPLEMENTATION_HEADERS util/i2pcommon.h)
+endif()
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
