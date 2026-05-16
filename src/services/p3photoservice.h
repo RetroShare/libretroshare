@@ -115,6 +115,15 @@ public:
 		return true;
 	}
 
+	/* Blocking versions of RsGxsCommentService */
+	virtual bool getRelatedComments(const RsGxsGroupId& gid, const std::set<RsGxsMessageId>& msgIds, std::vector<RsGxsComment> &comments) override;
+	virtual bool voteForComment(const RsGxsGroupId& postGroupId, const RsGxsMessageId& postMsgId,
+			const RsGxsMessageId& postCommentId, const RsGxsId& authorId,
+			RsGxsVoteType vote,
+			RsGxsMessageId& voteId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
+			std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string)) override;
+	virtual bool setCommentReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override;
+
 
 	// Blocking versions.
 	virtual bool createComment(RsGxsComment &msg) override

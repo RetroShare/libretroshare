@@ -230,21 +230,25 @@ endif(RS_JSON_API)
 
 list(
 	APPEND RS_SOURCES
-	pgp/openpgpsdkhandler.cc
 	pgp/pgpauxutils.cc
 	pgp/pgphandler.cc
 	pgp/pgpkeyutil.cc
-	pgp/rscertificate.cc
-	pgp/rnppgphandler.cc )
+	pgp/rscertificate.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
-	pgp/openpgpsdkhandler.h
 	pgp/pgpauxutils.h
 	pgp/pgphandler.h
 	pgp/pgpkeyutil.h
-	pgp/rscertificate.h
-	pgp/rnppgphandler.h )
+	pgp/rscertificate.h )
+
+if(RS_RNPLIB)
+	list(APPEND RS_SOURCES pgp/rnppgphandler.cc)
+	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/rnppgphandler.h)
+else()
+	list(APPEND RS_SOURCES pgp/openpgpsdkhandler.cc)
+	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/openpgpsdkhandler.h)
+endif()
 
 #./plugins/dlfcn_win32.cc
 #./plugins/dlfcn_win32.h
@@ -291,8 +295,7 @@ list(
 	pqi/p3peermgr.cc
 	pqi/pqinetwork.cc
 	pqi/pqissl.cc
-	pqi/pqisslpersongrp.cc
-	pqi/pqissli2psam3.cpp )
+	pqi/pqisslpersongrp.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
@@ -334,10 +337,12 @@ list(
 	pqi/pqistore.h
 	pqi/pqistreamer.h
 	pqi/pqithreadstreamer.h
-	pqi/sslfns.h
-	pqi/pqissli2psam3.h )
+	pqi/sslfns.h )
 
-
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES pqi/pqissli2psam3.cpp)
+	list(APPEND RS_IMPLEMENTATION_HEADERS pqi/pqissli2psam3.h)
+endif()
 
 list(
 	APPEND RS_SOURCES
@@ -355,17 +360,10 @@ list(
 	rsitems/rsrttitems.cc
 	rsitems/rsserviceinfoitems.cc )
 
-if(RS_GXSWIKIPOS)
-	list(APPEND RS_SOURCES rsitems/rswikiitems.cc)
-	list(APPEND RS_PUBLIC_HEADERS retroshare/rswiki.h)
-	list(APPEND RS_IMPLEMENTATION_HEADERS rsitems/rswikiitems.h)
-endif()
-
-if(RS_GXSTHEWIRE)
-	list(APPEND RS_SOURCES rsitems/rswireitems.cc)
-	list(APPEND RS_PUBLIC_HEADERS retroshare/rswire.h)
-	list(APPEND RS_IMPLEMENTATION_HEADERS rsitems/rswireitems.h)
-endif()
+#retroshare/rswiki.h
+#./rsitems/rswikiitems.cc
+#./rsitems/rswikiitems.h
+#./rsitems/rswireitems.h
 
 list(
 	APPEND RS_SOURCES
@@ -374,10 +372,11 @@ list(
 	rsitems/rsgxsitems.cc
 	rsitems/rsmsgitems.cc )
 
-if(RS_GXSPHOTOSHARE)
-	list(APPEND RS_SOURCES rsitems/rsphotoitems.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS rsitems/rsphotoitems.h)
-endif()
+#./rsitems/rsphotoitems.cc
+#./rsitems/rsphotoitems.h
+#./rsitems/rsposteditems.h
+#./rsitems/rswireitems.cc
+#retroshare/rswire.h
 
 list(
 	APPEND RS_SOURCES
@@ -422,9 +421,7 @@ list(
 	rsserver/p3face-server.cc
 	rsserver/p3peers.cc
 	rsserver/rsaccounts.cc
-	rsserver/rsinit.cc
-	friend_server/fsmanager.cc
-	friend_server/fsclient.cc )
+	rsserver/rsinit.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
@@ -434,8 +431,7 @@ list(
 	rsserver/p3serverconfig.h
 	rsserver/p3status.h
 	rsserver/rsaccounts.h
-	rsserver/rsloginhandler.h
-	friend_server/fsmanager.h )
+	rsserver/rsloginhandler.h )
 
 list(
 	APPEND RS_SOURCES
@@ -482,8 +478,10 @@ list(
 	serialiser/rstlvstring.h
 	serialiser/rstypeserializer.h )
 
-# ./services/autoproxy
-
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES services/autoproxy/p3i2psam3.cpp)
+	list(APPEND RS_IMPLEMENTATION_HEADERS services/autoproxy/p3i2psam3.h)
+endif()
 
 list(
 	APPEND RS_SOURCES
@@ -503,7 +501,8 @@ list(
 	services/p3idservice.cc
 	services/p3gxschannels.cc
 	services/p3gxsforums.cc
-	services/autoproxy/p3i2psam3.cpp )
+	friend_server/fsclient.cc
+	friend_server/fsmanager.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
@@ -524,22 +523,17 @@ list(
 	services/p3serviceinfo.h
 	services/p3statusservice.h
 	services/rseventsservice.h
-	services/autoproxy/p3i2psam3.h )
+	friend_server/fsclient.h
+	friend_server/fsitem.h
+	friend_server/fsmanager.h )
 	
-if(RS_GXSWIKIPOS)
-	list(APPEND RS_SOURCES services/p3wiki.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS services/p3wiki.h)
-endif()
+#./services/p3wiki.cc
+#./services/p3wiki.h
+#./services/p3wire.cc
+#./services/p3wire.h
 
-if(RS_GXSTHEWIRE)
-	list(APPEND RS_SOURCES services/p3wire.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS services/p3wire.h)
-endif()
-
-if(RS_GXSPHOTOSHARE)
-	list(APPEND RS_SOURCES services/p3photoservice.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS services/p3photoservice.h)
-endif()
+#./services/p3photoservice.cc
+#./services/p3photoservice.h
 
 list(
 	APPEND RS_SOURCES
@@ -547,7 +541,7 @@ list(
 	services/p3posted.cc
 	rsitems/rsposteditems.cc )
 
-if(RS_BROADCAST_DISCOVERY)
+if(RS_BRODCAST_DISCOVERY)
 	list(
 		APPEND RS_PUBLIC_HEADERS
 		retroshare/rsbroadcastdiscovery.h )
@@ -559,7 +553,7 @@ if(RS_BROADCAST_DISCOVERY)
 	list(
 		APPEND RS_IMPLEMENTATION_HEADERS
 		services/broadcastdiscoveryservice.h )
-endif(RS_BROADCAST_DISCOVERY)
+endif(RS_BRODCAST_DISCOVERY)
 
 list(
 	APPEND RS_SOURCES
@@ -631,11 +625,12 @@ list(
 	util/rsnet.cc
 	util/rsnet_ss.cc
 	util/rsstacktrace.cc
-	util/rsthreads.cc
-	util/i2pcommon.cpp
-	../../supportlibs/libsam3/src/libsam3/libsam3.c )
+	util/rsthreads.cc )
 
-
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES util/i2pcommon.cpp)
+	list(APPEND RS_IMPLEMENTATION_HEADERS util/i2pcommon.h)
+endif()
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
@@ -687,8 +682,7 @@ list(
 	util/rsurl.h
 	util/rswin.h
 	util/smallobject.h
-	util/stacktrace.h
-	util/i2pcommon.h )
+	util/stacktrace.h )
 
 if(RS_FORUM_DEEP_INDEX)
 	list(

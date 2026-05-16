@@ -6,53 +6,15 @@
 # SPDX-License-Identifier: CC0-1.0
 
 set(LIB_NAME retroshare)
-# Options are now managed at the root level.
-# project(retroshare) is also inherited.
 
+# --- Silence Warnings (Applied to this target and its consumers) ---
+add_compile_options(-Wno-deprecated -Wno-deprecated-declarations -Wno-cpp)
+add_definitions(-DRS_NO_WARN_DEPRECATED)
 
-# Enable DWARF split debugging symbols generation also in Release mode this
-# doesn't make the library fat as the debugging symbols are stored
-# separately, enable us to symbolicate crash reports produced by release builds
-# @see https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
-# https://web.archive.org/web/20231127210015/https://www.productive-cpp.com/improving-cpp-builds-with-split-dwarf/
-option(
-	RS_SPLIT_DEBUG
-	"Generate split debug symbols, useful for debugabble release builds"
-	OFF )
-
-option(
-	RS_CPPTRACE_STACKTRACE
-	"Use Jeremy Rifkin Cpptrace library to print stacktrace instead of \
-	our implementation"
-	OFF )
-
-set(
-	RS_MAJOR_VERSION
-	""
-	CACHE STRING
-	"Specify RetroShare major version" )
-
-set(
-	RS_MINOR_VERSION
-	""
-	CACHE STRING
-	"Specify RetroShare minor version" )
-
-set(
-	RS_MINI_VERSION
-	""
-	CACHE STRING
-	"Specify RetroShare mini version" )
-
-set(
-	RS_EXTRA_VERSION
-	""
-	CACHE STRING
-	"Specify an extra string to append to RetroShare version to make it more descriptive" )
 
 ################################################################################
 
-find_package(Git REQUIRED)
+################################################################################
 
 ################################################################################
 
@@ -99,8 +61,7 @@ endif()
 ## is necessary to flag all implementation headers as public
 target_include_directories(
 	${LIB_NAME}
-	PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
-	PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/libsam3/src/libsam3" )
+	PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src" )
 
 set_target_properties(
 	${LIB_NAME}
@@ -144,37 +105,59 @@ target_link_libraries(${LIB_NAME} PRIVATE Threads::Threads)
 find_package(OpenSSL REQUIRED)
 target_include_directories(${LIB_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(${LIB_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+
+################################################################################
+
 if(RS_RNPLIB)
 	target_link_libraries(${LIB_NAME} PRIVATE librnp)
+else()
+	target_link_libraries(${LIB_NAME} PRIVATE openpgpsdk)
+	target_compile_definitions(${LIB_NAME} PUBLIC USE_OPENPGPSDK)
+endif(RS_RNPLIB)
+
+if(RS_USE_I2P_SAM3)
+	target_link_libraries(${LIB_NAME} PRIVATE sam3)
+	target_include_directories(${LIB_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/libsam3/src/libsam3")
 endif()
 
 ################################################################################
 
-# Dependencies are managed at the root level.
-target_link_libraries(${LIB_NAME} PRIVATE openpgpsdk)
-
 if(RS_BITDHT)
-    target_compile_definitions(${LIB_NAME} PUBLIC RS_USE_BITDHT)
-    target_link_libraries(${LIB_NAME} PUBLIC bitdht)
-    if(RS_BITDHT_STUNNER)
-        target_compile_definitions(${LIB_NAME} PUBLIC RS_USE_DHT_STUNNER)
-    endif()
+	target_compile_definitions(${LIB_NAME} PUBLIC RS_USE_BITDHT)
+	target_link_libraries(${LIB_NAME} PRIVATE bitdht)
+
+	if(RS_BITDHT_STUNNER)
+		target_compile_definitions(${LIB_NAME} PUBLIC RS_USE_DHT_STUNNER)
+
+		if(RS_BITDHT_STUNNER_EXT_IP)
+			# TODO: Refactor this define to use proper prefix and then flag as
+			# public
+			target_compile_definitions(
+				${LIB_NAME} PRIVATE ALLOW_DHT_STUNNER )
+		endif(RS_BITDHT_STUNNER_EXT_IP)
+	endif(RS_BITDHT_STUNNER)
+endif(RS_BITDHT)
+
+################################################################################
+
+set(RAPIDJSON_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/rapidjson/")
+find_path(
+	RS_RAPIDJSON_INCLUDE "rapidjson/document.h"
+	PATH_SUFFIXES "include" "includes" )
+if(EXISTS "${RS_RAPIDJSON_INCLUDE}")
+	message( STATUS
+	         "RapidJSON found in system at ${RS_RAPIDJSON_INCLUDE}" )
+elseif(EXISTS "${RAPIDJSON_DEVEL_DIR}/CMakeLists.txt")
+	message( STATUS
+	         "RapidJSON found in development dir at ${RAPIDJSON_DEVEL_DIR}" )
+	target_include_directories(
+		${LIB_NAME}
+		PUBLIC "${RAPIDJSON_DEVEL_DIR}/include" )
+else()
+	target_include_directories(
+		${LIB_NAME}
+		PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/rapidjson/include" )
 endif()
-
-# RapidJSON (header only)
-target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/rapidjson/include")
-
-# Restbed (JSON API)
-if(RS_JSON_API)
-    set(RESTBED_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/")
-    if(EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
-        # restbed is now added in the root CMakeLists.txt to avoid duplication
-        target_include_directories(${LIB_NAME} PUBLIC "${RESTBED_DEVEL_DIR}/source/")
-        target_link_libraries(${LIB_NAME} PUBLIC restbed-static)
-        target_compile_definitions(${LIB_NAME} PUBLIC RS_JSONAPI)
-    endif()
-endif()
-
 
 ################################################################################
 
@@ -197,7 +180,7 @@ if(RS_JSON_API)
 	set(
 		JSONAPI_GENERATOR_SOURCE_DIR
 		"${CMAKE_CURRENT_SOURCE_DIR}/src/jsonapi/" )
-		
+
 	set(
 		JSONAPI_GENERATOR_EXECUTABLE
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
@@ -235,8 +218,17 @@ if(RS_JSON_API)
 	target_include_directories(
 		${LIB_NAME} PRIVATE "${JSONAPI_GENERATOR_OUTPUT_DIR}" )
 
-	# Restbed is now handled above.
-
+	if(RS_ANDROID)
+		## At moment depending on restbed the CMake way doesn't seems to work at
+		## least on Android due to upstream CMake file limitation, patches
+		## should be sent upstream.
+		## Restbed is therefore compiled by Android toolchain preparation script
+		target_link_libraries(${LIB_NAME} PRIVATE restbed)
+	else()
+		target_include_directories(
+			${LIB_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/source/" )
+		target_link_libraries(${LIB_NAME} PRIVATE restbed-static)
+	endif()
 
 	target_compile_definitions(${LIB_NAME} PUBLIC RS_JSONAPI)
 endif(RS_JSON_API)
@@ -285,7 +277,6 @@ target_compile_definitions(
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_002
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_003 )
 
-
 if(RS_V07_BREAKING_CHANGES)
 	target_compile_definitions(
 		${LIB_NAME} PRIVATE
@@ -314,57 +305,15 @@ if(RS_GXS_SEND_ALL)
 		${LIB_NAME} PUBLIC RS_GXS_SEND_ALL )
 endif(RS_GXS_SEND_ALL)
 
-if(RS_BROADCAST_DISCOVERY)
-	## TODO: upstream option to disable tests building
-	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
-	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
-
-	set(UDP_DISCOVERY_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/")
-	if(EXISTS "${UDP_DISCOVERY_DEVEL_DIR}/CMakeLists.txt")
-		message( STATUS
-		         "UDP discovery source found at ${UDP_DISCOVERY_DEVEL_DIR} using it" )
-		add_subdirectory(${UDP_DISCOVERY_DEVEL_DIR} ${CMAKE_BINARY_DIR}/udp-discovery-cpp/)
-
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
-		target_include_directories(
-			${LIB_NAME} PRIVATE "${UDP_DISCOVERY_DEVEL_DIR}" )
-	else()
-		FetchContent_Declare(
-			udp-discovery-cpp
-			GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
-			GIT_TAG "origin/master"
-			GIT_SHALLOW TRUE
-			GIT_PROGRESS TRUE
-			TIMEOUT 10
-		)
-		FetchContent_MakeAvailable(udp-discovery-cpp)
-
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
-		target_include_directories(
-			${LIB_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
-	endif()
+if(RS_BRODCAST_DISCOVERY)
+	target_include_directories(
+		${LIB_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/" )
 
 	target_link_libraries(${LIB_NAME} PRIVATE udp-discovery)
 
 	target_compile_definitions(${LIB_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
-endif(RS_BROADCAST_DISCOVERY)
+endif(RS_BRODCAST_DISCOVERY)
 
-if(NOT RS_WARN_DEPRECATED)
-	target_compile_definitions(${LIB_NAME} PUBLIC RS_NO_WARN_DEPRECATED)
-	target_compile_options(
-		${LIB_NAME} PUBLIC
-		-Wno-deprecated -Wno-deprecated-declarations )
-endif(NOT RS_WARN_DEPRECATED)
-
-if(RS_WARN_LESS)
-	target_compile_definitions(${LIB_NAME} PRIVATE RS_NO_WARN_CPP)
-	
-	target_compile_options(
-		${LIB_NAME} PRIVATE
-		-Wno-cpp -Wno-inconsistent-missing-override )
-endif(RS_WARN_LESS)
 
 if(RS_WEBUI)
 	target_compile_definitions(${LIB_NAME} PUBLIC RS_WEBUI)
@@ -409,50 +358,7 @@ endif(RS_ANDROID)
 
 ################################################################################
 
-set( CMAKE_CXX_FLAGS "-Wno-deprecated-declarations" )
-target_compile_definitions(${LIB_NAME} PUBLIC RS_NO_WARN_DEPRECATED )
-
-set(V_VERSION_SET OFF)
-
-if( NOT RS_MAJOR_VERSION STREQUAL "" AND
-    NOT RS_MINOR_VERSION STREQUAL "" AND
-    NOT RS_MINI_VERSION  STREQUAL "" )
-	message(STATUS "RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
-	set(V_VERSION_SET ON)
-else()
-	set(V_GIT_DESCRIBE_OUTPUT "")
-	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
-
-	execute_process(
-		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT )
-
-	if(V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
-		string(
-			REGEX REPLACE
-			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
-			V_GIT_DESCRIBE_LIST ${V_GIT_DESCRIBE_OUTPUT} )
-		list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
-
-		message("RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
-		set(V_VERSION_SET ON)
-	else()
-		message(WARNING "Determining RetroShare version via git failed plese specify it through CMake command line arguments!")
-	endif()
-endif()
-
-if(V_VERSION_SET)
-	target_compile_definitions(
-		${LIB_NAME}
-		PUBLIC RS_MAJOR_VERSION=${RS_MAJOR_VERSION}
-		PUBLIC RS_MINOR_VERSION=${RS_MINOR_VERSION}
-		PUBLIC RS_MINI_VERSION=${RS_MINI_VERSION}
-		PUBLIC RS_EXTRA_VERSION="${RS_EXTRA_VERSION}" )
-endif(V_VERSION_SET)
+################################################################################
 
 ################################################################################
 
@@ -486,5 +392,5 @@ if(RS_CPPTRACE_STACKTRACE)
     FetchContent_MakeAvailable(cpptrace)
     target_link_libraries(${LIB_NAME} PRIVATE cpptrace::cpptrace)
     target_compile_definitions(
-        ${LIBRARY_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
+        ${LIB_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
 endif(RS_CPPTRACE_STACKTRACE)

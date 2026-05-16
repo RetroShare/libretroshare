@@ -100,6 +100,11 @@ DirectoryStorage::DirectoryStorage(const RsPeerId &pid,const std::string& fname)
     load(fname) ;
 }
 
+DirectoryStorage::~DirectoryStorage()
+{
+	delete mFileHierarchy;
+}
+
 DirectoryStorage::EntryIndex DirectoryStorage::root() const
 {
     return EntryIndex(0) ;

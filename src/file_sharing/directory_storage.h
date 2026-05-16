@@ -39,7 +39,7 @@ class DirectoryStorage
 {
 	public:
         DirectoryStorage(const RsPeerId& pid, const std::string& fname) ;
-        virtual ~DirectoryStorage() {}
+        virtual ~DirectoryStorage();
 
         typedef uint32_t EntryIndex ;
         static const EntryIndex NO_INDEX = 0xffffffff;

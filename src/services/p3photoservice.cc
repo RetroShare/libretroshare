@@ -21,7 +21,9 @@
  *******************************************************************************/
 #include "p3photoservice.h"
 #include "rsitems/rsphotoitems.h"
+#include "rsitems/rsgxscommentitems.h"
 #include "retroshare/rsgxsflags.h"
+#include <retroshare/rsidentity.h>
 
 RsPhoto *rsPhoto = NULL;
 
@@ -347,5 +349,122 @@ bool p3PhotoService::getAlbums(const std::list<RsGxsGroupId> &groupIds,
 	}
 
 	return getAlbum(token, albums) && !albums.empty();
+}
+
+bool p3PhotoService::getRelatedComments(const RsGxsGroupId& gid, const std::set<RsGxsMessageId>& messageIds, std::vector<RsGxsComment> &comments)
+{
+	std::vector<RsGxsGrpMsgIdPair> msgIds;
+
+	for (auto& msg : messageIds)
+		msgIds.push_back(RsGxsGrpMsgIdPair(gid, msg));
+
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_RELATED_DATA;
+	opts.mOptions = RS_TOKREQOPT_MSG_THREAD | RS_TOKREQOPT_MSG_LATEST;
+
+	uint32_t token;
+	if (!requestMsgRelatedInfo(token, opts, msgIds) || waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+
+	return getRelatedComments(token, comments);
+}
+
+bool p3PhotoService::voteForComment(const RsGxsGroupId& postGroupId, const RsGxsMessageId& postMsgId,
+		const RsGxsMessageId& postCommentId, const RsGxsId& authorId,
+		RsGxsVoteType tVote,
+		RsGxsMessageId& voteId, std::string& errorMessage)
+{
+	// Basic checks
+	if(!rsIdentity->isOwnId(authorId))
+	{
+		errorMessage = "Vote submitted with an ID that is not yours!";
+		return false;
+	}
+
+	// Retrieve the parent message metadata and check if it's already voted
+	uint32_t meta_token;
+	RsTokReqOptions opts;
+	GxsMsgReq msgReq;
+	msgReq[postGroupId] = { postCommentId };
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_META;
+
+	if (!requestMsgInfo(meta_token, opts, msgReq) || waitToken(meta_token) != RsTokenService::COMPLETE)
+	{
+		errorMessage = "GXS operation failed while retrieving parent message.";
+		return false;
+	}
+
+	GxsMsgMetaMap msgMetaInfo;
+	if (!RsGenExchange::getMsgMeta(meta_token, msgMetaInfo) || msgMetaInfo.size() != 1 || msgMetaInfo.begin()->second.size() != 1)
+	{
+		errorMessage = "Failure to find parent post!";
+		return false;
+	}
+
+	if (msgMetaInfo.begin()->second.front().mMsgStatus & GXS_SERV::GXS_MSG_STATUS_VOTE_MASK)
+	{
+		errorMessage = "Post has already been voted";
+		return false;
+	}
+
+	// Create the vote
+	RsGxsVote vote_msg;
+	vote_msg.mMeta.mGroupId  = postGroupId;
+	vote_msg.mMeta.mThreadId = postMsgId;
+	vote_msg.mMeta.mParentId = postCommentId;
+	vote_msg.mMeta.mAuthorId = authorId;
+	vote_msg.mVoteType       = (tVote == RsGxsVoteType::UP) ? GXS_VOTE_UP : GXS_VOTE_DOWN;
+
+	RsGxsVoteItem* msgItem = new RsGxsVoteItem(getServiceInfo().serviceTypeUInt16());
+	msgItem->mMsg = vote_msg;
+	msgItem->meta = vote_msg.mMeta;
+
+	uint32_t vote_token;
+	publishMsg(vote_token, msgItem);
+
+	if (waitToken(vote_token) != RsTokenService::COMPLETE)
+	{
+		errorMessage = "GXS operation failed while publishing vote.";
+		return false;
+	}
+
+	RsMsgMetaData vote_meta;
+	if (!RsGenExchange::getPublishedMsgMeta(vote_token, vote_meta))
+	{
+		errorMessage = "Failure getting generated vote data.";
+		return false;
+	}
+
+	voteId = vote_meta.mMsgId;
+
+	// Update the parent message vote status
+	uint32_t status_token;
+	uint32_t vote_flag = (vote_msg.mVoteType == GXS_VOTE_UP) ? GXS_SERV::GXS_MSG_STATUS_VOTE_UP : GXS_SERV::GXS_MSG_STATUS_VOTE_DOWN;
+	setMsgStatusFlags(status_token, RsGxsGrpMsgIdPair(postGroupId, postCommentId), vote_flag, GXS_SERV::GXS_MSG_STATUS_VOTE_MASK);
+
+	if (waitToken(status_token) != RsTokenService::COMPLETE)
+	{
+		errorMessage = "GXS operation failed while updating vote status.";
+		return false;
+	}
+
+	return true;
+}
+
+bool p3PhotoService::setCommentReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read)
+{
+	uint32_t mask = GXS_SERV::GXS_MSG_STATUS_GUI_NEW | GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+	uint32_t status = read ? 0 : GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+
+	uint32_t token;
+	setMsgStatusFlags(token, msgId, status, mask);
+
+	if (waitToken(token) != RsTokenService::COMPLETE)
+		return false;
+
+	RsGxsGrpMsgIdPair p;
+	acknowledgeMsg(token, p);
+
+	return true;
 }
 
