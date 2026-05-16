@@ -305,14 +305,14 @@ if(RS_GXS_SEND_ALL)
 		${LIB_NAME} PUBLIC RS_GXS_SEND_ALL )
 endif(RS_GXS_SEND_ALL)
 
-if(RS_BRODCAST_DISCOVERY)
+if(RS_BROADCAST_DISCOVERY)
 	target_include_directories(
 		${LIB_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/" )
 
 	target_link_libraries(${LIB_NAME} PRIVATE udp-discovery)
 
 	target_compile_definitions(${LIB_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
-endif(RS_BRODCAST_DISCOVERY)
+endif(RS_BROADCAST_DISCOVERY)
 
 
 if(RS_WEBUI)
