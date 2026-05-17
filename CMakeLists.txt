@@ -109,9 +109,9 @@ target_link_libraries(${LIB_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 ################################################################################
 
 if(RS_RNPLIB)
-	target_link_libraries(${LIB_NAME} PRIVATE librnp)
+	target_link_libraries(${LIB_NAME} PUBLIC librnp)
 else()
-	target_link_libraries(${LIB_NAME} PRIVATE openpgpsdk)
+	target_link_libraries(${LIB_NAME} PUBLIC openpgpsdk)
 	target_compile_definitions(${LIB_NAME} PUBLIC USE_OPENPGPSDK)
 endif(RS_RNPLIB)
 
