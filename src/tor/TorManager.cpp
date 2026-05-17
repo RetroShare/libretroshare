@@ -34,15 +34,16 @@
 #include <fstream>
 #include <stdio.h>
 
-// This works on linux only. I have no clue how to do that on windows. Anyway, this
-// is only needed for an assert that should normaly never be triggered.
-
-#if !defined(_WIN32) && !defined(__MINGW32__)
-#include <sys/syscall.h>
-#endif
 
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
+#include <thread>
+#if !defined(_WIN32) && !defined(__MINGW32__)
+#include <unistd.h>
+#endif
+#ifdef __linux__
+#include <sys/syscall.h>
+#endif
 
 #include "TorManager.h"
 #include "TorProcess.h"
@@ -159,11 +160,15 @@ std::string TorManager::torDataDirectory() const
 
 void TorManager::setTorDataDirectory(const std::string &path)
 {
-    assert(RsDirUtil::checkCreateDirectory(std::string(path)));
+    if(!RsDirUtil::checkCreateDirectory(path))
+    {
+        RsFatal() << "TorManager::setTorDataDirectory() cannot create directory: " << path ;
+        exit(1);
+    }
 
     d->dataDir = path;
 
-    if (!d->dataDir.empty() && !ByteArray(d->dataDir).endsWith('/'))
+    if (!d->dataDir.empty() && !(d->dataDir.back() == '/'))
         d->dataDir += '/';
 }
 
@@ -719,6 +724,12 @@ std::string TorManagerPrivate::torExecutablePath() const
 #ifdef __APPLE__
     // on MacOS, try traditional brew installation path
 
+    path = "/opt/homebrew/opt/tor/bin" ;
+    tor_exe_path = RsDirUtil::makePath(path,filename);
+
+    if (RsDirUtil::fileExists(tor_exe_path))
+        return tor_exe_path;
+
     path = "/usr/local/opt/tor/bin" ;
     tor_exe_path = RsDirUtil::makePath(path,filename);
 
@@ -936,10 +947,16 @@ void RsTor::setHiddenServiceDirectory(const std::string& dir)
     instance()->setHiddenServiceDirectory(dir);
 }
 
+#ifdef __APPLE__
+#include <pthread.h>
+#endif
+
 TorManager *RsTor::instance()
 {
-#if !defined(_WIN32) && !defined(__MINGW32__)
-    assert(getpid() == syscall(SYS_gettid));// make sure we're not in a thread
+#ifdef __APPLE__
+    assert(pthread_main_np() != 0); // On macOS, ensure we are on the main thread
+#elif defined(__linux__)
+    assert(getpid() == syscall(SYS_gettid)); // On Linux, ensure we are on the main thread
 #endif
 
     if(rsTor == nullptr)
