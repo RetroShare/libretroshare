@@ -617,13 +617,12 @@ list(
 	util/rsnet.cc
 	util/rsnet_ss.cc
 	util/rsstacktrace.cc
-	util/rsthreads.cc )
-
-# util/i2pcommon.cpp
-# util/i2pcommon.h
+	util/rsthreads.cc
+	util/i2pcommon.cpp )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
+	util/i2pcommon.h
 	util/argstream.h
 	util/contentvalue.h
 	util/cxx11retrocompat.h

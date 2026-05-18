@@ -484,9 +484,9 @@ if(RS_JSON_API)
 		# dependencies see https://stackoverflow.com/a/64900982
 
 		target_include_directories(
-			${PROJECT_NAME} PRIVATE "${RESTBED_DEVEL_DIR}/source/" )
+			${PROJECT_NAME} PUBLIC "${RESTBED_DEVEL_DIR}/source/" )
 		target_link_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/restbed")
-		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
+		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
 	else()
 		message( WARNING
 		         "FetchContent restbed, will be installed if you run make install")
@@ -503,7 +503,7 @@ if(RS_JSON_API)
 		FetchContent_MakeAvailable(restbed)
 
 		target_include_directories(
-			${PROJECT_NAME} PRIVATE ${restbed_SOURCE_DIR}/source/ )
+			${PROJECT_NAME} PUBLIC ${restbed_SOURCE_DIR}/source/ )
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
 	endif()
 
@@ -690,9 +690,14 @@ else()
 	set(V_GIT_DESCRIBE_OUTPUT "")
 	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
 
+	set(V_GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.git")
+		set(V_GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
+	endif()
+
 	execute_process(
 		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		WORKING_DIRECTORY "${V_GIT_DIR}"
 		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT )
 
 	if(V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
@@ -720,6 +725,22 @@ if(V_VERSION_SET)
 		PUBLIC RS_MINI_VERSION=${RS_MINI_VERSION}
 		PUBLIC RS_EXTRA_VERSION="${RS_EXTRA_VERSION}" )
 endif(V_VERSION_SET)
+
+# Define the libretroshare specific version hash (submodule hash)
+set(V_LIB_GIT_HASH "")
+execute_process(
+	COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=7 --always --dirty
+	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+	OUTPUT_VARIABLE V_LIB_GIT_HASH
+	OUTPUT_STRIP_TRAILING_WHITESPACE )
+
+if(V_LIB_GIT_HASH STREQUAL "")
+	set(V_LIB_GIT_HASH "[version not available]")
+endif()
+
+target_compile_definitions(
+	${PROJECT_NAME}
+	PUBLIC RS_LIB_VERSION_HASH="${V_LIB_GIT_HASH}" )
 
 ################################################################################
 
