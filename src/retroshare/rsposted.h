@@ -32,6 +32,8 @@
 #include "retroshare/rsgxscommon.h"
 #include "retroshare/rsgxscircles.h"
 #include "serialiser/rsserializable.h"
+#include "serialiser/rstlvidset.h"
+#include "serialiser/rstypeserializer.h"
 
 class RsPosted;
 
@@ -45,6 +47,7 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 {
 	std::string mDescription;
 	RsGxsImage mGroupImage;
+	RsTlvGxsMsgIdSet mPinnedPosts;
 
 	/// @see RsSerializable
 	virtual void serial_process( RsGenericSerializer::SerializeJob j,
@@ -53,13 +56,23 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mDescription);
 		RS_SERIAL_PROCESS(mGroupImage);
+
+		switch(j)
+		{
+		case RsGenericSerializer::TO_JSON: // fallthrough
+		case RsGenericSerializer::FROM_JSON:
+			RsTypeSerializer::serial_process(j, ctx, mPinnedPosts.ids, "mPinnedPosts");
+			break;
+		default:
+			RS_SERIAL_PROCESS(mPinnedPosts);
+		}
 	}
 };
 
 struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 {
 	RsPostedPost(): mHaveVoted(false), mUpVotes(0), mDownVotes(0), mComments(0),
-	    mHotScore(0), mTopScore(0), mNewScore(0) {}
+	    mHotScore(0), mTopScore(0), mNewScore(0), mPinned(false) {}
 
 	bool calculateScores(rstime_t ref_time);
 
@@ -78,6 +91,7 @@ struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 	double  mHotScore;
 	double  mTopScore;
 	double  mNewScore;
+	bool    mPinned;
 
 	RsGxsImage mImage;
 
@@ -96,6 +110,7 @@ struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 		RS_SERIAL_PROCESS(mHotScore);
 		RS_SERIAL_PROCESS(mTopScore);
 		RS_SERIAL_PROCESS(mNewScore);
+		RS_SERIAL_PROCESS(mPinned);
 	}
 };
 
@@ -131,6 +146,7 @@ enum class RsPostedEventCode: uint8_t
 	NEW_COMMENT              = 0x0a,
 	NEW_VOTE                 = 0x0b,
 	BOARD_DELETED            = 0x0c,
+	PINNED_POSTS_CHANGED     = 0x0d,
 };
 
 
@@ -239,6 +255,21 @@ public:
 	 * @return false on error, true otherwise
 	 */
 	virtual bool editBoard(RsPostedGroup& board) =0;
+
+	/**
+	 * @brief Pin or unpin a board post.
+	 * @jsonapi{development}
+	 * @param[in] boardId id of the board containing the post
+	 * @param[in] postId id of the post to pin or unpin
+	 * @param[in] pinned true to pin, false to unpin
+	 * @param[out] errorMessage possible error message if the method returns false
+	 * @return false on error, true otherwise
+	 */
+	virtual bool setPostPinned(
+	        const RsGxsGroupId& boardId,
+	        const RsGxsMessageId& postId,
+	        bool pinned,
+	        std::string& errorMessage ) = 0;
 
 	/**
 	 * @brief Create board. Blocking API.
