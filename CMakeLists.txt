@@ -299,7 +299,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 if(RS_RNPLIB)
 	# Add RNP build directories to linker search path
-	target_link_directories(${PROJECT_NAME} PRIVATE
+	target_link_directories(${PROJECT_NAME} PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib
 		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/libsexpp
 	)
@@ -786,3 +786,4 @@ if(RS_CPPTRACE_STACKTRACE)
     target_compile_definitions(
         ${LIBRARY_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
 endif(RS_CPPTRACE_STACKTRACE)
+
