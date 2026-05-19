@@ -190,15 +190,17 @@ def processFile(file):
 				orderedParamNames.append(pName)
 
 			for tmpPN in memberdef.findall('.//parametername'):
-				tmpParam = paramsMap[tmpPN.text]
-				tmpD = tmpPN.attrib['direction'] if 'direction' in tmpPN.attrib else ''
+				pName = getText(tmpPN)
+				if pName in paramsMap:
+					tmpParam = paramsMap[pName]
+					tmpD = tmpPN.attrib['direction'] if 'direction' in tmpPN.attrib else ''
 
-				if 'in' in tmpD:
-					tmpParam._in = True
-					hasInput = True
-				if 'out' in tmpD:
-					tmpParam._out = True
-					hasOutput = True
+					if 'in' in tmpD:
+						tmpParam._in = True
+						hasInput = True
+					if 'out' in tmpD:
+						tmpParam._out = True
+						hasOutput = True
 
 			# Params sanity check
 			for pmKey in paramsMap:
