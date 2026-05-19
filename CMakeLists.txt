@@ -245,6 +245,18 @@ else()
 	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 endif()
 
+if(WIN32)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC
+		WINDOWS_SYS
+		UNICODE
+		_UNICODE
+		NOGDI
+		NOMINMAX
+		NOCRYPT
+		WIN_DLL_EXPORT )
+	target_link_libraries(${PROJECT_NAME} PUBLIC ws2_32)
+endif()
 
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
@@ -514,7 +526,9 @@ if(RS_JSON_API)
 		target_include_directories(
 			${PROJECT_NAME} PUBLIC ${restbed_SOURCE_DIR}/source/ )
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
-
+		if(WIN32)
+			target_link_libraries(restbed-static INTERFACE ws2_32 winmm iphlpapi mswsock)
+		endif()
 	endif()
 
 
