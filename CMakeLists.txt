@@ -245,6 +245,19 @@ else()
 	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 endif()
 
+if(WIN32)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC
+		WINDOWS_SYS
+		UNICODE
+		_UNICODE
+		NOGDI
+		NOMINMAX
+		NOCRYPT
+		WIN_DLL_EXPORT )
+	target_link_libraries(${PROJECT_NAME} PUBLIC ws2_32)
+endif()
+
 ## As of today libretroshare doesn't hide implementation details properly so it
 ## is necessary to flag all implementation headers as public
 target_include_directories(
@@ -299,8 +312,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 if(RS_RNPLIB)
 	# Add RNP build directories to linker search path
 	target_link_directories(${PROJECT_NAME} PRIVATE
-		${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/lib
-		${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/libsexpp
+		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib
+		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/libsexpp
 	)
 
 	# Link libraries by name, including RNP libs and dependencies first
@@ -311,7 +324,7 @@ if(RS_RNPLIB)
 
 	target_include_directories(${PROJECT_NAME} PUBLIC
 		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
-		"${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/librnp/Build/src/lib"
+		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib"
 	)
 else()
 
@@ -430,19 +443,21 @@ if(RS_JSON_API)
 		JSONAPI_GENERATOR_EXECUTABLE
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
 
-	file(
-		COPY "src/jsonapi/jsonapi-generator-doxygen.conf"
-		DESTINATION "${JSON_API_GENERATOR_WORK_DIR}" )
+	if(NOT EXISTS "${JSON_API_GENERATOR_DOXYFILE}")
+		file(
+			COPY "src/jsonapi/jsonapi-generator-doxygen.conf"
+			DESTINATION "${JSON_API_GENERATOR_WORK_DIR}" )
 
-	file(
-		APPEND
-		"${JSON_API_GENERATOR_DOXYFILE}"
-		"OUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
-		"EXCLUDE="
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n" )
+		file(
+			APPEND
+			"${JSON_API_GENERATOR_DOXYFILE}"
+			"OUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
+			"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
+			"EXCLUDE="
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n" )
+	endif()
 
 	add_custom_command(
 		OUTPUT
@@ -465,6 +480,8 @@ if(RS_JSON_API)
 
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
+	set(BUILD_SHARED_LIBRARY OFF)
+	set(BUILD_SHARED_LIBS OFF)
 
 	set(RESTBED_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/")
 	if(RS_ANDROID)
@@ -498,13 +515,20 @@ if(RS_JSON_API)
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
 			TIMEOUT 10
-#			EXCLUDE_FROM_ALL # Available only in CMake >= 3.28
+			PATCH_COMMAND sed -i -e "s|/wd4251||g" -e "s|VERSION 3.1.0|VERSION 3.5.0|g" CMakeLists.txt
 		)
 		FetchContent_MakeAvailable(restbed)
+
+		if(TARGET restbed-shared)
+			set_target_properties(restbed-shared PROPERTIES EXCLUDE_FROM_ALL TRUE)
+		endif()
 
 		target_include_directories(
 			${PROJECT_NAME} PUBLIC ${restbed_SOURCE_DIR}/source/ )
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
+		if(WIN32)
+			target_link_libraries(restbed-static INTERFACE ws2_32 winmm iphlpapi mswsock)
+		endif()
 	endif()
 
 

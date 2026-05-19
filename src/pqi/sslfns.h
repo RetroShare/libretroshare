@@ -1,4 +1,4 @@
-﻿/*******************************************************************************
+/*******************************************************************************
  * libretroshare/src/pqi: sslfns.h                                             *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
@@ -27,6 +27,13 @@
  */
 
 /******************** notify of new Cert **************************/
+
+#ifdef X509_NAME
+#undef X509_NAME
+#endif
+#ifdef X509_EXTENSIONS
+#undef X509_EXTENSIONS
+#endif
 
 #include <openssl/evp.h>
 #include <openssl/x509.h>

@@ -38,6 +38,10 @@
 #include "util/rsmacrosugar.hpp"
 
 
+#ifdef ERROR
+#undef ERROR
+#endif
+
 #ifdef __ANDROID__
 enum class RsLoggerCategories
 {

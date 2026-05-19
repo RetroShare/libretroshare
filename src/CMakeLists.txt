@@ -250,11 +250,13 @@ else()
 	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/openpgpsdkhandler.h)
 endif()
 
-#./plugins/dlfcn_win32.cc
-#./plugins/dlfcn_win32.h
-#./plugins/pluginmanager.h
 #./plugins/rscacheservice.h
 #./plugins/rspqiservice.h
+
+if(WIN32)
+	list(APPEND RS_SOURCES plugins/dlfcn_win32.cc)
+	list(APPEND RS_IMPLEMENTATION_HEADERS plugins/dlfcn_win32.h)
+endif()
 
 list(
 	APPEND RS_SOURCES
