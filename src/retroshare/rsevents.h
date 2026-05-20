@@ -125,7 +125,9 @@ enum class RsEventType : uint32_t
     /// @see RsWireEvent
     SYSTEM                                                  = 24,	// general system notifications
 
-    __MAX                                                   = 25    // Used internally, keep last.
+    GIT                                                     = 25,
+
+    __MAX                                                   = 26    // Used internally, keep last.
 };
 
 enum class RsEventsErrorNum : int32_t
