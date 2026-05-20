@@ -310,6 +310,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 ################################################################################
 
 if(RS_RNPLIB)
+	find_library(BOTAN_LIBRARY NAMES botan botan-3 botan-2 libbotan-3 libbotan-2 REQUIRED)
+
 	# Add RNP build directories to linker search path
 	target_link_directories(${PROJECT_NAME} PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib
@@ -317,9 +319,13 @@ if(RS_RNPLIB)
 	)
 
 	# Link libraries by name, including RNP libs and dependencies first
-	target_link_libraries(${PROJECT_NAME} PRIVATE
+	target_link_libraries(${PROJECT_NAME} PUBLIC
 		rnp             # Link by name
 		sexpp
+		${BOTAN_LIBRARY}
+		json-c
+		bz2
+		z
 	)
 
 	target_include_directories(${PROJECT_NAME} PUBLIC
