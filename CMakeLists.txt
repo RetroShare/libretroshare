@@ -490,7 +490,10 @@ if(RS_JSON_API)
 		## should be sent upstream.
 		## Restbed is therefore compiled by Android toolchain preparation script
 		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
-	elseif(EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
+	elseif(NOT WIN32 AND EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
+		## On Windows, skip the local submodule: recent restbed HEAD requires
+		## system ASIO (not available by default on MSYS2/MinGW). Fall through
+		## to FetchContent which downloads restbed 4.8 with bundled ASIO.
 		message( STATUS
 		         "Restbed submodule found at ${RESTBED_DEVEL_DIR} using it" )
 		add_subdirectory(
