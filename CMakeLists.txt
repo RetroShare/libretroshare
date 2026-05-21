@@ -101,7 +101,7 @@ cmake_dependent_option(
 option(
 	RS_WARN_DEPRECATED
 	"Print warning about RetroShare deprecated components usage during build"
-	ON )
+	OFF )
 
 option(
 	RS_WARN_LESS
@@ -652,7 +652,7 @@ if(RS_BRODCAST_DISCOVERY)
 endif(RS_BRODCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
-	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_NO_WARN_DEPRECATED)
 	target_compile_options(
 		${PROJECT_NAME} PRIVATE
 		-Wno-deprecated -Wno-deprecated-declarations )
@@ -709,8 +709,6 @@ endif(RS_ANDROID)
 
 ################################################################################
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wno-deprecated-declarations)
-target_compile_definitions(${PROJECT_NAME} PUBLIC RS_NO_WARN_DEPRECATED )
 
 set(V_VERSION_SET OFF)
 
