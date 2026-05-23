@@ -219,10 +219,18 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 	{
 		RS_DBG4("recursing into \"", stored_dir_it.name());
 
-		existing_dirs.insert(RsDirUtil::removeSymLinks(stored_dir_it.name()));
-		recursUpdateSharedDir(
-		            stored_dir_it.name(), *stored_dir_it,
-		            existing_dirs, 1, some_files_not_ready );
+		std::string canonical = RsDirUtil::removeSymLinks(stored_dir_it.name());
+
+		if(!canonical.empty())
+		{
+			existing_dirs.insert(canonical);
+
+			std::set<std::string> current_branch_real_paths = { canonical };
+
+			recursUpdateSharedDir(
+			            stored_dir_it.name(), *stored_dir_it,
+			            existing_dirs, current_branch_real_paths, 1, some_files_not_ready );
+		}
 		/* here we need to use the list that was stored, instead of the shared
 		 * dir list, because the two are not necessarily in the same order. */
 	}
@@ -240,7 +248,7 @@ bool LocalDirectoryUpdater::sweepSharedDirectories(bool& some_files_not_ready)
 
 void LocalDirectoryUpdater::recursUpdateSharedDir(
         const std::string& cumulated_path, DirectoryStorage::EntryIndex indx,
-        std::set<std::string>& existing_directories, uint32_t current_depth,
+        std::set<std::string>& existing_directories, std::set<std::string>& current_branch_real_paths, uint32_t current_depth,
         bool& some_files_not_ready )
 {
 	RS_DBG4("parsing directory \"", cumulated_path, "\" index: ", indx);
@@ -300,21 +308,37 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 					        || (mMaxShareDepth == 0 && current_depth >= 64) )
 						dir_is_accepted = false;
 
-					if(dir_is_accepted && mFollowSymLinks && mIgnoreDuplicates)
+					if(dir_is_accepted && mFollowSymLinks)
 					{
 						std::string real_path = RsDirUtil::removeSymLinks(
 						            RsDirUtil::makePath(cumulated_path, dirIt.file_name()) );
 
-						if( existing_directories.end() !=
-						        existing_directories.find(real_path) )
+						if(real_path.empty())
 						{
-							RS_WARN( "Directory: \"", cumulated_path,
-							         "\" has real path: \"", real_path,
-							         "\" which already belongs to another "
-							         "shared directory. Ignoring" );
+							RS_WARN( "Broken/circular symlink: \"", cumulated_path,
+							         "/", dirIt.file_name(), "\". Ignoring." );
 							dir_is_accepted = false;
 						}
-						else existing_directories.insert(real_path);
+						else if(current_branch_real_paths.end() != current_branch_real_paths.find(real_path))
+						{
+							RS_WARN( "Circular symlink detected: \"", cumulated_path,
+							         "\" points to ancestor \"", real_path,
+							         "\". Ignoring." );
+							dir_is_accepted = false;
+						}
+						else if(mIgnoreDuplicates)
+						{
+							if( existing_directories.end() !=
+									existing_directories.find(real_path) )
+							{
+								RS_WARN( "Directory: \"", cumulated_path,
+										 "\" has real path: \"", real_path,
+										 "\" which already belongs to another "
+										 "shared directory. Ignoring" );
+								dir_is_accepted = false;
+							}
+							else existing_directories.insert(real_path);
+						}
 					}
 
 					if(dir_is_accepted) subdirs.insert(dirIt.file_name());
@@ -364,9 +388,21 @@ void LocalDirectoryUpdater::recursUpdateSharedDir(
 	// go through the list of sub-dirs and recursively update
 	for( DirectoryStorage::DirIterator stored_dir_it(mSharedDirectories, indx);
 	     stored_dir_it; ++stored_dir_it )
-		recursUpdateSharedDir( RsDirUtil::makePath(cumulated_path, stored_dir_it.name()),
-		                       *stored_dir_it, existing_directories,
+	{
+		std::string next_path = RsDirUtil::makePath(cumulated_path, stored_dir_it.name());
+
+		// canonical cannot be empty here: directories with unresolvable paths
+		// were already filtered out during the subdirs collection phase above.
+		std::string canonical = RsDirUtil::removeSymLinks(next_path);
+
+		current_branch_real_paths.insert(canonical);
+
+		recursUpdateSharedDir( next_path,
+		                       *stored_dir_it, existing_directories, current_branch_real_paths,
 		                       current_depth+1, some_files_not_ready );
+
+		current_branch_real_paths.erase(canonical);
+	}
 }
 
 bool LocalDirectoryUpdater::filterFile(const std::string& fname) const

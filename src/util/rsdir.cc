@@ -622,8 +622,15 @@ std::string RsDirUtil::removeSymLinks(const std::string& path)
     return path ;
 #else
     char *tmp = canonicalize_file_name(path.c_str()) ;
-    std::string result(tmp) ;
 
+    if(tmp == nullptr)
+    {
+        RS_WARN("removeSymLinks: cannot resolve \"", path,
+                "\". Broken or circular symlink?");
+        return std::string();
+    }
+
+    std::string result(tmp) ;
     free(tmp);
     return result ;
 #endif
