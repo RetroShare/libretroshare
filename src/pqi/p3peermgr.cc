@@ -1069,7 +1069,14 @@ bool p3PeerMgrIMPL::addFriend(const RsPeerId& input_id, const RsPgpId& input_gpg
 		mLinkMgr->addFriend(id, vs_dht != RS_VS_DHT_OFF);
 	}
 
-	service_flags &= servicePermissionFlags(gpg_id) ; // Always reduce the permissions.
+	{
+		RS_STACK_MUTEX(mPeerMtx);
+		auto it = mFriendsPermissionFlags.find(gpg_id);
+		if(it != mFriendsPermissionFlags.end())
+		{
+			service_flags &= it->second; // Always reduce the permissions for existing friends.
+		}
+	}
 #ifdef RS_CHATSERVER //Defined by chatserver
 	setServicePermissionFlags(gpg_id,RS_NODE_PERM_NONE) ;
 #else
