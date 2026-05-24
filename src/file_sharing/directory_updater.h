@@ -67,7 +67,7 @@ protected:
     virtual void hash_callback(uint32_t client_param, const std::string& name, const RsFileHash& hash, uint64_t size);
     virtual bool hash_confirm(uint32_t client_param) ;
 
-    void recursUpdateSharedDir(const std::string& cumulated_path, DirectoryStorage::EntryIndex indx, std::set<std::string>& existing_directories, uint32_t current_depth,bool& files_not_ready);
+    void recursUpdateSharedDir(const std::string& cumulated_path, DirectoryStorage::EntryIndex indx, std::set<std::string>& existing_directories, std::set<std::string>& current_branch_real_paths, uint32_t current_depth,bool& files_not_ready);
     bool sweepSharedDirectories(bool &some_files_not_ready);
 
 private:
