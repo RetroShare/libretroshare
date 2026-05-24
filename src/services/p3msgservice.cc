@@ -526,7 +526,7 @@ int p3MsgService::checkOutgoingMessages()
 
     if(changed)
     {
-        RsDbg() << "MAIL: checkOutgoingMessages() triggering IndicateConfigChanged(SAVE_NOW)" << std::endl;
+        // RsDbg() << "MAIL: checkOutgoingMessages() triggering IndicateConfigChanged(SAVE_NOW)" << std::endl;
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
     }
 
