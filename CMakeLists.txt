@@ -227,6 +227,13 @@ if(RS_LIBRETROSHARE_SHARED)
 	## Ensure statically linked libraries such as openpgpsdk are compiled with
 	## PIC Which is needed for shared library
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+	if(WIN32)
+		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,libcrypto.a:libssl.a:libsqlite3.a:libopenpgpsdk.a:libbitdht.a:librestbed.a:librestbed-static.a:libminiupnpc.a:librnp.a:libsexpp.a:libbotan.a:libbotan-3.a:libbotan-2.a:libz.a:libbz2.a:libjson-c.a")
+		endif()
+	endif()
 endif(RS_LIBRETROSHARE_SHARED)
 
 if(RS_ANDROID)
