@@ -395,6 +395,7 @@ void p3MsgService::checkSizeAndSendMessage(RsMsgItem *msg,const RsPeerId& destin
 
 int p3MsgService::checkOutgoingMessages()
 {
+    bool changed = false;
     auto pEvent = std::make_shared<RsMailStatusEvent>();
     pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
 
@@ -421,6 +422,7 @@ int p3MsgService::checkOutgoingMessages()
                 ++tmp;
                 msgOutgoing.erase(mit);
                 mit = tmp;
+                changed = true;
 
                 continue;
             }
@@ -454,6 +456,7 @@ int p3MsgService::checkOutgoingMessages()
                         ++tmp;
                         mit->second.erase(fit);
                         fit = tmp;
+                        changed = true;
 
                         continue;
                     }
@@ -470,6 +473,7 @@ int p3MsgService::checkOutgoingMessages()
                 {
                     minfo.flags |= RS_MSG_FLAGS_ROUTED;
                     minfo.flags |= RS_MSG_FLAGS_DISTANT;
+                    changed = true;
 
 #ifdef DEBUG_DISTANT_MSG
                     RsDbg() << "Message id " << mit->first << " is distant: kept in outgoing, and marked as ROUTED" << std::endl;
@@ -491,6 +495,7 @@ int p3MsgService::checkOutgoingMessages()
                         ++tmp;
                         mit->second.erase(fit);
                         fit = tmp;
+                        changed = true;
                         continue;
                     }
                     else
@@ -509,6 +514,7 @@ int p3MsgService::checkOutgoingMessages()
                 ++tmp;
                 msgOutgoing.erase(mit);
                 mit=tmp;
+                changed = true;
             }
             else
                 ++mit;
@@ -518,7 +524,11 @@ int p3MsgService::checkOutgoingMessages()
     if(rsEvents && !pEvent->mChangedMsgIds.empty())
         rsEvents->postEvent(pEvent);
 
-    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+    if(changed)
+    {
+        // RsDbg() << "MAIL: checkOutgoingMessages() triggering IndicateConfigChanged(SAVE_NOW)" << std::endl;
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+    }
 
     return 0;
 }
