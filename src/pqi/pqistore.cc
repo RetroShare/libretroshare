@@ -412,14 +412,27 @@ bool pqiSSLstore::encryptedSendItems(const std::list<RsItem*>& rsItemList)
 			    delete *it;
 	    }
 
-	bool result = true;
+    if(sizeItems != offset)
+    {
+        RsErr() << "Serialization error in " << __PRETTY_FUNCTION__ << std::endl;
+        return false;
+    }
 
-	if(sizeItems == offset)
-		enc_bio->senddata(data, sizeItems);
-	else
-		result = false;
+    int written = enc_bio->senddata(data, sizeItems);
 
-	return result;
+    if(written < 0)
+    {
+        RsErr() << "Write error in " << __PRETTY_FUNCTION__ << ": check disk space and permissions." << std::endl;
+        return false;
+    }
+
+    if(sizeItems != (uint32_t)written)
+    {
+        RsErr() << "Write error in " << __PRETTY_FUNCTION__ << ": only " << written << " bytes sent instead of " << sizeItems << ": check disk space and permissions." << std::endl;
+        return false;
+    }
+    else
+        return true;
 }
 	
 bool pqiSSLstore::getEncryptedItems(std::list<RsItem* >& rsItemList)
