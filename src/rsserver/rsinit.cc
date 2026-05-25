@@ -1305,6 +1305,20 @@ int RsServer::StartupRetroShare()
 #ifdef __APPLE__
 	plugins_directories.push_back(RsAccounts::systemDataDirectory()) ;
 #endif
+
+	// Add dynamic paths relative to the running binary first, to prevent cross-version conflicts!
+	std::string exe_path = RsInit::executablePath();
+	if (!exe_path.empty())
+	{
+		std::string canonical_exe_path = RsDirUtil::removeSymLinks(exe_path);
+		std::string exe_dir = RsDirUtil::getDirectory(canonical_exe_path.empty() ? exe_path : canonical_exe_path);
+		if (!exe_dir.empty())
+		{
+			plugins_directories.push_back(exe_dir + "/../lib/retroshare/extensions6/");
+			plugins_directories.push_back(exe_dir + "/lib/retroshare/extensions6/");
+		}
+	}
+
 #if !defined(WINDOWS_SYS) && defined(PLUGIN_DIR)
 	plugins_directories.push_back(std::string(PLUGIN_DIR)) ;
 #endif
