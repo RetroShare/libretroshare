@@ -1325,6 +1325,33 @@ int RsServer::StartupRetroShare()
 	std::string extensions_dir = RsAccounts::ConfigDirectory() + "/extensions6/" ;
 	plugins_directories.push_back(extensions_dir) ;
 
+	// Canonicalize and de-duplicate directories to avoid double plugin loads and clean up listed paths
+	std::vector<std::string> unique_directories;
+	for (size_t i = 0; i < plugins_directories.size(); ++i)
+	{
+		std::string clean_dir = RsDirUtil::removeSymLinks(plugins_directories[i]);
+		if (clean_dir.empty()) {
+			clean_dir = plugins_directories[i];
+		}
+		if (!clean_dir.empty() && clean_dir.back() != '/' && clean_dir.back() != '\\') {
+			clean_dir += "/";
+		}
+		bool already_exists = false;
+		for (size_t j = 0; j < unique_directories.size(); ++j)
+		{
+			if (unique_directories[j] == clean_dir)
+			{
+				already_exists = true;
+				break;
+			}
+		}
+		if (!already_exists)
+		{
+			unique_directories.push_back(clean_dir);
+		}
+	}
+	plugins_directories = unique_directories;
+
 	if(!RsDirUtil::checkCreateDirectory(extensions_dir))
 		std::cerr << "(EE) Cannot create extensions directory " << extensions_dir
                   << ". This is not mandatory, but you probably have a permission problem." << std::endl;
