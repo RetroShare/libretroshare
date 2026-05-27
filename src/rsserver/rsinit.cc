@@ -1308,21 +1308,32 @@ int RsServer::StartupRetroShare()
 
 	// Add dynamic paths relative to the running binary first, to prevent cross-version conflicts!
 	std::string exe_path = RsInit::executablePath();
+	RsInfo() << "PLUGINSDIR: Raw executable path from RsInit: " << exe_path;
+
 	if (!exe_path.empty())
 	{
 		std::string canonical_exe_path = RsDirUtil::removeSymLinks(exe_path);
+		RsInfo() << "PLUGINSDIR: Canonicalized executable path: " << canonical_exe_path;
+
 		std::string exe_dir = RsDirUtil::getDirectory(canonical_exe_path.empty() ? exe_path : canonical_exe_path);
+		RsInfo() << "PLUGINSDIR: Extracted binary directory: " << exe_dir;
+
 		if (!exe_dir.empty())
 		{
+			RsInfo() << "PLUGINSDIR: Adding dynamic relative search path 1: " << exe_dir + "/../lib/retroshare/extensions6/";
 			plugins_directories.push_back(exe_dir + "/../lib/retroshare/extensions6/");
+
+			RsInfo() << "PLUGINSDIR: Adding dynamic relative search path 2: " << exe_dir + "/lib/retroshare/extensions6/";
 			plugins_directories.push_back(exe_dir + "/lib/retroshare/extensions6/");
 		}
 	}
 
 #if !defined(WINDOWS_SYS) && defined(PLUGIN_DIR)
+	RsInfo() << "PLUGINSDIR: Adding compile-time hardcoded PLUGIN_DIR: " << PLUGIN_DIR;
 	plugins_directories.push_back(std::string(PLUGIN_DIR)) ;
 #endif
 	std::string extensions_dir = RsAccounts::ConfigDirectory() + "/extensions6/" ;
+	RsInfo() << "PLUGINSDIR: Adding user home extensions directory: " << extensions_dir;
 	plugins_directories.push_back(extensions_dir) ;
 
 	// Canonicalize and de-duplicate directories to avoid double plugin loads and clean up listed paths
@@ -1351,6 +1362,12 @@ int RsServer::StartupRetroShare()
 		}
 	}
 	plugins_directories = unique_directories;
+
+	RsInfo() << "PLUGINSDIR: Final de-duplicated search directories:";
+	for (size_t i = 0; i < plugins_directories.size(); ++i)
+	{
+		RsInfo() << "PLUGINSDIR:   [" << i << "] -> " << plugins_directories[i];
+	}
 
 	if(!RsDirUtil::checkCreateDirectory(extensions_dir))
 		std::cerr << "(EE) Cannot create extensions directory " << extensions_dir
