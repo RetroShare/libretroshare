@@ -60,6 +60,70 @@
 
 #include <list>
 #include <string>
+#include <vector>
+
+namespace {
+std::string resolvePathTextually(const std::string& path)
+{
+	if (path.empty()) return "";
+	bool is_absolute = (path[0] == '/');
+	bool has_drive = false;
+	std::string drive = "";
+	std::string rest = path;
+	if (path.size() >= 2 && path[1] == ':') {
+		has_drive = true;
+		drive = path.substr(0, 2);
+		rest = path.substr(2);
+		if (rest.size() > 0 && (rest[0] == '/' || rest[0] == '\\')) {
+			drive += rest[0];
+			rest = rest.substr(1);
+		}
+	}
+
+	std::vector<std::string> segments;
+	std::string segment;
+	for (size_t i = 0; i < rest.size(); ++i) {
+		char c = rest[i];
+		if (c == '/' || c == '\\') {
+			if (!segment.empty()) {
+				if (segment == "..") {
+					if (!segments.empty()) {
+						segments.pop_back();
+					}
+				} else if (segment != ".") {
+					segments.push_back(segment);
+				}
+				segment.clear();
+			}
+		} else {
+			segment.push_back(c);
+		}
+	}
+	if (!segment.empty()) {
+		if (segment == "..") {
+			if (!segments.empty()) {
+				segments.pop_back();
+			}
+		} else if (segment != ".") {
+			segments.push_back(segment);
+		}
+	}
+
+	std::string result = has_drive ? drive : (is_absolute ? "/" : "");
+	for (size_t i = 0; i < segments.size(); ++i) {
+		result += segments[i];
+		if (i + 1 < segments.size()) {
+			result += "/";
+		}
+	}
+	if (!path.empty() && (path.back() == '/' || path.back() == '\\')) {
+		if (result.empty() || (result.back() != '/' && result.back() != '\\')) {
+			result += "/";
+		}
+	}
+	return result;
+}
+} // namespace
 
 #include <dirent.h>
 #include <sys/types.h>
@@ -1340,9 +1404,10 @@ int RsServer::StartupRetroShare()
 	std::vector<std::string> unique_directories;
 	for (size_t i = 0; i < plugins_directories.size(); ++i)
 	{
-		std::string clean_dir = RsDirUtil::removeSymLinks(plugins_directories[i]);
-		if (clean_dir.empty()) {
-			clean_dir = plugins_directories[i];
+		std::string clean_dir = resolvePathTextually(plugins_directories[i]);
+		std::string sym_resolved = RsDirUtil::removeSymLinks(clean_dir);
+		if (!sym_resolved.empty()) {
+			clean_dir = sym_resolved;
 		}
 		if (!clean_dir.empty() && clean_dir.back() != '/' && clean_dir.back() != '\\') {
 			clean_dir += "/";
