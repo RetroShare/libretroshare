@@ -337,62 +337,56 @@ bool p3Config::saveConfig()
 
 	BinEncryptedFileInterface *cfg_bio = new BinEncryptedFileInterface(newCfgFname.c_str(), bioflags);
 	pqiSSLstore *stream = new pqiSSLstore(setupSerialiser(), RsPeerId(), cfg_bio, stream_flags);
+    bool ok = false;
 
-	written = written && stream->encryptedSendItems(toSave);
+    try
+    {
+        if(!stream->encryptedSendItems(toSave))
+            throw std::runtime_error("(EE) Error while writing config file " + Filename() + ": file dropped!!");
 
-	if(!written)
-		std::cerr << "(EE) Error while writing config file " << Filename() << ": file dropped!!" << std::endl;
+        /* store the hash */
+        RsFileHash strHash(cfg_bio->gethash());
 
-	/* store the hash */
-	setHash(cfg_bio->gethash());
+        /* sign data */
+        std::string signature;
 
-	// bio is taken care of in stream's destructor, also forces file to close
-	delete stream;
+        if(!AuthSSL::getAuthSSL()->SignData(strHash.toByteArray(),strHash.SIZE_IN_BYTES, signature))
+            throw std::runtime_error("(EE) Error while signing config file " + Filename() + ": file dropped!!");
 
-	/* sign data */
-	std::string signature;
-	RsFileHash strHash(Hash());
-	AuthSSL::getAuthSSL()->SignData(strHash.toByteArray(),strHash.SIZE_IN_BYTES, signature);
+        /* write signature to configuration */
+        BinMemInterface *signbio = new BinMemInterface(signature.c_str(), signature.length(), BIN_FLAGS_READABLE);
 
-    /* write signature to configuration */
-    BinMemInterface *signbio = new BinMemInterface(signature.c_str(),
-    		signature.length(), BIN_FLAGS_READABLE);
+        if(!signbio->writetofile(newSignFname.c_str()))
+            throw std::runtime_error("(EE) Error while writing to signature file " + newSignFname + ": file dropped!!");
 
-    signbio->writetofile(newSignFname.c_str());
+        delete signbio;
 
-    delete signbio;
+        // now rewrite current files to temp files
+        // rename back-up to current file
+        if(!RsDirUtil::renameFile(cfgFname, tmpCfgFname))
+            throw std::runtime_error("p3Config::backedUpFileSave() Failed to rename backup meta files: " + cfgFname + " to " + tmpCfgFname);
+        if(!RsDirUtil::renameFile(signFname, tmpSignFname))
+            throw std::runtime_error("p3Config::backedUpFileSave() Failed to rename backup meta files: " + signFname + " to " + tmpSignFname);
 
-    // now rewrite current files to temp files
-	// rename back-up to current file
-	if(!RsDirUtil::renameFile(cfgFname, tmpCfgFname)  || !RsDirUtil::renameFile(signFname, tmpSignFname)){
-#ifdef CONFIG_DEBUG
-		std::cerr << "p3Config::backedUpFileSave() Failed to rename backup meta files: " << std::endl
-				<< cfgFname << " to " << tmpCfgFname << std::endl
-				<< signFname << " to " << tmpSignFname << std::endl;
-#endif
-			written = false;
-		}
+        // now rewrite current files to temp files; rename back-up to current file
 
+        if(!RsDirUtil::renameFile(newCfgFname, cfgFname))
+            throw std::runtime_error("p3Config::backedUpFileSave() Failed to rename backup meta files: " + newCfgFname + " to " + cfgFname);
+        if(!RsDirUtil::renameFile(newSignFname, signFname))
+            throw std::runtime_error("p3Config::backedUpFileSave() Failed to rename backup meta files: " + newSignFname + " to " + signFname);
 
+        setHash(strHash);
+        ok = true;
+    }
+    catch (std::runtime_error& e)
+    {
+        RsErr() << e.what();
+        ok = false;
+    }
+    delete stream; // bio is taken care of in stream's destructor, also forces file to close
 
-	// now rewrite current files to temp files
-	// rename back-up to current file
-	if(!RsDirUtil::renameFile(newCfgFname, cfgFname)  || !RsDirUtil::renameFile(newSignFname, signFname)){
-	#ifdef CONFIG_DEBUG
-				std::cerr << "p3Config::() Failed to rename meta files: " << std::endl
-						<< newCfgFname << " to " << cfgFname << std::endl
-						<< newSignFname << " to " << signFname << std::endl;
-	#endif
-
-				written = false;
-			}
-
-
-
-	saveDone(); // callback to inherited class to unlock any Mutexes protecting saveList() data
-
-	return written;
-
+    saveDone(); // callback to inherited class to unlock any Mutexes protecting saveList() data
+    return ok;
 }
 
 
