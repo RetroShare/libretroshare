@@ -335,9 +335,28 @@ if(RS_RNPLIB)
 		z
 	)
 
+	find_path(RNP_INCLUDE_DIR
+		NAMES rnp/rnp.h
+		PATHS 
+			"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
+			"/opt/homebrew/include"
+			"/usr/local/include"
+		DOC "Path to RNP headers"
+	)
+
+	find_path(RNP_EXPORT_INCLUDE_DIR
+		NAMES rnp/rnp_export.h
+		PATHS 
+			"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib"
+			"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/build/src/lib"
+			"/opt/homebrew/include"
+			"/usr/local/include"
+		DOC "Path to RNP generated export headers"
+	)
+
 	target_include_directories(${PROJECT_NAME} PUBLIC
-		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib"
+		"${RNP_INCLUDE_DIR}"
+		"${RNP_EXPORT_INCLUDE_DIR}"
 	)
 else()
 
