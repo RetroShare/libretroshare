@@ -432,6 +432,9 @@ find_path(
 if(EXISTS "${RS_RAPIDJSON_INCLUDE}")
 	message( STATUS
 	         "RapidJSON found in system at ${RS_RAPIDJSON_INCLUDE}" )
+	target_include_directories(
+		${PROJECT_NAME}
+		PUBLIC "${RS_RAPIDJSON_INCLUDE}" )
 elseif(EXISTS "${RAPIDJSON_DEVEL_DIR}/CMakeLists.txt")
 	message( STATUS
 	         "RapidJSON found in development dir at ${RAPIDJSON_DEVEL_DIR}" )
