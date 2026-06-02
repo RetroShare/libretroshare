@@ -319,16 +319,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 if(RS_RNPLIB)
 	find_library(BOTAN_LIBRARY NAMES botan botan-3 botan-2 libbotan-3 libbotan-2 REQUIRED)
 
-	# Add RNP build directories to linker search path
-	target_link_directories(${PROJECT_NAME} PUBLIC
-		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib
-		${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/libsexpp
-	)
-
-	# Link libraries by name, including RNP libs and dependencies first
-	target_link_libraries(${PROJECT_NAME} PUBLIC
-		rnp             # Link by name
-		sexpp
+	# Link RNP libraries by absolute path and with PRIVATE visibility to prevent leaking symbols
+	# to downstream targets (retroshare-gui, plugins), fixing the Windows "too many symbols" error.
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib/${CMAKE_STATIC_LIBRARY_PREFIX}rnp${CMAKE_STATIC_LIBRARY_SUFFIX}"
+		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/libsexpp/${CMAKE_STATIC_LIBRARY_PREFIX}sexpp${CMAKE_STATIC_LIBRARY_SUFFIX}"
 		${BOTAN_LIBRARY}
 		json-c
 		bz2
