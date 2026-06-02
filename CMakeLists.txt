@@ -321,6 +321,7 @@ if(RS_RNPLIB)
 
 	# Link RNP libraries by absolute path and with PRIVATE visibility to prevent leaking symbols
 	# to downstream targets (retroshare-gui, plugins), fixing the Windows "too many symbols" error.
+	# Note: We use CMAKE_CURRENT_SOURCE_DIR because the librnp Build directory is hardcoded in its custom build script.
 	target_link_libraries(${PROJECT_NAME} PRIVATE
 		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib/${CMAKE_STATIC_LIBRARY_PREFIX}rnp${CMAKE_STATIC_LIBRARY_SUFFIX}"
 		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/libsexpp/${CMAKE_STATIC_LIBRARY_PREFIX}sexpp${CMAKE_STATIC_LIBRARY_SUFFIX}"
@@ -473,21 +474,16 @@ if(RS_JSON_API)
 		JSONAPI_GENERATOR_EXECUTABLE
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
 
-	if(NOT EXISTS "${JSON_API_GENERATOR_DOXYFILE}")
-		file(
-			COPY "src/jsonapi/jsonapi-generator-doxygen.conf"
-			DESTINATION "${JSON_API_GENERATOR_WORK_DIR}" )
-
-		file(
-			APPEND
-			"${JSON_API_GENERATOR_DOXYFILE}"
-			"OUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-			"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
-			"EXCLUDE="
-			"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
-			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
-			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n" )
-	endif()
+	file(READ "src/jsonapi/jsonapi-generator-doxygen.conf" DOXYFILE_CONTENT)
+	string(APPEND DOXYFILE_CONTENT
+		"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
+		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
+		"EXCLUDE="
+		"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
+		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
+		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
+	)
+	file(WRITE "${JSON_API_GENERATOR_DOXYFILE}" "${DOXYFILE_CONTENT}")
 
 	add_custom_command(
 		OUTPUT
@@ -510,8 +506,8 @@ if(RS_JSON_API)
 
 	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
 	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
-	set(BUILD_SHARED_LIBRARY OFF)
-	set(BUILD_SHARED_LIBS OFF)
+	set(BUILD_SHARED_LIBRARY ${RS_LIBRETROSHARE_SHARED})
+	set(BUILD_SHARED_LIBS ${RS_LIBRETROSHARE_SHARED})
 
 	set(RESTBED_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/")
 	if(RS_ANDROID)
@@ -548,6 +544,9 @@ if(RS_JSON_API)
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
 			TIMEOUT 10
+			# PATCH_COMMAND applies hotfixes to restbed before building:
+			# 1. Removes /wd4251 (MSVC-specific flag) that breaks GCC/Clang builds.
+			# 2. Bumps CMake minimum version to 3.5.0 to suppress deprecation warnings in CMake >= 3.27.
 			PATCH_COMMAND sed -i -e "s|/wd4251||g" -e "s|VERSION 3.1.0|VERSION 3.5.0|g" CMakeLists.txt
 		)
 		FetchContent_MakeAvailable(restbed)

@@ -28,10 +28,12 @@
 
 /******************** notify of new Cert **************************/
 
-#ifdef X509_NAME
+#if defined(WINDOWS_SYS) && defined(X509_NAME)
+// Workaround: Windows headers (<wincrypt.h>) define X509_NAME which conflicts with RetroShare types.
 #undef X509_NAME
 #endif
-#ifdef X509_EXTENSIONS
+#if defined(WINDOWS_SYS) && defined(X509_EXTENSIONS)
+// Workaround: Windows headers (<wincrypt.h>) define X509_EXTENSIONS which conflicts with RetroShare types.
 #undef X509_EXTENSIONS
 #endif
 

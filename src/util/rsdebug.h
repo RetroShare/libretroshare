@@ -38,7 +38,8 @@
 #include "util/rsmacrosugar.hpp"
 
 
-#ifdef ERROR
+#if defined(WINDOWS_SYS) && defined(ERROR)
+// Workaround: Windows headers (<wingdi.h>) define ERROR as 0, which breaks enum members named ERROR.
 #undef ERROR
 #endif
 
