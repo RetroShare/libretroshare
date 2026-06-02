@@ -101,7 +101,7 @@ cmake_dependent_option(
 option(
 	RS_WARN_DEPRECATED
 	"Print warning about RetroShare deprecated components usage during build"
-	OFF )
+	ON )
 
 option(
 	RS_WARN_LESS
