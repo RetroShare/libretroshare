@@ -230,8 +230,10 @@ if(RS_LIBRETROSHARE_SHARED)
 
 	if(WIN32)
 		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+		# Add WIN32_LEAN_AND_MEAN to prevent <windows.h> from including <wingdi.h> and polluting the global namespace with macros like ERROR
+		target_compile_definitions(${PROJECT_NAME} PUBLIC WIN32_LEAN_AND_MEAN)
 		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,libcrypto.a:libssl.a:libsqlite3.a:libopenpgpsdk.a:libbitdht.a:librestbed.a:librestbed-static.a:libminiupnpc.a:librnp.a:libsexpp.a:libbotan.a:libbotan-3.a:libbotan-2.a:libz.a:libbz2.a:libjson-c.a")
+			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,ALL")
 		endif()
 	endif()
 endif(RS_LIBRETROSHARE_SHARED)
@@ -319,40 +321,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 if(RS_RNPLIB)
 	find_library(BOTAN_LIBRARY NAMES botan botan-3 botan-2 libbotan-3 libbotan-2 REQUIRED)
 
-	# Link RNP libraries by absolute path and with PRIVATE visibility to prevent leaking symbols
-	# to downstream targets (retroshare-gui, plugins), fixing the Windows "too many symbols" error.
-	# Note: We use CMAKE_CURRENT_SOURCE_DIR because the librnp Build directory is hardcoded in its custom build script.
+	set(BUILD_TESTING OFF CACHE BOOL "Disable librnp tests" FORCE)
+	set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static librnp" FORCE)
+	set(DOWNLOAD_GTEST OFF CACHE BOOL "Disable downloading Googletest" FORCE)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp" "${CMAKE_CURRENT_BINARY_DIR}/librnp")
+
 	target_link_libraries(${PROJECT_NAME} PRIVATE
-		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib/${CMAKE_STATIC_LIBRARY_PREFIX}rnp${CMAKE_STATIC_LIBRARY_SUFFIX}"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/libsexpp/${CMAKE_STATIC_LIBRARY_PREFIX}sexpp${CMAKE_STATIC_LIBRARY_SUFFIX}"
-		${BOTAN_LIBRARY}
-		json-c
-		bz2
-		z
-	)
-
-	find_path(RNP_INCLUDE_DIR
-		NAMES rnp/rnp.h
-		PATHS 
-			"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
-			"/opt/homebrew/include"
-			"/usr/local/include"
-		DOC "Path to RNP headers"
-	)
-
-	find_path(RNP_EXPORT_INCLUDE_DIR
-		NAMES rnp/rnp_export.h
-		PATHS 
-			"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/Build/src/lib"
-			"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/build/src/lib"
-			"/opt/homebrew/include"
-			"/usr/local/include"
-		DOC "Path to RNP generated export headers"
+		librnp
+		sexpp
 	)
 
 	target_include_directories(${PROJECT_NAME} PUBLIC
-		"${RNP_INCLUDE_DIR}"
-		"${RNP_EXPORT_INCLUDE_DIR}"
+		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
+		"${CMAKE_CURRENT_BINARY_DIR}/librnp/src/lib"
 	)
 else()
 
@@ -529,10 +510,14 @@ if(RS_JSON_API)
 		# EXCLUDE_FROM_ALL prevent executing install directives from included
 		# dependencies see https://stackoverflow.com/a/64900982
 
+		set(RESTBED_TARGET restbed-static)
+		if(TARGET restbed-shared AND BUILD_SHARED_LIBS)
+			set(RESTBED_TARGET restbed-shared)
+		endif()
+
 		target_include_directories(
 			${PROJECT_NAME} PUBLIC "${RESTBED_DEVEL_DIR}/source/" )
-		target_link_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../supportlibs/restbed")
-		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
+		target_link_libraries(${PROJECT_NAME} PRIVATE ${RESTBED_TARGET})
 	else()
 		message( WARNING
 		         "FetchContent restbed, will be installed if you run make install")
@@ -551,15 +536,16 @@ if(RS_JSON_API)
 		)
 		FetchContent_MakeAvailable(restbed)
 
-		if(TARGET restbed-shared)
-			set_target_properties(restbed-shared PROPERTIES EXCLUDE_FROM_ALL TRUE)
+		set(RESTBED_TARGET restbed-static)
+		if(TARGET restbed-shared AND BUILD_SHARED_LIBS)
+			set(RESTBED_TARGET restbed-shared)
 		endif()
 
 		target_include_directories(
 			${PROJECT_NAME} PUBLIC ${restbed_SOURCE_DIR}/source/ )
-		target_link_libraries(${PROJECT_NAME} PRIVATE restbed-static)
+		target_link_libraries(${PROJECT_NAME} PRIVATE ${RESTBED_TARGET})
 		if(WIN32)
-			target_link_libraries(restbed-static INTERFACE ws2_32 winmm iphlpapi mswsock)
+			target_link_libraries(${RESTBED_TARGET} PUBLIC ws2_32 winmm iphlpapi mswsock)
 		endif()
 	endif()
 
@@ -675,7 +661,7 @@ if(RS_BRODCAST_DISCOVERY)
 endif(RS_BRODCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_NO_WARN_DEPRECATED)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
 	target_compile_options(
 		${PROJECT_NAME} PRIVATE
 		-Wno-deprecated -Wno-deprecated-declarations )
@@ -810,6 +796,10 @@ if(RS_ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
 	set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
 endif()
 
+# Note: Disabling LTO (Interprocedural Optimization) on Windows is necessary for RetroShare 
+# because enabling it causes the MinGW linker (ld) to run out of memory or exhaust the maximum
+# number of exported symbols due to the massive code size. While this makes the binary fatter
+# and slower, it prevents fatal build failures.
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT WIN32)
 	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
