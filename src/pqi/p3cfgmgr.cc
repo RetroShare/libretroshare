@@ -329,20 +329,22 @@ bool p3Config::saveConfig()
     std::cerr << "(II) Saving configuration file " << cfgFname << std::endl;
 
 	uint32_t bioflags = BIN_FLAGS_HASH_DATA | BIN_FLAGS_WRITEABLE;
-	uint32_t stream_flags = BIN_FLAGS_WRITEABLE;
-	bool written = true;
-
-	if (!cleanup)
-		stream_flags |= BIN_FLAGS_NO_DELETE;
 
 	BinEncryptedFileInterface *cfg_bio = new BinEncryptedFileInterface(newCfgFname.c_str(), bioflags);
-	pqiSSLstore *stream = new pqiSSLstore(setupSerialiser(), RsPeerId(), cfg_bio, stream_flags);
     bool ok = false;
 
     try
     {
-        if(!stream->encryptedSendItems(toSave))
-            throw std::runtime_error("(EE) Error while writing config file " + Filename() + ": file dropped!!");
+        // Write within a scope to auto-delete stream (and close the file while deleting cfg_bio) when finished, which should be done before
+        // trying to rename the files on windows.
+        {
+            uint32_t stream_flags = BIN_FLAGS_WRITEABLE | (cleanup?0:BIN_FLAGS_NO_DELETE);
+
+            pqiSSLstore stream(setupSerialiser(), RsPeerId(), cfg_bio, stream_flags);
+
+            if(!stream.encryptedSendItems(toSave))
+                throw std::runtime_error("(EE) Error while writing config file " + Filename() + ": file dropped!!");
+        }
 
         /* store the hash */
         RsFileHash strHash(cfg_bio->gethash());
@@ -383,7 +385,6 @@ bool p3Config::saveConfig()
         RsErr() << e.what();
         ok = false;
     }
-    delete stream; // bio is taken care of in stream's destructor, also forces file to close
 
     saveDone(); // callback to inherited class to unlock any Mutexes protecting saveList() data
     return ok;
