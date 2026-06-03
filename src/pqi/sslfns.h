@@ -28,15 +28,10 @@
 
 /******************** notify of new Cert **************************/
 
-#if defined(WINDOWS_SYS) && defined(X509_NAME)
-// Workaround: Windows headers (<wincrypt.h>) define X509_NAME which conflicts with RetroShare types.
-#undef X509_NAME
-#endif
-#if defined(WINDOWS_SYS) && defined(X509_EXTENSIONS)
-// Workaround: Windows headers (<wincrypt.h>) define X509_EXTENSIONS which conflicts with RetroShare types.
-#undef X509_EXTENSIONS
-#endif
-
+/* OpenSSL's X509_NAME and X509_EXTENSIONS types collide with macros of the
+ * same name defined by Windows' <wincrypt.h>. We rely on WIN32_LEAN_AND_MEAN
+ * (set by the build system) to keep <windows.h> from pulling in <wincrypt.h>,
+ * rather than #undef-ing those macros here. */
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 

@@ -235,13 +235,20 @@ if(RS_LIBRETROSHARE_SHARED)
 
 	if(WIN32)
 		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-		# Add WIN32_LEAN_AND_MEAN to prevent <windows.h> from including <wingdi.h> and polluting the global namespace with macros like ERROR
-		target_compile_definitions(${PROJECT_NAME} PUBLIC WIN32_LEAN_AND_MEAN)
 		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,ALL")
 		endif()
 	endif()
 endif(RS_LIBRETROSHARE_SHARED)
+
+if(WIN32)
+	# Define WIN32_LEAN_AND_MEAN for both the static and shared library targets
+	# to prevent <windows.h> from including extra headers such as <wingdi.h>
+	# (which pollutes the global namespace with macros like ERROR) and
+	# <wincrypt.h> (whose X509_NAME / X509_EXTENSIONS macros collide with the
+	# OpenSSL types of the same name used in pqi/sslfns.h).
+	target_compile_definitions(${PROJECT_NAME} PUBLIC WIN32_LEAN_AND_MEAN)
+endif()
 
 if(RS_ANDROID)
 	# As of today Android NDK libc++ doesn't support std::filesystem properly,
