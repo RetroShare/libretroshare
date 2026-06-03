@@ -14,6 +14,11 @@ include(GNUInstallDirs)
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
+if(WIN32)
+	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
+	add_definitions(-DUNICODE -D_UNICODE)
+endif()
+
 option(
 	RS_SQLCIPHER
 	"SQLCipher encryption for GXS database"
@@ -264,7 +269,7 @@ if(WIN32)
 		NOMINMAX
 		NOCRYPT
 		WIN_DLL_EXPORT )
-	target_link_libraries(${PROJECT_NAME} PUBLIC ws2_32)
+	target_link_libraries(${PROJECT_NAME} PUBLIC ws2_32 winmm iphlpapi)
 endif()
 
 ## As of today libretroshare doesn't hide implementation details properly so it
@@ -320,11 +325,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 if(RS_RNPLIB)
 	find_library(BOTAN_LIBRARY NAMES botan botan-3 botan-2 libbotan-3 libbotan-2 REQUIRED)
-
-	set(BUILD_TESTING OFF CACHE BOOL "Disable librnp tests" FORCE)
-	set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static librnp" FORCE)
-	set(DOWNLOAD_GTEST OFF CACHE BOOL "Disable downloading Googletest" FORCE)
+	# librnp
+	set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+	set(BUILD_TESTING OFF)
+	set(BUILD_SHARED_LIBS OFF)
+	set(DOWNLOAD_GTEST OFF)
+	set(ENABLE_DOC OFF CACHE BOOL "Disable librnp docs" FORCE)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp" "${CMAKE_CURRENT_BINARY_DIR}/librnp")
+	set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
 
 	target_link_libraries(${PROJECT_NAME} PRIVATE
 		librnp
@@ -545,7 +553,12 @@ if(RS_JSON_API)
 			${PROJECT_NAME} PUBLIC ${restbed_SOURCE_DIR}/source/ )
 		target_link_libraries(${PROJECT_NAME} PRIVATE ${RESTBED_TARGET})
 		if(WIN32)
-			target_link_libraries(${RESTBED_TARGET} PUBLIC ws2_32 winmm iphlpapi mswsock)
+			if(TARGET restbed-static)
+				target_link_libraries(restbed-static PUBLIC ws2_32 winmm iphlpapi mswsock)
+			endif()
+			if(TARGET restbed-shared)
+				target_link_libraries(restbed-shared PUBLIC ws2_32 winmm iphlpapi mswsock)
+			endif()
 		endif()
 	endif()
 
