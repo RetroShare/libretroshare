@@ -236,7 +236,7 @@ if(RS_LIBRETROSHARE_SHARED)
 	if(WIN32)
 		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,ALL")
+			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,libbitdht.a:librnp.a:libsexpp.a:libudp-discovery.a:librestbed.a:libsqlcipher.a:libbotan-2.a:libbotan-3.a:libz.a:libbz2.a")
 		endif()
 	endif()
 endif(RS_LIBRETROSHARE_SHARED)
@@ -818,8 +818,8 @@ endif()
 
 # Note: Disabling LTO (Interprocedural Optimization) on Windows is necessary for RetroShare 
 # because enabling it causes the MinGW linker (ld) to run out of memory or exhaust the maximum
-# number of exported symbols due to the massive code size. While this makes the binary fatter
-# and slower, it prevents fatal build failures.
+# number of exported symbols, or emit "multiple definition" errors during LTO code generation. 
+# While this makes the binary fatter and slower, it prevents fatal build failures.
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT WIN32)
 	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
