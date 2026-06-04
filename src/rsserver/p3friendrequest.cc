@@ -253,7 +253,7 @@ bool RsFriendRequestItem::deserialise(void* data, uint32_t pktsize)
 // ══════════════════════════════════════════════════════════════════════════
 
 p3FriendRequest::p3FriendRequest(p3PeerMgr* peerMgr)
-    : p3Config(CONFIG_TYPE_FRIEND_REQUESTS)
+    : p3Config()
     , mPeerMgr(peerMgr)
 {}
 

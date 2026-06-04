@@ -18,15 +18,6 @@
 // Forward declarations
 class p3PeerMgr;
 
-// ── Config type constant ───────────────────────────────────────────────────
-// ACTION FOR INTEGRATOR: add CONFIG_TYPE_FRIEND_REQUESTS to the config-type
-// enum in libretroshare/src/rsserver/p3cfgmgr.h, choosing the next unused
-// value (check the file for the current maximum and increment by 1).
-// This guard lets the code compile in the meantime.
-#ifndef CONFIG_TYPE_FRIEND_REQUESTS
-#  define CONFIG_TYPE_FRIEND_REQUESTS 0x0019
-#endif
-
 // ── Serialisable config item ───────────────────────────────────────────────
 
 /**
