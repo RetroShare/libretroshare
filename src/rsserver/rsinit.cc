@@ -875,6 +875,7 @@ RsGRouter *rsGRouter = NULL ;
 #include "rsserver/p3peers.h"
 #include "rsserver/p3status.h"
 #include "rsserver/p3history.h"
+#include "rsserver/p3friendrequest.h"
 #include "rsserver/p3serverconfig.h"
 
 #include "pqi/p3peermgr.h"
@@ -1756,6 +1757,9 @@ int RsServer::StartupRetroShare()
 
 	mConfigMgr->addConfiguration("gxsnettunnel.cfg", mGxsNetTunnel);
 	mConfigMgr->addConfiguration("peers.cfg"       , mPeerMgr);
+	p3FriendRequest *friendReqSrv = new p3FriendRequest(mPeerMgr);
+	rsFriendRequest = friendReqSrv;
+	mConfigMgr->addConfiguration("friend_requests.cfg", friendReqSrv);
 	mConfigMgr->addConfiguration("general.cfg"     , mGeneralConfig);
 	mConfigMgr->addConfiguration("msgs.cfg"        , msgSrv);
 	mConfigMgr->addConfiguration("chat.cfg"        , chatSrv);

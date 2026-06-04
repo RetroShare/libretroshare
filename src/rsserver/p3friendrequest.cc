@@ -15,6 +15,10 @@
 
 RS_SET_CONTEXT_DEBUG_LEVEL(1)
 
+// Global interface pointer (mirrors rsPeers in p3peers.cc). Declared extern in
+// retroshare/rsfriendrequest.h; assigned during startup in rsserver/rsinit.cc.
+RsFriendRequest* rsFriendRequest = nullptr;
+
 // ══════════════════════════════════════════════════════════════════════════
 // RsFriendRequestItem — serialisation helpers
 // ══════════════════════════════════════════════════════════════════════════
