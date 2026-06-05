@@ -13,6 +13,7 @@
 
 #include "retroshare/rsfriendrequest.h"
 #include "rsitems/rsitem.h"
+#include "pqi/p3cfgmgr.h"
 #include "util/rstime.h"
 
 // Forward declarations
@@ -53,6 +54,8 @@ public:
 
     void clear() override;
     std::ostream& print(std::ostream& out, uint16_t indent = 0) override;
+    void serial_process(RsGenericSerializer::SerializeJob j,
+                        RsGenericSerializer::SerializeContext& ctx) override;
 
     // Called by p3Config's internal I/O. RS expects these three methods on
     // items that manage their own serialisation.

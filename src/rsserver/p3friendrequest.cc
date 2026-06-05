@@ -9,8 +9,9 @@
 #include <ctime>     // time()
 
 #include "retroshare/rspeers.h"   // rsPeers->addSslOnlyFriend
-#include "rsserver/p3peermgr.h"
+#include "pqi/p3peermgr.h"
 #include "serialiser/rsbaseserial.h"
+#include "serialiser/rsserializer.h"
 #include "util/rsdebug.h"
 
 RS_SET_CONTEXT_DEBUG_LEVEL(1)
@@ -106,7 +107,7 @@ static inline bool getStr(const uint8_t*& p, const uint8_t* end, std::string& s)
 // ── RsFriendRequestItem ────────────────────────────────────────────────────
 
 RsFriendRequestItem::RsFriendRequestItem()
-    : RsItem(RS_PKT_VERSION2, PKT_CLASS, PKT_TYPE, PKT_SUBTYPE)
+    : RsItem(RS_PKT_VERSION_SERVICE, PKT_CLASS, PKT_TYPE, PKT_SUBTYPE)
 {}
 
 void RsFriendRequestItem::clear()
@@ -149,7 +150,7 @@ bool RsFriendRequestItem::serialise(void* data, uint32_t& pktsize) const
     uint8_t* p = static_cast<uint8_t*>(data);
 
     // RS item header (8 bytes)
-    putU8 (p, RS_PKT_VERSION2);
+    putU8 (p, RS_PKT_VERSION_SERVICE);
     putU8 (p, PKT_CLASS);
     putU8 (p, PKT_TYPE);
     putU8 (p, (uint8_t)(PKT_SUBTYPE >> 8));
@@ -162,7 +163,7 @@ bool RsFriendRequestItem::serialise(void* data, uint32_t& pktsize) const
     // Reset and use getRsItemHeader() pattern:
     p = static_cast<uint8_t*>(data);
     uint32_t hdr = 0;
-    hdr = (uint32_t)RS_PKT_VERSION2 << 24
+    hdr = (uint32_t)RS_PKT_VERSION_SERVICE << 24
         | (uint32_t)PKT_CLASS        << 16
         | (uint32_t)PKT_TYPE         <<  8
         | (uint32_t)(PKT_SUBTYPE & 0xFF);
@@ -175,13 +176,11 @@ bool RsFriendRequestItem::serialise(void* data, uint32_t& pktsize) const
     for (const auto& [id, e] : entries)
     {
         // sslId: RsPeerId is a fixed 32-byte identifier
-        const std::string sslStr = e.sslId.toStdString();
-        // toStdString() on RsPeerId returns the hex string; use the raw bytes
-        // via getId() which returns a const uint8_t* of SSL_ID_SIZE bytes.
-        putBytes(p, e.sslId.getId(), RsPeerId::SIZE_IN_BYTES);
+        // raw fixed-size bytes of each identifier
+        putBytes(p, e.sslId.toByteArray(), RsPeerId::SIZE_IN_BYTES);
 
         // pgpId: 20 bytes
-        putBytes(p, e.pgpId.getId(), RsPgpId::SIZE_IN_BYTES);
+        putBytes(p, e.pgpId.toByteArray(), RsPgpId::SIZE_IN_BYTES);
 
         putStr(p, e.pgpName);
         putStr(p, e.pgpFingerprint);
@@ -224,8 +223,8 @@ bool RsFriendRequestItem::deserialise(void* data, uint32_t pktsize)
         if (!getBytes(p, end, sslBuf, RsPeerId::SIZE_IN_BYTES)) return false;
         if (!getBytes(p, end, pgpBuf, RsPgpId::SIZE_IN_BYTES))  return false;
 
-        e.sslId.init(sslBuf);
-        e.pgpId.init(pgpBuf);
+        e.sslId = RsPeerId(sslBuf);
+        e.pgpId = RsPgpId(pgpBuf);
 
         if (!getStr(p, end, e.pgpName))        return false;
         if (!getStr(p, end, e.pgpFingerprint)) return false;
@@ -246,6 +245,20 @@ bool RsFriendRequestItem::deserialise(void* data, uint32_t pktsize)
     }
 
     return true;
+}
+
+void RsFriendRequestItem::serial_process(
+        RsGenericSerializer::SerializeJob /*j*/,
+        RsGenericSerializer::SerializeContext& /*ctx*/)
+{
+    // TODO(persistence): RsFriendRequestItem is not yet wired into RS's
+    // serialisation framework. setupSerialiser() returns a bare RsSerialiser,
+    // so neither this method nor the manual serialise()/deserialise() above are
+    // invoked — pending requests are NOT persisted across restarts. To enable
+    // persistence, register an RsServiceSerializer (cf. p3BanList /
+    // RsBanListSerialiser) and implement this with RsTypeSerializer over
+    // `entries`. This stub only satisfies the RsSerializable pure-virtual so
+    // the service compiles and runs in-memory.
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -448,7 +461,7 @@ bool p3FriendRequest::loadList(std::list<RsItem*>& load)
 
 void p3FriendRequest::markDirty()
 {
-    // Use the no-argument overload available in all RS versions.
-    // This avoids any dependency on the non-existent CheckPriority enum.
-    p3Config::IndicateConfigChanged();
+    // Inherited from p3Config; the no-argument form uses the default
+    // CheckPriority and is available in all RS versions.
+    IndicateConfigChanged();
 }
