@@ -1,4 +1,4 @@
-﻿/*******************************************************************************
+/*******************************************************************************
  * libretroshare/src/pqi: sslfns.h                                             *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
@@ -28,6 +28,10 @@
 
 /******************** notify of new Cert **************************/
 
+/* OpenSSL's X509_NAME and X509_EXTENSIONS types collide with macros of the
+ * same name defined by Windows' <wincrypt.h>. We rely on WIN32_LEAN_AND_MEAN
+ * (set by the build system) to keep <windows.h> from pulling in <wincrypt.h>,
+ * rather than #undef-ing those macros here. */
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 

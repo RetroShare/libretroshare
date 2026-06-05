@@ -250,11 +250,13 @@ else()
 	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/openpgpsdkhandler.h)
 endif()
 
-#./plugins/dlfcn_win32.cc
-#./plugins/dlfcn_win32.h
-#./plugins/pluginmanager.h
 #./plugins/rscacheservice.h
 #./plugins/rspqiservice.h
+
+if(WIN32)
+	list(APPEND RS_SOURCES plugins/dlfcn_win32.cc)
+	list(APPEND RS_IMPLEMENTATION_HEADERS plugins/dlfcn_win32.h)
+endif()
 
 list(
 	APPEND RS_SOURCES
@@ -338,10 +340,14 @@ list(
 	pqi/pqistreamer.h
 	pqi/pqithreadstreamer.h
 	pqi/sslfns.h )
-
-#./pqi/pqissli2psam3.cpp
-#./pqi/pqissli2psam3.h
-
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES
+		pqi/pqissli2psam3.cpp
+	)
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		pqi/pqissli2psam3.h
+	)
+endif()
 list(
 	APPEND RS_SOURCES
 	rsitems/rsbanlistitems.cc
@@ -475,11 +481,15 @@ list(
 	serialiser/rstlvmaps.h
 	serialiser/rstlvstring.h
 	serialiser/rstypeserializer.h )
-
 # ./services/autoproxy
-#./services/autoproxy/p3i2psam3.cpp
-#./services/autoproxy/p3i2psam3.h
-
+if(RS_USE_I2P_SAM3)
+	list(APPEND RS_SOURCES
+		services/autoproxy/p3i2psam3.cpp
+	)
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		services/autoproxy/p3i2psam3.h
+	)
+endif()
 list(
 	APPEND RS_SOURCES
 	services/autoproxy/rsautoproxymonitor.cc
@@ -617,13 +627,12 @@ list(
 	util/rsnet.cc
 	util/rsnet_ss.cc
 	util/rsstacktrace.cc
-	util/rsthreads.cc )
-
-# util/i2pcommon.cpp
-# util/i2pcommon.h
+	util/rsthreads.cc
+	util/i2pcommon.cpp )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
+	util/i2pcommon.h
 	util/argstream.h
 	util/contentvalue.h
 	util/cxx11retrocompat.h

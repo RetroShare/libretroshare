@@ -41,6 +41,7 @@ enum class RsTorManagerEventCode: uint8_t
     TOR_MANAGER_STOPPED       = 0x06,
 };
 
+
 // Status of the Tor hidden service setup/loaded by RS
 
 enum class RsTorHiddenServiceStatus: uint8_t {
