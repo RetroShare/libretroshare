@@ -367,7 +367,7 @@ bool p3Config::saveConfig()
         // rename back-up to current file
         if(RsDirUtil::fileExists(cfgFname) && !RsDirUtil::renameFile(cfgFname, tmpCfgFname))
             throw std::runtime_error("p3Config::backedUpFileSave() Failed to rename backup meta files: " + cfgFname + " to " + tmpCfgFname);
-        if(RsDirUtil::fileExists(cfgFname) && !RsDirUtil::renameFile(signFname, tmpSignFname))
+        if(RsDirUtil::fileExists(signFname) && !RsDirUtil::renameFile(signFname, tmpSignFname))
             throw std::runtime_error("p3Config::backedUpFileSave() Failed to rename backup meta files: " + signFname + " to " + tmpSignFname);
 
         // now rewrite current files to temp files; rename back-up to current file
