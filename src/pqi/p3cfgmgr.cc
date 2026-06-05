@@ -327,10 +327,6 @@ bool p3Config::saveConfig()
 	std::string signFname = Filename() + ".sgn";
 
     std::cerr << "(II) Saving configuration file " << cfgFname << std::endl;
-
-	uint32_t bioflags = BIN_FLAGS_HASH_DATA | BIN_FLAGS_WRITEABLE;
-
-	BinEncryptedFileInterface *cfg_bio = new BinEncryptedFileInterface(newCfgFname.c_str(), bioflags);
     bool ok = false;
 
     try
@@ -340,6 +336,10 @@ bool p3Config::saveConfig()
         // Write within a scope to auto-delete stream (and close the file while deleting cfg_bio) when finished, which should be done before
         // trying to rename the files on windows.
         {
+            uint32_t bioflags = BIN_FLAGS_HASH_DATA | BIN_FLAGS_WRITEABLE;
+
+            BinEncryptedFileInterface *cfg_bio = new BinEncryptedFileInterface(newCfgFname.c_str(), bioflags);
+
             uint32_t stream_flags = BIN_FLAGS_WRITEABLE | (cleanup?0:BIN_FLAGS_NO_DELETE);
 
             pqiSSLstore stream(setupSerialiser(), RsPeerId(), cfg_bio, stream_flags);
