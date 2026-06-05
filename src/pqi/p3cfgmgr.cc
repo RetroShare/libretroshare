@@ -335,6 +335,8 @@ bool p3Config::saveConfig()
 
     try
     {
+        RsFileHash strHash;
+
         // Write within a scope to auto-delete stream (and close the file while deleting cfg_bio) when finished, which should be done before
         // trying to rename the files on windows.
         {
@@ -344,10 +346,10 @@ bool p3Config::saveConfig()
 
             if(!stream.encryptedSendItems(toSave))
                 throw std::runtime_error("(EE) Error while writing config file " + Filename() + ": file dropped!!");
-        }
 
-        /* store the hash */
-        RsFileHash strHash(cfg_bio->gethash());
+            /* store the hash */
+            strHash = cfg_bio->gethash();
+        }
 
         /* sign data */
         std::string signature;
