@@ -856,6 +856,14 @@ SOURCES += services/p3gxschannels.cc \
 	rsitems/rsgxscommentitems.cc \
 	rsitems/rsgxschannelitems.cc \
 
+# GxsCalendar Service
+HEADERS += retroshare/rsgxscalendar.h \
+	services/p3gxscalendar.h \
+	rsitems/rsgxscalendaritems.h \
+
+SOURCES += services/p3gxscalendar.cc \
+	rsitems/rsgxscalendaritems.cc \
+
 wikipoos {
 	DEFINES *= RS_USE_WIKI
 
