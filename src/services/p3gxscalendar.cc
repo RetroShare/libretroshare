@@ -69,6 +69,10 @@ bool p3GxsCalendar::createCalendar(
         const std::string& name,
         const std::string& description,
         const RsGxsId&     authorId,
+        uint32_t           circleType,
+        const RsGxsCircleId& circleId,
+        const RsGxsCircleId& internalCircle,
+        uint32_t           groupFlags,
         RsGxsGroupId& calendarId,
         std::string&  errorMessage
         )
@@ -76,9 +80,11 @@ bool p3GxsCalendar::createCalendar(
 	RsGxsCalendarGroup group;
 	group.mMeta.mGroupName = name;
 	group.mMeta.mAuthorId = authorId;
-	group.mMeta.mCircleType = static_cast<uint32_t>(RsGxsCircleType::PUBLIC);
+	group.mMeta.mCircleType = circleType;
+	group.mMeta.mCircleId = circleId;
+	group.mMeta.mInternalCircle = internalCircle;
 	group.mMeta.mSignFlags = GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED;
-	group.mMeta.mGroupFlags = GXS_SERV::FLAG_PRIVACY_PUBLIC;
+	group.mMeta.mGroupFlags = groupFlags;
 	group.mDescription = description;
 
 	RsGxsCalendarGroupItem* grpItem = new RsGxsCalendarGroupItem();
@@ -108,6 +114,10 @@ bool p3GxsCalendar::updateCalendar(
         const std::string& name,
         const std::string& description,
         const RsGxsId&     authorId,
+        uint32_t           circleType,
+        const RsGxsCircleId& circleId,
+        const RsGxsCircleId& internalCircle,
+        uint32_t           groupFlags,
         std::string&  errorMessage
         )
 {
@@ -115,9 +125,11 @@ bool p3GxsCalendar::updateCalendar(
 	group.mMeta.mGroupId = calendarId;
 	group.mMeta.mGroupName = name;
 	group.mMeta.mAuthorId = authorId;
-	group.mMeta.mCircleType = static_cast<uint32_t>(RsGxsCircleType::PUBLIC);
+	group.mMeta.mCircleType = circleType;
+	group.mMeta.mCircleId = circleId;
+	group.mMeta.mInternalCircle = internalCircle;
 	group.mMeta.mSignFlags = GXS_SERV::FLAG_GROUP_SIGN_PUBLISH_NONEREQ | GXS_SERV::FLAG_AUTHOR_AUTHENTICATION_REQUIRED;
-	group.mMeta.mGroupFlags = GXS_SERV::FLAG_PRIVACY_PUBLIC;
+	group.mMeta.mGroupFlags = groupFlags;
 	group.mDescription = description;
 
 	RsGxsCalendarGroupItem* grpItem = new RsGxsCalendarGroupItem();
