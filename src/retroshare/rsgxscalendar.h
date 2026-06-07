@@ -28,6 +28,7 @@
 #include "retroshare/rstokenservice.h"
 #include "retroshare/rsgxsifacehelper.h"
 #include "retroshare/rsgxscommon.h"
+#include "retroshare/rsgxsflags.h"
 #include "serialiser/rsserializable.h"
 #include "util/rsmemory.h"
 
@@ -110,6 +111,10 @@ public:
 	        const std::string& name,
 	        const std::string& description,
 	        const RsGxsId&     authorId = RsGxsId(),
+	        uint32_t           circleType = 0x0001,
+	        const RsGxsCircleId& circleId = RsGxsCircleId(),
+	        const RsGxsCircleId& internalCircle = RsGxsCircleId(),
+	        uint32_t           groupFlags = GXS_SERV::FLAG_PRIVACY_PUBLIC,
 	        RsGxsGroupId& calendarId = RS_DEFAULT_STORAGE_PARAM(RsGxsGroupId),
 	        std::string&  errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string)
 	        ) = 0;
@@ -119,6 +124,10 @@ public:
 	        const std::string& name,
 	        const std::string& description,
 	        const RsGxsId&     authorId = RsGxsId(),
+	        uint32_t           circleType = 0x0001,
+	        const RsGxsCircleId& circleId = RsGxsCircleId(),
+	        const RsGxsCircleId& internalCircle = RsGxsCircleId(),
+	        uint32_t           groupFlags = GXS_SERV::FLAG_PRIVACY_PUBLIC,
 	        std::string&  errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string)
 	        ) = 0;
 
