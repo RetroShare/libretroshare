@@ -30,6 +30,7 @@
 #include "util/contentvalue.h"
 #include "util/rsprint.h"
 #include "util/rstime.h"
+#include "pqi/authssl.h"
 #include "retroshare/rsgxsflags.h"
 #include "retroshare/rsgxscircles.h"
 #include "retroshare/rsgrouter.h"
@@ -3094,6 +3095,7 @@ void RsGenExchange::computeHash(const RsTlvBinaryData& data, RsFileHash& hash)
 void RsGenExchange::processRecvdMessages()
 {
     std::list<RsGxsMessageId> messages_to_reject ;
+    std::set<RsGxsGroupId> grps_with_new_msgs ;	// MAIL: groups that received new messages, to stamp their server update TS off-mutex below
 
     {
 	    RS_STACK_MUTEX(mGenMtx) ;
@@ -3299,14 +3301,30 @@ void RsGenExchange::processRecvdMessages()
             g.val.put(RsGeneralDataService::GRP_META_LAST_POST, static_cast<int64_t>(grp_it.second));
 
             mGrpLocMetaMap.insert(std::make_pair(token, g));
+
+            grps_with_new_msgs.insert(grp_it.first);
         }
     }
 
     // Done off-mutex to avoid cross deadlocks in the netservice that might call the RsGenExchange as an observer..
 
     if(mNetService != NULL)
+    {
 	    for(std::list<RsGxsMessageId>::const_iterator it(messages_to_reject.begin());it!=messages_to_reject.end();++it)
 		    mNetService->rejectMessage(*it) ;
+
+	    // MAIL: stamp the server-side msg update TS for groups that received new messages, so that friends
+	    // get notified and re-synchronise. For messages received through the regular netservice transaction
+	    // path this is already done in RsGxsNetService::processCompletedTransactions(), but messages injected
+	    // directly via receiveNewMessages() (e.g. GxsTrans presigned receipts / ACKs) bypass that path and
+	    // would otherwise be stored but never advertised to friends.
+	    for(const RsGxsGroupId& grpId : grps_with_new_msgs)
+	    {
+		    RsDbg() << "MAIL (" << AuthSSL::getAuthSSL()->getOwnLocation() << "): GXS - Stamping server msg update TS for group " << grpId
+		            << " after injecting new message(s) via receiveNewMessages() (e.g. GxsTrans ACK), so friends get notified and re-sync";
+		    mNetService->stampMsgServerUpdateTS(grpId) ;
+	    }
+    }
 }
 
 bool RsGenExchange::acceptNewGroup(const RsGxsGrpMetaData* /*grpMeta*/ ) { return true; }
