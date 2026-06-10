@@ -47,6 +47,7 @@ public:
 	bool toPostedGroup(RsPostedGroup &group, bool moveImage);
 	
 	std::string mDescription;
+	std::set<RsGxsMessageId> mPinnedPosts;
 	RsTlvImage mGroupImage;
 
 };
