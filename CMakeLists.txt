@@ -1,7 +1,6 @@
 # RetroShare decentralized communication platform
 #
-# Copyright (C) 2021-2022  Gioacchino Mazzurco <gio@retroshare.cc>
-# Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2021-2026  Gioacchino Mazzurco <gio@retroshare.cc>
 #
 # SPDX-License-Identifier: CC0-1.0
 
@@ -244,23 +243,7 @@ if(RS_LIBRETROSHARE_SHARED)
 	endif()
 endif(RS_LIBRETROSHARE_SHARED)
 
-
-
-if(RS_ANDROID)
-	# As of today Android NDK libc++ doesn't support std::filesystem properly,
-	# in a very confusing manner the headers have the function declarations but
-	# then the shared object file doesn't have the implementation.
-	# This fools the compiler which doesn't report any error but then at runtime
-	# we get a crash with this error:
-	# java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol
-	# "_ZNSt6__ndk14__fs10filesystem20__create_directoriesERKNS1_4pathEPNS_10error_codeE"
-	# referenced by "/data/app/==/lib/arm64/libretroshare.so
-	# So set maximum supported C++ version to 14 to workaround this Android bug
-	# https://github.com/android/ndk/issues/609
-	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
-else()
-	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
-endif()
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 if(WIN32)
 	target_compile_definitions(
@@ -331,27 +314,73 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 ################################################################################
-
 if(RS_RNPLIB)
 
-	# librnp
-	set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-	set(BUILD_TESTING OFF)
-	set(BUILD_SHARED_LIBS OFF)
-	set(DOWNLOAD_GTEST OFF)
-	set(ENABLE_DOC OFF CACHE BOOL "Disable librnp docs" FORCE)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp" "${CMAKE_CURRENT_BINARY_DIR}/librnp")
-	set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
+	macro(rnplib_set_inline_build_options)
+		set(RNPLIB_BUILD_SHARED ${RS_LIBRETROSHARE_SHARED})
+		set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+		set(BUILD_TESTING OFF)
+		set(BUILD_SHARED_LIBS ${RNPLIB_BUILD_SHARED})
+		set(DOWNLOAD_GTEST OFF)
+		set(ENABLE_DOC OFF CACHE BOOL "Disable librnp docs" FORCE)
+	endmacro()
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE
-		librnp
-		sexpp
-	)
+	macro(rnplib_restore_build_options)
+		set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
+	endmacro()
 
-	target_include_directories(${PROJECT_NAME} PUBLIC
-		"${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/include"
-		"${CMAKE_CURRENT_BINARY_DIR}/librnp/src/lib"
-	)
+	set(RNPLIB_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/")
+
+	if(EXISTS "${RNPLIB_DEVEL_DIR}/CMakeLists.txt")
+		message(STATUS "librnp source found at ${RNPLIB_DEVEL_DIR} using it")
+		rnplib_set_inline_build_options()
+		add_subdirectory("${RNPLIB_DEVEL_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/librnp")
+		rnplib_restore_build_options()
+		set(RNPLIB_SRC_DIR "${RNPLIB_DEVEL_DIR}")
+		set(RNPLIB_BIN_DIR "${CMAKE_CURRENT_BINARY_DIR}/librnp")
+		set(RNPLIB_INLINE_BUILD ON)
+	else()
+		find_library(LIBRNP_LIBRARY NAMES rnp)
+		if(LIBRNP_LIBRARY)
+			message(STATUS "Found pre-built librnp at ${LIBRNP_LIBRARY}")
+			find_library(LIBSEXPP_LIBRARY NAMES sexpp)
+			target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRNP_LIBRARY})
+			if(LIBSEXPP_LIBRARY)
+				message(STATUS "and sexpp at ${LIBSEXPP_LIBRARY}")
+				target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSEXPP_LIBRARY})
+			endif()
+			set(RNPLIB_INLINE_BUILD OFF)
+		else()
+			message(STATUS "librnp not found locally, using FetchContent")
+			rnplib_set_inline_build_options()
+			FetchContent_Declare(
+				librnp
+				GIT_REPOSITORY "https://github.com/rnpgp/rnp.git"
+				GIT_TAG "origin/main"
+				GIT_SHALLOW TRUE
+				GIT_PROGRESS TRUE
+				TIMEOUT 10
+			)
+			FetchContent_MakeAvailable(librnp)
+			rnplib_restore_build_options()
+			set(RNPLIB_SRC_DIR "${librnp_SOURCE_DIR}")
+			set(RNPLIB_BIN_DIR "${librnp_BINARY_DIR}")
+			set(RNPLIB_INLINE_BUILD ON)
+		endif()
+	endif()
+
+	if(RNPLIB_INLINE_BUILD)
+		target_include_directories(${PROJECT_NAME} PUBLIC
+			"${RNPLIB_SRC_DIR}/include"
+			"${RNPLIB_BIN_DIR}/src/lib"
+		)
+
+		if(RNPLIB_BUILD_SHARED)
+			target_link_libraries(${PROJECT_NAME} PRIVATE librnp)
+		else()
+			target_link_libraries(${PROJECT_NAME} PRIVATE librnp sexpp)
+		endif()
+	endif()
 else()
 
 	set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
@@ -391,7 +420,7 @@ if(RS_BITDHT)
 	else()
 		FetchContent_Declare(
 			bitdht
-		GIT_REPOSITORY "https://github.com/RetroShare/BitDHT.git"
+			GIT_REPOSITORY "https://github.com/RetroShare/BitDHT.git"
 			GIT_TAG "origin/master"
 			GIT_SHALLOW TRUE
 			GIT_PROGRESS TRUE
@@ -650,6 +679,8 @@ if(RS_BRODCAST_DISCOVERY)
 	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
 	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
 
+	set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 	set(UDP_DISCOVERY_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/")
 	if(EXISTS "${UDP_DISCOVERY_DEVEL_DIR}/CMakeLists.txt")
 		message( STATUS
@@ -746,23 +777,20 @@ set(V_VERSION_SET OFF)
 if( NOT RS_MAJOR_VERSION STREQUAL "" AND
     NOT RS_MINOR_VERSION STREQUAL "" AND
     NOT RS_MINI_VERSION  STREQUAL "" )
-	message(STATUS "RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
+	message(STATUS "libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
 	set(V_VERSION_SET ON)
 else()
 	set(V_GIT_DESCRIBE_OUTPUT "")
 	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
 
-	set(V_GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.git")
-		set(V_GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-	endif()
-
 	execute_process(
 		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
-		WORKING_DIRECTORY "${V_GIT_DIR}"
-		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT )
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT
+		RESULT_VARIABLE V_GIT_RESULT ) # Avoid CMake failure if git fails
 
-	if(V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
+	if( V_GIT_RESULT EQUAL 0 AND
+	    V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}" )
 		string(
 			REGEX REPLACE
 			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
@@ -772,10 +800,10 @@ else()
 		list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
 		list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
 
-		message("RetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
+		message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
 		set(V_VERSION_SET ON)
 	else()
-		message(WARNING "Determining RetroShare version via git failed plese specify it through CMake command line arguments!")
+		message(WARNING "Determining libRetroShare version via git failed please specify it through CMake command line arguments!")
 	endif()
 endif()
 
@@ -787,22 +815,6 @@ if(V_VERSION_SET)
 		PUBLIC RS_MINI_VERSION=${RS_MINI_VERSION}
 		PUBLIC RS_EXTRA_VERSION="${RS_EXTRA_VERSION}" )
 endif(V_VERSION_SET)
-
-# Define the libretroshare specific version hash (submodule hash)
-set(V_LIB_GIT_HASH "")
-execute_process(
-	COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=7 --always --dirty
-	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-	OUTPUT_VARIABLE V_LIB_GIT_HASH
-	OUTPUT_STRIP_TRAILING_WHITESPACE )
-
-if(V_LIB_GIT_HASH STREQUAL "")
-	set(V_LIB_GIT_HASH "[version not available]")
-endif()
-
-target_compile_definitions(
-	${PROJECT_NAME}
-	PUBLIC RS_LIB_VERSION_HASH="${V_LIB_GIT_HASH}" )
 
 ################################################################################
 
