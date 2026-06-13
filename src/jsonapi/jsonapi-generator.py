@@ -3,8 +3,7 @@
 # RetroShare JSON API generator
 #
 # Copyright (C) 2019  selankon <selankon@selankon.xyz>
-# Copyright (C) 2021-2022  Gioacchino Mazzurco <gio@retroshare.cc>
-# Copyright (C) 2021-2022  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2021-2026  Gioacchino Mazzurco <gio@retroshare.cc>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the
@@ -47,7 +46,7 @@ class MethodParam:
 
 class TemplateOwn(Template):
 	delimiter = '$%'
-	pattern = '''
+	pattern = r'''
 	\$%(?:
 		(?P<escaped>\$\%) |   					# Escape sequence of two delimiters
 		(?P<named>[_a-z][_a-z0-9]*)%\$      |   	# delimiter and a Python identifier
