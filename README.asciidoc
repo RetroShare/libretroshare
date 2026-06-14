@@ -53,8 +53,7 @@ dependencies {
 --------------------------------------------------------------------------------
 
 
- +
- +
+{empty} +
 
 image:https://deepwiki.com/badge.svg[link="https://deepwiki.com/RetroShare/libretroshare",title="Ask DeepWiki"]
 
