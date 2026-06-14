@@ -5,8 +5,7 @@
  *                                                                             *
  * Copyright (C) 2012  Christopher Evi-Parker                                  *
  * Copyright (C) 2012  Robert Fernie <retroshare@lunamutt.com>                 *
- * Copyright (C) 2021  Gioacchino Mazzurco <gio@altermundi.net>                *
- * Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>       *
+ * Copyright (C) 2021  Gioacchino Mazzurco <gio@retroshare.cc>                *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

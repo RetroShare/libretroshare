@@ -6,7 +6,7 @@
  * Copyright (c) 2004-2009 Marcelo Roberto Jimenez ( phoenix@amule.org )       *
  * Copyright (c) 2006-2009 aMule Team ( admin@amule.org / http://www.amule.org)*
  * Copyright (c) 2009-2010 Retroshare Team                                     *
- * Copyright (C) 2019-2020 Gioacchino Mazzurco <gio@eigenlab.org>              *
+ * Copyright (C) 2019-2020 Gioacchino Mazzurco <gio@retroshare.cc>              *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

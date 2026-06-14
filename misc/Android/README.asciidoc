@@ -392,8 +392,7 @@ https://gitlab.com/elRepo.io/elRepo.io-android/-/blob/master/android/app/build.g
 
 == License
 
-Copyright (C) 2016-2021  Gioacchino Mazzurco <gio@eigenlab.org> +
-Copyright (C) 2020-2021  Asociación Civil Altermundi <info@altermundi.net> +
+Copyright (C) 2016-2021  Gioacchino Mazzurco <gio@retroshare.cc> +
 
 This work is licensed under a Creative Commons Attribution-Share Alike 4.0 International License.
 

@@ -2,7 +2,7 @@
  * libretroshare/src/services: p3idservice.h                                   *
  *                                                                             *
  * Copyright (C) 2012-2014  Robert Fernie <retroshare@lunamutt.com>            *
- * Copyright (C) 2017-2019  Gioacchino Mazzurco <gio@altermundi.net>           *
+ * Copyright (C) 2017-2019  Gioacchino Mazzurco <gio@retroshare.cc>           *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

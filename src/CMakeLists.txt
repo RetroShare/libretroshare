@@ -1,7 +1,6 @@
 # RetroShare decentralized communication platform
 #
-# Copyright (C) 2021  Gioacchino Mazzurco <gio@eigenlab.org>
-# Copyright (C) 2021  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2021  Gioacchino Mazzurco <gio@retroshare.cc>
 #
 # SPDX-License-Identifier: CC0-1.0
 

@@ -1,8 +1,7 @@
 /*******************************************************************************
  * RetroShare Broadcast Domain Discovery                                       *
  *                                                                             *
- * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@altermundi.net>           *
- * Copyright (C) 2019-2022  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2022  Gioacchino Mazzurco <gio@retroshare.cc>           *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

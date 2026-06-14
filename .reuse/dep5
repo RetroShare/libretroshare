@@ -11,13 +11,11 @@ Copyright: 2004-2022, Retroshare Team <contact@retroshare.cc>
 License: LGPL-3.0-or-later
 
 Files: src/deep_search/*
-Copyright: 2018-2022, Gioacchino Mazzurco <gio@eigenlab.org>
-           2019-2022, Asociación Civil Altermundi <info@altermundi.net>
+Copyright: 2018-2022, Gioacchino Mazzurco <gio@retroshare.cc>
 License: AGPL-3.0-only
 
 Files: src/jsonapi/*
-Copyright: 2018-2022, Gioacchino Mazzurco <gio@eigenlab.org>
-           2019-2022, Asociación Civil Altermundi <info@altermundi.net>
+Copyright: 2018-2022, Gioacchino Mazzurco <gio@retroshare.cc>
 License: AGPL-3.0-or-later
 
 Files: src/tor/*

@@ -2,7 +2,6 @@
  * RetroShare
  *
  * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@retroshare.cc>
- * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
