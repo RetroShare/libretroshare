@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2022 Retroshare Team <contact@retroshare.cc>
-// SPDX-FileCopyrightText: 2022 Gioacchino Mazzurco <gio@retroshare.cc>
+// SPDX-FileCopyrightText: 2022-2026 Gioacchino Mazzurco <gio@retroshare.cc>
 // SPDX-License-Identifier: CC-BY-SA-4.0
 
-= RetroShare library
+== RetroShare library
 
 RetroShare is a decentralized, private, secure, cross-platform, communication
 software.
 
 RetroShare functionalities (file sharing, chat, messages, forums, channels...)
-are implemented under the hood by libretroshare which offer a documented C++ and
+are implemented under the hood by libretroshare which offers a documented C++ and
 JSON API.
 
-While RetroShare is an application on it's own, libretroshare is meant to be
+While RetroShare is an application on its own, libretroshare is meant to be
 used as part of other programs, some of them are
 https://retroshare.cc[RetroShare-gui],
 https://retroshare.cc[RetroShare-service],
@@ -23,6 +23,38 @@ https://gitlab.com/elRepo.io/elRepo.io-android[elRepo.io]
 
 image:https://gitlab.com/RetroShare/libretroshare/badges/master/pipeline.svg[link="https://gitlab.com/RetroShare/libretroshare/-/commits/master",title="pipeline status"]
 
-=== Developer Documentation 
+=== Developer Documentation
+
+All public API methods are documented with Doxygen comments, so the most updated
+way to read documentation is reading those comments in `src/retroshare/`.
+
+To use libretroshare as part of your Android application we suggest to add our
+maven repository, and then specify the variant and version that fits your needs
+as dependency. RetroShare is then exposed as an Android Service as you can see
+at https://gitlab.com/RetroShare/libretroshare/-/blob/master/src/rs_android/org/retroshare/service/RetroShareServiceAndroid.java?ref_type=heads[RetroShareServiceAndroid.java] start it and then interact with it
+via RetroShare JSON API.
+
+.Example of adding libretroshare as dependency in Gradle
+--------------------------------------------------------------------------------
+repositories {
+	maven {
+		url "https://gitlab.com/api/v4/projects/32730908/packages/maven"
+	}
+}
+
+dependencies {
+	// Look at https://gitlab.com/RetroShare/libretroshare/-/packages for
+	// available options.
+	//                 Minimum Android platform supported goes here ⬇
+	//                                            Build variant goes here ⬇
+	//                                                          Version goes here ⬇
+	implementation "org.retroshare.service:libretroshare-MinApiLevel21-release:72f8b7e8"
+}
+--------------------------------------------------------------------------------
+
+
+ +
+ +
+
 image:https://deepwiki.com/badge.svg[link="https://deepwiki.com/RetroShare/libretroshare",title="Ask DeepWiki"]
 
