@@ -851,6 +851,29 @@ endif(V_VERSION_SET)
 
 ################################################################################
 
+# Engine build hash exposed through RsInit::libRetroShareVersion().
+# Ported from the qmake build (libretroshare.pro RS_LIB_VERSION_HASH block):
+# describe the libretroshare submodule itself and drop the leading 'v' to
+# match the GUI version style. Used only inside libretroshare, hence PRIVATE.
+execute_process(
+	COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+	OUTPUT_VARIABLE RS_LIB_VERSION_HASH
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+	RESULT_VARIABLE V_GIT_HASH_RESULT ) # Avoid CMake failure if git fails
+
+if(V_GIT_HASH_RESULT EQUAL 0 AND NOT RS_LIB_VERSION_HASH STREQUAL "")
+	string(REGEX REPLACE "^v" "" RS_LIB_VERSION_HASH "${RS_LIB_VERSION_HASH}")
+	message(STATUS "libRetroShare engine hash ${RS_LIB_VERSION_HASH}")
+	target_compile_definitions(
+		${PROJECT_NAME}
+		PRIVATE RS_LIB_VERSION_HASH="${RS_LIB_VERSION_HASH}" )
+else()
+	message(WARNING "Determining libRetroShare engine hash via git failed")
+endif()
+
+################################################################################
+
 # TODO: Use generator expressions instead of CMAKE_BUILD_TYPE see
 # https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#build-configurations
 # https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#manual:cmake-generator-expressions(7)
