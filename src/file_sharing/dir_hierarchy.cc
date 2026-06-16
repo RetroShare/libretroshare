@@ -22,6 +22,7 @@
  ******************************************************************************/
 #include <sstream>
 #include <algorithm>
+#include <functional>
 
 #include "util/rstime.h"
 #include "util/rsdir.h"
@@ -669,20 +670,36 @@ bool InternalFileHierarchyStorage::setTS(const DirectoryStorage::EntryIndex& ind
 
 // Do a complete recursive sweep of directory hierarchy and update cumulative size of directories
 
-uint64_t InternalFileHierarchyStorage::recursUpdateCumulatedSize(const DirectoryStorage::EntryIndex& dir_index)
+uint64_t InternalFileHierarchyStorage::recursUpdateCumulatedSize(const DirectoryStorage::EntryIndex& dir_index, std::function<uint64_t(const RsFileHash&)> get_uploads)
 {
     DirEntry& d(*static_cast<DirEntry*>(mNodes[dir_index])) ;
 
     uint64_t local_cumulative_size = 0;
+    uint32_t local_cumulative_files = 0;
+    uint64_t local_cumulative_uploads = 0;
 
     for(uint32_t i=0;i<d.subfiles.size();++i)
-        if(mNodes[d.subfiles[i]])		// normally not needed, but an extra-security
-            local_cumulative_size += static_cast<FileEntry*>(mNodes[d.subfiles[i]])->file_size;
+        if(mNodes[d.subfiles[i]]) {		// normally not needed, but an extra-security
+            FileEntry *f = static_cast<FileEntry*>(mNodes[d.subfiles[i]]);
+            local_cumulative_size += f->file_size;
+            local_cumulative_files++;
 
-    for(uint32_t i=0;i<d.subdirs.size();++i)
-        local_cumulative_size += recursUpdateCumulatedSize(d.subdirs[i]);
+            if(get_uploads)
+                local_cumulative_uploads += get_uploads(f->file_hash);
+        }
+
+    for(uint32_t i=0;i<d.subdirs.size();++i) {
+        local_cumulative_size += recursUpdateCumulatedSize(d.subdirs[i], get_uploads);
+        local_cumulative_files += static_cast<DirEntry*>(mNodes[d.subdirs[i]])->dir_cumulated_files;
+        local_cumulative_uploads += static_cast<DirEntry*>(mNodes[d.subdirs[i]])->dir_cumulated_uploads;
+    }
 
     d.dir_cumulated_size = local_cumulative_size;
+    d.dir_cumulated_files = local_cumulative_files;
+    d.dir_cumulated_uploads = local_cumulative_uploads;
+
+
+
     return local_cumulative_size;
 }
 // Do a complete recursive sweep over sub-directories and files, and update the lst modf TS. This could be also performed by a cleanup method.
