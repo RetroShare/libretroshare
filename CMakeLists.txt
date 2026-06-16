@@ -816,19 +816,9 @@ else()
 	set(V_GIT_DESCRIBE_OUTPUT "")
 	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
 
-	# When libretroshare is built inside the RetroShare super-project (as a
-	# submodule), the displayed "RetroShare Version" must reflect the root
-	# repository, not this submodule. Describe the parent repo when present;
-	# fall back to this directory for standalone / FetchContent / Android
-	# builds where ../.git does not exist.
-	set(V_GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.git")
-		set(V_GIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-	endif()
-
 	execute_process(
 		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
-		WORKING_DIRECTORY "${V_GIT_DIR}"
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT
 		RESULT_VARIABLE V_GIT_RESULT ) # Avoid CMake failure if git fails
 
