@@ -640,9 +640,6 @@ endif(RS_JSON_API)
 ################################################################################
 
 if(RS_FORUM_DEEP_INDEX)
-	find_package(Xapian REQUIRED)
-	target_link_libraries(${PROJECT_NAME} PRIVATE ${XAPIAN_LIBRARIES})
-
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_DEEP_FORUMS_INDEX)
 endif(RS_FORUM_DEEP_INDEX)
 
