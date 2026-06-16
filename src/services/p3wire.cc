@@ -1866,6 +1866,22 @@ bool p3Wire::getWireStatistics(const RsGxsGroupId& groupId, RsWireStatistics& st
 /********************************************************************************************/
 /********************************************************************************************/
 
+bool p3Wire::setMessageReadStatus(const RsGxsGrpMsgIdPair &msgId, bool read)
+{
+    uint32_t token;
+    setMessageReadStatus(token, msgId, read);
+
+    if (waitToken(token, std::chrono::seconds(5)) != RsTokenService::COMPLETE)
+    {
+        std::cerr << "p3Wire::setMessageReadStatus() waitToken failed" << std::endl;
+        return false;
+    }
+
+    RsGxsGrpMsgIdPair p;
+    acknowledgeMsg(token, p);
+    return true;
+}
+
 void p3Wire::setMessageReadStatus(uint32_t &token, const RsGxsGrpMsgIdPair &msgId, bool read)
 {
 #ifdef GXSWIRE_DEBUG

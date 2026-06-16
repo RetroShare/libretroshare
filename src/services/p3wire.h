@@ -91,6 +91,7 @@ public:
     bool getWireStatistics(const RsGxsGroupId& groupId,RsWireStatistics& stat) override;
 
     bool getWireGroupStatistics(const RsGxsGroupId& groupId,GxsGroupStatistic& stat) override;
+    bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override;
     void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
     bool subscribeToGroup(uint32_t& token, const RsGxsGroupId& groupId, bool subscribe) override;

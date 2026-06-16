@@ -4,8 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2017       Cyril Soler <csoler@users.sourceforge.net>         *
- * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020-2023  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2018-2023  Gioacchino Mazzurco <gio@retroshare.cc>             *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

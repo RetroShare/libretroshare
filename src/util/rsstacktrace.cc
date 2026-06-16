@@ -2,7 +2,6 @@
  * libretroshare                                                               *
  *                                                                             *
  * Copyright (C) 2016-2024 Gioacchino Mazzurco <gio@retroshare.cc>
- * Copyright (C) 2024  Asociación Civil Altermundi <info@altermundi.net>
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

@@ -4,7 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2004-2008 Robert Fernie <retroshare@lunamutt.com>             *
- * Copyright (C) 2016-2019  Gioacchino Mazzurco <gio@eigenlab.org>             *
+ * Copyright (C) 2016-2019  Gioacchino Mazzurco <gio@retroshare.cc>             *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -395,6 +395,7 @@ void p3MsgService::checkSizeAndSendMessage(RsMsgItem *msg,const RsPeerId& destin
 
 int p3MsgService::checkOutgoingMessages()
 {
+    bool changed = false;
     auto pEvent = std::make_shared<RsMailStatusEvent>();
     pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_SENT;
 
@@ -421,6 +422,7 @@ int p3MsgService::checkOutgoingMessages()
                 ++tmp;
                 msgOutgoing.erase(mit);
                 mit = tmp;
+                changed = true;
 
                 continue;
             }
@@ -438,6 +440,7 @@ int p3MsgService::checkOutgoingMessages()
                 {
                     if(to.toRsPeerId() == ownId || mServiceCtrl->isPeerConnected(getServiceInfo().mServiceType, to.toRsPeerId()) )
                     {
+
                         auto msg_item = createOutgoingMessageItem(*sit->second,to);
 
                         // Use the msg_id of the outgoing message copy.
@@ -454,6 +457,7 @@ int p3MsgService::checkOutgoingMessages()
                         ++tmp;
                         mit->second.erase(fit);
                         fit = tmp;
+                        changed = true;
 
                         continue;
                     }
@@ -470,9 +474,9 @@ int p3MsgService::checkOutgoingMessages()
                 {
                     minfo.flags |= RS_MSG_FLAGS_ROUTED;
                     minfo.flags |= RS_MSG_FLAGS_DISTANT;
+                    changed = true;
 
 #ifdef DEBUG_DISTANT_MSG
-                    RsDbg() << "Message id " << mit->first << " is distant: kept in outgoing, and marked as ROUTED" << std::endl;
 #endif
                     Dbg3() << __PRETTY_FUNCTION__ << " Sending out message" << std::endl;
                     auto msg_item = createOutgoingMessageItem(*sit->second,to);
@@ -491,6 +495,7 @@ int p3MsgService::checkOutgoingMessages()
                         ++tmp;
                         mit->second.erase(fit);
                         fit = tmp;
+                        changed = true;
                         continue;
                     }
                     else
@@ -505,10 +510,12 @@ int p3MsgService::checkOutgoingMessages()
             if(mit->second.empty())
             {
                 sit->second->msg.msgFlags &= ~RS_MSG_FLAGS_PENDING;
+                pEvent->mChangedMsgIds.insert(std::to_string(sit->first));
                 auto tmp = mit;
                 ++tmp;
                 msgOutgoing.erase(mit);
                 mit=tmp;
+                changed = true;
             }
             else
                 ++mit;
@@ -518,7 +525,10 @@ int p3MsgService::checkOutgoingMessages()
     if(rsEvents && !pEvent->mChangedMsgIds.empty())
         rsEvents->postEvent(pEvent);
 
-    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+    if(changed)
+    {
+        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+    }
 
     return 0;
 }
@@ -2464,6 +2474,8 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
                  << " could not be delivered on time to " << signer_id << ". Message id: "
                  << msg_id << std::endl;
 
+        bool found = false;
+
         for(auto it=msgOutgoing.begin();it!=msgOutgoing.end();++it)
         {
             auto mit = it->second.find(msg_id);
@@ -2472,15 +2484,17 @@ void p3MsgService::notifyDataStatus( const GRouterMsgPropagationId& id,
             {
                 std::cerr << "  reseting the ROUTED flag so that the message is requested again" << std::endl;
                 mit->second.flags &= ~RS_MSG_FLAGS_ROUTED;
+                found = true;
                 break;
             }
-            else
-            {
-                std::cerr << "(ii) message has been notified as delivered, but it's"
-                          << " not in outgoing list. probably it has been delivered"
-                          << " successfully by other means." << std::endl;
-                return;
-            }
+        }
+
+        if(!found)
+        {
+            std::cerr << "(ii) message has been notified as delivered, but it's"
+                      << " not in outgoing list. probably it has been delivered"
+                      << " successfully by other means." << std::endl;
+            return;
         }
     }
     else if(data_status == GROUTER_CLIENT_SERVICE_DATA_STATUS_RECEIVED)
@@ -2569,6 +2583,7 @@ bool p3MsgService::receiveGxsTransMail( const RsGxsId& authorId,
                                 const RsGxsId& recipientId,
                                 const uint8_t* data, uint32_t dataSize )
 {
+
 	Dbg2() << __PRETTY_FUNCTION__ << " " << authorId << ", " << recipientId
 	       << ",, " << dataSize << std::endl;
 
@@ -2650,7 +2665,6 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
     }
     std::cerr << " message id = " << msg_id << std::endl;
 
-
     if( status == GxsTransSendStatus::RECEIPT_RECEIVED )
     {
         pEvent->mMailStatusEventCode = RsMailStatusEventCode::MESSAGE_RECEIVED_ACK;
@@ -2669,11 +2683,10 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
             {
                 it->second.erase(mit);
 
-                pEvent->mChangedMsgIds.insert(std::to_string(msg_id));
+                pEvent->mChangedMsgIds.insert(std::to_string(it->first));
                 found = true;
+                break;
             }
-
-            break;
         }
 
         if(!found)
@@ -2700,10 +2713,10 @@ bool p3MsgService::notifyGxsTransSendStatus( RsGxsTransId mailId,
             {
                 mit->second.flags &= ~RS_MSG_FLAGS_ROUTED; // forces re-send.
 
-                pEvent->mChangedMsgIds.insert(std::to_string(msg_id));
+                pEvent->mChangedMsgIds.insert(std::to_string(it->first));
                 found = true;
+                break;
             }
-            break;
         }
 
         if(!found)
@@ -2727,6 +2740,7 @@ void p3MsgService::receiveGRouterData( const RsGxsId &destination_key,
                                        GRouterServiceId &/*client_id*/,
                                        uint8_t *data, uint32_t data_size )
 {
+
 	std::cerr << "p3MsgService::receiveGRouterData(): received message item of"
 	          << " size " << data_size << ", for key " << destination_key
 	          << std::endl;
@@ -2812,6 +2826,7 @@ void p3MsgService::locked_sendDistantMsgItem(RsMsgItem *msgitem,const RsGxsId& s
 	mGRouter->sendData( destination_key_id, GROUTER_CLIENT_ID_MESSAGES,
 	                    msg_serialized_data, msg_serialized_rssize,
 	                    signing_key_id, grouter_message_id );
+
 	RsGxsTransId gxsMailId;
 	mGxsTransServ.sendData( gxsMailId, GxsTransSubServices::P3_MSG_SERVICE,
 	                         signing_key_id, destination_key_id,

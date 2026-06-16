@@ -4,8 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2004-2008 by Robert Fernie <retroshare@lunamutt.com>          *
- * Copyright (C) 2018-2020  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2020  Asociación Civil Altermundi <info@altermundi.net>       *
+ * Copyright (C) 2018-2020  Gioacchino Mazzurco <gio@retroshare.cc>             *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -98,7 +97,7 @@ const ServicePermissionFlags RS_NODE_PERM_NONE       ( 0x00000000 ) ;// 0x1, 0x2
 const ServicePermissionFlags RS_NODE_PERM_DIRECT_DL  ( 0x00000008 ) ;// Accept to directly DL from this peer (breaks anonymity)
 const ServicePermissionFlags RS_NODE_PERM_ALLOW_PUSH ( 0x00000010 ) ;// Auto-DL files recommended by this peer
 const ServicePermissionFlags RS_NODE_PERM_REQUIRE_WL ( 0x00000020 ) ;// Require white list clearance for connection
-const ServicePermissionFlags RS_NODE_PERM_DEFAULT    =  RS_NODE_PERM_DIRECT_DL ;
+const ServicePermissionFlags RS_NODE_PERM_DEFAULT    =  RS_NODE_PERM_NONE ;
 const ServicePermissionFlags RS_NODE_PERM_ALL        =  RS_NODE_PERM_DIRECT_DL | RS_NODE_PERM_ALLOW_PUSH | RS_NODE_PERM_REQUIRE_WL;
 
 // ...

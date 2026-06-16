@@ -1,9 +1,8 @@
 /*
  * RetroShare JSON API public header
  *
- * Copyright (C) 2018-2020  Gioacchino Mazzurco <gio@eigenlab.org>
+ * Copyright (C) 2018-2020  Gioacchino Mazzurco <gio@retroshare.cc>
  * Copyright (C) 2019  Cyril Soler <csoler@users.sourceforge.net>
- * Copyright (C) 2020  Asociación Civil Altermundi <info@altermundi.net>
  *
  * This program is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free

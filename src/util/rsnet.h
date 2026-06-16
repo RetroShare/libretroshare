@@ -5,7 +5,6 @@
  *                                                                             *
  * Copyright (C) 2004-2006 Robert Fernie <retroshare@lunamutt.com>             *
  * Copyright (C) 2015-2023 Gioacchino Mazzurco <gio@retroshare.cc>             *
- * Copyright (C) 2023  Asociación Civil Altermundi <info@altermundi.net>       *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *

@@ -268,6 +268,10 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
     virtual bool getWireStatistics(const RsGxsGroupId& wireId, RsWireStatistics& stat) = 0;
     virtual bool getWireGroupStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) = 0;
 
+    // Mark a single pulse as read/unread. Blocking, no token management needed.
+    virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+
+    RS_DEPRECATED_FOR(setMessageReadStatus)
     virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
     virtual bool getContentSummaries( const RsGxsGroupId& groupId,

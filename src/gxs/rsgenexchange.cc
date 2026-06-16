@@ -4,8 +4,7 @@
  * libretroshare: retroshare core library                                      *
  *                                                                             *
  * Copyright (C) 2012  Christopher Evi-Parker                                  *
- * Copyright (C) 2019-2021  Gioacchino Mazzurco <gio@eigenlab.org>             *
- * Copyright (C) 2019-2021  Asociación Civil Altermundi <info@altermundi.net>  *
+ * Copyright (C) 2019-2021  Gioacchino Mazzurco <gio@retroshare.cc>             *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Lesser General Public License as              *
@@ -3094,6 +3093,7 @@ void RsGenExchange::computeHash(const RsTlvBinaryData& data, RsFileHash& hash)
 void RsGenExchange::processRecvdMessages()
 {
     std::list<RsGxsMessageId> messages_to_reject ;
+    std::set<RsGxsGroupId> grps_with_new_msgs ;	// groups that received new messages, to stamp their server update TS off-mutex below
 
     {
 	    RS_STACK_MUTEX(mGenMtx) ;
@@ -3273,6 +3273,12 @@ void RsGenExchange::processRecvdMessages()
 
             for(auto& nxs_msg: msgs_to_store)
             {
+                // msgs_to_store is now post-deduplication (removeDeleteExistingMessages above), so this only
+                // contains genuinely new messages. Mark their groups for the server-TS stamp here, NOT from
+                // groups_last_post_update (which is populated pre-dedup and would also fire for already-known
+                // messages re-received via sync, causing redundant stamps/advertisements).
+                grps_with_new_msgs.insert(nxs_msg->grpId);
+
                 RsGxsMsgItem *item = dynamic_cast<RsGxsMsgItem*>(mSerialiser->deserialise(nxs_msg->msg.bin_data,&nxs_msg->msg.bin_len));
 
                 if(!item)
@@ -3305,8 +3311,18 @@ void RsGenExchange::processRecvdMessages()
     // Done off-mutex to avoid cross deadlocks in the netservice that might call the RsGenExchange as an observer..
 
     if(mNetService != NULL)
+    {
 	    for(std::list<RsGxsMessageId>::const_iterator it(messages_to_reject.begin());it!=messages_to_reject.end();++it)
 		    mNetService->rejectMessage(*it) ;
+
+	    // Stamp the server-side msg update TS for groups that received new messages, so that friends get
+	    // notified and re-synchronise. For messages received through the regular netservice transaction path
+	    // this is already done in RsGxsNetService::processCompletedTransactions(), but messages injected
+	    // directly via receiveNewMessages() (e.g. presigned receipts) bypass that path and would otherwise be
+	    // stored but never advertised to friends.
+	    for(const RsGxsGroupId& grpId : grps_with_new_msgs)
+		    mNetService->stampMsgServerUpdateTS(grpId) ;
+    }
 }
 
 bool RsGenExchange::acceptNewGroup(const RsGxsGrpMetaData* /*grpMeta*/ ) { return true; }

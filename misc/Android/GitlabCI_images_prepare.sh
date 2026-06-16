@@ -2,8 +2,7 @@
 
 # Script to prepare libretroshare Android testing and publishing Docker images
 #
-# Copyright (C) 2016-2022  Gioacchino Mazzurco <gio@eigenlab.org>
-# Copyright (C) 2020-2022  Asociación Civil Altermundi <info@altermundi.net>
+# Copyright (C) 2016-2026  Gioacchino Mazzurco <gio@retroshare.cc>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the
@@ -34,8 +33,8 @@ function define_default_value()
 }
 
 define_default_value LIBRETROSHARE_SOURCE_VERSION "$(git describe --always)"
-define_default_value ANDROID_MIN_API_LEVELS "16 21 24"
-define_default_value JNI_NATIVE_LIBS_ARCHS "arm64-v8a armeabi-v7a"
+define_default_value ANDROID_MIN_API_LEVELS "21 24"
+define_default_value JNI_NATIVE_LIBS_ARCHS "arm64-v8a"
 define_default_value GRADLE_FULL_TASK "build" # set to "none" to disable
 define_default_value GRADLE_SPLIT_TASKS "bundleDebugAar bundleReleaseAar"
 
@@ -58,7 +57,6 @@ function buildDetachPush()
 for mApiLevel in $(shuf --echo $ANDROID_MIN_API_LEVELS) ; do
 	ANDROID_MIN_API_LEVEL=$mApiLevel
 	CURR_JNI_NATIVE_LIBS_ARCHS="$JNI_NATIVE_LIBS_ARCHS"
-	[ "$mApiLevel" -gt "16" ] || CURR_JNI_NATIVE_LIBS_ARCHS="armeabi-v7a"
 
 	[ "$GRADLE_FULL_TASK" == "none" ] ||
 	{

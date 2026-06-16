@@ -1,15 +1,14 @@
 /*
  * libretroshare Android AAR library gradle builder
  *
- * Copyright (C) 2022  Gioacchino Mazzurco <gio@retroshare.cc>
- * Copyright (C) 2022  Asociación Civil Altermundi <info@altermundi.net>
+ * Copyright (C) 2022-2026  Gioacchino Mazzurco <gio@retroshare.cc>
  *
  * SPDX-License-Identifier: CC0-1.0
  */
 
 /*
  * Set minumum Android API level supported by this build passing
- * -PANDROID_MIN_API_LEVEL=16 (change 16 to what you need) on the gradle command
+ * -PANDROID_MIN_API_LEVEL=21 (change 21 to what you need) on the gradle command
  * line.
  *
  * LIBRETROSHARE_SOURCE_VERSION Set source version ex:
@@ -17,7 +16,7 @@
  *
  * Optionally set JNI_NATIVE_LIBS_ARCHS to a space separated target CPU
  * architectures list named as seen in AAR native libraries directories passing
- * -PJNI_NATIVE_LIBS_ARCHS="arm64-v8a armeabi-v7a" defaults to all architectures
+ * -PJNI_NATIVE_LIBS_ARCHS="arm64-v8a" defaults to all architectures
  * supported by current script at current Android minimum API
  *
  * Optionally set NATIVE_TOOLCHAINS_DIR for easier reuse of toolchains which
@@ -65,7 +64,7 @@ ext.getAndroidMinApiLevel =
 	}
 	else
 	{
-		return 16
+		return 21
 	}
 }
 
@@ -77,14 +76,7 @@ ext.getJniNativeLibsArchs =
 	}
 	else
 	{
-		if(getAndroidMinApiLevel() <= 16)
-		{
-			return ['armeabi-v7a']
-		}
-		else
-		{
-			return ['arm64-v8a', 'armeabi-v7a']
-		}
+		return ['arm64-v8a']
 	}
 }
 
@@ -191,10 +183,6 @@ ext.buildLibretroshareNativeLib =
 	def libcxxsharedTriple = "unsupported"
 	switch(pAbi)
 	{
-	case "armeabi-v7a":
-		toolchainArch = "arm";
-		libcxxsharedTriple = "arm-linux-androideabi";
-		break;
 	case "arm64-v8a":
 		toolchainArch = "arm64";
 		libcxxsharedTriple = "aarch64-linux-android";
@@ -287,7 +275,7 @@ android
 	// see https://stackoverflow.com/questions/27301867/what-is-compilesdkversion
 	compileSdkVersion 21
 
-	ndkVersion "21.0.6113669"
+	ndkVersion "29.0.14206865"
 
 	defaultConfig
 	{
