@@ -948,7 +948,7 @@ private:
     RsGxsDataAccess* mDataAccess;
     RsGeneralDataService* mDataStore;
     RsNetworkExchangeService *mNetService;
-    RsSerialType *mSerialiser;
+    RsSerialType *mSerialiser; // WARNING: used concurrently via OpenMP in getMsgData() — must remain stateless/re-entrant
     /// service type
     uint16_t mServType;
     RsGixs* mGixs;

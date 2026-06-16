@@ -72,6 +72,8 @@ static const uint32_t INTEGRITY_CHECK_PERIOD = 60*31; // 31 minutes
  *  #define GEN_EXCH_DEBUG	1
  */
 
+//#define GXSPROFILING
+
 #if defined(GEN_EXCH_DEBUG)
 static const uint32_t service_to_print  = RS_SERVICE_GXS_TYPE_FORUMS;// use this to allow to this service id only, or 0 for all services
                                                                         // warning. Numbers should be SERVICE IDS (see serialiser/rsserviceids.h. E.g. 0x0215 for forums)
@@ -1568,22 +1570,34 @@ bool RsGenExchange::getGroupData(const uint32_t &token, std::vector<RsGxsGrpItem
 
 bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 {
+#ifdef GXSPROFILING
+    // [TRACE] Start CPU/Deserialization timer
+    auto start_time = std::chrono::steady_clock::now();
+#endif
 	RS_STACK_MUTEX(mGenMtx) ;
 	NxsMsgDataResult msgResult;
 	bool ok = mDataAccess->getMsgData(token, msgResult);
 
 	if(ok)
 	{
+		uint32_t count = 0;
 		NxsMsgDataResult::iterator mit = msgResult.begin();
 		for(; mit != msgResult.end(); ++mit)
 		{
 			const RsGxsGroupId& grpId = mit->first;
 			std::vector<RsGxsMsgItem*>& gxsMsgItems = msgItems[grpId];
 			std::vector<RsNxsMsg*>& nxsMsgsV = mit->second;
-			std::vector<RsNxsMsg*>::iterator vit = nxsMsgsV.begin();
-			for(; vit != nxsMsgsV.end(); ++vit)
+			
+			// Pre-allocate a temporary vector for results to avoid locking in the parallel loop
+			std::vector<RsGxsMsgItem*> tempItems(nxsMsgsV.size(), nullptr);
+
+			// THREAD-SAFETY NOTE: This OMP loop performs in-memory deserialization only.
+			// The SQLite/SQLCipher query has already completed above (getMsgData).
+			// The serialiser (mSerialiser) must remain stateless/re-entrant for this to be safe.
+			#pragma omp parallel for
+			for(size_t i = 0; i < nxsMsgsV.size(); ++i)
 			{
-				RsNxsMsg*& msg = *vit;
+				RsNxsMsg* msg = nxsMsgsV[i];
 				RsItem* item = NULL;
 
 				if(msg->msg.bin_len != 0)
@@ -1594,25 +1608,44 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 					RsGxsMsgItem* mItem = dynamic_cast<RsGxsMsgItem*>(item);
 					if (mItem)
 					{
-						mItem->meta = *((*vit)->metaData); // get meta info from nxs msg
-						gxsMsgItems.push_back(mItem);
+						mItem->meta = *(msg->metaData); // get meta info from nxs msg
+						tempItems[i] = mItem;
 					}
 					else
 					{
-						std::cerr << "RsGenExchange::getMsgData() deserialisation/dynamic_cast ERROR";
-						std::cerr << std::endl;
+						// Should almost never happen if serializer is correct
 						delete item;
 					}
 				}
 				else
 				{
-					std::cerr << "RsGenExchange::getMsgData() deserialisation ERROR";
-					std::cerr << std::endl;
+                    // Deserialization failed (corrupt data?)
+					// std::cerr << "RsGenExchange::getMsgData() deserialisation ERROR" << std::endl;
 				}
-				delete msg;
+				delete msg; 
+			}
+
+			// Serial merge of successful items
+			for(size_t i = 0; i < tempItems.size(); ++i) {
+				if(tempItems[i]) {
+					gxsMsgItems.push_back(tempItems[i]);
+					count++;
+				}
 			}
 		}
+		// [TRACE] Log the number of items processed
+#ifdef GXSPROFILING
+		RsDbg() << "GXSPROFILING [GenExch]: Deserialized " << count << " items";
+#endif
 	}
+
+#ifdef GXSPROFILING
+    // [TRACE] End timer and log total processing time
+    auto end_time = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    RsDbg() << "GXSPROFILING [GenExch]: getMsgData (Token: " << token << ") total time: " << elapsed << "ms";
+#endif
+
 	return ok;
 }
 

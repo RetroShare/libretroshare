@@ -26,6 +26,8 @@
  * #define RS_DATA_SERVICE_DEBUG_CACHE 1
  ****/
 
+//#define GXSPROFILING
+
 #include <fstream>
 #include <util/rsdir.h>
 #include <algorithm>
@@ -1174,10 +1176,20 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
     int resultCount = 0;
 #endif
 
+#ifdef GXSPROFILING
+    // [TRACE] Start the database retrieval timer
+    RsDbg() << "GXSPROFILING [DataService]: START retrieveNxsMsgs for " << reqIds.size() << " groups";
+    auto start_all = std::chrono::steady_clock::now();
+#endif
+
 	for(auto mit = reqIds.begin(); mit != reqIds.end(); ++mit)
     {
-
         const RsGxsGroupId& grpId = mit->first;
+
+#ifdef GXSPROFILING
+        // [TRACE] Start timer for this specific group
+        auto start_group = std::chrono::steady_clock::now();
+#endif
 
         // if vector empty then request all messages
         const std::set<RsGxsMessageId>& msgIdV = mit->second;
@@ -1222,11 +1234,26 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 
         msg[grpId] = msgSet;
 
+#ifdef GXSPROFILING
+        // [TRACE] Log time per group to monitor progress
+        auto end_group = std::chrono::steady_clock::now();
+        auto group_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_group - start_group).count();
+        RsDbg() << "GXSPROFILING [DataService]: Group " << grpId.toStdString() 
+                << " (Total " << msgSet.size() << " msgs) processed in " << group_ms << "ms";
+#endif
+
         msgSet.clear();
     }
 
 #ifdef RS_DATA_SERVICE_DEBUG_TIME
     std::cerr << "RsDataService::retrieveNxsMsgs() " << mDbName << ", Requests: " << reqIds.size() << ", Results: " << resultCount << ", Time: " << timer.duration() << std::endl;
+#endif
+
+#ifdef GXSPROFILING
+    // [TRACE] Log total database time
+    auto end_all = std::chrono::steady_clock::now();
+    auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_all - start_all).count();
+    RsDbg() << "GXSPROFILING [DataService]: END retrieveNxsMsgs total time: " << total_ms << "ms";
 #endif
 
     return 1;

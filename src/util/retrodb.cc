@@ -35,6 +35,8 @@
 
 //#define RETRODB_DEBUG
 
+//#define GXSPROFILING
+
 const int RetroDb::OPEN_READONLY = SQLITE_OPEN_READONLY;
 const int RetroDb::OPEN_READWRITE = SQLITE_OPEN_READWRITE;
 const int RetroDb::OPEN_READWRITE_CREATE = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
@@ -241,6 +243,11 @@ bool RetroDb::execSQL(const std::string &query){
 RetroCursor* RetroDb::sqlQuery(const std::string& tableName, const std::list<std::string>& columns,
                                const std::string& selection, const std::string& orderBy){
 
+#ifdef GXSPROFILING
+    // [TRACE] Start individual query timer
+    auto start_sql = std::chrono::steady_clock::now();
+#endif
+
     if(tableName.empty() || columns.empty()){
         std::cerr << "RetroDb::sqlQuery(): No table or columns given" << std::endl;
         return NULL;
@@ -279,7 +286,17 @@ RetroCursor* RetroDb::sqlQuery(const std::string& tableName, const std::list<std
 #endif
 
     sqlite3_prepare_v2(mDb, sqlQuery.c_str(), sqlQuery.length(), &stmt, NULL);
-    return (new RetroCursor(stmt));
+    RetroCursor* cursor = new RetroCursor(stmt);
+
+#ifdef GXSPROFILING
+    // [TRACE] End timer and log using the same "Batch SQL" tag for direct comparison
+    auto end_sql = std::chrono::steady_clock::now();
+    auto sql_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_sql - start_sql).count();
+    
+    RsDbg() << "GXSPROFILING [RetroDb]: Batch SQL for group individual_query took " << sql_ms << "ms";
+#endif
+
+    return cursor;
 }
 
 bool RetroDb::isOpen() const {
