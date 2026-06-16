@@ -60,6 +60,70 @@
 
 #include <list>
 #include <string>
+#include <vector>
+
+namespace {
+std::string resolvePathTextually(const std::string& path)
+{
+	if (path.empty()) return "";
+	bool is_absolute = (path[0] == '/');
+	bool has_drive = false;
+	std::string drive = "";
+	std::string rest = path;
+	if (path.size() >= 2 && path[1] == ':') {
+		has_drive = true;
+		drive = path.substr(0, 2);
+		rest = path.substr(2);
+		if (rest.size() > 0 && (rest[0] == '/' || rest[0] == '\\')) {
+			drive += rest[0];
+			rest = rest.substr(1);
+		}
+	}
+
+	std::vector<std::string> segments;
+	std::string segment;
+	for (size_t i = 0; i < rest.size(); ++i) {
+		char c = rest[i];
+		if (c == '/' || c == '\\') {
+			if (!segment.empty()) {
+				if (segment == "..") {
+					if (!segments.empty()) {
+						segments.pop_back();
+					}
+				} else if (segment != ".") {
+					segments.push_back(segment);
+				}
+				segment.clear();
+			}
+		} else {
+			segment.push_back(c);
+		}
+	}
+	if (!segment.empty()) {
+		if (segment == "..") {
+			if (!segments.empty()) {
+				segments.pop_back();
+			}
+		} else if (segment != ".") {
+			segments.push_back(segment);
+		}
+	}
+
+	std::string result = has_drive ? drive : (is_absolute ? "/" : "");
+	for (size_t i = 0; i < segments.size(); ++i) {
+		result += segments[i];
+		if (i + 1 < segments.size()) {
+			result += "/";
+		}
+	}
+	if (!path.empty() && (path.back() == '/' || path.back() == '\\')) {
+		if (result.empty() || (result.back() != '/' && result.back() != '\\')) {
+			result += "/";
+		}
+	}
+	return result;
+}
+} // namespace
 
 #include <dirent.h>
 #include <sys/types.h>
@@ -1305,11 +1369,70 @@ int RsServer::StartupRetroShare()
 #ifdef __APPLE__
 	plugins_directories.push_back(RsAccounts::systemDataDirectory()) ;
 #endif
+
+	// Add dynamic paths relative to the running binary first, to prevent cross-version conflicts!
+	std::string exe_path = RsInit::executablePath();
+	RsInfo() << "PLUGINSDIR: Raw executable path from RsInit: " << exe_path;
+
+	if (!exe_path.empty())
+	{
+		std::string canonical_exe_path = RsDirUtil::removeSymLinks(exe_path);
+		RsInfo() << "PLUGINSDIR: Canonicalized executable path: " << canonical_exe_path;
+
+		std::string exe_dir = RsDirUtil::getDirectory(canonical_exe_path.empty() ? exe_path : canonical_exe_path);
+		RsInfo() << "PLUGINSDIR: Extracted binary directory: " << exe_dir;
+
+		if (!exe_dir.empty())
+		{
+			RsInfo() << "PLUGINSDIR: Adding dynamic relative search path 1: " << exe_dir + "/../lib/retroshare/extensions6/";
+			plugins_directories.push_back(exe_dir + "/../lib/retroshare/extensions6/");
+
+			RsInfo() << "PLUGINSDIR: Adding dynamic relative search path 2: " << exe_dir + "/lib/retroshare/extensions6/";
+			plugins_directories.push_back(exe_dir + "/lib/retroshare/extensions6/");
+		}
+	}
+
 #if !defined(WINDOWS_SYS) && defined(PLUGIN_DIR)
+	RsInfo() << "PLUGINSDIR: Adding compile-time hardcoded PLUGIN_DIR: " << PLUGIN_DIR;
 	plugins_directories.push_back(std::string(PLUGIN_DIR)) ;
 #endif
 	std::string extensions_dir = RsAccounts::ConfigDirectory() + "/extensions6/" ;
+	RsInfo() << "PLUGINSDIR: Adding user home extensions directory: " << extensions_dir;
 	plugins_directories.push_back(extensions_dir) ;
+
+	// Canonicalize and de-duplicate directories to avoid double plugin loads and clean up listed paths
+	std::vector<std::string> unique_directories;
+	for (size_t i = 0; i < plugins_directories.size(); ++i)
+	{
+		std::string clean_dir = resolvePathTextually(plugins_directories[i]);
+		std::string sym_resolved = RsDirUtil::removeSymLinks(clean_dir);
+		if (!sym_resolved.empty()) {
+			clean_dir = sym_resolved;
+		}
+		if (!clean_dir.empty() && clean_dir.back() != '/' && clean_dir.back() != '\\') {
+			clean_dir += "/";
+		}
+		bool already_exists = false;
+		for (size_t j = 0; j < unique_directories.size(); ++j)
+		{
+			if (unique_directories[j] == clean_dir)
+			{
+				already_exists = true;
+				break;
+			}
+		}
+		if (!already_exists)
+		{
+			unique_directories.push_back(clean_dir);
+		}
+	}
+	plugins_directories = unique_directories;
+
+	RsInfo() << "PLUGINSDIR: Final de-duplicated search directories:";
+	for (size_t i = 0; i < plugins_directories.size(); ++i)
+	{
+		RsInfo() << "PLUGINSDIR:   [" << i << "] -> " << plugins_directories[i];
+	}
 
 	if(!RsDirUtil::checkCreateDirectory(extensions_dir))
 		std::cerr << "(EE) Cannot create extensions directory " << extensions_dir
