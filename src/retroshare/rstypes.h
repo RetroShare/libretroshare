@@ -352,9 +352,10 @@ struct FileChunksInfo : RsSerializable
 
 	enum ChunkStrategy : uint8_t
 	{
-		CHUNK_STRATEGY_STREAMING,
+		CHUNK_STRATEGY_SEQUENTIAL,
 		CHUNK_STRATEGY_RANDOM,
-		CHUNK_STRATEGY_PROGRESSIVE
+		CHUNK_STRATEGY_PROGRESSIVE,
+		CHUNK_STRATEGY_STREAMING
 	};
 
 	struct SliceInfo : RsSerializable

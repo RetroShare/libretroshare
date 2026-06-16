@@ -178,6 +178,9 @@ class ChunkMap
       virtual void getAvailabilityMap(CompressedChunkMap& cmap) const ;
 		void setAvailabilityMap(const CompressedChunkMap& cmap) ;
 
+		/// Sets a range of chunks to be downloaded with high priority (checked before strategy)
+		void setHighPriorityRange(uint32_t startChunk, uint32_t endChunk);
+
 		/// Removes the source availability map. The map
 		void removeFileSource(const RsPeerId& peer_id) ;
 
@@ -250,6 +253,7 @@ class ChunkMap
 		std::map<RsPeerId,Chunk>					   _active_chunks_feed ; 			//! vector of chunks being downloaded. Exactly 1 chunk per peer.
 		std::map<ChunkNumber,ChunkDownloadInfo>	_slices_to_download ; 			//! list of (slice offset,slice size) currently being downloaded
 		std::vector<FileChunksInfo::ChunkState>	_map ;								//! vector of chunk state over the whole file
+		std::vector<bool>                       _high_priority_chunks;          //! boolean mask for high priority chunks
 		std::map<RsPeerId,SourceChunksInfo>		_peers_chunks_availability ;	//! what does each source peer have
 		uint64_t												_total_downloaded ;				//! completion for the file
 		bool													_file_is_complete ;           //! set to true when the file is complete.

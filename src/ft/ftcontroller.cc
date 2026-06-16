@@ -1877,9 +1877,11 @@ bool ftController::saveList(bool &cleanup, std::list<RsItem *>& saveData)
 
 	switch(mDefaultChunkStrategy)
 	{
-		case FileChunksInfo::CHUNK_STRATEGY_STREAMING: 	configMap[default_chunk_strategy_ss] =  "STREAMING" ;
+		case FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL: 	configMap[default_chunk_strategy_ss] =  "SEQUENTIAL" ;
 																	  	break ;
 		case FileChunksInfo::CHUNK_STRATEGY_RANDOM:		configMap[default_chunk_strategy_ss] =  "RANDOM" ;
+																		break ;
+		case FileChunksInfo::CHUNK_STRATEGY_STREAMING: 	configMap[default_chunk_strategy_ss] =  "STREAMING" ;
 																		break ;
 
 		default:
@@ -2164,6 +2166,11 @@ bool  ftController::loadConfigMap(std::map<std::string, std::string> &configMap)
 		{
 			setDefaultChunkStrategy(FileChunksInfo::CHUNK_STRATEGY_STREAMING) ;
 			std::cerr << "Note: loading default value for chunk strategy: streaming" << std::endl;
+		}
+		else if(mit->second == "SEQUENTIAL")
+		{
+			setDefaultChunkStrategy(FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL) ;
+			std::cerr << "Note: loading default value for chunk strategy: sequential" << std::endl;
 		}
 		else if(mit->second == "RANDOM")
 		{
