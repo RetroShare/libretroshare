@@ -232,6 +232,23 @@ if(RS_LIBRETROSHARE_SHARED)
 	## PIC Which is needed for shared library
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+	## Make the linker fail at build time if libretroshare.so contains any
+	## undefined symbol, instead of silently producing a .so that crashes at
+	## runtime with
+	## java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol $symbol
+	## This is especially important on Android where every dependency (bzip2,
+	## OpenSSL, SQLite, librnp, ...) is statically linked: an undefined
+	## reference in libretroshare.so has no provider at runtime, unlike on
+	## Linux where those deps are shared system libraries resolved via
+	## DT_NEEDED.
+	## The same hardening would be valuable on other platforms too
+	## (-Wl,-z,defs on Linux, -Wl,-undefined,error on macOS) but there the
+	## shared-deps model makes the trade-off less clear, so it is
+	## Android-only for now.
+	if(RS_ANDROID)
+		target_link_options(${PROJECT_NAME} PRIVATE LINKER:--no-undefined)
+	endif()
+
 	if(WIN32)
 		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -313,8 +330,24 @@ find_package(OpenSSL REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
+## bzip2 is referenced directly by libretroshare (e.g. BZ2_bzlibVersion in
+## rsserver/p3face-info.cc) and transitively by several statically-linked
+## dependencies (librnp, openpgpsdk, sqlcipher). It must be linked
+## explicitly.
+find_package(BZip2 REQUIRED)
+target_include_directories(${PROJECT_NAME} PRIVATE ${BZIP2_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PRIVATE BZip2::BZip2)
+
+## Link explicitly for the same reason as bzip2
+find_package(ZLIB REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE ZLIB::ZLIB)
+
 ################################################################################
 if(RS_RNPLIB)
+	## json-c is referenced transitively by librnp (json-utils.cpp,
+	## rnp.cpp, stream-dump.cpp) but not exported by librnp's CMake target.
+	find_package(json-c REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE json-c::json-c)
 
 	macro(rnplib_set_inline_build_options)
 		set(RNPLIB_BUILD_SHARED ${RS_LIBRETROSHARE_SHARED})
