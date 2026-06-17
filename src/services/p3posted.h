@@ -96,8 +96,10 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
                       const std::string& notes,
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
-                      RsGxsMessageId& postId,
-                      std::string& error_message) override;
+                      const RsGxsMessageId& origPostId = RsGxsMessageId(),
+                      RsGxsMessageId& postId = RS_DEFAULT_STORAGE_PARAM(RsGxsMessageId),
+                      std::string& errorMessage = RS_DEFAULT_STORAGE_PARAM(std::string)
+                      ) override;
 
     bool voteForPost(const RsGxsGroupId& boardId,
                      const RsGxsMessageId& postMsgId,
