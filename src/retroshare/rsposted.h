@@ -32,6 +32,7 @@
 #include "retroshare/rsgxscommon.h"
 #include "retroshare/rsgxscircles.h"
 #include "serialiser/rsserializable.h"
+#include "serialiser/rstlvidset.h"
 
 class RsPosted;
 
@@ -46,6 +47,11 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 	std::string mDescription;
 	RsGxsImage mGroupImage;
 
+	/** @brief List of board pinned posts, those are displayed on top
+	 * @todo run away from TLV old serializables as those types are opaque to
+	 * JSON API! */
+	RsTlvGxsMsgIdSet mPinnedPosts;
+
 	/// @see RsSerializable
 	virtual void serial_process( RsGenericSerializer::SerializeJob j,
 								 RsGenericSerializer::SerializeContext& ctx ) override
@@ -53,6 +59,11 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mDescription);
 		RS_SERIAL_PROCESS(mGroupImage);
+
+		if( mPinnedPosts.ids.empty() && j == RsGenericSerializer::DESERIALIZE
+		        && ctx.mOffset == ctx.mSize )
+			return;
+		RS_SERIAL_PROCESS(mPinnedPosts);
 	}
 };
 
@@ -280,7 +291,7 @@ public:
     virtual bool createPost(const RsPostedPost& post,RsGxsMessageId& post_id) =0;
 
     /**
-     * @brief createPostV2. Create post. Blocking API
+     * @brief createPostV2. Create or edit a post. Blocking API
      * @jsonapi{development}
      * @param[in] boardId        Id of the board where to post
      * @param[in] title          title of the post
@@ -290,6 +301,7 @@ public:
      * @param[in] image          optional post image.
      * @param[out] postId        id of the post after it's been generated
      * @param[out] error_message possible error message if the method returns false
+     * @param[in] origPostId     if non-empty, this post replaces the original post with this Id.
      * @return true if ok, false if an error occured (see error_message)
      */
     virtual bool createPostV2(const RsGxsGroupId& boardId,
@@ -299,7 +311,8 @@ public:
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
                       RsGxsMessageId& postId,
-                      std::string& error_message) =0;
+                      std::string& error_message,
+                      const RsGxsMessageId& origPostId = RsGxsMessageId()) =0;
 
     /** @brief Add a comment on a post or on another comment. Blocking API.
      * @jsonapi{development}

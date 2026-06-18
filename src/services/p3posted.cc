@@ -21,6 +21,7 @@
  *******************************************************************************/
 #include "services/p3posted.h"
 #include "retroshare/rsgxscircles.h"
+#include "retroshare/rsgxsflags.h"
 #include "retroshare/rspeers.h"
 #include "rsitems/rsposteditems.h"
 
@@ -730,7 +731,8 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
                             const RsGxsId& authorId,
                             const RsGxsImage& image,
                             RsGxsMessageId& postId,
-                            std::string& error_message)
+                            std::string& error_message,
+                            const RsGxsMessageId& origPostId)
 {
     // check boardId
 
@@ -752,6 +754,36 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
         return false;
     }
 
+    // If editing an existing post, validate it exists and the author matches (unless admin)
+
+    if(!origPostId.isNull())
+    {
+        std::vector<RsPostedPost> orig_posts;
+        std::vector<RsGxsComment> orig_comments;
+        std::vector<RsGxsVote>    orig_votes;
+
+        if(!getBoardContent(boardId, { origPostId }, orig_posts, orig_comments, orig_votes)
+                || orig_posts.size() != 1)
+        {
+            error_message = "Original post " + origPostId.toStdString() + " not found in board " + boardId.toStdString();
+            RsErr() << error_message;
+            return false;
+        }
+
+        const RsGxsId& origAuthor = orig_posts[0].mMeta.mAuthorId;
+        bool isAdmin = IS_GROUP_ADMIN(groupsInfo[0].mMeta.mSubscribeFlags);
+
+        if(origAuthor != authorId && !isAdmin)
+        {
+            error_message = "You do not have permission to edit this post. "
+                            "Only the post author or a board admin can edit posts.";
+            RsErr() << __PRETTY_FUNCTION__ << " Editor " << authorId
+                    << " is neither the original author " << origAuthor
+                    << " nor a board admin." << std::endl;
+            return false;
+        }
+    }
+
     RsPostedPost post;
     post.mMeta.mGroupId = boardId;
     post.mLink = link.toString();
@@ -759,6 +791,7 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
     post.mNotes = notes;
     post.mMeta.mAuthorId = authorId;
     post.mMeta.mMsgName = title;
+    post.mMeta.mOrigMsgId = origPostId;
 
     // check size
 

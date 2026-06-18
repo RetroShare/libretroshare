@@ -1193,6 +1193,8 @@ message("In rnp_rnplib precompilation code")
 
     win32-g++ {
         LIBRNP_OUTPUT_LIBRARY = librnp.dll.a
+        # mem.cpp uses strlen which requires <cstring>; force-include it for all librnp TUs
+        LIBRNP_CMAKE_CXXFLAGS *= -include cstring
     } else {
         LIBRNP_OUTPUT_LIBRARY = librnp.a
     }
