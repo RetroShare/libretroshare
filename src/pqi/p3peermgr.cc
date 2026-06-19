@@ -1770,6 +1770,16 @@ struct ZeroedInt
 
 bool p3PeerMgrIMPL::addCandidateForOwnExternalAddress(const RsPeerId &from, const sockaddr_storage &addr)
 {
+    // Hidden nodes (Tor/I2P) have no usable clear-net external address: addresses
+    // reported by friends are meaningless for them. Since commit bb4e8c5d such a
+    // reported candidate is actually applied through mNetMgr->setExtAddress(), which
+    // triggers UpdateOwnAddress()/netReset(). For a hidden node this clobbers the
+    // local forward port, which p3NetMgrIMPL::checkNetAddress() then re-randomizes
+    // when it ends up 0 -> the I2P/SAM forward port keeps changing on every restart.
+    // Simply ignore peer-reported external addresses when we are a hidden node.
+    if(isHiddenNode(getOwnId()))
+        return false;
+
     // The algorithm is the following:
     // - collect for each friend the last external connection address that is reported
     // - everytime the list is changed, parse it entirely and
