@@ -1822,6 +1822,59 @@ bool p3MsgService::MessageToDraft(MessageInfo& info, const std::string& msgParen
     return true;
 }
 
+bool p3MsgService::addMessage(const Rs::Mail::MessageInfo &info, Rs::Mail::BoxName box)
+{
+    RsMailStorageItem *msi = initMIRsMsg(info);
+    if (!msi)
+        return false;
+
+    uint32_t msgId = getNewUniqueMsgId();
+    msi->msg.msgId = msgId;
+
+    {
+        RS_STACK_MUTEX(mMsgMtx);
+
+        switch (box)
+        {
+        case Rs::Mail::BoxName::BOX_INBOX:
+            msi->msg.msgFlags &= ~RS_MSG_FLAGS_OUTGOING;
+            mReceivedMessages[msgId] = msi;
+            break;
+        case Rs::Mail::BoxName::BOX_SENT:
+            msi->msg.msgFlags |= RS_MSG_FLAGS_OUTGOING;
+            mSentMessages[msgId] = msi;
+            break;
+        case Rs::Mail::BoxName::BOX_OUTBOX:
+            msi->msg.msgFlags |= (RS_MSG_FLAGS_OUTGOING | RS_MSG_FLAGS_PENDING);
+            mSentMessages[msgId] = msi;
+            break;
+        case Rs::Mail::BoxName::BOX_DRAFTS:
+            msi->msg.msgFlags |= (RS_MSG_FLAGS_OUTGOING | RS_MSG_FLAGS_DRAFT);
+            mDraftMessages[msgId] = msi;
+            break;
+        case Rs::Mail::BoxName::BOX_TRASH:
+            msi->msg.msgFlags |= RS_MSG_FLAGS_TRASH;
+            mTrashMessages[msgId] = msi;
+            break;
+        default:
+            delete msi;
+            return false;
+        }
+    }
+
+    IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+
+    if (rsEvents)
+    {
+        auto pEvent = std::make_shared<RsMailStatusEvent>();
+        pEvent->mMailStatusEventCode = RsMailStatusEventCode::NEW_MESSAGE;
+        pEvent->mChangedMsgIds.insert(std::to_string(msgId));
+        rsEvents->postEvent(pEvent);
+    }
+
+    return true;
+}
+
 bool 	p3MsgService::getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info)
 {
 	RsStackMutex stack(mMsgMtx); /********** STACK LOCKED MTX ******/
@@ -2183,7 +2236,7 @@ void p3MsgService::initRsMI(const RsMailStorageItem& msi, const MsgAddress& from
     if (flags & RS_MSG_FLAGS_PUBLISH_KEY)             mi.msgflags |= RS_MSG_PUBLISH_KEY;
     if (flags & RS_MSG_FLAGS_LOAD_EMBEDDED_IMAGES)    mi.msgflags |= RS_MSG_LOAD_EMBEDDED_IMAGES;
 
-	mi.ts = msg->sendTime;
+	mi.ts = (msg->sendTime != 0) ? msg->sendTime : msg->recvTime;
 
     mi.from = from;
     mi.to = to;
@@ -2306,7 +2359,7 @@ void p3MsgService::initRsMIS(const RsMailStorageItem& msi, const MsgAddress& fro
 
     mis.title = msg->subject;
 	mis.count = msg->attachment.items.size();
-	mis.ts = msg->sendTime;
+	mis.ts = (msg->sendTime != 0) ? msg->sendTime : msg->recvTime;
 
     MsgTagInfo taginfo;
     locked_getMessageTag(mis.msgId,taginfo);
@@ -2329,10 +2382,13 @@ bool p3MsgService::initMIRsMsg(RsMailStorageItem *msi,const MessageInfo& info)
 
 	msg -> msgFlags = 0;
 	msg -> msgId = 0;
-	msg -> sendTime = time(NULL);
-	msg -> recvTime = 0;
+	msg -> sendTime = info.ts;
+	msg -> recvTime = info.ts;
 	msg -> subject = info.title;
 	msg -> message = info.msg;
+
+    msi->from = info.from;
+    msi->to = info.to;
 
     // We need to use the RsItem format. It's bad, but needed for backward compatibility at the network layer.
 
