@@ -890,5 +890,41 @@ bool p3Posted::editBoard(RsPostedGroup& board)
 	return true;
 }
 
+bool p3Posted::setPostPinned(
+        const RsGxsGroupId& boardId,
+        const RsGxsMessageId& postId,
+        bool pinned,
+        std::string& errorMessage )
+{
+	const auto failure = [&](const std::string& err)
+	{
+		errorMessage = err;
+		RsErr() << __PRETTY_FUNCTION__ << " " << err << std::endl;
+		return false;
+	};
+
+	std::vector<RsPostedGroup> groupsInfo;
+	if(!getBoardsInfo({ boardId }, groupsInfo) || groupsInfo.size() != 1)
+		return failure("Board with Id " + boardId.toStdString() + " does not exist.");
+
+	std::vector<RsPostedPost> posts;
+	std::vector<RsGxsComment> comments;
+	std::vector<RsGxsVote> votes;
+
+	if(!getBoardContent(boardId, { postId }, posts, comments, votes) || posts.size() != 1)
+		return failure(
+		        "Post with Id " + postId.toStdString() + " does not exist in board "
+		        + boardId.toStdString() + ".");
+
+	RsPostedGroup board = groupsInfo.front();
+
+	if(pinned)
+		board.mPinnedPosts.ids.insert(postId);
+	else
+		board.mPinnedPosts.ids.erase(postId);
+
+	return editBoard(board);
+}
+
 RsPosted::~RsPosted() = default;
 RsGxsPostedEvent::~RsGxsPostedEvent() = default;

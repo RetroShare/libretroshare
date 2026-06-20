@@ -77,6 +77,12 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
 
 	bool editBoard(RsPostedGroup& board) override;
 
+	bool setPostPinned(
+	        const RsGxsGroupId& boardId,
+	        const RsGxsMessageId& postId,
+	        bool pinned,
+	        std::string& errorMessage ) override;
+
 	bool createBoard(RsPostedGroup& board) override;
 
     bool createBoardV2(const std::string& board_name,
