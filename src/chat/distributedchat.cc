@@ -611,6 +611,10 @@ void DistributedChatService::handleRecvChatLobbyList(RsChatLobbyListItem *item)
 
 void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
 {
+#ifndef DEBUG_CHAT_LOBBIES
+    (void)gxsId;	// only used by the debug logs below
+#endif
+
     // --- GLOBAL RATE LIMITER ---
     // We only take at most 1 sample per second from the whole network.
     // This provides robustness against network bursts/batching from relays.
@@ -622,21 +626,15 @@ void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
     }
     last_stat_time = now;
 
-    // Resolve identity name for readable logs
-    std::string identityName = gxsId.toStdString();
-    RsIdentityDetails idDetails;
-    if (rsIdentity && rsIdentity->getIdDetails(gxsId, idDetails)) {
-        // format: Nickname (ShortID)
-        identityName = idDetails.mNickname + " (" + gxsId.toStdString().substr(0, 6) + ")";
-    }
-
     // --- EXISTING HISTOGRAM LOGIC ---
-    static const int S = 50; 
+    static const int S = 50;
     static int total = 0;
     static std::vector<int> log_delay_histogram(S, 0);
-    
+
+#ifdef DEBUG_CHAT_LOBBIES
     // Track contributors for the current window to debug who caused an alert
     static std::map<RsGxsId, int> contributors;
+#endif
 
     int delay = (D < 0) ? (-D) : D;
     int l = 0;
@@ -648,11 +646,19 @@ void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
     int bin = std::min(S - 1, l);
     ++log_delay_histogram[bin];
     ++total;
+
+#ifdef DEBUG_CHAT_LOBBIES
     contributors[gxsId]++;
 
-    // Debug Log: Accepted
-    RsDbg() << "[TS-ACCEPT] Accepted sample from " << identityName 
+    // Debug Log: Accepted. Resolve identity name for readable logs.
+    std::string identityName = gxsId.toStdString();
+    RsIdentityDetails idDetails;
+    if (rsIdentity && rsIdentity->getIdDetails(gxsId, idDetails))
+        identityName = idDetails.mNickname + " (" + gxsId.toStdString().substr(0, 6) + ")";
+
+    RsDbg() << "[TS-ACCEPT] Accepted sample from " << identityName
             << " (Delay: " << D << "s, LogBin: " << bin << ")";
+#endif
 
     // When the urn has 30 votes, we calculate the median
     if (total > 30) {
@@ -666,6 +672,7 @@ void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
             // Median interpolation
             float expected = ( i * (log_delay_histogram[i-1] - t + total*0.5) + (i-1) * (t - total*0.5) ) / (float)log_delay_histogram[i-1] - 1;
 
+#ifdef DEBUG_CHAT_LOBBIES
             // Construct the contributors string for the log
             std::string top_peers = "";
             for (auto const& [id, count] : contributors) {
@@ -676,10 +683,11 @@ void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
                 }
                 top_peers += peerName + "(" + std::to_string(count) + ") ";
             }
-            
+
             // Log the result of the election
-            RsDbg() << "[TS-STATS] Window reached. ExpectedLogDelay: " << expected 
+            RsDbg() << "[TS-STATS] Window reached. ExpectedLogDelay: " << expected
                     << " | Contributors: " << top_peers;
+#endif
 
             // Trigger alert if the shift is significant (> 2^9 seconds approx 512s)
             if (expected > 9) { 
@@ -694,7 +702,9 @@ void DistributedChatService::addTimeShiftStatistics(int D, const RsGxsId& gxsId)
 
         // Reset for the next window
         total = 0;
+#ifdef DEBUG_CHAT_LOBBIES
         contributors.clear();
+#endif
         log_delay_histogram.assign(S, 0);
     }
 }
