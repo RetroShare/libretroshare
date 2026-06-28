@@ -24,6 +24,10 @@
 
 class RsStatus;
 
+/**
+ * Pointer to global instance of RsStatus service implementation
+ * @jsonapi{development}
+ */
 extern RsStatus *rsStatus;
 
 #include <iostream>
@@ -68,26 +72,31 @@ class RsStatus
 
 	/**
 	 * This retrieves the own status info
-	 * @param statusInfo is populated with own status
+	 * @jsonapi{development}
+	 * @param[out] statusInfo is populated with own status
 	 */
 	virtual bool getOwnStatus(StatusInfo& statusInfo) = 0;
 
 	/**
 	 * This retrieves the status info on the client's peers
-	 * @param statusInfo is populated with client's peer's status
+	 * @jsonapi{development}
+	 * @param[out] statusInfo is populated with client's peer's status
 	 */
 	virtual bool getStatusList(std::list<StatusInfo>& statusInfo) = 0;
 
 	/**
 	 * This retrieves the status info one peer
-	 * @param statusInfo is populated with client's peer's status
+	 * @jsonapi{development}
+	 * @param[in] id client's peer id
+	 * @param[out] statusInfo is populated with client's peer's status
 	 */
 	virtual bool getStatus(const RsPeerId &id, StatusInfo &statusInfo) = 0;
 
 	/**
 	 * send the client's status to his/her peers
-	 * @param id the peer to send the status (empty, send to all)
-	 * @param status the status of the peers
+	 * @jsonapi{development}
+	 * @param[in] id the peer to send the status (empty, send to all)
+	 * @param[in] status the status of the peers
 	 * @return will return false if status info does not belong to client
 	 */
     virtual bool sendStatus(const RsPeerId &id, RsStatusValue status)                 = 0;
