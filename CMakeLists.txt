@@ -124,6 +124,16 @@ option(
 	OFF )
 
 option(
+	RS_GXSWIKIPOS
+	"Build the experimental, off-by-default GXS Wiki (WikiPoos) service"
+	OFF )
+
+option(
+	RS_GXSTHEWIRE
+	"Build the experimental, off-by-default GXS 'The Wire' service"
+	OFF )
+
+option(
 	RS_LIBRETROSHARE_STANDALONE_INSTALL
 	"Install libretroshare as a stand-alone library"
 	OFF )
@@ -716,6 +726,20 @@ if(RS_USE_CALENDAR)
 	target_compile_definitions(
 		${PROJECT_NAME} PUBLIC RS_USE_CALENDAR )
 endif(RS_USE_CALENDAR)
+
+# Enable the experimental GXS Wiki (WikiPoos) service. The define is PUBLIC so
+# that consumers (retroshare-gui, retroshare-service) that link libretroshare
+# see the same RS_USE_WIKI guard used in rsserver/rsinit.cc and the GUI.
+if(RS_GXSWIKIPOS)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_USE_WIKI )
+endif(RS_GXSWIKIPOS)
+
+# Enable the experimental GXS 'The Wire' service (see note above).
+if(RS_GXSTHEWIRE)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_USE_WIRE )
+endif(RS_GXSTHEWIRE)
 
 if(RS_BRODCAST_DISCOVERY)
 	## TODO: upstream option to disable tests building

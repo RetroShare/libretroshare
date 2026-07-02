@@ -364,10 +364,8 @@ list(
 	rsitems/rsrttitems.cc
 	rsitems/rsserviceinfoitems.cc )
 
-#retroshare/rswiki.h
-#./rsitems/rswikiitems.cc
-#./rsitems/rswikiitems.h
-#./rsitems/rswireitems.h
+# NOTE: rswikiitems / rswireitems sources are added further below in the
+# services section, guarded by the RS_GXSWIKIPOS / RS_GXSTHEWIRE options.
 
 list(
 	APPEND RS_SOURCES
@@ -379,8 +377,6 @@ list(
 #./rsitems/rsphotoitems.cc
 #./rsitems/rsphotoitems.h
 #./rsitems/rsposteditems.h
-#./rsitems/rswireitems.cc
-#retroshare/rswire.h
 
 list(
 	APPEND RS_SOURCES
@@ -545,10 +541,43 @@ if(RS_USE_CALENDAR)
 		services/p3gxscalendar.h )
 endif(RS_USE_CALENDAR)
 	
-#./services/p3wiki.cc
-#./services/p3wiki.h
-#./services/p3wire.cc
-#./services/p3wire.h
+# The Wiki (WikiPoos) and The Wire are experimental, off-by-default GXS
+# services. Their sources are compiled only when the matching option is set.
+# The options live in the top-level CMakeLists.txt (RS_GXSWIKIPOS /
+# RS_GXSTHEWIRE), which also adds the RS_USE_WIKI / RS_USE_WIRE compile
+# definitions that gate the service instantiation in rsserver/rsinit.cc and
+# the corresponding GUI code.
+if(RS_GXSWIKIPOS)
+	list(
+		APPEND RS_SOURCES
+		services/p3wiki.cc
+		rsitems/rswikiitems.cc )
+
+	list(
+		APPEND RS_IMPLEMENTATION_HEADERS
+		services/p3wiki.h
+		rsitems/rswikiitems.h )
+
+	list(
+		APPEND RS_PUBLIC_HEADERS
+		retroshare/rswiki.h )
+endif(RS_GXSWIKIPOS)
+
+if(RS_GXSTHEWIRE)
+	list(
+		APPEND RS_SOURCES
+		services/p3wire.cc
+		rsitems/rswireitems.cc )
+
+	list(
+		APPEND RS_IMPLEMENTATION_HEADERS
+		services/p3wire.h
+		rsitems/rswireitems.h )
+
+	list(
+		APPEND RS_PUBLIC_HEADERS
+		retroshare/rswire.h )
+endif(RS_GXSTHEWIRE)
 
 #./services/p3photoservice.cc
 #./services/p3photoservice.h
