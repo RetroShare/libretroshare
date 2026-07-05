@@ -27,6 +27,7 @@
 
 #include "services/p3postbase.h"
 #include "rsitems/rsgxscommentitems.h"
+#include "rsitems/rsposteditems.h"
 
 #include "rsserver/p3face.h"
 #include "retroshare/rsposted.h"
@@ -215,6 +216,38 @@ void p3PostBase::notifyChanges(std::vector<RsGxsNotify *> &changes)
                 ev->mPostedGroupId = grpChange->mGroupId;
                 ev->mPostedEventCode = RsPostedEventCode::UPDATED_POSTED_GROUP;
                 rsEvents->postEvent(ev);
+
+                // Also check whether the list of pinned/stuck posts changed,
+                // so that clients that only care about pinning don't have to
+                // reload everything (mirrors what is done for forums).
+
+                RsGxsPostedGroupItem* old_posted_grp_item =
+                        dynamic_cast<RsGxsPostedGroupItem*>(grpChange->mOldGroupItem);
+                RsGxsPostedGroupItem* new_posted_grp_item =
+                        dynamic_cast<RsGxsPostedGroupItem*>(grpChange->mNewGroupItem);
+
+                if(old_posted_grp_item && new_posted_grp_item)
+                {
+                    std::list<RsGxsMessageId> added_pins, removed_pins;
+
+                    for(auto& msg_id: new_posted_grp_item->mGroup.mPinnedPosts.ids)
+                        if( old_posted_grp_item->mGroup.mPinnedPosts.ids.find(msg_id)
+                                == old_posted_grp_item->mGroup.mPinnedPosts.ids.end() )
+                            added_pins.push_back(msg_id);
+
+                    for(auto& msg_id: old_posted_grp_item->mGroup.mPinnedPosts.ids)
+                        if( new_posted_grp_item->mGroup.mPinnedPosts.ids.find(msg_id)
+                                == new_posted_grp_item->mGroup.mPinnedPosts.ids.end() )
+                            removed_pins.push_back(msg_id);
+
+                    if(!added_pins.empty() || !removed_pins.empty())
+                    {
+                        auto pin_ev = std::make_shared<RsGxsPostedEvent>();
+                        pin_ev->mPostedGroupId = grpChange->mGroupId;
+                        pin_ev->mPostedEventCode = RsPostedEventCode::PINNED_POSTS_CHANGED;
+                        rsEvents->postEvent(pin_ev);
+                    }
+                }
             }
                 break;
 

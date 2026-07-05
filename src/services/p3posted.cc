@@ -730,7 +730,8 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
                             const RsGxsId& authorId,
                             const RsGxsImage& image,
                             RsGxsMessageId& postId,
-                            std::string& error_message)
+                            std::string& error_message,
+                            const RsGxsMessageId& origPostId)
 {
     // check boardId
 
@@ -752,8 +753,43 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
         return false;
     }
 
+    // If origPostId is supplied, this is an edit of an already existing post.
+    // We reuse the same mOrigMsgId chain used elsewhere in GXS (channels,
+    // wikis) so that all versions of the post can be tracked and only the
+    // latest one is displayed.
+
+    RsGxsMessageId top_level_parent; // left blank intentionally for new posts
+
+    if(!origPostId.isNull())
+    {
+        std::set<RsGxsMessageId> s({ origPostId });
+        std::vector<RsPostedPost> posts;
+        std::vector<RsGxsComment> comments;
+        std::vector<RsGxsVote> votes;
+
+        if(!getBoardContent(boardId,s,posts,comments,votes) || posts.size()!=1)
+        {
+            error_message = "You cannot edit post " + origPostId.toStdString()
+                    + " of board with Id " + boardId.toStdString()
+                    + ": this post does not exist locally!";
+            RsErr() << error_message;
+            return false;
+        }
+
+        // All post versions should have the same mOrigMsgId, so we copy that
+        // of the post we're editing. The edited post may not have an
+        // original post id if it is itself the first version. In this case,
+        // the top_level_parent is set to be the id of the edited post.
+
+        top_level_parent = posts[0].mMeta.mOrigMsgId;
+
+        if(top_level_parent.isNull())
+            top_level_parent = origPostId;
+    }
+
     RsPostedPost post;
     post.mMeta.mGroupId = boardId;
+    post.mMeta.mOrigMsgId = top_level_parent;
     post.mLink = link.toString();
     post.mImage = image;
     post.mNotes = notes;

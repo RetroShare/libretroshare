@@ -32,6 +32,7 @@
 #include "retroshare/rsgxscommon.h"
 #include "retroshare/rsgxscircles.h"
 #include "serialiser/rsserializable.h"
+#include "serialiser/rstlvidset.h"
 
 class RsPosted;
 
@@ -46,6 +47,13 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 	std::string mDescription;
 	RsGxsImage mGroupImage;
 
+	/** @brief List of board pinned (a.k.a. "stuck") posts, those are usually
+	 * displayed on top of the feed regardless of the current sorting
+	 * strategy.
+	 * @todo run away from TLV old serializables as those types are opaque to
+	 * JSON API! */
+	RsTlvGxsMsgIdSet mPinnedPosts;
+
 	/// @see RsSerializable
 	virtual void serial_process( RsGenericSerializer::SerializeJob j,
 								 RsGenericSerializer::SerializeContext& ctx ) override
@@ -53,6 +61,7 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mDescription);
 		RS_SERIAL_PROCESS(mGroupImage);
+		RS_SERIAL_PROCESS(mPinnedPosts);
 	}
 };
 
@@ -131,6 +140,7 @@ enum class RsPostedEventCode: uint8_t
 	NEW_COMMENT              = 0x0a,
 	NEW_VOTE                 = 0x0b,
 	BOARD_DELETED            = 0x0c,
+	PINNED_POSTS_CHANGED     = 0x0d, /// some posts where pinned or un-pinned
 };
 
 
@@ -299,7 +309,8 @@ public:
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
                       RsGxsMessageId& postId,
-                      std::string& error_message) =0;
+                      std::string& error_message,
+                      const RsGxsMessageId& origPostId = RsGxsMessageId()) =0;
 
     /** @brief Add a comment on a post or on another comment. Blocking API.
      * @jsonapi{development}
