@@ -45,6 +45,7 @@ list(
 	retroshare/rsevents.h
 	retroshare/rsfiles.h
 	retroshare/rsinit.h
+	retroshare/rsfriendrequest.h
 	retroshare/rspeers.h )
 
 list(
@@ -422,6 +423,7 @@ list(
 	rsserver/p3serverconfig.cc
 	rsserver/rsloginhandler.cc
 	rsserver/p3face-server.cc
+	rsserver/p3friendrequest.cc
 	rsserver/p3peers.cc
 	rsserver/rsaccounts.cc
 	rsserver/rsinit.cc )
@@ -430,6 +432,7 @@ list(
 	APPEND RS_IMPLEMENTATION_HEADERS
 	rsserver/p3face.h
 	rsserver/p3history.h
+	rsserver/p3friendrequest.h
 	rsserver/p3peers.h
 	rsserver/p3serverconfig.h
 	rsserver/p3status.h

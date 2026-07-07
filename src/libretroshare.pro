@@ -136,6 +136,7 @@ PUBLIC_HEADERS =	retroshare/rsdisc.h \
 					retroshare/rsplugin.h \
                                         retroshare/rschats.h \
                                         retroshare/rsmail.h \
+					retroshare/rsfriendrequest.h \
 					retroshare/rspeers.h \
 					retroshare/rsstatus.h \
 					retroshare/rsturtle.h \
@@ -442,6 +443,7 @@ HEADERS +=	pqi/authssl.h \
 HEADERS +=	rsserver/p3face.h \
 			rsserver/p3history.h \
 #			rsserver/p3msgs.h \
+			rsserver/p3friendrequest.h \
 			rsserver/p3peers.h \
 			rsserver/p3status.h \
 			rsserver/rsaccounts.h \
@@ -615,6 +617,7 @@ SOURCES += 		rsserver/p3face-config.cc \
 			rsserver/p3face-info.cc \
 			rsserver/p3history.cc \
 #			rsserver/p3msgs.cc \
+			rsserver/p3friendrequest.cc \
 			rsserver/p3peers.cc \
 			rsserver/p3status.cc \
 			rsserver/rsinit.cc \

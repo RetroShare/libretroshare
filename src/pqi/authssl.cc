@@ -43,6 +43,7 @@
 
 #include "retroshare/rspeers.h" // for RsPeerDetails structure 
 #include "retroshare/rsids.h" // for RsPeerDetails structure
+#include "retroshare/rsfriendrequest.h" // record unknown-peer connection attempts
 #include "rsserver/p3face.h" 
 
 /******************** notify of new Cert **************************/
@@ -1451,6 +1452,13 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 
         //if (auth_diagnostic == RS_SSL_HANDSHAKE_DIAGNOSTIC_ISSUER_UNKNOWN)
         //	RsServer::notify()->AddPopupMessage(RS_POPUP_CONNECT_ATTEMPT, pgpId.toStdString(), sslCn, sslId.toStdString()); /* notify Connect Attempt */
+
+		// Record unknown-peer connection attempts for the Friend Requests UI.
+		// ISSUER_UNKNOWN means "not a friend yet" (other diagnostics are bad
+		// signatures etc.). rsFriendRequest is thread-safe and may be null
+		// early during startup.
+		if(rsFriendRequest && auth_diagnostic == RS_SSL_HANDSHAKE_DIAGNOSTIC_ISSUER_UNKNOWN)
+			rsFriendRequest->onUnknownPeerConnectionAttempt(sslId, pgpId, std::string(), sslCn);
 
 		return verificationFailed;
 	}
