@@ -402,6 +402,22 @@ public:
      */
     virtual bool setPostReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
+    /**
+     * @brief Mark several posts of a board read/unread in one batch. Blocking.
+     *
+     * Like setPostReadStatus() but queues all the status changes at once: they
+     * are persisted in a single database transaction and only one event is
+     * emitted, so it stays cheap even for thousands of posts and is meant to be
+     * called from a background thread so the GUI never blocks.
+     * @param[in] boardId board group identifier
+     * @param[in] msgIds  identifiers of the posts to update
+     * @param[in] read    true to mark as read, false to mark as unread
+     * @return false on error, true otherwise
+     */
+    virtual bool setPostReadStatus( const RsGxsGroupId& boardId,
+                                    const std::vector<RsGxsMessageId>& msgIds,
+                                    bool read ) = 0;
+
 	enum RS_DEPRECATED RankType {TopRankType, HotRankType, NewRankType };
 
 	RS_DEPRECATED_FOR(getBoardsInfo)
