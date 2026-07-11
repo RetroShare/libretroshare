@@ -914,6 +914,49 @@ bool p3GxsForums::markRead(const RsGxsGrpMsgIdPair& msgId, bool read)
 	return true;
 }
 
+bool p3GxsForums::markRead(const RsGxsGroupId& forumId, const std::vector<RsGxsMessageId>& msgIds, bool read)
+{
+	if(msgIds.empty())
+		return true;
+
+	uint32_t mask   = GXS_SERV::GXS_MSG_STATUS_GUI_NEW | GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+	uint32_t status = read ? 0 : GXS_SERV::GXS_MSG_STATUS_GUI_UNREAD;
+
+	// Queue every status change at once. They all land in mMsgLocMetaMap and are
+	// drained together by a single processMsgMetaChanges() tick, which persists
+	// them in one DB transaction. This is what keeps "mark all as read" cheap
+	// instead of one blocking request (and one detached thread) per message.
+	std::vector<uint32_t> tokens;
+	tokens.reserve(msgIds.size());
+
+	for(const RsGxsMessageId& msgId : msgIds)
+	{
+		uint32_t token;
+		setMsgStatusFlags(token, RsGxsGrpMsgIdPair(forumId, msgId), status, mask);
+		tokens.push_back(token);
+	}
+
+	// Wait for the whole batch to be processed. All tokens complete in the same
+	// tick, so waiting on the last one is enough.
+	waitToken(tokens.back(), std::chrono::milliseconds(30000));
+
+	RsGxsGrpMsgIdPair p;
+	for(uint32_t token : tokens)
+		acknowledgeMsg(token, p);
+
+	// A single event for the whole batch (the per-message event storm was part
+	// of what froze the UI). Consumers only use the group id to refresh counts.
+	if(rsEvents)
+	{
+		auto ev = std::make_shared<RsGxsForumEvent>();
+		ev->mForumGroupId   = forumId;
+		ev->mForumEventCode = RsForumEventCode::READ_STATUS_CHANGED;
+		rsEvents->postEvent(ev);
+	}
+
+	return true;
+}
+
 bool p3GxsForums::subscribeToForum(const RsGxsGroupId& groupId, bool subscribe )
 {
 	uint32_t token;

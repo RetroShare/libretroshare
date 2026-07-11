@@ -408,6 +408,23 @@ public:
 	virtual bool markRead(const RsGxsGrpMsgIdPair& messageId, bool read) = 0;
 
 	/**
+	 * @brief Mark several messages of a forum read/unread in one batch. Blocking.
+	 *
+	 * Contrary to calling markRead() in a loop, this queues all the status
+	 * changes at once: they are persisted in a single database transaction and
+	 * only one event is emitted. It therefore stays cheap even for thousands of
+	 * posts (e.g. "mark all as read" on a large forum) and is meant to be called
+	 * from a background thread so the caller (typically the GUI) never blocks.
+	 * @param[in] forumId forum group identifier
+	 * @param[in] msgIds  identifiers of the posts to update
+	 * @param[in] read    true to mark as read, false to mark as unread
+	 * @return false on error, true otherwise
+	 */
+	virtual bool markRead( const RsGxsGroupId& forumId,
+	                       const std::vector<RsGxsMessageId>& msgIds,
+	                       bool read ) = 0;
+
+	/**
 	 * @brief Subscrbe to a forum. Blocking API
 	 * @jsonapi{development}
 	 * @param[in] forumId Forum id

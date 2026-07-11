@@ -2093,6 +2093,18 @@ void RsGenExchange::processMsgMetaChanges()
 
     GxsMsgReq msgIds;
 
+    // First pass: resolve the status masks into absolute values (reads come from
+    // the in-memory meta cache, so this stays cheap even for thousands of
+    // messages) and collect every change so they can be persisted together in a
+    // single DB transaction below, instead of one fsync'd write per message.
+    std::vector<MsgLocMetaData> updates;
+    updates.reserve(metaMap.size());
+
+    std::vector<std::pair<uint32_t, RsGxsGrpMsgIdPair> > tokenIds;
+    tokenIds.reserve(metaMap.size());
+
+    std::set<uint32_t> failedTokens;
+
     std::map<uint32_t, MsgLocMetaData>::iterator mit;
     for (mit = metaMap.begin(); mit != metaMap.end(); ++mit)
     {
@@ -2133,27 +2145,37 @@ void RsGenExchange::processMsgMetaChanges()
             }
         }
 
-        ok &= mDataStore->updateMessageMetaData(m) == 1;
-        uint32_t token = mit->first;
+        // The actual DB write is deferred to the single batched transaction
+        // below. Collect the resolved change and remember its token.
+        updates.push_back(m);
+        tokenIds.push_back(std::make_pair(mit->first, m.msgId));
+
+        if(!ok)
+            failedTokens.insert(mit->first);
+        else if(changed)
+            msgIds[m.msgId.first].insert(m.msgId.second);
+    }
+
+    // Second pass: persist every collected change in a single transaction.
+    int updated = mDataStore->updateMessageMetaData(updates);
+    bool batchOk = (updated == static_cast<int>(updates.size()));
+
+    for(std::vector<std::pair<uint32_t, RsGxsGrpMsgIdPair> >::iterator it = tokenIds.begin(); it != tokenIds.end(); ++it)
+    {
+        bool ok = batchOk && (failedTokens.find(it->first) == failedTokens.end());
 
         if(ok)
-        {
-            mDataAccess->updatePublicRequestStatus(token, RsTokenService::COMPLETE);
-            if (changed)
-            {
-                msgIds[m.msgId.first].insert(m.msgId.second);
-            }
-        }
+            mDataAccess->updatePublicRequestStatus(it->first, RsTokenService::COMPLETE);
         else
-        {
-            mDataAccess->updatePublicRequestStatus(token, RsTokenService::FAILED);
-        }
+            mDataAccess->updatePublicRequestStatus(it->first, RsTokenService::FAILED);
 
-        {
-            RS_STACK_MUTEX(mGenMtx);
-            mMsgNotify.insert(std::make_pair(token, m.msgId));
-        }
+        RS_STACK_MUTEX(mGenMtx);
+        mMsgNotify.insert(std::make_pair(it->first, it->second));
     }
+
+    // If the whole batch failed, don't emit change notifications for it.
+    if(!batchOk)
+        msgIds.clear();
 
     if (!msgIds.empty())
     {

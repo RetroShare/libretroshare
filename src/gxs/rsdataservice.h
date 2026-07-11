@@ -243,6 +243,13 @@ public:
     int updateMessageMetaData(const MsgLocMetaData& metaData) override;
 
     /*!
+     * @brief Batch variant persisting all updates in a single DB transaction.
+     * @param metaList The meta data items to update
+     * @return the number of items successfully updated
+     */
+    int updateMessageMetaData(const std::vector<MsgLocMetaData>& metaList) override;
+
+    /*!
      * @param metaData The meta data item to update
      * @return error code
      */
