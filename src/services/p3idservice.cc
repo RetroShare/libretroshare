@@ -2852,8 +2852,12 @@ bool p3IdService::cache_store(const RsGxsIdGroupItem *item)
 
     if (!pub_key_ok)
     {
-        std::cerr << "p3IdService::cache_store() ERROR No Public Key Found";
+        // Not an error: identity data can legitimately arrive before (or without) its public key.
+        // The caller retries later, so only trace this when debugging identities.
+#ifdef DEBUG_IDS
+        std::cerr << "p3IdService::cache_store() No Public Key Found (yet)";
         std::cerr << std::endl;
+#endif
         return false;
     }
 
