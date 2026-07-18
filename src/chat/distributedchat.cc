@@ -62,6 +62,40 @@ static const uint32_t 		MAX_MESSAGES_PER_SECONDS_PERIOD     =   10 ; // duration
 
 #define  EXTRACT_PRIVACY_FLAGS(flags) (ChatLobbyFlags(flags.toUInt32()) * (RS_CHAT_LOBBY_FLAGS_PUBLIC | RS_CHAT_LOBBY_FLAGS_PGP_SIGNED))
 
+// A single locally-banned identity can flood a lobby with thousands of items. We still drop every
+// one of them (that is the correct, expected behaviour, NOT an error), but one WARN per dropped item
+// buries the rest of the log. This rate-limits the logging: one line when the flood from a given
+// identity starts, then one summary line per identity per REPORT_INTERVAL carrying the number of
+// items dropped in between. No error is hidden: signature mismatches and other genuine problems are
+// logged separately and unconditionally.
+static void logBannedIdentityDrop(const RsGxsId& keyId)
+{
+    static const rstime_t REPORT_INTERVAL = 60; // seconds
+    static RsMutex banned_drop_log_mtx("bannedDropLog");
+    static std::map<RsGxsId,std::pair<uint32_t,rstime_t> > stats; // id -> (drops since last report, last report time)
+
+    RS_STACK_MUTEX(banned_drop_log_mtx);
+
+    rstime_t now = time(nullptr);
+    auto it = stats.find(keyId);
+
+    if(it == stats.end())
+    {
+        RsWarn() << "Dropping lobby message(s) from banned identity " << keyId << " (identity is locally banned). Further drops summarized every " << REPORT_INTERVAL << "s." ;
+        stats[keyId] = std::make_pair((uint32_t)0,now);
+        return;
+    }
+
+    ++it->second.first;
+
+    if(now - it->second.second >= REPORT_INTERVAL)
+    {
+        RsWarn() << "Dropped " << it->second.first << " further lobby message(s) from banned identity " << keyId << " in the last " << (now - it->second.second) << "s (identity is locally banned)." ;
+        it->second.first = 0;
+        it->second.second = now;
+    }
+}
+
 DistributedChatService::DistributedChatService(uint32_t serv_type,p3ServiceControl *sc,p3HistoryMgr *hm, RsGixs *is)
     : mServType(serv_type),mDistributedChatMtx("Distributed Chat"), mServControl(sc), mHistMgr(hm),mGixs(is)
 {
@@ -140,7 +174,7 @@ bool DistributedChatService::handleRecvChatLobbyMsgItem(RsChatMsgItem *ci)
 	if( rsReputations->overallReputationLevel(cli->signature.keyId) ==
 	        RsReputationLevel::LOCALLY_NEGATIVE )
     {
-        std::cerr << "(WW) Received lobby msg/item from banned identity " << cli->signature.keyId << ". Dropping it." << std::endl;
+        logBannedIdentityDrop(cli->signature.keyId);
         return false ;
     }
     if(!checkSignature(cli,cli->PeerId()))	// check the object's signature and possibly request missing keys
@@ -730,7 +764,7 @@ void DistributedChatService::handleRecvChatLobbyEventItem(RsChatLobbyEventItem *
 	if( rsReputations->overallReputationLevel(item->signature.keyId) ==
 	         RsReputationLevel::LOCALLY_NEGATIVE )
 	{
-        	std::cerr << "(WW) Received lobby msg/item from banned identity " << item->signature.keyId << ". Dropping it." << std::endl;
+        	logBannedIdentityDrop(item->signature.keyId);
 	        return ;
 	}
 	if(!checkSignature(item,item->PeerId()))	// check the object's signature and possibly request missing keys
