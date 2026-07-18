@@ -183,14 +183,30 @@ std::error_condition RsEventsService::unregisterEventsHandler(
 		}
 	}
 
-	/* At this point no *future* dispatch can pick up this handler. But an
-	 * ongoing handleEvent() may still hold a copy of it in flight (callbacks are
-	 * run outside mHandlerMapMtx). Fence on mDispatchMtx so that, once we return,
-	 * the handler is guaranteed not to be executing either: callers that
-	 * unregister from their destructor (most GUI widgets) can then be destroyed
-	 * safely. Recursive mutex => when called from within a callback on the
-	 * dispatching thread this is a cheap no-op instead of a self-deadlock. */
-	{ std::lock_guard<std::recursive_mutex> dispatchFence(mDispatchMtx); }
+	/* The handler can no longer be picked up by a *future* dispatch (removed from
+	 * the map above under mHandlerMapMtx, which also serialises with the snapshot
+	 * in handleEvent()). It may still be running in an *ongoing* dispatch though,
+	 * because callbacks run outside mHandlerMapMtx. Wait until this specific
+	 * handler is no longer executing on any *other* thread, so a caller that
+	 * unregisters from its destructor can then be destroyed safely. We never wait
+	 * on our own thread: a handler that unregisters itself (or is re-entered via a
+	 * synchronous sendEvent) would otherwise deadlock waiting on itself, and in
+	 * that case the owner is running its own code, not being destroyed
+	 * concurrently. Only fence when we actually removed a handler. See
+	 * mHandlersInFlight doc. */
+	if(!retval)
+	{
+		const std::thread::id self = std::this_thread::get_id();
+		std::unique_lock<std::mutex> lock(mDispatchStateMtx);
+		mDispatchStateCv.wait(lock, [&]()
+		{
+			auto it = mHandlersInFlight.find(hId);
+			if(it == mHandlersInFlight.end()) return true;
+			for(const std::thread::id& tid: it->second)
+				if(tid != self) return false;
+			return true;
+		});
+	}
 
 	return retval;
 }
@@ -238,16 +254,15 @@ void RsEventsService::handleEvent(std::shared_ptr<const RsEvent> event)
 		return;
 	}
 
-	/* Hold mDispatchMtx across the whole dispatch so unregisterEventsHandler()
-	 * can fence on it and guarantee a handler is not running once it returns
-	 * (see mDispatchMtx doc). Recursive: a callback re-entering on this same
-	 * thread (self-unregister or synchronous sendEvent) does not deadlock.
-	 * Safe against GUI teardown because handlers only post asynchronously (Qt
-	 * QueuedConnection) and never block waiting on the thread that unregisters,
-	 * so there is no lock-order cycle. */
-	std::lock_guard<std::recursive_mutex> dispatchLock(mDispatchMtx);
+	const std::thread::id self = std::this_thread::get_id();
 
-	std::list<std::function<void(std::shared_ptr<const RsEvent>)> > callbacks;
+	/* (hId, callback) pairs to run for this event. The snapshot and the
+	 * "in-flight" bookkeeping below are both done under mHandlerMapMtx, so they
+	 * are atomic with respect to unregisterEventsHandler()'s erase: that is what
+	 * lets unregister reliably wait for an already-snapshotted callback instead
+	 * of racing it (see mHandlersInFlight doc). */
+	std::list< std::pair< RsEventsHandlerId_t,
+	        std::function<void(std::shared_ptr<const RsEvent>)> > > callbacks;
 	{
 		RS_STACK_MUTEX(mHandlerMapMtx);
 		/* It is important to NOT call the callback under mHandlerMapMtx
@@ -256,14 +271,56 @@ void RsEventsService::handleEvent(std::shared_ptr<const RsEvent> event)
 
 		// Call all clients that registered a callback for this event type
 		for(auto& cbit: mHandlerMaps[static_cast<uint32_t>(event->mType)])
-			callbacks.push_back(cbit.second);
+			callbacks.push_back(std::make_pair(cbit.first, cbit.second));
 
 		/* Also call all clients that registered with NONE, meaning that they
 		 * expect all events */
 		for(auto& cbit: mHandlerMaps[static_cast<uint32_t>(RsEventType::__NONE)])
-			callbacks.push_back(cbit.second);
+			callbacks.push_back(std::make_pair(cbit.first, cbit.second));
+
+		/* Mark every handler we are about to run as in-flight on this thread,
+		 * still under mHandlerMapMtx. */
+		std::lock_guard<std::mutex> stateLock(mDispatchStateMtx);
+		for(auto& cb: callbacks)
+			mHandlersInFlight[cb.first].insert(self);
 	}
 
-	for(auto& cb: callbacks)
-		cb(event);
+	/* Remove one in-flight mark for hId on this thread. Caller must hold
+	 * mDispatchStateMtx. */
+	auto clearInFlight = [this, self](RsEventsHandlerId_t hId)
+	{
+		auto it = mHandlersInFlight.find(hId);
+		if(it == mHandlersInFlight.end()) return;
+		auto tit = it->second.find(self);
+		if(tit != it->second.end()) it->second.erase(tit);
+		if(it->second.empty()) mHandlersInFlight.erase(it);
+	};
+
+	auto cbit = callbacks.begin();
+	try
+	{
+		for(; cbit != callbacks.end(); ++cbit)
+		{
+			cbit->second(event);
+
+			/* Clear this handler's in-flight mark and wake any
+			 * unregisterEventsHandler() that is waiting for it. */
+			std::lock_guard<std::mutex> stateLock(mDispatchStateMtx);
+			clearInFlight(cbit->first);
+			mDispatchStateCv.notify_all();
+		}
+	}
+	catch(...)
+	{
+		/* A callback threw: clear the in-flight marks it and the not-yet-run
+		 * handlers still hold, otherwise a later unregisterEventsHandler() for
+		 * one of them would block forever. Then propagate as before: the ticking
+		 * thread installs no handler, so an async throw still terminates the
+		 * process exactly as it did previously. */
+		std::lock_guard<std::mutex> stateLock(mDispatchStateMtx);
+		for(; cbit != callbacks.end(); ++cbit)
+			clearInFlight(cbit->first);
+		mDispatchStateCv.notify_all();
+		throw;
+	}
 }
