@@ -515,12 +515,10 @@ int	pqissllistenbase::continueSSL(IncomingSSLInfo& incoming_connexion_info, bool
 		incoming_connexion_info.sslcn = RsX509Cert::getCertName(*x509);
 		incoming_connexion_info.sslid = RsX509Cert::getCertSslId(*x509);
 
-#ifndef DEBUG_LISTENNER
-        std::cerr << "ContinueSSL:" << std::endl;
-        std::cerr << "  Got PGP Id = " << incoming_connexion_info.gpgid << std::endl;
-        std::cerr << "  Got SSL Id = " << incoming_connexion_info.sslid << std::endl;
-        std::cerr << "  Got SSL CN = " << incoming_connexion_info.sslcn << std::endl;
-#endif
+        // Incoming SSL cert parsed. Keep the identity info, but on a single line instead of four.
+        RsInfo() << "pqissllistener: incoming SSL connection, pgpId=" << incoming_connexion_info.gpgid
+                 << " sslId=" << incoming_connexion_info.sslid
+                 << " CN=\"" << incoming_connexion_info.sslcn << "\"" ;
     }
 
 #ifdef DEBUG_LISTENNER
@@ -610,7 +608,7 @@ int	pqissllistenbase::finaliseAccepts()
 		int active = isSSLActive(it->mFd, it->mSSL);
 		if (active > 0)
 		{
-  	        	pqioutput(PQL_WARNING, pqissllistenzone, 
+  	        	pqioutput(PQL_DEBUG_BASIC, pqissllistenzone,
 		  		"pqissllistenbase::finaliseAccepts() SSL Connection Ok => finaliseConnection");
 
 			if (0 > finaliseConnection(it->mFd, it->mSSL, it->mPeerId, it->mAddr))
@@ -689,7 +687,7 @@ int pqissllistenbase::isSSLActive(int /*fd*/, SSL *ssl)
 		}
 	}
 
-	pqioutput(PQL_WARNING, pqissllistenzone, "pqissllistenbase::isSSLActive() Successful Peer -> Connection Okay");
+	pqioutput(PQL_DEBUG_BASIC, pqissllistenzone, "pqissllistenbase::isSSLActive() Successful Peer -> Connection Okay");
 
 	return 1;
 }
@@ -866,26 +864,19 @@ int pqissllistener::finaliseConnection(int fd, SSL *ssl, const RsPeerId& peerId,
 { 
 	std::map<RsPeerId, pqissl *>::iterator it;
 
-	std::string out = "pqissllistener::finaliseConnection()\n";
-	out += "checking: " + peerId.toStdString() + "\n";
 	// check if cert is in the list.....
-
 	it = listenaddr.find(peerId);
 	if (it == listenaddr.end())
 	{
-		out += "No Matching Peer for Connection:";
-		out += sockaddr_storage_tostring(remote_addr);
-		out += "\npqissllistener => Shutting Down!";
-		pqioutput(PQL_WARNING, pqissllistenzone, out);
+		pqioutput(PQL_WARNING, pqissllistenzone,
+		          "pqissllistener::finaliseConnection() NO matching peer for " + peerId.toStdString()
+		          + " from " + sockaddr_storage_tostring(remote_addr) + " => shutting down");
 		return -1;
 	}
 
-	out += "Found Matching Peer for Connection:";
-	out += sockaddr_storage_tostring(remote_addr);
-	out += "\npqissllistener => Passing to pqissl module!";
-	pqioutput(PQL_WARNING, pqissllistenzone, out);
-
-    std::cerr << "pqissllistenner::finaliseConnection() connected to " << sockaddr_storage_tostring(remote_addr) << std::endl;
+	pqioutput(PQL_WARNING, pqissllistenzone,
+	          "pqissllistener::finaliseConnection() matched peer " + peerId.toStdString()
+	          + " from " + sockaddr_storage_tostring(remote_addr) + " => handing to pqissl");
 
 	// hand off ssl conection.
 	pqissl *pqis = it -> second;
