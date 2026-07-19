@@ -2710,7 +2710,7 @@ bool  p3PeerMgrIMPL::loadList(std::list<RsItem *>& load)
 
         // Also filter out profiles in groups that are not friends. Normally this shouldn't be needed, but it's a precaution
 
-        for(auto group_pair:groupList)
+        for(auto& group_pair:groupList)
         {
             for(auto profileIdIt(group_pair.second.peerIds.begin());profileIdIt!=group_pair.second.peerIds.end();)
                 if(AuthPGP::isPGPAccepted(*profileIdIt) || *profileIdIt == AuthPGP::getPgpOwnId())
