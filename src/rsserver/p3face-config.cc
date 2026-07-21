@@ -86,6 +86,18 @@ void RsServer::rsGlobalShutDown()
 
 	if(wasReady)
 	{
+		/* Close the incoming-connection listener FIRST, before anything else.
+		 * The steps below (config save, plugin stop, UPnP teardown and above all
+		 * the auto-proxy shutdown) can take >20s, during which the RsServer tick
+		 * thread is still alive and keeps ticking the listener. Left open, it goes
+		 * on accepting TCP connections and completing full SSL+PGP handshakes right
+		 * up to the last second before the databases close -- creating per-peer
+		 * state (sockets, streamer threads) that races the teardown of the static
+		 * SmallObject allocator. Closing the accept socket now admits no new peer
+		 * for the whole shutdown; fullstopAllThreads() below then drains the
+		 * already-connected ones. */
+		if(pqih) pqih->stopListener();
+
 		// save configuration before exit
 		ConfigFinalSave();
 

@@ -50,8 +50,9 @@ class pqipersongrp: public pqihandler, public pqiMonitor, public p3ServiceServer
 	/*************************** Setup *************************/
 	/* pqilistener */
 
-virtual bool resetListener(const struct sockaddr_storage &local); // overloaded from pqiNetListener 
-int     init_listener(); 
+virtual bool resetListener(const struct sockaddr_storage &local); // overloaded from pqiNetListener
+int     init_listener();
+int     stopListener();  /* close the incoming-connection socket (used at shutdown) */
 
 	/*************** pqiMonitor callback ***********************/
 virtual void    statusChange(const std::list<pqipeer> &plist);
