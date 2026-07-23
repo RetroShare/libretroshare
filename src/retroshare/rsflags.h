@@ -136,7 +136,7 @@ typename std::enable_if<Rs__BitFlagsOps<EFT>::enabled, std::ostream>::type&
 operator <<(std::ostream& stream, EFT flags)
 {
 	using u_t = typename std::underlying_type<EFT>::type;
-	return stream << std::bitset<sizeof(u_t)>(static_cast<u_t>(flags));
+	return stream << std::bitset<sizeof(u_t) * 8>(static_cast<u_t>(flags));
 }
 
 #include <cstdint>

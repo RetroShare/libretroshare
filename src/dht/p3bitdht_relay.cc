@@ -120,6 +120,11 @@ RsDhtRelayMode p3BitDht::getRelayMode()
 
 int p3BitDht::setRelayMode(RsDhtRelayMode mode)
 {
+#if defined(__ANDROID__) || defined(__APPLE__)
+	// Force relay mode to ON on mobile platforms since CGNAT / firewalls prevent direct incoming UDP connections
+	mode = (mode & ~RsDhtRelayMode::MASK) | RsDhtRelayMode::ON;
+#endif
+
 	std::cerr << "p3BitDht::setRelayMode(" << mode << ")";
 	std::cerr << std::endl;
 
