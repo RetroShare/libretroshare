@@ -56,6 +56,7 @@ class DirectoryStorage
         bool getDirectoryRecursModTime(EntryIndex index,rstime_t& recurs_max_modf_TS) const ;		// last modification time, computed recursively over all subfiles and directories
         bool getDirectoryLocalModTime (EntryIndex index,rstime_t& motime_TS) const ;				// last modification time for that index only
         bool getDirectoryUpdateTime   (EntryIndex index,rstime_t& update_TS) const ;				// last time the entry was updated. This is only used on the RemoteDirectoryStorage side.
+        bool getDirectoryCumulatedFileCount(EntryIndex index,uint32_t& file_count) const ;			// number of files, computed recursively over all subdirectories. Same "empty" notion as the UI.
 
         bool setDirectoryRecursModTime(EntryIndex index,rstime_t  recurs_max_modf_TS) ;
         bool setDirectoryLocalModTime (EntryIndex index,rstime_t  modtime_TS) ;

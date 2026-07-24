@@ -733,8 +733,14 @@ void p3FileDatabase::cleanup()
         for(uint32_t i=0;i<mRemoteDirectories.size();++i)
             if(mRemoteDirectories[i] != NULL)
             {
-                rstime_t recurs_mod_time ;
-                mRemoteDirectories[i]->getDirectoryRecursModTime(0,recurs_mod_time) ;
+                // "Empty" here means "shares no file", using the same signal as the GUI (cumulated file
+                // count at the root). A tree made of directories only (no files) has a non-zero recursive
+                // modification time, so testing that would keep such a peer on the 60-days timer even though
+                // the GUI shows it as "Empty". Counting files instead makes both agree.
+
+                uint32_t file_count = 0 ;
+                mRemoteDirectories[i]->getDirectoryCumulatedFileCount(0,file_count) ;
+                bool dir_is_empty = (file_count == 0) ;
 
                 rstime_t last_contact = 0 ;
                 RsPeerDetails pd ;
@@ -744,11 +750,11 @@ void p3FileDatabase::cleanup()
                 // We remove directories in the following situations:
                 //	- the peer is not a friend
                 //  - the dir list is non empty but the peer is offline since more than 60 days
-                //  - the dir list is empty and the peer is ffline since more than 5 days
+                //  - the dir list is empty and the peer is offline since more than 5 days
 
                 bool should_remove =  friend_set.find(mRemoteDirectories[i]->peerId()) == friend_set.end()
-                        			|| (recurs_mod_time == 0 && last_contact + DELAY_BEFORE_DELETE_EMPTY_REMOTE_DIR     < now )
-                        			|| (recurs_mod_time != 0 && last_contact + DELAY_BEFORE_DELETE_NON_EMPTY_REMOTE_DIR < now );
+                        			|| ( dir_is_empty && last_contact + DELAY_BEFORE_DELETE_EMPTY_REMOTE_DIR     < now )
+                        			|| (!dir_is_empty && last_contact + DELAY_BEFORE_DELETE_NON_EMPTY_REMOTE_DIR < now );
 
                 if(!should_remove)
                     continue ;
