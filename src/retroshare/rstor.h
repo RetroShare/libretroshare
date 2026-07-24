@@ -97,6 +97,14 @@ struct RsTorManagerEvent: public RsEvent
     ~RsTorManagerEvent() = default;
 };
 
+class RsTor;
+
+/**
+ * Pointer to global instance of RsTor
+ * @jsonapi{development}
+ */
+extern RsTor* rsTor;
+
 class RsTor
 {
 public:
@@ -106,16 +114,18 @@ public:
      */
     static bool isTorAvailable() ;
 
-    /*!
-     * \brief torStatus
-     * \return Status of the Tor service used by RS
-     */
+	/**
+	 * @brief torStatus return status of Tor process
+	 * @jsonapi{development}
+	 * @return Status of the Tor service used by RS
+	 */
     static RsTorStatus torStatus() ;
 
-    /*!
-     * \brief torConnectivityStatus
-     * \return  Status of the connectivity/authentication between RS and Tor
-     */
+	/**
+	 * @brief torConnectivityStatus return connectivity status of Tor
+	 * @jsonapi{development}
+	 * @return Status of the connectivity/authentication between RS and Tor
+	 */
     static RsTorConnectivityStatus torConnectivityStatus() ;
 
     static void setTorDataDirectory(const std::string& dir);

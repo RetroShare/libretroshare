@@ -383,7 +383,19 @@ public:
     static bool getCurrentAccountOptions(bool& is_hidden,bool& is_tor_auto,bool& is_first_time) ;
 
 	static bool checkCreateAccountDirectory();		// Generate the hierarchy of directories below ~/.retroshare/[SSL dir]/
+
+	/**
+	 * @brief Check if the running node is a hidden node
+	 * @jsonapi{development}
+	 * @return true if the running node is a hidden node
+	 */
     static bool isHiddenNode() ;                    // true if the running node is a hidden node. Used to choose which services to start.
+
+	/**
+	 * @brief Check if the running node is a hidden node using automated Tor management
+	 * @jsonapi{development}
+	 * @return true if the running node is a hidden node using automated Tor management
+	 */
     static bool isTorAuto() ;                       // true if the running node is a hidden node using automated Tor management
 
 	static std::string AccountDirectory();			// linux: ~/.retroshare/[SSL dir]/
