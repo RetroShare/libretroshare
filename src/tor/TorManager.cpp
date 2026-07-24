@@ -54,7 +54,8 @@
 
 using namespace Tor;
 
-RsTor *rsTor = nullptr;
+static RsTor g_rsTorInstance;
+RsTor *rsTor = &g_rsTorInstance;
 static TorManager *rsTorMgr = nullptr;
 
 namespace Tor
