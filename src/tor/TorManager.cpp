@@ -54,7 +54,8 @@
 
 using namespace Tor;
 
-static TorManager *rsTor = nullptr;
+RsTor *rsTor = nullptr;
+static TorManager *rsTorMgr = nullptr;
 
 namespace Tor
 {
@@ -936,12 +937,12 @@ bool RsTor::start()
 
 void RsTor::stop()
 {
-    if (rsTor) {
-        if (rsTor->isRunning()) {
-            rsTor->fullstop();
+    if (rsTorMgr) {
+        if (rsTorMgr->isRunning()) {
+            rsTorMgr->fullstop();
         }
-        delete(rsTor);
-        rsTor= nullptr;
+        delete(rsTorMgr);
+        rsTorMgr = nullptr;
     }
 }
 
@@ -966,8 +967,8 @@ TorManager *RsTor::instance()
     assert(getpid() == syscall(SYS_gettid)); // On Linux, ensure we are on the main thread
 #endif
 
-    if(rsTor == nullptr)
-        rsTor = new TorManager;
+    if(rsTorMgr == nullptr)
+        rsTorMgr = new TorManager;
 
-    return rsTor;
+    return rsTorMgr;
 }

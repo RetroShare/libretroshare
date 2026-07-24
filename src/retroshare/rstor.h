@@ -97,6 +97,14 @@ struct RsTorManagerEvent: public RsEvent
     ~RsTorManagerEvent() = default;
 };
 
+class RsTor;
+
+/**
+ * Pointer to global instance of RsTor
+ * @jsonapi{development}
+ */
+extern RsTor* rsTor;
+
 class RsTor
 {
 public:
