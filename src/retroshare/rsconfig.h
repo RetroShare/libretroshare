@@ -443,10 +443,39 @@ public:
 
 	virtual RsConfigUserLvl getUserLevel() = 0;
 
+	/**
+	 * @brief getNetState return network state
+	 * @jsonapi{development}
+	 * @return RsNetState
+	 */
 	virtual RsNetState getNetState() = 0;
+
+	/**
+	 * @brief getNetworkMode return network mode
+	 * @jsonapi{development}
+	 * @return RsNetworkMode
+	 */
 	virtual RsNetworkMode getNetworkMode() = 0;
+
+	/**
+	 * @brief getNatTypeMode return NAT type mode
+	 * @jsonapi{development}
+	 * @return RsNatTypeMode
+	 */
 	virtual RsNatTypeMode getNatTypeMode() = 0;
+
+	/**
+	 * @brief getNatHoleMode return NAT hole punch mode
+	 * @jsonapi{development}
+	 * @return RsNatHoleMode
+	 */
 	virtual RsNatHoleMode getNatHoleMode() = 0;
+
+	/**
+	 * @brief getConnectModes return connection modes
+	 * @jsonapi{development}
+	 * @return RsConnectModes
+	 */
 	virtual RsConnectModes getConnectModes() = 0;
 
     virtual bool getConfigurationOption(uint32_t key, std::string &opt) = 0;
