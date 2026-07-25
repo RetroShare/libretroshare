@@ -750,8 +750,7 @@ std::string TorManagerPrivate::torExecutablePath() const
 #endif
 
     RsErr() << "Could not find Tor executable anywhere!" ;
-    // Try $PATH
-    return filename.substr(1);
+    return std::string();
 }
 
 bool TorManagerPrivate::createDataDir(const std::string &path)
