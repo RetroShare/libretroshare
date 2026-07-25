@@ -137,17 +137,20 @@ public:
 
     /*!
      * @brief Retrieves the maximum storage time period for messages in history
+     * @jsonapi{development}
      * @return max storage duration of chat.
      */
 	virtual uint32_t getMaxStorageDuration() = 0;
     /*!
      * @brief Sets the maximum storage time period for messages in history
+     * @jsonapi{development}
      * @param[in] seconds max storage duration time in seconds
      */
     virtual void     setMaxStorageDuration(uint32_t seconds) = 0;
 
     /*!
      * @brief Gets the maximum number of messages to save
+     * @jsonapi{development}
      * @param[in] chat_type Type of chat for that number limit
      * @return maximum number of messages to save
      */
