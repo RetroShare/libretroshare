@@ -257,6 +257,21 @@ bool    pqipersongrp::resetListener(const struct sockaddr_storage &local)
 	return 1;
 }
 
+/* Close the incoming-connection socket without recreating it. Called at the very
+ * start of shutdown so that no new peer can be authenticated and handed a per-peer
+ * streamer thread while the rest of the engine is being torn down. Unlike
+ * resetListener() this does NOT setuplisten() again: once active is cleared,
+ * acceptconnection()/continueaccepts() become no-ops on every subsequent tick(). */
+int     pqipersongrp::stopListener()
+{
+	RsStackMutex stack(pqilMtx); /******* LOCKED MUTEX **********/
+
+	if (pqil != NULL)
+		pqil -> resetlisten();
+
+	return 1;
+}
+
 void    pqipersongrp::statusChange(const std::list<pqipeer> &plist)
 {
 
