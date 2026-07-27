@@ -78,6 +78,24 @@ RsGxsImage &RsGxsImage::operator=(const RsGxsImage &a)
 	return *this;
 }
 
+RsGxsImage::RsGxsImage(RsGxsImage&& a) noexcept
+    : mSize(a.mSize), mData(a.mData)
+{
+	a.shallowClear();
+}
+
+RsGxsImage& RsGxsImage::operator=(RsGxsImage&& a) noexcept
+{
+	if(this != &a)
+	{
+		clear();
+		mData = a.mData;
+		mSize = a.mSize;
+		a.shallowClear();
+	}
+	return *this;
+}
+
 
 bool RsGxsImage::empty() const
 {

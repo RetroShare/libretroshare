@@ -635,6 +635,8 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		std::vector<RsGxsMsgItem*>& msgItems = mit->second;
 		std::vector<RsGxsMsgItem*>::iterator vit = msgItems.begin();
 
+		msgs.reserve(msgs.size() + msgItems.size());
+
 		for(; vit != msgItems.end(); ++vit)
 		{
 			RsGxsChannelPostItem* postItem =
@@ -644,7 +646,7 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 			{
 				RsGxsChannelPost msg;
 				postItem->toChannelPost(msg, true);
-				msgs.push_back(msg);
+				msgs.push_back(std::move(msg));
 				delete postItem;
 			}
 			else
@@ -1493,9 +1495,14 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::ve
     for(const auto& id:original_versions)
         ids[id.second.first] = id.first;	// id.second.first is the the latest version of each post, since id.second has been sorted.
 
+    mPosts.reserve(ids.size());
+
     for(const auto& id_pair:ids)
     {
-        mPosts.push_back(posts[id_pair.first]);
+        // Moving from posts[id_pair.first] is safe: ids only holds the index of
+        // the latest version of each post, and the entries read below are older
+        // versions, which are never moved from since version chains are disjoint.
+        mPosts.push_back(std::move(posts[id_pair.first]));
         mPosts.back().mOlderVersions = original_versions[id_pair.second].second;
 
         // Also add up all comments counts from older versions
@@ -1508,7 +1515,7 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::ve
             }
     }
 
-    posts = mPosts;
+    posts = std::move(mPosts);
 
 #ifdef DEBUG_CHANNEL_MODEL
     std::cerr << "Final sorting result:" << std::endl;
