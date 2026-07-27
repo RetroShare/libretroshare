@@ -283,7 +283,13 @@ private:
      * @param c cursor to result set
      * @param msgs messages retrieved from cursor are stored here
      */
-    void locked_retrieveMessages(RetroCursor* c, std::vector<RsNxsMsg*>& msgs, int metaOffset);
+    /*!
+     * @param expected_grp when not null, messages belonging to another group are
+     *        discarded. Used by the id based retrieval, whose query selects on
+     *        the message id alone.
+     */
+    void locked_retrieveMessages(RetroCursor* c, std::vector<RsNxsMsg*>& msgs, int metaOffset,
+                                 const RsGxsGroupId* expected_grp = nullptr);
 
     /*!
      * Retrieves all the grp results from a cursor
