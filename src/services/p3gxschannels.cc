@@ -21,6 +21,7 @@
  *                                                                             *
  *******************************************************************************/
 #include "services/p3gxschannels.h"
+#include "gxs/rsgxsprofiler.h"
 #include "rsitems/rsgxschannelitems.h"
 #include "util/radix64.h"
 #include "util/rsmemory.h"
@@ -616,12 +617,16 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 	RsDbg() << __PRETTY_FUNCTION__ << std::endl;
 #endif
 
+    RsGxsProfiler::Timer prof_timer;
+
 	GxsMsgDataMap msgData;
 	if(!RsGenExchange::getMsgData(token, msgData))
 	{
 		RsErr() << __PRETTY_FUNCTION__ << " ERROR in request" << std::endl;
 		return false;
 	}
+
+    const long prof_getmsgdata_ms = prof_timer.lap();
 
 	GxsMsgDataMap::iterator mit = msgData.begin();
 
@@ -693,7 +698,19 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		}
 	}
 
+    const long prof_convert_ms = prof_timer.lap();
+
     sortPosts(msgs,cmts);	// stores old versions in the right place.
+
+    const long prof_sort_ms = prof_timer.ms();
+    const long prof_total_ms = prof_getmsgdata_ms + prof_convert_ms + prof_sort_ms;
+
+    RS_GXS_PROF( prof_total_ms, "getPostData      posts=" << msgs.size()
+                 << " comments=" << cmts.size() << " votes=" << vots.size()
+                 << " getMsgData=" << prof_getmsgdata_ms << "ms"
+                 << " toChannelPost=" << prof_convert_ms << "ms"
+                 << " sortPosts=" << prof_sort_ms << "ms"
+                 << " total=" << prof_total_ms << "ms" );
 
 	return true;
 }
@@ -1515,10 +1532,24 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
     RsTokReqOptions opts;
     opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
+    RsGxsProfiler::Timer prof_timer;
+
     if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
         return false;
 
-    return getPostData(token, posts, comments,votes);
+    const long prof_wait_ms = prof_timer.lap();
+
+    const bool res = getPostData(token, posts, comments,votes);
+
+    const long prof_read_ms = prof_timer.ms();
+    const long prof_total_ms = prof_wait_ms + prof_read_ms;
+
+    RS_GXS_PROF( prof_total_ms, "getChannelAllContent grp=" << channelId
+                 << " token_wait=" << prof_wait_ms << "ms"
+                 << " read=" << prof_read_ms << "ms"
+                 << " total=" << prof_total_ms << "ms" );
+
+    return res;
 }
 
 bool p3GxsChannels::getChannelContent( const RsGxsGroupId& channelId,

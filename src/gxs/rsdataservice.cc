@@ -35,6 +35,7 @@
 #endif
 
 #include "rsdataservice.h"
+#include "rsgxsprofiler.h"
 #include "retroshare/rsgxsflags.h"
 #include "util/rsstring.h"
 
@@ -1174,6 +1175,11 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
     int resultCount = 0;
 #endif
 
+    RsGxsProfiler::Timer prof_timer;
+    uint32_t prof_queries = 0;
+    uint64_t prof_bytes = 0;
+    uint32_t prof_msgs = 0;
+
 	for(auto mit = reqIds.begin(); mit != reqIds.end(); ++mit)
     {
 
@@ -1188,6 +1194,7 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 			RS_STACK_MUTEX(mDbMutex);
 
             RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, withMeta ? mMsgColumnsWithMeta : mMsgColumns, KEY_GRP_ID+ "='" + grpId.toStdString() + "'", "");
+            ++prof_queries;
 
             if(c)
                 locked_retrieveMessages(c, msgSet, withMeta ? mColMsg_WithMetaOffset : 0);
@@ -1206,6 +1213,7 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 
                 RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, withMeta ? mMsgColumnsWithMeta : mMsgColumns, KEY_GRP_ID+ "='" + grpId.toStdString()
                                                + "' AND " + KEY_MSG_ID + "='" + msgId.toStdString() + "'", "");
+                ++prof_queries;
 
                 if(c)
                 {
@@ -1220,6 +1228,14 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
         resultCount += msgSet.size();
 #endif
 
+        if(RsGxsProfiler::enabled())
+        {
+            prof_msgs += msgSet.size();
+
+            for(auto* m: msgSet)
+                prof_bytes += m->msg.bin_len;
+        }
+
         msg[grpId] = msgSet;
 
         msgSet.clear();
@@ -1228,6 +1244,13 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 #ifdef RS_DATA_SERVICE_DEBUG_TIME
     std::cerr << "RsDataService::retrieveNxsMsgs() " << mDbName << ", Requests: " << reqIds.size() << ", Results: " << resultCount << ", Time: " << timer.duration() << std::endl;
 #endif
+
+    const long prof_ms = prof_timer.ms();
+    RS_GXS_PROF( prof_ms, "retrieveNxsMsgs  db=" << mDbName
+                 << " groups=" << reqIds.size() << " msgs=" << prof_msgs
+                 << " sql_queries=" << prof_queries
+                 << " blob=" << (prof_bytes>>10) << "KB"
+                 << " in " << prof_ms << "ms" );
 
     return 1;
 }
@@ -1260,6 +1283,9 @@ int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaRes
     rstime::RsScopeTimer timer("");
     int resultCount = 0;
 #endif
+
+    RsGxsProfiler::Timer prof_timer;
+    uint32_t prof_metas = 0;
 
     for(auto mit(reqIds.begin()); mit != reqIds.end(); ++mit)
     {
@@ -1328,12 +1354,20 @@ int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaRes
 			std::cerr << mDbName << ": Retrieving Msg metadata grpId=" << grpId << ", " << std::dec << metaSet.size() << " messages" << std::endl;
 #endif
         }
+
+        if(RsGxsProfiler::enabled())
+            prof_metas += msgMeta[grpId].size();
     }
 
 #ifdef RS_DATA_SERVICE_DEBUG_TIME
     if(mDbName==std::string("gxsforums_db"))
     std::cerr << "RsDataService::retrieveGxsMsgMetaData() " << mDbName << ", Requests: " << reqIds.size() << ", Results: " << resultCount << ", Time: " << timer.duration() << std::endl;
 #endif
+
+    const long prof_ms = prof_timer.ms();
+    RS_GXS_PROF( prof_ms, "retrieveGxsMsgMetaData  db=" << mDbName
+                 << " groups=" << reqIds.size() << " metas=" << prof_metas
+                 << " in " << prof_ms << "ms" );
 
     return 1;
 }
