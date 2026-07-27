@@ -609,7 +609,19 @@ public:
     /*            Distant chat              */
     /****************************************/
 
+    /**
+     * @brief getDistantChatPermissionFlags
+     * @jsonapi{development}
+     * @return current distant chat filter flags
+     */
     virtual uint32_t getDistantChatPermissionFlags()=0 ;
+
+    /**
+     * @brief setDistantChatPermissionFlags
+     * @jsonapi{development}
+     * @param[in] flags filter flags
+     * @return true on success
+     */
     virtual bool setDistantChatPermissionFlags(uint32_t flags)=0 ;
 
         /**
