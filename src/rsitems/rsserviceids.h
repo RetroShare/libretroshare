@@ -68,13 +68,17 @@ enum class RsServiceType : uint16_t
 	/// not gxs, but used with identities.
 	REPUTATION                 = 0x0219,
 	GXS_RECOGN                 = 0x0220,
+#ifdef RS_USE_CALENDAR
 	CALENDAR                   = 0x0221,
+#endif
 	GXS_TRANS                  = 0x0230,
 	JSONAPI                    = 0x0240,
 	FORUMS_CONFIG              = 0x0315,
 	POSTED_CONFIG              = 0x0316,
 	CHANNELS_CONFIG            = 0x0317,
+#ifdef RS_USE_CALENDAR
 	CALENDAR_CONFIG            = 0x0321,
+#endif
 	RTT                        = 0x1011, /// Round Trip Time
 
 	PLUGIN_ARADO_ID            = 0x2001,
@@ -133,7 +137,9 @@ RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_GXSCIRCLE   
 /// not gxs, but used with identities.
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_REPUTATION  = 0x0219;
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_TYPE_GXS_RECOGN      = 0x0220;
+#ifdef RS_USE_CALENDAR
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_CALENDAR    = 0x0221;
+#endif
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_TYPE_GXS_TRANS       = 0x0230;
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_TYPE_JSONAPI         = 0x0240;
 /// used to save notification records in GXS and possible other service-based configuration
@@ -142,7 +148,9 @@ RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_POSTED_CONFI
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_CHANNELS_CONFIG = 0x0317;
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_CIRCLES_CONFIG  = 0x0318;
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_WIRE_CONFIG  = 0x0319;
+#ifdef RS_USE_CALENDAR
 RS_DEPRECATED_FOR(RsServiceType) const uint16_t RS_SERVICE_GXS_TYPE_CALENDAR_CONFIG = 0x0321;
+#endif
 
 // Experimental Services.
 /* DSDV Testing at the moment - Service Only */

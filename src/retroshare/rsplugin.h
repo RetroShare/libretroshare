@@ -45,7 +45,9 @@ class RsMail ;
 class RsChats ;
 class RsGxsForums;
 class RsGxsChannels;
+#ifdef RS_USE_CALENDAR
 class RsGxsCalendar;
+#endif
 class RsNotify;
 class RsServiceControl;
 class p3LinkMgr ;
@@ -130,7 +132,9 @@ public:
     RsUtil::inited_ptr<PgpAuxUtils>     mPgpAuxUtils;
     RsUtil::inited_ptr<RsGxsForums>     mGxsForums;
     RsUtil::inited_ptr<RsGxsChannels>   mGxsChannels;
+#ifdef RS_USE_CALENDAR
     RsUtil::inited_ptr<RsGxsCalendar>   mGxsCalendar;
+#endif
     RsUtil::inited_ptr<RsGxsTunnelService>    mGxsTunnels;
     RsUtil::inited_ptr<RsReputations>   mReputations;
     RsUtil::inited_ptr<RsPosted>        mPosted;

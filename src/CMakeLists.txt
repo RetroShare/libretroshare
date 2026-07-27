@@ -38,6 +38,7 @@ list(
 	retroshare/rsmail.h
 	retroshare/rsgxschannels.h
 	retroshare/rsgxscircles.h
+	retroshare/rsgxscalendar.h
 	retroshare/rsgxsiface.h
 	retroshare/rsgxsifacetypes.h
 	retroshare/rstypes.h
@@ -371,6 +372,7 @@ list(
 
 list(
 	APPEND RS_SOURCES
+	rsitems/rsgxscalendaritems.cc
 	rsitems/rsgxschannelitems.cc
 	rsitems/rsgxscircleitems.cc
 	rsitems/rsgxsitems.cc
@@ -393,6 +395,7 @@ list(
 	rsitems/rsbwctrlitems.h
 	rsitems/rsconfigitems.h
 	rsitems/rsfiletransferitems.h
+	rsitems/rsgxscalendaritems.h
 	rsitems/rsgxschannelitems.h
 	rsitems/rsgxscircleitems.h
 	rsitems/rsgxscommentitems.h
@@ -507,12 +510,14 @@ list(
 	services/p3msgservice.cc
 	services/p3idservice.cc
 	services/p3gxschannels.cc
-	services/p3gxsforums.cc )
+	services/p3gxsforums.cc
+	services/p3gxscalendar.cc )
 
 list(
 	APPEND RS_IMPLEMENTATION_HEADERS
 	services/p3banlist.h
 	services/p3bwctrl.h
+	services/p3gxscalendar.h
 	services/p3gxschannels.h
 	services/p3gxscircles.h
 	services/p3gxscommon.h
