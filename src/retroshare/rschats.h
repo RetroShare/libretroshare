@@ -25,6 +25,7 @@
 
 #include "retroshare/rstypes.h"
 #include "retroshare/rsevents.h"
+#include "retroshare/rsgxscommon.h"
 
 #define RS_CHAT_LOBBY_EVENT_PEER_LEFT   			0x01
 #define RS_CHAT_LOBBY_EVENT_PEER_STATUS 			0x02
@@ -463,6 +464,25 @@ public:
     // set own avatar data
     virtual void setOwnNodeAvatarData(const unsigned char *data,int size) = 0 ;
     virtual void getOwnNodeAvatarData(unsigned char *& data,int& size) = 0 ;
+
+    /**
+     * @brief getAvatar get the avatar of the given peer, in JPEG format
+     * @jsonapi{development}
+     * When the avatar of the peer is not known yet, this returns false and
+     * asks the peer to send it, so calling this again a bit later may succeed.
+     * @param[in] pid peer id
+     * @param[out] avatar peer avatar, left empty when not available
+     * @return true if an avatar was available, false otherwise
+     */
+    virtual bool getAvatar(const RsPeerId& pid, RsGxsImage& avatar) = 0;
+
+    /**
+     * @brief getOwnAvatar get the avatar of our own node, in JPEG format
+     * @jsonapi{development}
+     * @param[out] avatar own avatar, left empty when none has been set
+     * @return true if an avatar was set, false otherwise
+     */
+    virtual bool getOwnAvatar(RsGxsImage& avatar) = 0;
 
     /****************************************/
     /*            Chat lobbies              */
