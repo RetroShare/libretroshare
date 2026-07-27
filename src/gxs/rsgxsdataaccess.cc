@@ -1006,6 +1006,21 @@ bool RsGxsDataAccess::getMsgData(MsgDataReq* req)
 
 	const RsTokReqOptions& opts(req->Options);
 
+	// When no filtering at all is requested, resolving the message ids is pure
+	// overhead: it walks every meta of the group only to hand back the set the
+	// request already implies. Worse, it turns a request meaning "all messages
+	// of this group" (empty id set) into an explicit id list, which forces the
+	// data store to issue one SQL query per message instead of a single one.
+	// Opening a channel with a few thousand posts is exactly that case.
+	if( !opts.mStatusMask && !opts.mMsgFlagMask &&
+	    !( opts.mOptions & ( RS_TOKREQOPT_MSG_LATEST  |
+	                         RS_TOKREQOPT_MSG_ORIGMSG |
+	                         RS_TOKREQOPT_MSG_THREAD ) ) )
+	{
+		mDataStore->retrieveNxsMsgs(req->mMsgIds, req->mMsgData, true);
+		return true;
+	}
+
 	// filter based on options
 	getMsgIdList(req->mMsgIds, opts, msgIdOut);
 
