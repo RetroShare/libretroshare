@@ -119,6 +119,15 @@ struct RsGxsChannelPost : RsSerializable, RsGxsGenericMsgData
 	}
 
 	~RsGxsChannelPost() override;
+
+	/* Posts are held in vectors that get grown, sorted and handed over between
+	 * layers. Without these the user declared destructor above suppresses the
+	 * implicit move operations and every one of those operations deep copies
+	 * the thumbnail. @see RsGxsImage */
+	RsGxsChannelPost(const RsGxsChannelPost&) = default;
+	RsGxsChannelPost& operator=(const RsGxsChannelPost&) = default;
+	RsGxsChannelPost(RsGxsChannelPost&&) = default;
+	RsGxsChannelPost& operator=(RsGxsChannelPost&&) = default;
 };
 
 

@@ -64,6 +64,15 @@ struct RsGxsImage  : RsSerializable
 
 	RsGxsImage &operator=(const RsGxsImage &a); // Need this as well?
 
+	/* Declaring the destructor and the copy operations above suppresses the
+	 * implicit move operations, which silently turns every std::move() on a
+	 * RsGxsImage -- and on anything holding one, such as RsGxsChannelPost --
+	 * into a full malloc+memcpy of the image buffer. Sorting a vector of a few
+	 * thousand posts then copies tens of thousands of thumbnails. Steal the
+	 * buffer instead. */
+	RsGxsImage(RsGxsImage&& a) noexcept;
+	RsGxsImage& operator=(RsGxsImage&& a) noexcept;
+
 	/** NB: Must make sure that we always use methods - to be consistent about
 	 * malloc/free for this data. */
 	static uint8_t *allocate(uint32_t size);
