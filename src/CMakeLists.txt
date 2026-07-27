@@ -45,7 +45,8 @@ list(
 	retroshare/rsevents.h
 	retroshare/rsfiles.h
 	retroshare/rsinit.h
-	retroshare/rspeers.h )
+	retroshare/rspeers.h
+	retroshare/rstor.h )
 
 list(
 	APPEND RS_SOURCES
