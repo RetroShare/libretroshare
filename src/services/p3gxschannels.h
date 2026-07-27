@@ -242,6 +242,38 @@ protected:	// made protected because it's all deprecated
     // helper function that moved old post versions in the mOldVersions of new posts.
     void sortPosts(std::vector<RsGxsChannelPost>& posts, const std::vector<RsGxsComment> &comments) const;
 
+    /** Turn the message items of a completed request into posts, comments and
+     * votes. Shared by getPostData() and by getChannelAllContent(), which
+     * resolves post versions itself. The two long& outputs report timings to
+     * the caller so that it can emit a single profiling line. */
+    bool convertMsgItems( const uint32_t& token,
+                          std::vector<RsGxsChannelPost>& msgs,
+                          std::vector<RsGxsComment>& cmts,
+                          std::vector<RsGxsVote>& vots,
+                          long& getmsgdata_ms, long& convert_ms );
+
+    /** What resolving a post's version chain on its metas yields, for the one
+     * version that is actually kept and read from the database. */
+    struct RetainedPostVersions
+    {
+        /// Top level id of the chain, as normalised by sortPostMetas().
+        RsGxsMessageId mOrigMsgId;
+
+        /// Every version of the post, including the retained one.
+        std::set<RsGxsMessageId> mVersions;
+    };
+
+    /** Counterpart of sortPosts() for the case where post versions have already
+     * been resolved from the metas, so that only the retained versions were
+     * read from the database. Fills mOlderVersions, the normalised mOrigMsgId
+     * and the comment counts.
+     * @param retained keyed by retained message id
+     * @param version_to_latest maps any version id onto the retained one */
+    void applyPostVersions( std::vector<RsGxsChannelPost>& posts,
+                            const std::vector<RsGxsComment>& comments,
+                            const std::map<RsGxsMessageId,RetainedPostVersions>& retained,
+                            const std::map<RsGxsMessageId,RsGxsMessageId>& version_to_latest ) const;
+
     //Not currently used
     //virtual bool getRelatedPosts(const uint32_t &token, std::vector<RsGxsChannelPost> &posts);
 

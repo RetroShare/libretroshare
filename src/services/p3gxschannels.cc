@@ -609,14 +609,12 @@ bool p3GxsChannels::groupShareKeys(
  * at the moment - fix it up later
  */
 
-bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannelPost>& msgs,
-                                 std::vector<RsGxsComment>& cmts,
-                                 std::vector<RsGxsVote>& vots)
+bool p3GxsChannels::convertMsgItems( const uint32_t& token,
+                                     std::vector<RsGxsChannelPost>& msgs,
+                                     std::vector<RsGxsComment>& cmts,
+                                     std::vector<RsGxsVote>& vots,
+                                     long& getmsgdata_ms, long& convert_ms )
 {
-#ifdef GXSCHANNELS_DEBUG
-	RsDbg() << __PRETTY_FUNCTION__ << std::endl;
-#endif
-
     RsGxsProfiler::Timer prof_timer;
 
 	GxsMsgDataMap msgData;
@@ -626,7 +624,7 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		return false;
 	}
 
-    const long prof_getmsgdata_ms = prof_timer.lap();
+    getmsgdata_ms = prof_timer.lap();
 
 	GxsMsgDataMap::iterator mit = msgData.begin();
 
@@ -700,7 +698,25 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		}
 	}
 
-    const long prof_convert_ms = prof_timer.lap();
+    convert_ms = prof_timer.ms();
+
+	return true;
+}
+
+bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannelPost>& msgs,
+                                 std::vector<RsGxsComment>& cmts,
+                                 std::vector<RsGxsVote>& vots)
+{
+#ifdef GXSCHANNELS_DEBUG
+	RsDbg() << __PRETTY_FUNCTION__ << std::endl;
+#endif
+
+    long prof_getmsgdata_ms = 0, prof_convert_ms = 0;
+
+    if(!convertMsgItems(token, msgs, cmts, vots, prof_getmsgdata_ms, prof_convert_ms))
+        return false;
+
+    RsGxsProfiler::Timer prof_timer;
 
     sortPosts(msgs,cmts);	// stores old versions in the right place.
 
@@ -1535,28 +1551,150 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
                                         std::vector<RsGxsComment>& comments,
                                         std::vector<RsGxsVote>& votes )
 {
+    RsGxsProfiler::Timer prof_timer;
+
+    // A channel keeps every version of every edited post. Only the latest
+    // version of each is ever displayed: sortPosts() used to read them all and
+    // throw the superseded ones away, after their whole payload -- thumbnail
+    // included -- had been read from the database and deserialised. On a real
+    // channel that is the bulk of the bytes read.
+    //
+    // Resolve the version chains from the metas instead, which are small and
+    // usually already cached, and only read the payload of the messages that
+    // will actually be used.
+
+    std::vector<RsMsgMetaData> metas;
+
+    if(!getContentSummaries(channelId,metas))
+        return false;
+
+    std::vector<RsMsgMetaData> post_metas;
+    std::set<RsGxsMessageId> wanted_msgs;
+
+    for(auto& m: metas)
+        if(m.mThreadId.isNull() && m.mParentId.isNull())
+            post_metas.push_back(m);
+        else
+            wanted_msgs.insert(m.mMsgId);	// comments and votes are all kept
+
+    std::function< RsMsgMetaData& (RsMsgMetaData&) > get_meta = [](RsMsgMetaData& m)->RsMsgMetaData& { return m; };
+    std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > > original_versions;
+
+    sortPostMetas(post_metas, get_meta, original_versions);
+
+    // retained holds, for each post that will actually be read, its version set
+    // (what RsGxsChannelPost::mOlderVersions expects) and the mOrigMsgId that
+    // sortPostMetas() normalised to the top of the chain -- callers such as the
+    // GUI match edited posts on that value, so it must be carried over.
+    // version_to_latest maps any version id to the retained one, so that a
+    // comment written on a superseded version is still counted on the post.
+
+    std::map<RsGxsMessageId,RetainedPostVersions> retained;
+    std::map<RsGxsMessageId,RsGxsMessageId> version_to_latest;
+
+    for(const auto& ov_entry: original_versions)
+    {
+        const RsMsgMetaData& latest_meta(post_metas[ov_entry.second.first]);
+
+        wanted_msgs.insert(latest_meta.mMsgId);
+
+        auto& entry(retained[latest_meta.mMsgId]);
+        entry.mOrigMsgId = latest_meta.mOrigMsgId;
+        entry.mVersions  = ov_entry.second.second;
+
+        for(const auto& version_id: ov_entry.second.second)
+            version_to_latest[version_id] = latest_meta.mMsgId;
+    }
+
+    const long prof_versions_ms = prof_timer.lap();
+
+    // An empty id set means "every message of the group" to the data store, so
+    // an empty channel must not be turned into a request at all.
+    if(wanted_msgs.empty())
+        return true;
+
     uint32_t token;
     RsTokReqOptions opts;
     opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
-    RsGxsProfiler::Timer prof_timer;
+    GxsMsgReq msgIds;
+    msgIds[channelId] = wanted_msgs;
 
-    if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
+    if( !requestMsgInfo(token, opts, msgIds) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
         return false;
 
     const long prof_wait_ms = prof_timer.lap();
 
-    const bool res = getPostData(token, posts, comments,votes);
+    long prof_getmsgdata_ms = 0, prof_convert_ms = 0;
+
+    if(!convertMsgItems(token, posts, comments, votes, prof_getmsgdata_ms, prof_convert_ms))
+        return false;
+
+    applyPostVersions(posts, comments, retained, version_to_latest);
 
     const long prof_read_ms = prof_timer.ms();
-    const long prof_total_ms = prof_wait_ms + prof_read_ms;
+    const long prof_total_ms = prof_versions_ms + prof_wait_ms + prof_read_ms;
 
     RS_GXS_PROF( prof_total_ms, "getChannelAllContent grp=" << channelId
+                 << " metas=" << metas.size()
+                 << " read_msgs=" << wanted_msgs.size()
+                 << " skipped_versions=" << (metas.size() - wanted_msgs.size())
+                 << " versions=" << prof_versions_ms << "ms"
                  << " token_wait=" << prof_wait_ms << "ms"
                  << " read=" << prof_read_ms << "ms"
                  << " total=" << prof_total_ms << "ms" );
 
-    return res;
+    return true;
+}
+
+void p3GxsChannels::applyPostVersions(
+        std::vector<RsGxsChannelPost>& posts,
+        const std::vector<RsGxsComment>& comments,
+        const std::map<RsGxsMessageId,RetainedPostVersions>& retained,
+        const std::map<RsGxsMessageId,RsGxsMessageId>& version_to_latest ) const
+{
+    // Same result as sortPosts(), but the version chains have already been
+    // resolved from the metas, so posts only holds the retained versions.
+
+    std::map<RsGxsMessageId,uint32_t> post_indices;
+
+    for(uint32_t i=0;i<posts.size();++i)
+    {
+        post_indices[posts[i].mMeta.mMsgId] = i;
+        posts[i].mCommentCount = 0;
+        posts[i].mUnreadCommentCount = 0;
+
+        auto it = retained.find(posts[i].mMeta.mMsgId);
+
+        if(it != retained.end())
+        {
+            posts[i].mOlderVersions   = it->second.mVersions;
+            posts[i].mMeta.mOrigMsgId = it->second.mOrigMsgId;
+        }
+    }
+
+    for(uint32_t i=0;i<comments.size();++i)
+    {
+        // The comment hangs off whichever version of the post was current when
+        // it was written, so map that back onto the retained version.
+
+        const RsGxsMessageId& thread_id(comments[i].mMeta.mThreadId);
+        auto vit = version_to_latest.find(thread_id);
+        auto it = post_indices.find((vit != version_to_latest.end()) ? vit->second : thread_id);
+
+        // Not finding the post is normal: because of sync periods we may hold
+        // comments for a post we never received.
+
+        if(it == post_indices.end())
+            continue;
+
+        auto& p(posts[it->second]);
+
+        ++p.mCommentCount;
+
+        if(IS_MSG_NEW(comments[i].mMeta.mMsgStatus))
+            ++p.mUnreadCommentCount;
+    }
 }
 
 bool p3GxsChannels::getChannelContent( const RsGxsGroupId& channelId,
