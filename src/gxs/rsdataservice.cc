@@ -1215,9 +1215,21 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
             // message dominates the cost as soon as a request covers more than
             // a handful of them (a channel post and its comments, a forum
             // thread, a filtered group request).
+            //
+            // The group is deliberately left out of the selection. Adding
+            // "grpId=..." makes sqlite pick INDEX_MESSAGES_GRPID over the
+            // implicit unique index on the message id: with no ANALYZE data it
+            // estimates an equality on a non unique index at ~10 rows, against
+            // one row per entry of the IN list, so the group looks far more
+            // selective than it is. Every batch then walks the whole group and
+            // filters, which measured as a constant ~60-95ms per batch no
+            // matter how few messages it returned. Selecting on the message id
+            // alone keeps the cost proportional to the number of ids asked for.
+            // Message ids are unique table wide, so the result is the same;
+            // locked_retrieveMessages() still drops anything from another group
+            // in case a caller mixes them up.
 
-            const std::string selection_prefix = KEY_GRP_ID + "='" + grpId.toStdString()
-                                               + "' AND " + KEY_MSG_ID + " IN (";
+            const std::string selection_prefix = KEY_MSG_ID + " IN (";
 
             for(auto sit = msgIdV.begin(); sit != msgIdV.end(); )
             {
@@ -1236,7 +1248,7 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 
                 if(c)
                 {
-                    locked_retrieveMessages(c, msgSet, withMeta ? mColMsg_WithMetaOffset : 0);
+                    locked_retrieveMessages(c, msgSet, withMeta ? mColMsg_WithMetaOffset : 0, &grpId);
                 }
 
                 delete c;
@@ -1274,11 +1286,18 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
     return 1;
 }
 
-void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg *> &msgs, int metaOffset)
+void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg *> &msgs, int metaOffset,
+                                            const RsGxsGroupId* expected_grp)
 {
     bool valid = c->moveToFirst();
     while(valid){
         RsNxsMsg* m = locked_getMessage(*c);
+
+        if(m && expected_grp && m->grpId != *expected_grp)
+        {
+            delete m;
+            m = nullptr;
+        }
 
         if(m){
             if (metaOffset)

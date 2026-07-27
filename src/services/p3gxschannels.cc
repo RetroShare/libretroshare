@@ -139,6 +139,12 @@ uint32_t p3GxsChannels::channelsAuthenPolicy()
 	return policy;
 }
 
+/** Above this share of a channel's messages, reading them by explicit id costs
+ * more than scanning the group once, so getChannelAllContent() stops filtering
+ * out superseded post versions and falls back to reading everything. Tune with
+ * the RS_GXS_PROFILE output of getChannelAllContent(). */
+static const uint32_t MAX_READ_RATIO_FOR_VERSION_FILTERING = 66; // percent
+
 static const uint32_t GXS_CHANNELS_CONFIG_MAX_TIME_NOTIFY_STORAGE = 86400*30*2 ; // ignore notifications for 2 months
 static const uint8_t  GXS_CHANNELS_CONFIG_SUBTYPE_NOTIFY_RECORD   = 0x01 ;
 
@@ -1613,14 +1619,29 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
     if(wanted_msgs.empty())
         return true;
 
+    // Skipping versions only pays off when there are enough of them to skip.
+    // Below that, asking for an explicit id list costs more than it saves: the
+    // database walks the group anyway, and reading most of a group by id is
+    // slower than scanning it once. In that case take the whole group and let
+    // sortPosts() resolve the versions as it always did.
+
+    const bool worth_filtering =
+            wanted_msgs.size() * 100 <= metas.size() * MAX_READ_RATIO_FOR_VERSION_FILTERING;
+
     uint32_t token;
     RsTokReqOptions opts;
     opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
-    GxsMsgReq msgIds;
-    msgIds[channelId] = wanted_msgs;
+    if(worth_filtering)
+    {
+        GxsMsgReq msgIds;
+        msgIds[channelId] = wanted_msgs;
 
-    if( !requestMsgInfo(token, opts, msgIds) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
+        if( !requestMsgInfo(token, opts, msgIds) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
+            return false;
+    }
+    else if( !requestMsgInfo(token, opts, std::list<RsGxsGroupId>({channelId}))
+             || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
         return false;
 
     const long prof_wait_ms = prof_timer.lap();
@@ -1630,15 +1651,19 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
     if(!convertMsgItems(token, posts, comments, votes, prof_getmsgdata_ms, prof_convert_ms))
         return false;
 
-    applyPostVersions(posts, comments, retained, version_to_latest);
+    if(worth_filtering)
+        applyPostVersions(posts, comments, retained, version_to_latest);
+    else
+        sortPosts(posts, comments);
 
     const long prof_read_ms = prof_timer.ms();
     const long prof_total_ms = prof_versions_ms + prof_wait_ms + prof_read_ms;
 
     RS_GXS_PROF( prof_total_ms, "getChannelAllContent grp=" << channelId
                  << " metas=" << metas.size()
-                 << " read_msgs=" << wanted_msgs.size()
-                 << " skipped_versions=" << (metas.size() - wanted_msgs.size())
+                 << " read_msgs=" << (worth_filtering ? wanted_msgs.size() : metas.size())
+                 << " skipped_versions=" << (worth_filtering ? (metas.size() - wanted_msgs.size()) : 0)
+                 << " filtered=" << (worth_filtering ? "yes" : "no")
                  << " versions=" << prof_versions_ms << "ms"
                  << " token_wait=" << prof_wait_ms << "ms"
                  << " read=" << prof_read_ms << "ms"
