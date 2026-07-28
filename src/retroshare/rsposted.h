@@ -32,6 +32,7 @@
 #include "retroshare/rsgxscommon.h"
 #include "retroshare/rsgxscircles.h"
 #include "serialiser/rsserializable.h"
+#include "serialiser/rstlvidset.h"
 
 class RsPosted;
 
@@ -46,6 +47,9 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 	std::string mDescription;
 	RsGxsImage mGroupImage;
 
+	/** @brief List of board pinned posts, those are displayed on top */
+	RsTlvGxsMsgIdSet mPinnedPosts;
+
 	/// @see RsSerializable
 	virtual void serial_process( RsGenericSerializer::SerializeJob j,
 								 RsGenericSerializer::SerializeContext& ctx ) override
@@ -53,6 +57,7 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mDescription);
 		RS_SERIAL_PROCESS(mGroupImage);
+		RS_SERIAL_PROCESS(mPinnedPosts);
 	}
 };
 
@@ -115,6 +120,8 @@ struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 #define RSPOSTED_VIEWMODE_HOT		3
 #define RSPOSTED_VIEWMODE_COMMENTS	4
 
+#define RSPOSTED_FLAG_POST_IS_PINNED	0x0001
+
 
 enum class RsPostedEventCode: uint8_t
 {
@@ -131,6 +138,7 @@ enum class RsPostedEventCode: uint8_t
 	NEW_COMMENT              = 0x0a,
 	NEW_VOTE                 = 0x0b,
 	BOARD_DELETED            = 0x0c,
+	PINNED_POSTS_CHANGED     = 0x0d,
 };
 
 
@@ -239,6 +247,24 @@ public:
 	 * @return false on error, true otherwise
 	 */
 	virtual bool editBoard(RsPostedGroup& board) =0;
+
+	/**
+	 * @brief Pin a post to the top of a board. Admin-only. Blocking API.
+	 * @jsonapi{development}
+	 * @param[in] boardId  Id of the board
+	 * @param[in] postId   Id of the post to pin
+	 * @return false on error, true otherwise
+	 */
+	virtual bool pinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId) =0;
+
+	/**
+	 * @brief Unpin a post from a board. Admin-only. Blocking API.
+	 * @jsonapi{development}
+	 * @param[in] boardId  Id of the board
+	 * @param[in] postId   Id of the post to unpin
+	 * @return false on error, true otherwise
+	 */
+	virtual bool unpinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId) =0;
 
 	/**
 	 * @brief Create board. Blocking API.
