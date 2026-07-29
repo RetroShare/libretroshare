@@ -1077,6 +1077,25 @@ bool p3GxsForums::getForumGroupStatistics(const RsGxsGroupId& ForumId,GxsGroupSt
 
 bool p3GxsForums::getForumStatistics(const RsGxsGroupId& forumId,RsGxsForumStatistics& stat)
 {
+    // NOTE: this rebuilds the whole post hierarchy just to increment three
+    // counters, which is expensive on a large forum. It cannot be replaced by
+    // the generic RsGxsDataAccess::getGroupStatistic(): that one collapses post
+    // versions with
+    //
+    //     if(!mOrigMsgId.isNull() && mOrigMsgId != mMsgId) obsolete.insert(mOrigMsgId)
+    //
+    // which only ever marks the *original* message obsolete. Every edit of a
+    // post carries mOrigMsgId = the original, so a post edited N times is
+    // counted N times instead of once, and superseded versions that were never
+    // displayed keep their unread flag forever. computeMessagesHierarchy() below
+    // does it properly: it groups the versions, merges chains, checks that the
+    // editor is the original author or a moderator, and keeps only the most
+    // recent one.
+    //
+    // Making this cheap means factoring that version collapsing out of
+    // computeMessagesHierarchy() so both share it -- not reimplementing the rule
+    // a second time.
+
     // 1 - get group data
 
     std::vector<RsGxsForumGroup> groups;
