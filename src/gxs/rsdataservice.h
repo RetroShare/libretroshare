@@ -300,6 +300,16 @@ private:
     void locked_retrieveMsgMetaList(RetroCursor* c, std::vector<std::shared_ptr<RsGxsMsgMetaData> > &msgMeta);
 
     /*!
+     * \brief Read the meta of every message of the database in one sequential
+     *        scan and fill every per-group cache with it.
+     *
+     * Warming up the caches group by group costs one disk seek per message; a
+     * single scan reads the file in physical order and warms up all the groups
+     * at once. Called when more than one group still needs a cold full read.
+     */
+    void locked_loadAllMsgMetaInOneScan();
+
+    /*!
      * Retrieves all the grp meta results from a cursor
      * @param c cursor to result set
      * @param grpMeta group metadata retrieved from cursor are stored here
@@ -458,6 +468,12 @@ private:
 
     t_MetaDataCache<RsGxsGroupId,RsGxsGrpMetaData> mGrpMetaDataCache;
     std::map<RsGxsGroupId,t_MetaDataCache<RsGxsMessageId,RsGxsMsgMetaData> > mMsgMetaDataCache;
+
+    /// True once locked_loadAllMsgMetaInOneScan() has run: no point scanning twice.
+    bool mMsgMetaDataCache_ContainsAllDatabase;
+
+    /// Number of whole-group cold reads done so far, to decide when scanning wins.
+    uint32_t mMsgMetaDataCache_ColdFullReads;
 
     bool mUseCache;
 };
