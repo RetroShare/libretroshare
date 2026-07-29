@@ -286,8 +286,27 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 			}
 			break;
 		}
-		case RsGxsNotify::TYPE_PROCESSED: // happens when the group is subscribed
+		case RsGxsNotify::TYPE_PROCESSED:
 		{
+			/* TYPE_PROCESSED is emitted for two unrelated things:
+			 *
+			 *  - a *group* meta change (RsGenExchange::processGrpMetaChanges),
+			 *    which for forums means the subscription status changed;
+			 *  - a *message* meta change (RsGenExchange::processMsgMetaChanges),
+			 *    i.e. a read/unread or keep-forever status change.
+			 *
+			 * Unlike the other services, which only look at TYPE_PROCESSED
+			 * inside their group change branch, this switch is on the raw
+			 * notification type, so every single post marked read or unread was
+			 * reported to the clients as a subscription change. The GUI reacts
+			 * to that by reloading the whole forum list and recomputing the
+			 * statistics of *every* subscribed forum, which is why toggling the
+			 * read status of one post in a large forum froze the interface for
+			 * seconds. Read status changes are already notified by
+			 * setMessageReadStatus() and markRead(). */
+			if(dynamic_cast<RsGxsMsgChange*>(gxsChange))
+				break;
+
 			auto ev = std::make_shared<RsGxsForumEvent>();
 			ev->mForumGroupId = gxsChange->mGroupId;
 			ev->mForumEventCode = RsForumEventCode::SUBSCRIBE_STATUS_CHANGED;
