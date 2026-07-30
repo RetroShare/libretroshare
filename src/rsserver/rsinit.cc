@@ -1497,12 +1497,12 @@ int RsServer::StartupRetroShare()
         /**** Calendar GXS service ****/
 
         RsGeneralDataService* calendar_ds = new RsDataService(currGxsDir + "/", "calendar_db",
-                                                            RS_SERVICE_GXS_TYPE_CALENDAR, NULL, rsInitConfig->gxs_passwd);
+                                                            static_cast<uint16_t>(RsServiceType::CALENDAR), NULL, rsInitConfig->gxs_passwd);
 
         p3GxsCalendar *mGxsCalendar = new p3GxsCalendar(calendar_ds, NULL, mGxsIdService);
 
         RsGxsNetService* calendar_ns = new RsGxsNetService(
-		            RS_SERVICE_GXS_TYPE_CALENDAR, calendar_ds, nxsMgr,
+		            static_cast<uint16_t>(RsServiceType::CALENDAR), calendar_ds, nxsMgr,
 		            mGxsCalendar, mGxsCalendar->getServiceInfo(),
 		            mReputations, mGxsCircles, mGxsIdService,
                     pgpAuxUtils, mGxsNetTunnel,

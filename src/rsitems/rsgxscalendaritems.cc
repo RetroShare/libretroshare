@@ -26,7 +26,7 @@
 
 RsItem *RsGxsCalendarSerialiser::create_item(uint16_t service_id, uint8_t item_subtype) const
 {
-	if(service_id != RS_SERVICE_GXS_TYPE_CALENDAR)
+	if(service_id != static_cast<uint16_t>(RsServiceType::CALENDAR))
 		return nullptr;
 
 	switch(item_subtype)

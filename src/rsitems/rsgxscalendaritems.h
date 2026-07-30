@@ -34,7 +34,7 @@ const uint8_t RS_PKT_SUBTYPE_GXSCALENDAR_MSG_ITEM   = 0x02;
 class RsGxsCalendarGroupItem : public RsGxsGrpItem
 {
 public:
-	RsGxsCalendarGroupItem(): RsGxsGrpItem(RS_SERVICE_GXS_TYPE_CALENDAR, RS_PKT_SUBTYPE_GXSCALENDAR_GROUP_ITEM) {}
+	RsGxsCalendarGroupItem(): RsGxsGrpItem(static_cast<uint16_t>(RsServiceType::CALENDAR), RS_PKT_SUBTYPE_GXSCALENDAR_GROUP_ITEM) {}
 	virtual ~RsGxsCalendarGroupItem() override = default;
 
 	void clear();
@@ -50,7 +50,7 @@ public:
 class RsGxsCalendarMessageItem : public RsGxsMsgItem
 {
 public:
-	RsGxsCalendarMessageItem(): RsGxsMsgItem(RS_SERVICE_GXS_TYPE_CALENDAR, RS_PKT_SUBTYPE_GXSCALENDAR_MSG_ITEM) {}
+	RsGxsCalendarMessageItem(): RsGxsMsgItem(static_cast<uint16_t>(RsServiceType::CALENDAR), RS_PKT_SUBTYPE_GXSCALENDAR_MSG_ITEM) {}
 	virtual ~RsGxsCalendarMessageItem() override = default;
 
 	void clear();
@@ -66,7 +66,7 @@ public:
 class RsGxsCalendarSerialiser : public RsGxsCommentSerialiser
 {
 public:
-	RsGxsCalendarSerialiser() : RsGxsCommentSerialiser(RS_SERVICE_GXS_TYPE_CALENDAR) {}
+	RsGxsCalendarSerialiser() : RsGxsCommentSerialiser(static_cast<uint16_t>(RsServiceType::CALENDAR)) {}
 	virtual ~RsGxsCalendarSerialiser() override = default;
 
 	virtual RsItem *create_item(uint16_t service_id, uint8_t item_subtype) const override;

@@ -27,7 +27,7 @@
 RsGxsCalendar* rsGxsCalendar = nullptr;
 
 p3GxsCalendar::p3GxsCalendar(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs* gixs) :
-	RsGenExchange(gds, nes, new RsGxsCalendarSerialiser(), RS_SERVICE_GXS_TYPE_CALENDAR, gixs, calendarAuthenPolicy()),
+	RsGenExchange(gds, nes, new RsGxsCalendarSerialiser(), static_cast<uint16_t>(RsServiceType::CALENDAR), gixs, calendarAuthenPolicy()),
 	RsGxsCalendar(static_cast<RsGxsIface&>(*this)), GxsTokenQueue(this)
 {
 }
@@ -50,7 +50,7 @@ uint32_t p3GxsCalendar::calendarAuthenPolicy()
 
 RsServiceInfo p3GxsCalendar::getServiceInfo()
 {
-	return RsServiceInfo(RS_SERVICE_GXS_TYPE_CALENDAR,
+	return RsServiceInfo(static_cast<uint16_t>(RsServiceType::CALENDAR),
 	                     "gxscalendar",
 	                     1, 0, // major, minor version
 	                     1, 0); // min major, minor version
