@@ -1508,7 +1508,6 @@ int RsServer::StartupRetroShare()
                     pgpAuxUtils, mGxsNetTunnel,
                     RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
                     RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES |
-                    RsGxsNetServiceSyncFlags::DISTANT_SYNC |
                     RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS);
 
         mGxsCalendar->setNetworkExchangeService(calendar_ns);
