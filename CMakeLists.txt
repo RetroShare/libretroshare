@@ -30,6 +30,11 @@ option(
 	ON )
 
 option(
+	RS_USE_CALENDAR
+	"Build RetroShare with GXS Calendar service support"
+	ON )
+
+option(
 	RS_BITDHT
 	"Use bitdht (BitTorrent DHT own implementation) to look for online peers"
 	ON )
@@ -674,7 +679,6 @@ target_compile_definitions(
 	RS_ENABLE_GXS
 	GXS_ENABLE_SYNC_MSGS
 	RS_USE_GXS_DISTANT_SYNC
-	RS_USE_CALENDAR
 	RS_GXS_TRANS
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_001
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_002
@@ -707,6 +711,11 @@ if(RS_GXS_SEND_ALL)
 	target_compile_definitions(
 		${PROJECT_NAME} PUBLIC RS_GXS_SEND_ALL )
 endif(RS_GXS_SEND_ALL)
+
+if(RS_USE_CALENDAR)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_USE_CALENDAR )
+endif(RS_USE_CALENDAR)
 
 if(RS_BRODCAST_DISCOVERY)
 	## TODO: upstream option to disable tests building
