@@ -854,7 +854,19 @@ HEADERS += retroshare/rsgxschannels.h \
 SOURCES += services/p3gxschannels.cc \
 	services/p3gxscommon.cc \
 	rsitems/rsgxscommentitems.cc \
-	rsitems/rsgxschannelitems.cc \
+	rsitems/rsgxschannelitems.cc
+
+# GxsCalendar Service
+gxscalendar {
+	DEFINES *= RS_USE_CALENDAR
+
+	HEADERS += retroshare/rsgxscalendar.h \
+		services/p3gxscalendar.h \
+		rsitems/rsgxscalendaritems.h
+
+	SOURCES += services/p3gxscalendar.cc \
+		rsitems/rsgxscalendaritems.cc
+}
 
 wikipoos {
 	DEFINES *= RS_USE_WIKI

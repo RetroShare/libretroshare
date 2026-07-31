@@ -855,6 +855,9 @@ RsGRouter *rsGRouter = NULL ;
 #include "services/p3posted.h"
 #include "services/p3gxsforums.h"
 #include "services/p3gxschannels.h"
+#ifdef RS_USE_CALENDAR
+#include "services/p3gxscalendar.h"
+#endif
 
 #include "services/p3wiki.h"
 #include "services/p3wire.h"
@@ -1490,6 +1493,26 @@ int RsServer::StartupRetroShare()
 
     mGxsChannels->setNetworkExchangeService(gxschannels_ns) ;
 
+#ifdef RS_USE_CALENDAR
+        /**** Calendar GXS service ****/
+
+        RsGeneralDataService* calendar_ds = new RsDataService(currGxsDir + "/", "calendar_db",
+                                                            static_cast<uint16_t>(RsServiceType::CALENDAR), NULL, rsInitConfig->gxs_passwd);
+
+        p3GxsCalendar *mGxsCalendar = new p3GxsCalendar(calendar_ds, NULL, mGxsIdService);
+
+        RsGxsNetService* calendar_ns = new RsGxsNetService(
+		            static_cast<uint16_t>(RsServiceType::CALENDAR), calendar_ds, nxsMgr,
+		            mGxsCalendar, mGxsCalendar->getServiceInfo(),
+		            mReputations, mGxsCircles, mGxsIdService,
+                    pgpAuxUtils, mGxsNetTunnel,
+                    RsGxsNetServiceSyncFlags::DISCOVER_NEW_GROUPS |
+                    RsGxsNetServiceSyncFlags::AUTO_SYNC_MESSAGES |
+                    RsGxsNetServiceSyncFlags::SYNC_OLD_MSG_VERSIONS);
+
+        mGxsCalendar->setNetworkExchangeService(calendar_ns);
+#endif
+
 #ifdef RS_USE_PHOTO
         /**** Photo service ****/
         RsGeneralDataService* photo_ds = new RsDataService(currGxsDir + "/", "photoV2_db",
@@ -1533,6 +1556,9 @@ int RsServer::StartupRetroShare()
 #endif
         pqih->addService(gxsforums_ns, true);
         pqih->addService(gxschannels_ns, true);
+#ifdef RS_USE_CALENDAR
+        pqih->addService(calendar_ns, true);
+#endif
 #ifdef RS_USE_PHOTO
         pqih->addService(photo_ns, true);
 #endif
@@ -1647,6 +1673,9 @@ int RsServer::StartupRetroShare()
     interfaces.mPgpAuxUtils     = pgpAuxUtils;
     interfaces.mGxsForums       = mGxsForums;
     interfaces.mGxsChannels     = mGxsChannels;
+#ifdef RS_USE_CALENDAR
+    interfaces.mGxsCalendar     = mGxsCalendar;
+#endif
 	interfaces.mGxsTunnels = mGxsTunnels;
     interfaces.mReputations     = mReputations;
     interfaces.mPosted          = mPosted;
@@ -1669,6 +1698,9 @@ int RsServer::StartupRetroShare()
     rsPosted      = mPosted;
     rsGxsForums   = mGxsForums;
     rsGxsChannels = mGxsChannels;
+#ifdef RS_USE_CALENDAR
+    rsGxsCalendar = mGxsCalendar;
+#endif
     rsGxsTrans    = mGxsTrans;
 
 #if RS_USE_PHOTO
@@ -1743,6 +1775,9 @@ int RsServer::StartupRetroShare()
     // Turtle search for GXS services
 
 	mGxsNetTunnel->registerSearchableService(gxschannels_ns);
+#ifdef RS_USE_CALENDAR
+	mGxsNetTunnel->registerSearchableService(calendar_ns);
+#endif
 #ifdef RS_DEEP_FORUMS_INDEX
 	mGxsNetTunnel->registerSearchableService(gxsforums_ns);
 #endif
@@ -1789,6 +1824,10 @@ int RsServer::StartupRetroShare()
     mConfigMgr->addConfiguration("gxsforums_srv.cfg"  , mGxsForums);
     mConfigMgr->addConfiguration("gxschannels.cfg"    , gxschannels_ns);
 	mConfigMgr->addConfiguration("gxschannels_srv.cfg", mGxsChannels);
+#ifdef RS_USE_CALENDAR
+    mConfigMgr->addConfiguration("gxscalendar.cfg"    , calendar_ns);
+    mConfigMgr->addConfiguration("gxscalendar_srv.cfg", mGxsCalendar);
+#endif
     mConfigMgr->addConfiguration("gxscircles.cfg"     , gxscircles_ns);
     mConfigMgr->addConfiguration("gxscircles_srv.cfg" , mGxsCircles);
     mConfigMgr->addConfiguration("posted.cfg"         , posted_ns);
@@ -1966,6 +2005,9 @@ int RsServer::StartupRetroShare()
 #endif
 	startServiceThread(mGxsForums, "gxs forums");
 	startServiceThread(mGxsChannels, "gxs channels");
+#ifdef RS_USE_CALENDAR
+	startServiceThread(mGxsCalendar, "gxs calendar");
+#endif
 
 #if RS_USE_PHOTO
 	startServiceThread(mPhoto, "gxs photo");
@@ -1983,6 +2025,9 @@ int RsServer::StartupRetroShare()
 #endif
 	startServiceThread(gxsforums_ns, "gxs forums ns");
 	startServiceThread(gxschannels_ns, "gxs channels ns");
+#ifdef RS_USE_CALENDAR
+	startServiceThread(calendar_ns, "gxs calendar ns");
+#endif
 
 #if RS_USE_PHOTO
 	startServiceThread(photo_ns, "gxs photo ns");
@@ -2033,6 +2078,9 @@ int RsServer::StartupRetroShare()
     mRegisteredDataServices.push_back(gxsid_ds);
     mRegisteredDataServices.push_back(gxsforums_ds);
     mRegisteredDataServices.push_back(gxschannels_ds);
+#ifdef RS_USE_CALENDAR
+    mRegisteredDataServices.push_back(calendar_ds);
+#endif
     mRegisteredDataServices.push_back(gxscircles_ds);
     mRegisteredDataServices.push_back(gxstrans_ds);
     mRegisteredDataServices.push_back(posted_ds);

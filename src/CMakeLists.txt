@@ -528,6 +528,22 @@ list(
 	services/p3serviceinfo.h
 	services/p3statusservice.h
 	services/rseventsservice.h )
+
+if(RS_USE_CALENDAR)
+	list(
+		APPEND RS_PUBLIC_HEADERS
+		retroshare/rsgxscalendar.h )
+
+	list(
+		APPEND RS_SOURCES
+		rsitems/rsgxscalendaritems.cc
+		services/p3gxscalendar.cc )
+
+	list(
+		APPEND RS_IMPLEMENTATION_HEADERS
+		rsitems/rsgxscalendaritems.h
+		services/p3gxscalendar.h )
+endif(RS_USE_CALENDAR)
 	
 #./services/p3wiki.cc
 #./services/p3wiki.h
