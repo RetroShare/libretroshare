@@ -21,7 +21,6 @@
  *                                                                             *
  *******************************************************************************/
 #include "services/p3gxschannels.h"
-#include "gxs/rsgxsprofiler.h"
 #include "rsitems/rsgxschannelitems.h"
 #include "util/radix64.h"
 #include "util/rsmemory.h"
@@ -141,8 +140,7 @@ uint32_t p3GxsChannels::channelsAuthenPolicy()
 
 /** Above this share of a channel's messages, reading them by explicit id costs
  * more than scanning the group once, so getChannelAllContent() stops filtering
- * out superseded post versions and falls back to reading everything. Tune with
- * the RS_GXS_PROFILE output of getChannelAllContent(). */
+ * out superseded post versions and falls back to reading everything. */
 static const uint32_t MAX_READ_RATIO_FOR_VERSION_FILTERING = 66; // percent
 
 static const uint32_t GXS_CHANNELS_CONFIG_MAX_TIME_NOTIFY_STORAGE = 86400*30*2 ; // ignore notifications for 2 months
@@ -618,19 +616,14 @@ bool p3GxsChannels::groupShareKeys(
 bool p3GxsChannels::convertMsgItems( const uint32_t& token,
                                      std::vector<RsGxsChannelPost>& msgs,
                                      std::vector<RsGxsComment>& cmts,
-                                     std::vector<RsGxsVote>& vots,
-                                     long& getmsgdata_ms, long& convert_ms )
+                                     std::vector<RsGxsVote>& vots )
 {
-    RsGxsProfiler::Timer prof_timer;
-
 	GxsMsgDataMap msgData;
 	if(!RsGenExchange::getMsgData(token, msgData))
 	{
 		RsErr() << __PRETTY_FUNCTION__ << " ERROR in request" << std::endl;
 		return false;
 	}
-
-    getmsgdata_ms = prof_timer.lap();
 
 	GxsMsgDataMap::iterator mit = msgData.begin();
 
@@ -704,8 +697,6 @@ bool p3GxsChannels::convertMsgItems( const uint32_t& token,
 		}
 	}
 
-    convert_ms = prof_timer.ms();
-
 	return true;
 }
 
@@ -717,24 +708,10 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 	RsDbg() << __PRETTY_FUNCTION__ << std::endl;
 #endif
 
-    long prof_getmsgdata_ms = 0, prof_convert_ms = 0;
-
-    if(!convertMsgItems(token, msgs, cmts, vots, prof_getmsgdata_ms, prof_convert_ms))
+    if(!convertMsgItems(token, msgs, cmts, vots))
         return false;
 
-    RsGxsProfiler::Timer prof_timer;
-
     sortPosts(msgs,cmts);	// stores old versions in the right place.
-
-    const long prof_sort_ms = prof_timer.ms();
-    const long prof_total_ms = prof_getmsgdata_ms + prof_convert_ms + prof_sort_ms;
-
-    RS_GXS_PROF( prof_total_ms, "getPostData      posts=" << msgs.size()
-                 << " comments=" << cmts.size() << " votes=" << vots.size()
-                 << " getMsgData=" << prof_getmsgdata_ms << "ms"
-                 << " toChannelPost=" << prof_convert_ms << "ms"
-                 << " sortPosts=" << prof_sort_ms << "ms"
-                 << " total=" << prof_total_ms << "ms" );
 
 	return true;
 }
@@ -1557,8 +1534,6 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
                                         std::vector<RsGxsComment>& comments,
                                         std::vector<RsGxsVote>& votes )
 {
-    RsGxsProfiler::Timer prof_timer;
-
     // A channel keeps every version of every edited post. Only the latest
     // version of each is ever displayed: sortPosts() used to read them all and
     // throw the superseded ones away, after their whole payload -- thumbnail
@@ -1612,8 +1587,6 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
             version_to_latest[version_id] = latest_meta.mMsgId;
     }
 
-    const long prof_versions_ms = prof_timer.lap();
-
     // An empty id set means "every message of the group" to the data store, so
     // an empty channel must not be turned into a request at all.
     if(wanted_msgs.empty())
@@ -1644,30 +1617,13 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
              || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
         return false;
 
-    const long prof_wait_ms = prof_timer.lap();
-
-    long prof_getmsgdata_ms = 0, prof_convert_ms = 0;
-
-    if(!convertMsgItems(token, posts, comments, votes, prof_getmsgdata_ms, prof_convert_ms))
+    if(!convertMsgItems(token, posts, comments, votes))
         return false;
 
     if(worth_filtering)
         applyPostVersions(posts, comments, retained, version_to_latest);
     else
         sortPosts(posts, comments);
-
-    const long prof_read_ms = prof_timer.ms();
-    const long prof_total_ms = prof_versions_ms + prof_wait_ms + prof_read_ms;
-
-    RS_GXS_PROF( prof_total_ms, "getChannelAllContent grp=" << channelId
-                 << " metas=" << metas.size()
-                 << " read_msgs=" << (worth_filtering ? wanted_msgs.size() : metas.size())
-                 << " skipped_versions=" << (worth_filtering ? (metas.size() - wanted_msgs.size()) : 0)
-                 << " filtered=" << (worth_filtering ? "yes" : "no")
-                 << " versions=" << prof_versions_ms << "ms"
-                 << " token_wait=" << prof_wait_ms << "ms"
-                 << " read=" << prof_read_ms << "ms"
-                 << " total=" << prof_total_ms << "ms" );
 
     return true;
 }

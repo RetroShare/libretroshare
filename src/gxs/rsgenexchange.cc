@@ -36,7 +36,6 @@
 #include "retroshare/rspeers.h"
 #include "rsitems/rsnxsitems.h"
 #include "rsgixs.h"
-#include "rsgxsprofiler.h"
 #include "rsgxsutil.h"
 #include "rsserver/p3face.h"
 #include "retroshare/rsevents.h"
@@ -1569,17 +1568,10 @@ bool RsGenExchange::getGroupData(const uint32_t &token, std::vector<RsGxsGrpItem
 
 bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 {
-    RsGxsProfiler::Timer prof_timer;
-    uint32_t prof_msgs = 0;
-
 	RS_STACK_MUTEX(mGenMtx) ;
-
-    const long prof_lock_ms = prof_timer.lap();
 
 	NxsMsgDataResult msgResult;
 	bool ok = mDataAccess->getMsgData(token, msgResult);
-
-    const long prof_fetch_ms = prof_timer.lap();
 
 	if(ok)
 	{
@@ -1605,7 +1597,6 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 					{
 						mItem->meta = *((*vit)->metaData); // get meta info from nxs msg
 						gxsMsgItems.push_back(mItem);
-						++prof_msgs;
 					}
 					else
 					{
@@ -1623,15 +1614,6 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			}
 		}
 	}
-
-    const long prof_deser_ms = prof_timer.ms();
-    const long prof_total_ms = prof_lock_ms + prof_fetch_ms + prof_deser_ms;
-
-    RS_GXS_PROF( prof_total_ms, "getMsgData       msgs=" << prof_msgs
-                 << " mGenMtx_wait=" << prof_lock_ms << "ms"
-                 << " fetch=" << prof_fetch_ms << "ms"
-                 << " deserialise=" << prof_deser_ms << "ms"
-                 << " total=" << prof_total_ms << "ms" );
 
 	return ok;
 }

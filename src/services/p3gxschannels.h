@@ -244,13 +244,11 @@ protected:	// made protected because it's all deprecated
 
     /** Turn the message items of a completed request into posts, comments and
      * votes. Shared by getPostData() and by getChannelAllContent(), which
-     * resolves post versions itself. The two long& outputs report timings to
-     * the caller so that it can emit a single profiling line. */
+     * resolves post versions itself. */
     bool convertMsgItems( const uint32_t& token,
                           std::vector<RsGxsChannelPost>& msgs,
                           std::vector<RsGxsComment>& cmts,
-                          std::vector<RsGxsVote>& vots,
-                          long& getmsgdata_ms, long& convert_ms );
+                          std::vector<RsGxsVote>& vots );
 
     /** What resolving a post's version chain on its metas yields, for the one
      * version that is actually kept and read from the database. */
