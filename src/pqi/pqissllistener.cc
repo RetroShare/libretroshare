@@ -878,6 +878,8 @@ int pqissllistener::finaliseConnection(int fd, SSL *ssl, const RsPeerId& peerId,
 	          "pqissllistener::finaliseConnection() matched peer " + peerId.toStdString()
 	          + " from " + sockaddr_storage_tostring(remote_addr) + " => handing to pqissl");
 
+	std::cerr << "pqissllistenner::finaliseConnection() connected to " << sockaddr_storage_tostring(remote_addr) << std::endl;
+
 	// hand off ssl conection.
 	pqissl *pqis = it -> second;
 	pqis -> accept(ssl, fd, remote_addr);

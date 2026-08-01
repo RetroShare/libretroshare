@@ -68,13 +68,13 @@ static const uint32_t 		MAX_MESSAGES_PER_SECONDS_PERIOD     =   10 ; // duration
 // identity starts, then one summary line per identity per REPORT_INTERVAL carrying the number of
 // items dropped in between. No error is hidden: signature mismatches and other genuine problems are
 // logged separately and unconditionally.
+//
+// No mutex: both callers sit in the chat item receiving path (p3ChatService::receiveChatQueue ->
+// handleRecvItem), which runs in a single thread.
 static void logBannedIdentityDrop(const RsGxsId& keyId)
 {
     static const rstime_t REPORT_INTERVAL = 60; // seconds
-    static RsMutex banned_drop_log_mtx("bannedDropLog");
     static std::map<RsGxsId,std::pair<uint32_t,rstime_t> > stats; // id -> (drops since last report, last report time)
-
-    RS_STACK_MUTEX(banned_drop_log_mtx);
 
     rstime_t now = time(nullptr);
     auto it = stats.find(keyId);
