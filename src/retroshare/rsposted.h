@@ -138,12 +138,19 @@ struct RsGxsPostedEvent: RsEvent
 {
 	RsGxsPostedEvent():
 	    RsEvent(RsEventType::GXS_POSTED),
-	    mPostedEventCode(RsPostedEventCode::UNKNOWN) {}
+	    mPostedEventCode(RsPostedEventCode::UNKNOWN),
+	    mPostedMsgsRead(false) {}
 
 	RsPostedEventCode mPostedEventCode;
 	RsGxsGroupId mPostedGroupId;
 	RsGxsMessageId mPostedMsgId;
 	RsGxsMessageId mPostedThreadId;
+
+	/** For batched READ_STATUS_CHANGED events (e.g. "mark all as read"): the
+	 * messages affected and their new read state. Empty for single-message
+	 * events, which use mPostedMsgId as usual. */
+	std::vector<RsGxsMessageId> mPostedMsgIds;
+	bool mPostedMsgsRead;
 
 	///* @see RsEvent @see RsSerializable
 	void serial_process( RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
@@ -153,6 +160,8 @@ struct RsGxsPostedEvent: RsEvent
 		RS_SERIAL_PROCESS(mPostedGroupId);
 		RS_SERIAL_PROCESS(mPostedMsgId);
 		RS_SERIAL_PROCESS(mPostedThreadId);
+		RS_SERIAL_PROCESS(mPostedMsgIds);
+		RS_SERIAL_PROCESS(mPostedMsgsRead);
 	}
 
 	~RsGxsPostedEvent() override;

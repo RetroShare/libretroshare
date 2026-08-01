@@ -728,18 +728,25 @@ bool p3Posted::setPostReadStatus(const RsGxsGroupId& boardId, const std::vector<
         tokens.push_back(token);
     }
 
-    // All tokens complete in the same tick, so waiting on the last is enough.
-    waitToken(tokens.back(), std::chrono::milliseconds(30000));
+    // They all normally complete in the same tick, but do not rely on the
+    // completion order: wait on every token. All the waits after the first
+    // completed one return immediately.
+    for(uint32_t token : tokens)
+        waitToken(token, std::chrono::milliseconds(30000));
 
     RsGxsGrpMsgIdPair p;
     for(uint32_t token : tokens)
         acknowledgeMsg(token, p);
 
-    // One single event for the whole batch (consumers only need the group id).
+    // One single event for the whole batch, carrying the affected message ids
+    // so that consumers (GUI, webUI) can update their view without reloading
+    // the whole board.
     if(rsEvents)
     {
         auto ev = std::make_shared<RsGxsPostedEvent>();
         ev->mPostedGroupId   = boardId;
+        ev->mPostedMsgIds    = msgIds;
+        ev->mPostedMsgsRead  = read;
         ev->mPostedEventCode = RsPostedEventCode::READ_STATUS_CHANGED;
         rsEvents->postEvent(ev);
     }

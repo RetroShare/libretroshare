@@ -2062,8 +2062,11 @@ bool p3GxsChannels::setMessageReadStatus(const RsGxsGroupId& channelId, const st
 		tokens.push_back(token);
 	}
 
-	// All tokens complete in the same tick, so waiting on the last is enough.
-	waitToken(tokens.back(), std::chrono::milliseconds(30000));
+	// They all normally complete in the same tick, but do not rely on the
+	// completion order: wait on every token. All the waits after the first
+	// completed one return immediately.
+	for(uint32_t token : tokens)
+		waitToken(token, std::chrono::milliseconds(30000));
 
 	RsGxsGrpMsgIdPair p;
 	for(uint32_t token : tokens)

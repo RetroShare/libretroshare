@@ -936,9 +936,11 @@ bool p3GxsForums::markRead(const RsGxsGroupId& forumId, const std::vector<RsGxsM
 		tokens.push_back(token);
 	}
 
-	// Wait for the whole batch to be processed. All tokens complete in the same
-	// tick, so waiting on the last one is enough.
-	waitToken(tokens.back(), std::chrono::milliseconds(30000));
+	// Wait for the whole batch to be processed. They all normally complete in
+	// the same tick, but do not rely on the completion order: wait on every
+	// token. All the waits after the first completed one return immediately.
+	for(uint32_t token : tokens)
+		waitToken(token, std::chrono::milliseconds(30000));
 
 	RsGxsGrpMsgIdPair p;
 	for(uint32_t token : tokens)
