@@ -286,8 +286,27 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 			}
 			break;
 		}
-		case RsGxsNotify::TYPE_PROCESSED: // happens when the group is subscribed
+		case RsGxsNotify::TYPE_PROCESSED:
 		{
+			/* TYPE_PROCESSED is emitted for two unrelated things:
+			 *
+			 *  - a *group* meta change (RsGenExchange::processGrpMetaChanges),
+			 *    which for forums means the subscription status changed;
+			 *  - a *message* meta change (RsGenExchange::processMsgMetaChanges),
+			 *    i.e. a read/unread or keep-forever status change.
+			 *
+			 * Unlike the other services, which only look at TYPE_PROCESSED
+			 * inside their group change branch, this switch is on the raw
+			 * notification type, so every single post marked read or unread was
+			 * reported to the clients as a subscription change. The GUI reacts
+			 * to that by reloading the whole forum list and recomputing the
+			 * statistics of *every* subscribed forum, which is why toggling the
+			 * read status of one post in a large forum froze the interface for
+			 * seconds. Read status changes are already notified by
+			 * setMessageReadStatus() and markRead(). */
+			if(dynamic_cast<RsGxsMsgChange*>(gxsChange))
+				break;
+
 			auto ev = std::make_shared<RsGxsForumEvent>();
 			ev->mForumGroupId = gxsChange->mGroupId;
 			ev->mForumEventCode = RsForumEventCode::SUBSCRIBE_STATUS_CHANGED;
@@ -1058,6 +1077,25 @@ bool p3GxsForums::getForumGroupStatistics(const RsGxsGroupId& ForumId,GxsGroupSt
 
 bool p3GxsForums::getForumStatistics(const RsGxsGroupId& forumId,RsGxsForumStatistics& stat)
 {
+    // NOTE: this rebuilds the whole post hierarchy just to increment three
+    // counters, which is expensive on a large forum. It cannot be replaced by
+    // the generic RsGxsDataAccess::getGroupStatistic(): that one collapses post
+    // versions with
+    //
+    //     if(!mOrigMsgId.isNull() && mOrigMsgId != mMsgId) obsolete.insert(mOrigMsgId)
+    //
+    // which only ever marks the *original* message obsolete. Every edit of a
+    // post carries mOrigMsgId = the original, so a post edited N times is
+    // counted N times instead of once, and superseded versions that were never
+    // displayed keep their unread flag forever. computeMessagesHierarchy() below
+    // does it properly: it groups the versions, merges chains, checks that the
+    // editor is the original author or a moderator, and keeps only the most
+    // recent one.
+    //
+    // Making this cheap means factoring that version collapsing out of
+    // computeMessagesHierarchy() so both share it -- not reimplementing the rule
+    // a second time.
+
     // 1 - get group data
 
     std::vector<RsGxsForumGroup> groups;
