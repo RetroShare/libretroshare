@@ -739,7 +739,7 @@ void p3FileDatabase::cleanup()
                 // the GUI shows it as "Empty". Counting files instead makes both agree.
 
                 uint32_t file_count = 0 ;
-                mRemoteDirectories[i]->getDirectoryCumulatedFileCount(0,file_count) ;
+                mRemoteDirectories[i]->getDirectoryCumulatedFileCount(mRemoteDirectories[i]->root(),file_count) ;
                 bool dir_is_empty = (file_count == 0) ;
 
                 rstime_t last_contact = 0 ;
