@@ -364,9 +364,6 @@ list(
 	rsitems/rsrttitems.cc
 	rsitems/rsserviceinfoitems.cc )
 
-# NOTE: rswikiitems / rswireitems sources are added further below in the
-# services section, guarded by the RS_GXSWIKIPOS / RS_GXSTHEWIRE options.
-
 list(
 	APPEND RS_SOURCES
 	rsitems/rsgxschannelitems.cc
