@@ -903,8 +903,6 @@ bool p3MsgService::loadList(std::list<RsItem*>& load)
         }
         else if(nullptr != (msi = dynamic_cast<RsMailStorageItem*>(*it)))
         {
-            RsErr() << "Loaded msg with msg.to=" << msi->to ;
-
             /* STORE MsgID */
             if (msi->msg.msgId != 0)
             {
@@ -1013,6 +1011,7 @@ void p3MsgService::locked_checkForDuplicates()
     auto check = [&already_known_ids,&changed_msg_ids,this,replace_parent](std::map<uint32_t,RsMailStorageItem*>& mp,const std::string& name)
     {
         std::map<uint32_t,RsMailStorageItem*> new_mp;
+        uint32_t n_renamed = 0;
 
         for(std::map<uint32_t,RsMailStorageItem*>::iterator it(mp.begin());it!=mp.end();)
         {
@@ -1025,8 +1024,7 @@ void p3MsgService::locked_checkForDuplicates()
 
                 already_known_ids.insert(new_id);
                 changed_msg_ids.insert(std::to_string(new_id));
-
-                RsWarn() << "Duplicate ID " << it->first << " found in message box " << name << ". Will be replaced by new ID " << new_id << std::endl;
+                ++n_renamed;
 
                 // replace the old ID by the new, everywhere
 
@@ -1070,6 +1068,9 @@ void p3MsgService::locked_checkForDuplicates()
             already_known_ids.insert(it->first);
         }
         mp.insert(new_mp.begin(),new_mp.end());	// merge back the new list in the modified one
+
+        if(n_renamed > 0)
+            RsWarn() << n_renamed << " duplicate message ID(s) found in message box " << name << " and renumbered to random values." << std::endl;
     };
 
     check(mTrashMessages,"mTrashMessages");
@@ -1078,6 +1079,8 @@ void p3MsgService::locked_checkForDuplicates()
     check(mReceivedMessages,"mReceivedMessages");
 
     // now check msgOutgoing. The first element refers to an element in mSentMessages, so it's already been treated
+
+    uint32_t n_outgoing_renamed = 0;
 
     for(auto& it:msgOutgoing)
     {
@@ -1089,11 +1092,10 @@ void p3MsgService::locked_checkForDuplicates()
                 uint32_t new_id;
                 do { new_id = RsRandom::random_u32() ; } while(already_known_ids.find(new_id)!=already_known_ids.end());
 
-                RsWarn() << "Duplicate ID " << sit.first << " found in msgOutgoing. Will be replaced by new ID " << new_id << std::endl;
-
                 to_switch[sit.first] = new_id;
                 changed_msg_ids.insert(std::to_string(new_id));
                 already_known_ids.insert(new_id);
+                ++n_outgoing_renamed;
             }
             else
                 already_known_ids.insert(sit.first);
@@ -1101,6 +1103,9 @@ void p3MsgService::locked_checkForDuplicates()
         for(auto sit:to_switch)
             replace_first(it.second,sit.first,sit.second);
     }
+
+    if(n_outgoing_renamed > 0)
+        RsWarn() << n_outgoing_renamed << " duplicate message ID(s) found in msgOutgoing and renumbered to random values." << std::endl;
 
     mAllMessageIds = already_known_ids;
 

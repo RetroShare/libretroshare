@@ -3749,7 +3749,7 @@ bool RsGxsNetService::encryptSingleNxsItem(RsNxsItem *item, const RsGxsCircleId&
 
 	if(!mCircles->recipients(destination_circle,destination_group,recipients))
 	{
-		std::cerr << "  (EE) Cannot encrypt transaction: recipients list not available. Should re-try later." << std::endl;
+		RsWarn() << "Cannot encrypt transaction: recipients list not available for circle " << destination_circle << ". Will re-try later." ;
         	status = RS_NXS_ITEM_ENCRYPTION_STATUS_CIRCLE_ERROR ;
 		return false ;
 	}

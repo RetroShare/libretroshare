@@ -54,6 +54,12 @@ static const uint32_t PGP_CERTIFICATE_LIMIT_MAX_PASSWD_SIZE = 1024 ;
 //#define DEBUG_PGPHANDLER 1
 //#define PGPHANDLER_DSA_SUPPORT
 
+// When set, dumps the full parsed keyring at load time: one "type/Key id/fingerprint" line
+// plus one "N signers" line per key. That is ~2 lines per key of pure inventory (thousands of
+// lines with a large keyring) and hides no error, since key-parse failures throw. The
+// "Loaded N public keys" summary is always printed regardless. Off by default.
+//#define DEBUG_PGP_KEYRING_DUMP 1
+
 #define DEBUG_RNP 1
 #define NOT_IMPLEMENTED RsErr() << " function " << __PRETTY_FUNCTION__ << " Not implemented yet." << std::endl; assert(false); return false;
 
@@ -344,7 +350,9 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
     bool have_secret = false;
     rnp_key_have_secret(key_handle,&have_secret);
 
+#ifdef DEBUG_PGP_KEYRING_DUMP
     RsInfo() << (have_secret?"  [SECRET]":"          ") << " type: " << key_alg << "-" << key_bits << "  Key id: " << key_id<< " fingerprint: " << key_fprint << " Username: \"" << key_uid << "\"" ;
+#endif
 
     auto fill_cert = [key_alg,key_fprint](PGPCertificateInfo& cert,char *key_uid,const std::set<RsPgpId>& signers)
     {
@@ -375,7 +383,9 @@ void RNPPGPHandler::initCertificateInfo(const rnp_key_handle_t& key_handle)
     size_t signature_count = 0;
     rnp_key_get_signature_count(key_handle,&signature_count);
 
+#ifdef DEBUG_PGP_KEYRING_DUMP
     RsDbg() << "Key " << key_id << " has " << signature_count << " signers." ;
+#endif
 
     for(size_t i=0;i<signature_count;++i)
     {
