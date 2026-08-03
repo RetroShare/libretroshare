@@ -138,6 +138,16 @@ bool DirectoryStorage::getDirectoryUpdateTime   (EntryIndex index,rstime_t& upda
 bool DirectoryStorage::getDirectoryRecursModTime(EntryIndex index,rstime_t& rec_md_TS) const { RS_STACK_MUTEX(mDirStorageMtx) ; return mFileHierarchy->getTS(index,rec_md_TS,&InternalFileHierarchyStorage::DirEntry::dir_most_recent_time); }
 bool DirectoryStorage::getDirectoryLocalModTime (EntryIndex index,rstime_t& loc_md_TS) const { RS_STACK_MUTEX(mDirStorageMtx) ; return mFileHierarchy->getTS(index,loc_md_TS,&InternalFileHierarchyStorage::DirEntry::dir_modtime         ); }
 
+bool DirectoryStorage::getDirectoryCumulatedFileCount(EntryIndex index,uint32_t& file_count) const
+{
+    RS_STACK_MUTEX(mDirStorageMtx) ;
+    const InternalFileHierarchyStorage::DirEntry *d = mFileHierarchy->getDirEntry(index) ;
+    if(d == nullptr)
+        return false ;
+    file_count = d->dir_cumulated_files ;
+    return true ;
+}
+
 bool DirectoryStorage::setDirectoryUpdateTime   (EntryIndex index,rstime_t  update_TS) { RS_STACK_MUTEX(mDirStorageMtx) ; return mFileHierarchy->setTS(index,update_TS,&InternalFileHierarchyStorage::DirEntry::dir_update_time     ); }
 bool DirectoryStorage::setDirectoryRecursModTime(EntryIndex index,rstime_t  rec_md_TS) { RS_STACK_MUTEX(mDirStorageMtx) ; return mFileHierarchy->setTS(index,rec_md_TS,&InternalFileHierarchyStorage::DirEntry::dir_most_recent_time); }
 bool DirectoryStorage::setDirectoryLocalModTime (EntryIndex index,rstime_t  loc_md_TS) { RS_STACK_MUTEX(mDirStorageMtx) ; return mFileHierarchy->setTS(index,loc_md_TS,&InternalFileHierarchyStorage::DirEntry::dir_modtime         ); }
