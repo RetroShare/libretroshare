@@ -218,6 +218,15 @@ private:
 	uint16_t mListeningPort;
 	std::string mBindingAddress;
 
+	/** True once the corresponding value has been explicitly supplied, either on
+	 * the command line or through the API. Such a value must not be silently
+	 * overridden by the one stored in jsonapi.cfg, which may be loaded later:
+	 * in retroshare-service and Android the config manager only exists after
+	 * login, hence the config is loaded after @see RsInit::startupWebServices
+	 * has already applied the supplied settings. @see loadList */
+	bool mListeningPortExplicit  = false;
+	bool mBindingAddressExplicit = false;
+
 	/// @see unProtectedRestart()
     rstime_t mRestartReqTS;
 
