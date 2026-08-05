@@ -1335,6 +1335,9 @@ void RsDataService::msgMetaWarmupThreadBody()
 
     int64_t last_rowid = 0;
     bool done = false;
+    uint64_t total_rows = 0;
+    uint32_t n_slices = 0;
+    auto t0 = std::chrono::steady_clock::now();
 
     while(!done && !mMsgMetaWarmupStop)
     {
@@ -1372,6 +1375,9 @@ void RsDataService::msgMetaWarmupThreadBody()
 
             delete c;
 
+            total_rows += n_rows;
+            ++n_slices;
+
             if(n_rows < WARMUP_SLICE_ROWS)
             {
                 // Last slice. Every group of this database now holds all its
@@ -1389,6 +1395,13 @@ void RsDataService::msgMetaWarmupThreadBody()
         if(!done)
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
+
+    if(done)
+        RsInfo() << mDbName << ": message meta cache warm-up completed: "
+                 << total_rows << " metas in " << n_slices << " slices, "
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - t0).count()
+                 << " ms" << std::endl;
 }
 
 int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaResult& msgMeta)
