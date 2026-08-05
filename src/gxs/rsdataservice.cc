@@ -1328,7 +1328,15 @@ void RsDataService::msgMetaWarmupThreadBody()
     // a deletion) are covered; until the scan completes, cold groups keep
     // being served by the indexed per-group query.
 
-    static const uint32_t WARMUP_SLICE_ROWS = 4096;
+    // The slice size adapts so that one slice -- hence one mDbMutex hold --
+    // stays around WARMUP_SLICE_TARGET_MS. With a fixed row count, a cold
+    // slice of a large-row database was measured at ~10 s, which is exactly
+    // the reader stall this thread exists to avoid.
+    static const int64_t WARMUP_SLICE_TARGET_MS = 250;
+    static const uint32_t WARMUP_SLICE_MIN_ROWS = 64;
+    static const uint32_t WARMUP_SLICE_MAX_ROWS = 4096;
+
+    uint32_t slice_rows = 256;
 
     std::list<std::string> columns(mMsgMetaColumns);
     columns.push_front("rowid");
@@ -1341,6 +1349,8 @@ void RsDataService::msgMetaWarmupThreadBody()
 
     while(!done && !mMsgMetaWarmupStop)
     {
+        auto slice_t0 = std::chrono::steady_clock::now();
+
         {
             RsStackMutex stack(mDbMutex);
 
@@ -1349,7 +1359,7 @@ void RsDataService::msgMetaWarmupThreadBody()
 
             RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, columns,
                         "rowid > " + std::to_string(last_rowid),
-                        "rowid LIMIT " + std::to_string(WARMUP_SLICE_ROWS));
+                        "rowid LIMIT " + std::to_string(slice_rows));
 
             if(!c)
             {
@@ -1378,7 +1388,7 @@ void RsDataService::msgMetaWarmupThreadBody()
             total_rows += n_rows;
             ++n_slices;
 
-            if(n_rows < WARMUP_SLICE_ROWS)
+            if(n_rows < slice_rows)
             {
                 // Last slice. Every group of this database now holds all its
                 // metas, including the ones that have no message at all and
@@ -1391,9 +1401,24 @@ void RsDataService::msgMetaWarmupThreadBody()
             }
         }
 
-        // Let the readers waiting on mDbMutex in between two slices.
         if(!done)
+        {
+            // Rescale the next slice towards the per-slice time target.
+            int64_t slice_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - slice_t0).count();
+
+            if(slice_ms > 0)
+            {
+                uint64_t next = (uint64_t)slice_rows * WARMUP_SLICE_TARGET_MS / slice_ms;
+                slice_rows = (uint32_t)std::min<uint64_t>(WARMUP_SLICE_MAX_ROWS,
+                                        std::max<uint64_t>(WARMUP_SLICE_MIN_ROWS, next));
+            }
+            else
+                slice_rows = WARMUP_SLICE_MAX_ROWS;
+
+            // Let the readers waiting on mDbMutex in between two slices.
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
     }
 
     if(done)
