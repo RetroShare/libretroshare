@@ -26,6 +26,7 @@
  * #define RS_DATA_SERVICE_DEBUG_CACHE 1
  ****/
 
+#include <chrono>
 #include <fstream>
 #include <util/rsdir.h>
 #include <algorithm>
@@ -132,6 +133,8 @@ RsDataService::RsDataService(const std::string &serviceDir, const std::string &d
     mUseCache = true;
     mMsgMetaDataCache_ContainsAllDatabase = false;
     mMsgMetaDataCache_ColdFullReads = 0;
+    mMsgMetaWarmupStarted = false;
+    mMsgMetaWarmupStop = false;
 
     initialise(isNewDatabase);
 
@@ -214,6 +217,12 @@ RsDataService::~RsDataService(){
     std::cerr << "RsDataService::~RsDataService()";
     std::cerr << std::endl;
 #endif
+
+    // Stop the cache warm-up thread before closing the DB it reads from. It
+    // checks the flag between two slices, so this waits one slice at most.
+    mMsgMetaWarmupStop = true;
+    if(mMsgMetaWarmupThread.joinable())
+        mMsgMetaWarmupThread.join();
 
     mDb->closeDb();
     delete mDb;
@@ -1292,7 +1301,7 @@ void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg
     return;
 }
 
-void RsDataService::locked_loadAllMsgMetaInOneScan()
+void RsDataService::msgMetaWarmupThreadBody()
 {
     // Read the meta of every message of the database in a single sequential
     // scan, and fill the per-group caches with the result.
@@ -1309,35 +1318,77 @@ void RsDataService::locked_loadAllMsgMetaInOneScan()
     // gxsforums_db (235 MB, 23 KB rows), cold cache: 20 per-group queries took
     // 29.4 s where the single scan took 2.1 s, and the scan does not get more
     // expensive as groups are added.
+    //
+    // Cold, that same scan was measured at up to 57 s on a real forums db, so
+    // it cannot run under mDbMutex in one go: it proceeds in slices of
+    // WARMUP_SLICE_ROWS rows by increasing rowid, taking the mutex only for
+    // the duration of one slice so that readers interleave between slices.
+    // Messages stored while the scan runs are put into the caches by
+    // storeMessage() itself, so rows the slices could miss (rowid reuse after
+    // a deletion) are covered; until the scan completes, cold groups keep
+    // being served by the indexed per-group query.
 
-    RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, mMsgMetaColumns, "", "");
+    static const uint32_t WARMUP_SLICE_ROWS = 4096;
 
-    if(!c)
+    std::list<std::string> columns(mMsgMetaColumns);
+    columns.push_front("rowid");
+
+    int64_t last_rowid = 0;
+    bool done = false;
+
+    while(!done && !mMsgMetaWarmupStop)
     {
-        RsErr() << __PRETTY_FUNCTION__ << ": failed to query message meta data" << std::endl;
-        return;
+        {
+            RsStackMutex stack(mDbMutex);
+
+            if(mMsgMetaDataCache_ContainsAllDatabase)
+                return;
+
+            RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, columns,
+                        "rowid > " + std::to_string(last_rowid),
+                        "rowid LIMIT " + std::to_string(WARMUP_SLICE_ROWS));
+
+            if(!c)
+            {
+                RsErr() << __PRETTY_FUNCTION__ << ": failed to query message meta data. Giving up cache warm-up." << std::endl;
+                return;
+            }
+
+            uint32_t n_rows = 0;
+            bool valid = c->moveToFirst();
+
+            while(valid)
+            {
+                last_rowid = c->getInt64(0);
+
+                auto m = locked_getMsgMeta(*c, 1);
+
+                if(m != nullptr)
+                    mMsgMetaDataCache[m->mGroupId].updateMeta(m->mMsgId, m);
+
+                ++n_rows;
+                valid = c->moveToNext();
+            }
+
+            delete c;
+
+            if(n_rows < WARMUP_SLICE_ROWS)
+            {
+                // Last slice. Every group of this database now holds all its
+                // metas, including the ones that have no message at all and
+                // would otherwise be re-queried forever.
+                for(auto& it: mMsgMetaDataCache)
+                    it.second.setCacheUpToDate(true);
+
+                mMsgMetaDataCache_ContainsAllDatabase = true;
+                done = true;
+            }
+        }
+
+        // Let the readers waiting on mDbMutex in between two slices.
+        if(!done)
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-
-    bool valid = c->moveToFirst();
-
-    while(valid)
-    {
-        auto m = locked_getMsgMeta(*c, 0);
-
-        if(m != nullptr)
-            mMsgMetaDataCache[m->mGroupId].updateMeta(m->mMsgId, m);
-
-        valid = c->moveToNext();
-    }
-
-    delete c;
-
-    // Every group of this database now holds all its metas, including the ones
-    // that have no message at all and would otherwise be re-queried forever.
-    for(auto& it: mMsgMetaDataCache)
-        it.second.setCacheUpToDate(true);
-
-    mMsgMetaDataCache_ContainsAllDatabase = true;
 }
 
 int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaResult& msgMeta)
@@ -1355,8 +1406,10 @@ int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaRes
     // GUI computes the statistics of each group with its own request. As soon as
     // a second group needs such a read, sweeping the database is what is
     // happening, and one sequential scan is cheaper than continuing group by
-    // group. See locked_loadAllMsgMetaInOneScan().
-    if(mUseCache && !mMsgMetaDataCache_ContainsAllDatabase)
+    // group. The scan runs on its own thread in mutex-released slices -- cold,
+    // it takes tens of seconds, and the caller possibly only needs a handful of
+    // metas from one group. See msgMetaWarmupThreadBody().
+    if(mUseCache && !mMsgMetaDataCache_ContainsAllDatabase && !mMsgMetaWarmupStarted)
     {
         uint32_t cold_groups = 0;
 
@@ -1365,7 +1418,10 @@ int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaRes
                 ++cold_groups;
 
         if(cold_groups + mMsgMetaDataCache_ColdFullReads > 1)
-            locked_loadAllMsgMetaInOneScan();
+        {
+            mMsgMetaWarmupStarted = true;
+            mMsgMetaWarmupThread = std::thread(&RsDataService::msgMetaWarmupThreadBody, this);
+        }
     }
 
     for(auto mit(reqIds.begin()); mit != reqIds.end(); ++mit)
