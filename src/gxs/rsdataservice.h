@@ -255,6 +255,8 @@ public:
      */
     int updateGroupMetaData(const GrpLocMetaData &meta) override;
 
+    int updateGroupMetaData(const std::vector<GrpLocMetaData>& metaList) override;
+
     /*!
      * Completely clear out data stored in
      * and returns this to a state

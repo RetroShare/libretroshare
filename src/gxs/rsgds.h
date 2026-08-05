@@ -266,6 +266,16 @@ public:
      */
     virtual int updateGroupMetaData(const GrpLocMetaData& meta) = 0;
 
+    /*!
+     * Update a batch of group meta data entries inside a single DB
+     * transaction. One transaction per entry means one fsync per entry,
+     * which freezes GXS services for seconds when many updates are queued
+     * (e.g. identity usage stamps at startup).
+     * @param metaList the meta data entries to update
+     * @return the number of entries successfully updated
+     */
+    virtual int updateGroupMetaData(const std::vector<GrpLocMetaData>& metaList) = 0;
+
     virtual int updateGroupKeys(const RsGxsGroupId& grpId,const RsTlvSecurityKeySet& keys,uint32_t subscribed_flags) = 0 ;
 
     /*!
