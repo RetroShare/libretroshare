@@ -124,6 +124,11 @@ public:
 	/// @see RsGxsForums::markRead
     virtual bool markRead(const RsGxsGrpMsgIdPair& messageId, bool read) override;
 
+	/// @see RsGxsForums::markRead (batch variant)
+    virtual bool markRead( const RsGxsGroupId& forumId,
+                           const std::vector<RsGxsMessageId>& msgIds,
+                           bool read ) override;
+
     /// @see RsGxsForums::updateReputationLevel
     virtual void updateReputationLevel(uint32_t forum_group_sign_flags,ForumPostEntry& e) const override;
 

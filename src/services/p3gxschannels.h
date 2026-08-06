@@ -106,6 +106,11 @@ protected:
     /// @see RsGxsChannels
     bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
+    /// @see RsGxsChannels (batch variant)
+    bool setMessageReadStatus( const RsGxsGroupId& channelId,
+                               const std::vector<RsGxsMessageId>& msgIds,
+                               bool read ) override;
+
     virtual bool groupShareKeys(const RsGxsGroupId &groupId, const std::set<RsPeerId>& peers) override;
 
     // no tokens... should be cached.
