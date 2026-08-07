@@ -5,7 +5,7 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-cmake_minimum_required(VERSION 4.4.0...4.4.1)
+cmake_minimum_required(VERSION 3.24...4.4.1)
 project(retroshare
 	VERSION 0.6.7
 	LANGUAGES CXX C

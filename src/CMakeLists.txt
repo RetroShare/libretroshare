@@ -11,9 +11,12 @@ target_sources(${PROJECT_NAME}
 
 	PRIVATE FILE_SET private_HEADERS TYPE HEADERS
 	BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-
-	PRIVATE FILE_SET SOURCES
 )
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4")
+	target_sources(${PROJECT_NAME}
+		PRIVATE FILE_SET SOURCES
+	)
+endif()
 
 list(APPEND RS_PUBLIC_HEADERS
 	retroshare/rsexpr.h
@@ -874,8 +877,16 @@ target_sources(${PROJECT_NAME}
 	## libretroshare doesn't hide implementation details properly so it
 	## is necessary to flag all implementation headers as public.
 	${RS_IMPLEMENTATION_HEADERS}
-
-	PRIVATE FILE_SET SOURCES
-	FILES
-	${RS_SOURCES}
 )
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4")
+	target_sources(${PROJECT_NAME}
+		PRIVATE FILE_SET SOURCES
+		FILES
+		${RS_SOURCES}
+	)
+else()
+	target_sources(${PROJECT_NAME}
+		PRIVATE
+		${RS_SOURCES}
+	)
+endif()
