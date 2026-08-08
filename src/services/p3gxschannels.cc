@@ -1552,8 +1552,14 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
     std::vector<RsMsgMetaData> post_metas;
     std::set<RsGxsMessageId> wanted_msgs;
 
+    // Only mThreadId tells posts apart from the rest: a post never has one
+    // (createChannelPost leaves it null), while a comment always carries the id
+    // of the post it belongs to and a vote the id of the post being commented.
+    // mParentId is not usable here: comments written under the old paradigm have
+    // a null one.
+
     for(auto& m: metas)
-        if(m.mThreadId.isNull() && m.mParentId.isNull())
+        if(m.mThreadId.isNull())
             post_metas.push_back(m);
         else
             wanted_msgs.insert(m.mMsgId);	// comments and votes are all kept
