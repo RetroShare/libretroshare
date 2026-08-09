@@ -445,6 +445,7 @@ public:
 
     /**
      * @brief getCustomStateString get your custom status message
+     * @jsonapi{development}
      * @return status message
      */
     virtual std::string getOwnCustomStateString() = 0;
