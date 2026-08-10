@@ -151,6 +151,8 @@ class ftFileCreator: public ftFileProvider
         // MP4 Smart Preview
         bool _mp4_index_found;
         uint64_t _mp4_index_offset;
+        bool _mp4_scan_abandoned;	/// the file is not a parseable MP4, or too many fruitless scans: stop looking
+        uint32_t _mp4_scan_attempts;	/// number of atom walks that ended without a conclusion
         bool checkForMp4Index();
 };
 
