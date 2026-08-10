@@ -38,6 +38,7 @@ extern RsPluginHandler *rsPlugins ;
 class p3Service ;
 class RsServiceControl ;
 class RsReputations ;
+class RsJsonApi;
 class RsTurtle ;
 class RsGxsTunnelService ;
 class RsDht ;
@@ -90,7 +91,7 @@ namespace resource_api
 // Plugin API version. Not used yet, but will be in the future the
 // main value that decides for compatibility.
 //
-#define RS_PLUGIN_API_VERSION        0x000101
+#define RS_PLUGIN_API_VERSION        0x000102
 
 // Used for the status of plugins.
 //
@@ -122,6 +123,7 @@ public:
     RsUtil::inited_ptr<RsDht>    mDht;
     RsUtil::inited_ptr<RsServiceControl> mServiceControl;
     RsUtil::inited_ptr<RsPluginHandler> mPluginHandler;
+    RsUtil::inited_ptr<RsJsonApi> mJsonApi;
 
     // gxs
     std::string     mGxsDir;
