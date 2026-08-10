@@ -144,6 +144,14 @@ struct RsMsgMetaData : RsSerializable
     void operator =(const RsGxsMsgMetaData& rGxsMeta);
     RsMsgMetaData(const RsGxsMsgMetaData& rGxsMeta) { operator=(rGxsMeta); }
 
+	/* The destructor above suppresses the implicit move operations, which makes
+	 * every message type embedding a meta non movable. Restore them, otherwise
+	 * growing or sorting a vector of messages copies each meta's strings. */
+	RsMsgMetaData(const RsMsgMetaData&) = default;
+	RsMsgMetaData& operator=(const RsMsgMetaData&) = default;
+	RsMsgMetaData(RsMsgMetaData&&) = default;
+	RsMsgMetaData& operator=(RsMsgMetaData&&) = default;
+
     RsGxsGroupId mGroupId;
     RsGxsMessageId mMsgId;
 
@@ -195,7 +203,16 @@ struct RsMsgMetaData : RsSerializable
 
 struct RsGxsGenericMsgData
 {
+	RsGxsGenericMsgData() = default;
 	virtual ~RsGxsGenericMsgData() = default; // making the type polymorphic
+
+	/* Declaring the destructor suppresses the implicit move operations, which
+	 * would make every derived message type non-movable and force deep copies
+	 * on vector growth and sorting. Bring them back explicitly. */
+	RsGxsGenericMsgData(const RsGxsGenericMsgData&) = default;
+	RsGxsGenericMsgData& operator=(const RsGxsGenericMsgData&) = default;
+	RsGxsGenericMsgData(RsGxsGenericMsgData&&) = default;
+	RsGxsGenericMsgData& operator=(RsGxsGenericMsgData&&) = default;
 
 	RsMsgMetaData mMeta;
 };

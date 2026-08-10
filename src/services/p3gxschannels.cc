@@ -138,6 +138,11 @@ uint32_t p3GxsChannels::channelsAuthenPolicy()
 	return policy;
 }
 
+/** Above this share of a channel's messages, reading them by explicit id costs
+ * more than scanning the group once, so getChannelAllContent() stops filtering
+ * out superseded post versions and falls back to reading everything. */
+static const uint32_t MAX_READ_RATIO_FOR_VERSION_FILTERING = 66; // percent
+
 static const uint32_t GXS_CHANNELS_CONFIG_MAX_TIME_NOTIFY_STORAGE = 86400*30*2 ; // ignore notifications for 2 months
 static const uint8_t  GXS_CHANNELS_CONFIG_SUBTYPE_NOTIFY_RECORD   = 0x01 ;
 
@@ -608,14 +613,11 @@ bool p3GxsChannels::groupShareKeys(
  * at the moment - fix it up later
  */
 
-bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannelPost>& msgs,
-                                 std::vector<RsGxsComment>& cmts,
-                                 std::vector<RsGxsVote>& vots)
+bool p3GxsChannels::convertMsgItems( const uint32_t& token,
+                                     std::vector<RsGxsChannelPost>& msgs,
+                                     std::vector<RsGxsComment>& cmts,
+                                     std::vector<RsGxsVote>& vots )
 {
-#ifdef GXSCHANNELS_DEBUG
-	RsDbg() << __PRETTY_FUNCTION__ << std::endl;
-#endif
-
 	GxsMsgDataMap msgData;
 	if(!RsGenExchange::getMsgData(token, msgData))
 	{
@@ -630,6 +632,8 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 		std::vector<RsGxsMsgItem*>& msgItems = mit->second;
 		std::vector<RsGxsMsgItem*>::iterator vit = msgItems.begin();
 
+		msgs.reserve(msgs.size() + msgItems.size());
+
 		for(; vit != msgItems.end(); ++vit)
 		{
 			RsGxsChannelPostItem* postItem =
@@ -639,7 +643,7 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 			{
 				RsGxsChannelPost msg;
 				postItem->toChannelPost(msg, true);
-				msgs.push_back(msg);
+				msgs.push_back(std::move(msg));
 				delete postItem;
 			}
 			else
@@ -692,6 +696,20 @@ bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannel
 			}
 		}
 	}
+
+	return true;
+}
+
+bool p3GxsChannels::getPostData( const uint32_t& token, std::vector<RsGxsChannelPost>& msgs,
+                                 std::vector<RsGxsComment>& cmts,
+                                 std::vector<RsGxsVote>& vots)
+{
+#ifdef GXSCHANNELS_DEBUG
+	RsDbg() << __PRETTY_FUNCTION__ << std::endl;
+#endif
+
+    if(!convertMsgItems(token, msgs, cmts, vots))
+        return false;
 
     sortPosts(msgs,cmts);	// stores old versions in the right place.
 
@@ -1476,9 +1494,14 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::ve
     for(const auto& id:original_versions)
         ids[id.second.first] = id.first;	// id.second.first is the the latest version of each post, since id.second has been sorted.
 
+    mPosts.reserve(ids.size());
+
     for(const auto& id_pair:ids)
     {
-        mPosts.push_back(posts[id_pair.first]);
+        // Moving from posts[id_pair.first] is safe: ids only holds the index of
+        // the latest version of each post, and the entries read below are older
+        // versions, which are never moved from since version chains are disjoint.
+        mPosts.push_back(std::move(posts[id_pair.first]));
         mPosts.back().mOlderVersions = original_versions[id_pair.second].second;
 
         // Also add up all comments counts from older versions
@@ -1491,7 +1514,7 @@ void p3GxsChannels::sortPosts(std::vector<RsGxsChannelPost>& posts,const std::ve
             }
     }
 
-    posts = mPosts;
+    posts = std::move(mPosts);
 
 #ifdef DEBUG_CHANNEL_MODEL
     std::cerr << "Final sorting result:" << std::endl;
@@ -1511,14 +1534,154 @@ bool p3GxsChannels::getChannelAllContent( const RsGxsGroupId& channelId,
                                         std::vector<RsGxsComment>& comments,
                                         std::vector<RsGxsVote>& votes )
 {
+    // A channel keeps every version of every edited post. Only the latest
+    // version of each is ever displayed: sortPosts() used to read them all and
+    // throw the superseded ones away, after their whole payload -- thumbnail
+    // included -- had been read from the database and deserialised. On a real
+    // channel that is the bulk of the bytes read.
+    //
+    // Resolve the version chains from the metas instead, which are small and
+    // usually already cached, and only read the payload of the messages that
+    // will actually be used.
+
+    std::vector<RsMsgMetaData> metas;
+
+    if(!getContentSummaries(channelId,metas))
+        return false;
+
+    std::vector<RsMsgMetaData> post_metas;
+    std::set<RsGxsMessageId> wanted_msgs;
+
+    // Only mThreadId tells posts apart from the rest: a post never has one
+    // (createChannelPost leaves it null), while a comment always carries the id
+    // of the post it belongs to and a vote the id of the post being commented.
+    // mParentId is not usable here: comments written under the old paradigm have
+    // a null one.
+
+    for(auto& m: metas)
+        if(m.mThreadId.isNull())
+            post_metas.push_back(m);
+        else
+            wanted_msgs.insert(m.mMsgId);	// comments and votes are all kept
+
+    std::function< RsMsgMetaData& (RsMsgMetaData&) > get_meta = [](RsMsgMetaData& m)->RsMsgMetaData& { return m; };
+    std::map<RsGxsMessageId,std::pair<uint32_t,std::set<RsGxsMessageId> > > original_versions;
+
+    sortPostMetas(post_metas, get_meta, original_versions);
+
+    // retained holds, for each post that will actually be read, its version set
+    // (what RsGxsChannelPost::mOlderVersions expects) and the mOrigMsgId that
+    // sortPostMetas() normalised to the top of the chain -- callers such as the
+    // GUI match edited posts on that value, so it must be carried over.
+    // version_to_latest maps any version id to the retained one, so that a
+    // comment written on a superseded version is still counted on the post.
+
+    std::map<RsGxsMessageId,RetainedPostVersions> retained;
+    std::map<RsGxsMessageId,RsGxsMessageId> version_to_latest;
+
+    for(const auto& ov_entry: original_versions)
+    {
+        const RsMsgMetaData& latest_meta(post_metas[ov_entry.second.first]);
+
+        wanted_msgs.insert(latest_meta.mMsgId);
+
+        auto& entry(retained[latest_meta.mMsgId]);
+        entry.mOrigMsgId = latest_meta.mOrigMsgId;
+        entry.mVersions  = ov_entry.second.second;
+
+        for(const auto& version_id: ov_entry.second.second)
+            version_to_latest[version_id] = latest_meta.mMsgId;
+    }
+
+    // An empty id set means "every message of the group" to the data store, so
+    // an empty channel must not be turned into a request at all.
+    if(wanted_msgs.empty())
+        return true;
+
+    // Skipping versions only pays off when there are enough of them to skip.
+    // Below that, asking for an explicit id list costs more than it saves: the
+    // database walks the group anyway, and reading most of a group by id is
+    // slower than scanning it once. In that case take the whole group and let
+    // sortPosts() resolve the versions as it always did.
+
+    const bool worth_filtering =
+            wanted_msgs.size() * 100 <= metas.size() * MAX_READ_RATIO_FOR_VERSION_FILTERING;
+
     uint32_t token;
     RsTokReqOptions opts;
     opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
 
-    if( !requestMsgInfo(token, opts,std::list<RsGxsGroupId>({channelId})) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
+    if(worth_filtering)
+    {
+        GxsMsgReq msgIds;
+        msgIds[channelId] = wanted_msgs;
+
+        if( !requestMsgInfo(token, opts, msgIds) || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
+            return false;
+    }
+    else if( !requestMsgInfo(token, opts, std::list<RsGxsGroupId>({channelId}))
+             || waitToken(token,std::chrono::milliseconds(60000)) != RsTokenService::COMPLETE )
         return false;
 
-    return getPostData(token, posts, comments,votes);
+    if(!convertMsgItems(token, posts, comments, votes))
+        return false;
+
+    if(worth_filtering)
+        applyPostVersions(posts, comments, retained, version_to_latest);
+    else
+        sortPosts(posts, comments);
+
+    return true;
+}
+
+void p3GxsChannels::applyPostVersions(
+        std::vector<RsGxsChannelPost>& posts,
+        const std::vector<RsGxsComment>& comments,
+        const std::map<RsGxsMessageId,RetainedPostVersions>& retained,
+        const std::map<RsGxsMessageId,RsGxsMessageId>& version_to_latest ) const
+{
+    // Same result as sortPosts(), but the version chains have already been
+    // resolved from the metas, so posts only holds the retained versions.
+
+    std::map<RsGxsMessageId,uint32_t> post_indices;
+
+    for(uint32_t i=0;i<posts.size();++i)
+    {
+        post_indices[posts[i].mMeta.mMsgId] = i;
+        posts[i].mCommentCount = 0;
+        posts[i].mUnreadCommentCount = 0;
+
+        auto it = retained.find(posts[i].mMeta.mMsgId);
+
+        if(it != retained.end())
+        {
+            posts[i].mOlderVersions   = it->second.mVersions;
+            posts[i].mMeta.mOrigMsgId = it->second.mOrigMsgId;
+        }
+    }
+
+    for(uint32_t i=0;i<comments.size();++i)
+    {
+        // The comment hangs off whichever version of the post was current when
+        // it was written, so map that back onto the retained version.
+
+        const RsGxsMessageId& thread_id(comments[i].mMeta.mThreadId);
+        auto vit = version_to_latest.find(thread_id);
+        auto it = post_indices.find((vit != version_to_latest.end()) ? vit->second : thread_id);
+
+        // Not finding the post is normal: because of sync periods we may hold
+        // comments for a post we never received.
+
+        if(it == post_indices.end())
+            continue;
+
+        auto& p(posts[it->second]);
+
+        ++p.mCommentCount;
+
+        if(IS_MSG_NEW(comments[i].mMeta.mMsgStatus))
+            ++p.mUnreadCommentCount;
+    }
 }
 
 bool p3GxsChannels::getChannelContent( const RsGxsGroupId& channelId,

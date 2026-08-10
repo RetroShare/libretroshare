@@ -46,6 +46,11 @@
 
 #define MSG_INDEX_GRPID std::string("INDEX_MESSAGES_GRPID")
 
+// Maximum number of message ids packed into a single "IN (...)" clause. Keeps
+// the generated SQL and sqlite's expression tree to a sane size while making
+// the per-statement preparation cost negligible.
+static const uint32_t MAX_MSG_IDS_PER_QUERY = 500;
+
 // generic
 #define KEY_NXS_DATA        std::string("nxsData")
 #define KEY_NXS_DATA_LEN    std::string("nxsDataLen")
@@ -1198,18 +1203,44 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
 		{
 			RS_STACK_MUTEX(mDbMutex);
 
-            // request each grp
-			for( std::set<RsGxsMessageId>::const_iterator sit = msgIdV.begin();
-			     sit!=msgIdV.end();++sit )
-			{
-                const RsGxsMessageId& msgId = *sit;
+            // Retrieve the requested messages in batches, using a single
+            // "msgId IN (...)" clause per batch. Preparing one statement per
+            // message dominates the cost as soon as a request covers more than
+            // a handful of them (a channel post and its comments, a forum
+            // thread, a filtered group request).
+            //
+            // The group is deliberately left out of the selection. Adding
+            // "grpId=..." makes sqlite pick INDEX_MESSAGES_GRPID over the
+            // implicit unique index on the message id: with no ANALYZE data it
+            // estimates an equality on a non unique index at ~10 rows, against
+            // one row per entry of the IN list, so the group looks far more
+            // selective than it is. Every batch then walks the whole group and
+            // filters, which measured as a constant ~60-95ms per batch no
+            // matter how few messages it returned. Selecting on the message id
+            // alone keeps the cost proportional to the number of ids asked for.
+            // Message ids are unique table wide, so the result is the same;
+            // locked_retrieveMessages() still drops anything from another group
+            // in case a caller mixes them up.
 
-                RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, withMeta ? mMsgColumnsWithMeta : mMsgColumns, KEY_GRP_ID+ "='" + grpId.toStdString()
-                                               + "' AND " + KEY_MSG_ID + "='" + msgId.toStdString() + "'", "");
+            const std::string selection_prefix = KEY_MSG_ID + " IN (";
+
+            for(auto sit = msgIdV.begin(); sit != msgIdV.end(); )
+            {
+                std::string selection = selection_prefix;
+
+                for(uint32_t i=0; i<MAX_MSG_IDS_PER_QUERY && sit!=msgIdV.end(); ++i,++sit)
+                {
+                    if(i > 0) selection += ",";
+                    selection += "'" + sit->toStdString() + "'";
+                }
+
+                selection += ")";
+
+                RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, withMeta ? mMsgColumnsWithMeta : mMsgColumns, selection, "");
 
                 if(c)
                 {
-                    locked_retrieveMessages(c, msgSet, withMeta ? mColMsg_WithMetaOffset : 0);
+                    locked_retrieveMessages(c, msgSet, withMeta ? mColMsg_WithMetaOffset : 0, &grpId);
                 }
 
                 delete c;
@@ -1232,11 +1263,18 @@ int RsDataService::retrieveNxsMsgs(const GxsMsgReq &reqIds, GxsMsgResult &msg,  
     return 1;
 }
 
-void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg *> &msgs, int metaOffset)
+void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg *> &msgs, int metaOffset,
+                                            const RsGxsGroupId* expected_grp)
 {
     bool valid = c->moveToFirst();
     while(valid){
         RsNxsMsg* m = locked_getMessage(*c);
+
+        if(m && expected_grp && m->grpId != *expected_grp)
+        {
+            delete m;
+            m = nullptr;
+        }
 
         if(m){
             if (metaOffset)
