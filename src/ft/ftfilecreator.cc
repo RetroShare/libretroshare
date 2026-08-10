@@ -41,6 +41,10 @@
  * #define FILE_DEBUG 1
  ******/
 
+/*******
+ * #define STREAMING_DEBUG 1
+ ******/
+
 #define CHUNK_MAX_AGE           120
 #define MAX_FTCHUNKS_PER_PEER    40
 
@@ -53,7 +57,9 @@
 ftFileCreator::ftFileCreator(const std::string& path, uint64_t size, const RsFileHash& hash,bool assume_availability)
 	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability), _mp4_index_found(false), _mp4_index_offset(0)
 {
+#ifdef STREAMING_DEBUG
     RsDbg() << "STREAMING: ftFileCreator CONSTRUCTOR for " << path;
+#endif
 	/* 
          * FIXME any inits to do?
          */
@@ -244,7 +250,9 @@ bool ftFileCreator::addFileData(uint64_t offset, uint32_t chunk_size, void *data
 		locked_notifyReceived(offset,chunk_size);
         
         // MP4 Smart Preview hook
+#ifdef STREAMING_DEBUG
         RsDbg() << "STREAMING: addFileData offset=" << offset << " strat=" << chunkMap.getStrategy();
+#endif
         if (!_mp4_index_found)
         {
              checkForMp4Index();
@@ -516,7 +524,9 @@ void ftFileCreator::setChunkStrategy(FileChunksInfo::ChunkStrategy s)
 #ifdef FILE_DEBUG
 	std::cerr << "ftFileCtreator: setting chunk strategy to " << s << std::endl ;
 #endif
+#ifdef STREAMING_DEBUG
     RsDbg() << "STREAMING: ftFileCreator::setChunkStrategy " << s;
+#endif
 	chunkMap.setStrategy(s) ;
 }
 
@@ -779,21 +789,27 @@ bool ftFileCreator::checkForMp4Index()
     // STRICT RULE: Only active in STREAMING_PRIO_END
     if (strat != FileChunksInfo::CHUNK_STRATEGY_STREAMING)
     {
-         // RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index ignored. Strategy=" << strat;
+#ifdef STREAMING_DEBUG
+         RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index ignored. Strategy=" << strat;
+#endif
          return false;
     }
 
+#ifdef STREAMING_DEBUG
     // Phase 1: Just log that we passed the guard
     RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index RUNNING. Strategy=" << strat << ". Parsing loop start.";
-    
+#endif
+
     // Phase 2: Atom Parsing (Observer Mode)
     if (_mp4_index_found) return true;
 
     // Open file to read atoms
     FILE* f = fopen(file_name.c_str(), "rb");
-    if (!f) 
+    if (!f)
     {
+#ifdef STREAMING_DEBUG
         RsDbg() << "STREAMING: Failed to open file " << file_name;
+#endif
         return false;
     }
 
@@ -820,29 +836,37 @@ bool ftFileCreator::checkForMp4Index()
              if (fread(&bigSize, 1, 8, f) == 8) realAtomSize = rs_endian_fix(bigSize);
         }
 
+#ifdef STREAMING_DEBUG
         // Create a null-terminated string for logging safely
         char typeStr[5] = {0};
         memcpy(typeStr, header.type, 4);
 
         RsDbg() << "STREAMING: Found atom '" << typeStr << "' at " << currentPos << " size " << realAtomSize;
+#endif
 
         if (strncmp(header.type, "moov", 4) == 0) {
+#ifdef STREAMING_DEBUG
             RsDbg() << "STREAMING: MOOV atom found at " << currentPos << " (Beginning of file?). Stop.";
+#endif
             _mp4_index_found = true;
             break;
         }
 
         if (strncmp(header.type, "mdat", 4) == 0) {
             uint64_t predictedMoov = currentPos + realAtomSize;
+#ifdef STREAMING_DEBUG
             RsDbg() << "STREAMING: MDAT found. Size: " << realAtomSize << ". Predicted MOOV at: " << predictedMoov;
-            
+#endif
+
             // Phase 3: Actuation
             // Calculate chunks covering the MOOV index (from predictedMoov to end of file)
             uint32_t chunkSize = ChunkMap::CHUNKMAP_FIXED_CHUNK_SIZE; 
             uint32_t startChunk = predictedMoov / chunkSize;
             uint32_t endChunk   = mSize / chunkSize;
             
+#ifdef STREAMING_DEBUG
             RsDbg() << "STREAMING: Setting High Priority Range: " << startChunk << " -> " << endChunk;
+#endif
             chunkMap.setHighPriorityRange(startChunk, endChunk);
 
             _mp4_index_found = true; 
@@ -853,8 +877,10 @@ bool ftFileCreator::checkForMp4Index()
         if (realAtomSize == 0 || currentPos >= mSize) break; 
         
         if (++safe_loop_count > 50) {
+#ifdef STREAMING_DEBUG
              RsDbg() << "STREAMING: Safety break (too many atoms)";
-             break; 
+#endif
+             break;
         }
     }
 
