@@ -24,6 +24,10 @@
  * #define DEBUG_FTCHUNK 1
  *********/
 
+/********
+ * #define STREAMING_DEBUG 1
+ *********/
+
 #ifdef DEBUG_FTCHUNK
 #include <assert.h>
 #endif
@@ -610,7 +614,9 @@ uint32_t ChunkMap::getAvailableChunk(const RsPeerId& peer_id,bool& map_is_too_ol
                 {
                     if (i < _high_priority_chunks.size() && _high_priority_chunks[i])
                     {
+#ifdef STREAMING_DEBUG
                         RsDbg() << "STREAMING: ChunkMap::getAvailableChunk: PRIORITY returning chunk " << i << " for peer " << peer_id;
+#endif
                         return i;
                     }
                     else
@@ -735,7 +741,9 @@ void ChunkMap::buildPlainMap(uint64_t size, CompressedChunkMap& map)
 
 void ChunkMap::setHighPriorityRange(uint32_t startChunk, uint32_t endChunk)
 {
+#ifdef STREAMING_DEBUG
     RsDbg() << "STREAMING: ChunkMap::setHighPriorityRange " << startChunk << " -> " << endChunk;
+#endif
 
     if (_high_priority_chunks.size() != _map.size())
         _high_priority_chunks.resize(_map.size(), false);
