@@ -445,8 +445,18 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
     std::cerr << std::endl;
     RsInfo() << "Configuring web services" ;
 
-    JsonApiServer* jas = new JsonApiServer();
-    bool jsonapi_needed = force_start_jsonapi;
+    // Plugins receive RsPlugInInterfaces during core startup, before the GUI
+    // calls startupWebServices(). Reuse the server created for that handoff so
+    // resource providers registered by plugins are not lost here.
+    JsonApiServer* jas = dynamic_cast<JsonApiServer*>(rsJsonApi);
+    if(!jas)
+    {
+        jas = new JsonApiServer();
+        rsJsonApi = jas;
+    }
+    // A plugin provider also requires the server even when the built-in WebUI
+    // is disabled. Providers were registered during plugin initialization.
+    bool jsonapi_needed = force_start_jsonapi || !jas->getResourceProviders().empty();
 
     // add jsonapi server to config manager so that it can save/load its tokens
     p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
@@ -1675,6 +1685,16 @@ int RsServer::StartupRetroShare()
 #endif
     interfaces.mServiceControl = serviceCtrl;
     interfaces.mPluginHandler  = mPluginsManager;
+#ifdef RS_JSONAPI
+    // The GUI configures web services after plugins are initialized. Create
+    // the server now so plugins can register providers in setInterfaces().
+    // startupWebServices() will configure and reuse this same instance later.
+    if(!rsJsonApi)
+        rsJsonApi = new JsonApiServer();
+    interfaces.mJsonApi = rsJsonApi;
+#else
+    interfaces.mJsonApi = nullptr;
+#endif
     // gxs
     interfaces.mGxsDir          = currGxsDir;
     interfaces.mIdentity        = mGxsIdService;
