@@ -22,6 +22,7 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
 #include "util/rsdebug.h"
 #include "util/rsendian.h"
@@ -48,6 +49,27 @@
 #define CHUNK_MAX_AGE           120
 #define MAX_FTCHUNKS_PER_PEER    40
 
+// MP4 Smart Preview. checkForMp4Index() is called from addFileData(), i.e. once per received
+// data block, and each call re-opens and re-walks the partial file. These two constants keep
+// that cost bounded: a file whose atom chain cannot be resolved is given up on for good.
+
+static const uint32_t MP4_ATOM_HEADER_SIZE     =  8 ;	//! size, then 4CC type
+static const uint32_t MP4_MAX_SCAN_ATTEMPTS    = 64 ;	//! fruitless walks before giving up
+
+//! Every ISO base media file starts with one of these boxes. Anything else is not an MP4,
+//! and no amount of additional data will turn it into one.
+
+static bool mp4LooksLikeIsoBmff(const char type[4])
+{
+	static const char * const known_boxes[] = { "ftyp","styp","moov","mdat","free","skip","wide","pnot","junk" } ;
+
+	for(uint32_t i=0;i<sizeof(known_boxes)/sizeof(known_boxes[0]);++i)
+		if(!strncmp(type,known_boxes[i],4))
+			return true ;
+
+	return false ;
+}
+
 /***********************************************************
 *
 *	ftFileCreator methods
@@ -55,7 +77,8 @@
 ***********************************************************/
 
 ftFileCreator::ftFileCreator(const std::string& path, uint64_t size, const RsFileHash& hash,bool assume_availability)
-	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability), _mp4_index_found(false), _mp4_index_offset(0)
+	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability), _mp4_index_found(false), _mp4_index_offset(0),
+	  _mp4_scan_abandoned(false), _mp4_scan_attempts(0)
 {
 #ifdef STREAMING_DEBUG
     RsDbg() << "STREAMING: ftFileCreator CONSTRUCTOR for " << path;
@@ -253,7 +276,7 @@ bool ftFileCreator::addFileData(uint64_t offset, uint32_t chunk_size, void *data
 #ifdef STREAMING_DEBUG
         RsDbg() << "STREAMING: addFileData offset=" << offset << " strat=" << chunkMap.getStrategy();
 #endif
-        if (!_mp4_index_found)
+        if (!_mp4_index_found && !_mp4_scan_abandoned)
         {
              checkForMp4Index();
         }
@@ -795,13 +818,32 @@ bool ftFileCreator::checkForMp4Index()
          return false;
     }
 
+    // Phase 2: Atom Parsing (Observer Mode)
+    if (_mp4_index_found) return true;
+
+    // The atom chain starts at offset 0. Until the head of the file has actually been
+    // received, reading it only returns the holes of the sparse partial file, so there is
+    // nothing to parse and no reason to touch the disk at all.
+
+    if (!chunkMap.isChunkAvailable(0, MP4_ATOM_HEADER_SIZE))
+        return false;
+
+    // We are called once per received data block and each walk re-opens the file, so bound
+    // the number of walks that end without a verdict.
+
+    if (++_mp4_scan_attempts > MP4_MAX_SCAN_ATTEMPTS)
+    {
+#ifdef STREAMING_DEBUG
+        RsDbg() << "STREAMING: giving up on the MP4 index of " << file_name << " after " << MP4_MAX_SCAN_ATTEMPTS << " scans";
+#endif
+        _mp4_scan_abandoned = true;
+        return false;
+    }
+
 #ifdef STREAMING_DEBUG
     // Phase 1: Just log that we passed the guard
     RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index RUNNING. Strategy=" << strat << ". Parsing loop start.";
 #endif
-
-    // Phase 2: Atom Parsing (Observer Mode)
-    if (_mp4_index_found) return true;
 
     // Open file to read atoms
     FILE* f = fopen(file_name.c_str(), "rb");
@@ -825,8 +867,20 @@ bool ftFileCreator::checkForMp4Index()
 
     while (true)
     {
-        if (fseek(f, currentPos, SEEK_SET) != 0 || fread(&header, 1, 8, f) != 8)
+        if (fseek(f, currentPos, SEEK_SET) != 0 || fread(&header, 1, MP4_ATOM_HEADER_SIZE, f) != MP4_ATOM_HEADER_SIZE)
             break;
+
+        // A file that does not even begin with an ISO-BMFF box will never become one: stop
+        // here for good rather than coming back at every single block of the transfer.
+
+        if (currentPos == 0 && !mp4LooksLikeIsoBmff(header.type))
+        {
+#ifdef STREAMING_DEBUG
+            RsDbg() << "STREAMING: " << file_name << " is not an ISO base media file. No preview.";
+#endif
+            _mp4_scan_abandoned = true;
+            break;
+        }
 
         uint32_t atomSize = rs_endian_fix(header.size);
         uint64_t realAtomSize = atomSize;
