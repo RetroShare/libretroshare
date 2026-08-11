@@ -88,8 +88,8 @@ namespace resource_api
     class StateTokenServer;
 }
 
-// Plugin API version. Not used yet, but will be in the future the
-// main value that decides for compatibility.
+// Plugin API version. RsPluginManager rejects plugins built against a
+// different version before calling into their ABI.
 //
 #define RS_PLUGIN_API_VERSION        0x000102
 
@@ -123,7 +123,6 @@ public:
     RsUtil::inited_ptr<RsDht>    mDht;
     RsUtil::inited_ptr<RsServiceControl> mServiceControl;
     RsUtil::inited_ptr<RsPluginHandler> mPluginHandler;
-    RsUtil::inited_ptr<RsJsonApi> mJsonApi;
 
     // gxs
     std::string     mGxsDir;
@@ -143,6 +142,9 @@ public:
 #ifdef RS_USE_WIRE
     RsUtil::inited_ptr<RsWire>          mWire;
 #endif
+
+    // Keep new members appended so offsets used by older plugins do not move.
+    RsUtil::inited_ptr<RsJsonApi> mJsonApi;
 };
 
 class RsPlugin
