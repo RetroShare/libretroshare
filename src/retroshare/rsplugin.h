@@ -91,7 +91,7 @@ namespace resource_api
 // Plugin API version. RsPluginManager rejects plugins built against a
 // different version before calling into their ABI.
 //
-#define RS_PLUGIN_API_VERSION        0x000102
+#define RS_PLUGIN_API_VERSION        0x000103
 
 // Used for the status of plugins.
 //
