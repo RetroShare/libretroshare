@@ -1583,6 +1583,56 @@ int RsDataService::updateGroupMetaData(const GrpLocMetaData& meta)
     return 0;
 }
 
+int RsDataService::updateGroupMetaData(const std::vector<GrpLocMetaData>& metaList)
+{
+    if(metaList.empty())
+        return 0;
+
+    RsStackMutex stack(mDbMutex);
+
+    // Persist the whole batch inside a single transaction. Without this, every
+    // row update is its own implicit transaction (one fsync per group), which
+    // freezes the calling GXS service for seconds when many updates are queued
+    // (measured: ~1 s per update, 86 s backlogs on the identities service).
+    // We hold mDbMutex for the whole span so no other statement can slip into
+    // the transaction.
+    mDb->beginTransaction();
+
+    int count = 0;
+
+    for(const GrpLocMetaData& meta : metaList)
+    {
+        const RsGxsGroupId& grpId = meta.grpId;
+
+        if(mDb->sqlUpdate(GRP_TABLE_NAME, KEY_GRP_ID + "='" + grpId.toStdString() + "'", meta.val))
+        {
+            // If we use the cache, update the meta data immediately.
+            if(mUseCache)
+            {
+                RetroCursor* c = mDb->sqlQuery(GRP_TABLE_NAME, mGrpMetaColumns, "grpId='" + grpId.toStdString() + "'", "");
+
+                c->moveToFirst();
+
+                // temporarily disable the cache so that we get the value from the DB itself.
+                mUseCache=false;
+                auto meta_refreshed = locked_getGrpMeta(*c, 0);
+                mUseCache=true;
+
+                if(meta_refreshed)
+                    mGrpMetaDataCache.updateMeta(grpId,meta_refreshed);
+
+                delete c;
+            }
+
+            ++count;
+        }
+    }
+
+    mDb->commitTransaction();
+
+    return count;
+}
+
 int RsDataService::updateMessageMetaData(const MsgLocMetaData& metaData)
 {
 #ifdef RS_DATA_SERVICE_DEBUG_CACHE

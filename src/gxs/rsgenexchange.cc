@@ -2205,6 +2205,13 @@ void RsGenExchange::processGrpMetaChanges()
 
     std::list<RsGxsGroupId> grpChanged;
 
+    // Phase 1: process the masks, and collect the entries to write.
+
+    std::vector<GrpLocMetaData> toWrite;
+    std::vector<uint32_t> writeTokens;
+    toWrite.reserve(metaMap.size());
+    writeTokens.reserve(metaMap.size());
+
     std::map<uint32_t, GrpLocMetaData>::iterator mit;
     for (mit = metaMap.begin(); mit != metaMap.end(); ++mit)
     {
@@ -2215,19 +2222,13 @@ void RsGenExchange::processGrpMetaChanges()
         RsDbg() << " Processing GrpMetaChange for token " << token << std::endl;
 #endif
         // process mask
-        bool ok = processGrpMask(g.grpId, g.val);
-
-        ok = ok && (mDataStore->updateGroupMetaData(g) == 1);
-
-        if(ok)
+        if(processGrpMask(g.grpId, g.val))
         {
-            mDataAccess->updatePublicRequestStatus(token, RsTokenService::COMPLETE);
-            grpChanged.push_back(g.grpId);
+            toWrite.push_back(g);
+            writeTokens.push_back(token);
         }
         else
-        {
             mDataAccess->updatePublicRequestStatus(token, RsTokenService::FAILED);
-        }
 
         {
             RS_STACK_MUTEX(mGenMtx);
@@ -2236,6 +2237,27 @@ void RsGenExchange::processGrpMetaChanges()
             RsDbg() << " Processing GrpMetaChange Adding token " << token << " to mGrpNotify" << std::endl;
 #endif
         }
+    }
+
+    // Phase 2: write the whole batch in a single DB transaction. One call per
+    // entry means one fsync per entry, which was measured at ~1 s each and
+    // freezes the service tick for minutes when a backlog accumulates.
+
+    if(!toWrite.empty())
+    {
+        bool all_ok = mDataStore->updateGroupMetaData(toWrite) == (int)toWrite.size();
+
+        if(!all_ok)
+            RsErr() << __PRETTY_FUNCTION__ << " some group meta updates failed in a batch of " << toWrite.size() << " entries." << std::endl;
+
+        for(uint32_t i=0;i<toWrite.size();++i)
+            if(all_ok)
+            {
+                mDataAccess->updatePublicRequestStatus(writeTokens[i], RsTokenService::COMPLETE);
+                grpChanged.push_back(toWrite[i].grpId);
+            }
+            else
+                mDataAccess->updatePublicRequestStatus(writeTokens[i], RsTokenService::FAILED);
     }
 
     for(auto& groupId:grpChanged)
