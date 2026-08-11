@@ -1687,6 +1687,12 @@ int RsServer::StartupRetroShare()
     // The GUI configures web services after plugins are initialized. Create
     // the server now so plugins can register providers in setInterfaces().
     // startupWebServices() will configure and reuse this same instance later.
+    //
+    // This has to stay *after* the "if (rsJsonApi) connectToConfigManager()"
+    // block above: that block exists for retroshare-service and Android, where
+    // startupWebServices() already ran before login. Creating the server before
+    // it would make the GUI connect the config manager here and again in
+    // startupWebServices(), reloading jsonapi.cfg twice.
     if(!rsJsonApi)
         rsJsonApi = new JsonApiServer();
     interfaces.mJsonApi = rsJsonApi;
