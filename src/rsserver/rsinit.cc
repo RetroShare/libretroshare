@@ -454,9 +454,7 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
         jas = new JsonApiServer();
         rsJsonApi = jas;
     }
-    // A plugin provider also requires the server even when the built-in WebUI
-    // is disabled. Providers were registered during plugin initialization.
-    bool jsonapi_needed = force_start_jsonapi || !jas->getResourceProviders().empty();
+    bool jsonapi_needed = force_start_jsonapi;
 
     // add jsonapi server to config manager so that it can save/load its tokens
     p3ConfigMgr *cfgmgr = dynamic_cast<p3ConfigMgr*>(RsControl::instance()->configManager());
@@ -1710,8 +1708,27 @@ int RsServer::StartupRetroShare()
 	interfaces.mGxsTunnels = mGxsTunnels;
     interfaces.mReputations     = mReputations;
     interfaces.mPosted          = mPosted;
-    
+
+#ifdef RS_JSONAPI
+    // Service and Android start JSON API before plugins are initialized. Take
+    // one snapshot here so all newly registered providers are published with
+    // at most one core-owned restart after every plugin received interfaces.
+    const bool jsonApiWasRunning = rsJsonApi && rsJsonApi->isRunning();
+    const std::size_t jsonApiProviderCount = jsonApiWasRunning ?
+                rsJsonApi->getResourceProviders().size() : 0;
+#endif
 	mPluginsManager->setInterfaces(interfaces);
+#ifdef RS_JSONAPI
+    if( jsonApiWasRunning && jsonApiProviderCount !=
+            rsJsonApi->getResourceProviders().size() )
+    {
+        RsInfo() << "Restarting JSON API once to publish plugin resources.";
+        const std::error_condition restartError = rsJsonApi->restart(true);
+        if(restartError)
+            RsErr() << "Failed restarting JSON API after plugin initialization: "
+                    << restartError.message();
+    }
+#endif
 
 	// now add plugin objects inside the loop:
 	// 	- client services provided by plugins.

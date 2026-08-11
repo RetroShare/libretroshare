@@ -208,10 +208,14 @@ public:
 	 * should take care of not using a path range already used by the jsonAPI
 	 * server
 	 */
+	using ResourceProviderSet = std::set<
+	        std::reference_wrapper<const JsonApiResourceProvider>,
+	        std::less<const JsonApiResourceProvider> >;
+
 	virtual void registerResourceProvider(const JsonApiResourceProvider&) = 0;
 	virtual void unregisterResourceProvider(const JsonApiResourceProvider&) = 0;
 	virtual bool hasResourceProvider(const JsonApiResourceProvider&) = 0;
-    virtual const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& getResourceProviders() const =0;
+	virtual ResourceProviderSet getResourceProviders() const = 0;
 
 	/**
 	 * @brief This function should be used by JSON API clients that aren't
