@@ -1723,10 +1723,25 @@ int RsServer::StartupRetroShare()
             rsJsonApi->getResourceProviders().size() )
     {
         RsInfo() << "Restarting JSON API once to publish plugin resources.";
-        const std::error_condition restartError = rsJsonApi->restart(true);
-        if(restartError)
-            RsErr() << "Failed restarting JSON API after plugin initialization: "
-                    << restartError.message();
+
+        /* The restart must not run on the JSON API server thread.
+         * StartupRetroShare() is reached from RsLoginHelper::attemptLogin() and
+         * createLocationV2(), both exposed through the JSON API, and restbed
+         * serves its handlers on the thread that called Service::start(), which
+         * is JsonApiServer::run() itself. restart() calls RsThread::fullstop(),
+         * and joining our own thread makes waitWhileStopping() bail out with an
+         * error instead of waiting; the subsequent RsThread::start() then fails
+         * with "attempt to start already running thread" and the server stays
+         * down for good. The /rsJsonApi/restart handler takes the same care.
+         * Dispatching also keeps the RESTART_BURST_PROTECTION wait, which is
+         * meant to throttle API clients, off the startup path. */
+        RsThread::async([]()
+        {
+            const std::error_condition restartError = rsJsonApi->restart(true);
+            if(restartError)
+                RsErr() << "Failed restarting JSON API after plugin "
+                        << "initialization: " << restartError.message();
+        });
     }
 #endif
 
