@@ -37,6 +37,11 @@ class RsJsonApi;
 /**
  * Pointer to global instance of RsJsonApi service implementation
  * @jsonapi{development}
+ *
+ * Beware that non-null does not imply configured: RsServer::StartupRetroShare()
+ * creates the server early so plugins can register resource providers, while
+ * the config manager, the authorized tokens, the listening port and the binding
+ * address are only applied later by RsInit::startupWebServices().
  */
 extern RsJsonApi* rsJsonApi;
 
@@ -203,15 +208,17 @@ public:
 	 */
 	virtual void connectToConfigManager(p3ConfigMgr& cfgmgr) = 0;
 
-	/**
-	 * This is used to add/remove new web services to JsonAPI. The client
-	 * should take care of not using a path range already used by the jsonAPI
-	 * server
-	 */
 	using ResourceProviderSet = std::set<
 	        std::reference_wrapper<const JsonApiResourceProvider>,
 	        std::less<const JsonApiResourceProvider> >;
 
+	/**
+	 * This is used to add/remove new web services to JsonAPI. The client
+	 * should take care of not using a path range already used by the jsonAPI
+	 * server.
+	 * @see getResourceProviders() returns a snapshot by value, so it stays
+	 * valid while another thread registers or unregisters a provider.
+	 */
 	virtual void registerResourceProvider(const JsonApiResourceProvider&) = 0;
 	virtual void unregisterResourceProvider(const JsonApiResourceProvider&) = 0;
 	virtual bool hasResourceProvider(const JsonApiResourceProvider&) = 0;
