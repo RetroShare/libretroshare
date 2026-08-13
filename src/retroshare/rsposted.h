@@ -242,6 +242,17 @@ public:
 	        std::vector<RsGxsVote>& votes ) = 0;
 
 	/**
+	 * @brief Get lightweight summaries for top-level posts in a board.
+	 * @jsonapi{development}
+	 * @param[in] boardId id of the board of which post summaries are requested
+	 * @param[out] summaries storage for post metadata, excluding comments and votes
+	 * @return false if something failed, true otherwise
+	 */
+	virtual bool getBoardPostSummaries(
+	        const RsGxsGroupId& boardId,
+	        std::vector<RsMsgMetaData>& summaries ) = 0;
+
+	/**
 	 * @brief Edit board details.
 	 * @jsonapi{development}
 	 * @param[in] board Board data (name, description...) with modifications

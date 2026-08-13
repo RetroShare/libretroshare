@@ -418,6 +418,28 @@ bool p3Posted::getBoardContent( const RsGxsGroupId& groupId,
 	return getPostData(token, posts, comments, votes);
 }
 
+bool p3Posted::getBoardPostSummaries(
+        const RsGxsGroupId& groupId,
+        std::vector<RsMsgMetaData>& summaries )
+{
+	uint32_t token;
+	RsTokReqOptions opts;
+	opts.mReqType = GXS_REQUEST_TYPE_MSG_META;
+
+	if( !requestMsgInfo(token, opts, std::list<RsGxsGroupId>({groupId})) ||
+	        waitToken(token, std::chrono::seconds(5)) != RsTokenService::COMPLETE )
+		return false;
+
+	GxsMsgMetaMap metaMap;
+	if( !RsGenExchange::getMsgMeta(token, metaMap) ) return false;
+
+	summaries.clear();
+	for( const auto& meta : metaMap[groupId] )
+		if( meta.mParentId.isNull() ) summaries.push_back(meta);
+
+	return true;
+}
+
 bool p3Posted::getBoardsSummaries(std::list<RsGroupMetaData>& boards )
 {
 	uint32_t token;
