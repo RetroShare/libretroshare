@@ -2236,7 +2236,8 @@ void RsLoginHelper::getLocations(std::vector<RsLoginHelper::Location>& store)
 std::error_condition RsLoginHelper::createLocationV2(
         RsPeerId& locationId, RsPgpId& pgpId,
         const std::string& locationName, const std::string& pgpName,
-        const std::string& password )
+        const std::string& password,
+        bool makeHidden, bool makeAutoTor )
 {
 	if(isLoggedIn()) return RsInitErrorNum::ALREADY_LOGGED_IN;
 	if(locationName.empty()) return RsInitErrorNum::INVALID_LOCATION_NAME;
@@ -2256,7 +2257,7 @@ std::error_condition RsLoginHelper::createLocationV2(
     RsLoginHandler::cachePgpPassphrase(password);
 
 	bool ret = RsAccounts::createNewAccount(
-	            pgpId, "", locationName, "", false, false, sslPassword,
+	            pgpId, "", locationName, "", makeHidden, makeAutoTor, sslPassword,
 	            locationId, errorMessage );
 	if(!ret)
 	{
