@@ -50,10 +50,17 @@ jobs:
         brew install
         cmake ninja pkg-config
         openssl@3 botan@2 sqlcipher miniupnpc json-c
-        bzip2 zlib doxygen
+        bzip2 zlib doxygen gnu-sed
 
+    # The restbed patch step of CMakeLists.txt runs `sed -i -e ...`, which is
+    # GNU syntax: BSD sed reads the argument after -i as a backup suffix and
+    # fails with "sed: -e: No such file or directory". The super-project never
+    # hits it -- it has restbed as a submodule and takes the add_subdirectory
+    # branch instead of FetchContent -- so this only shows up in the standalone
+    # build. Put GNU sed first in PATH rather than patch the CMakeLists.
     - name: CMake configure
       run: |
+        export PATH="$(brew --prefix gnu-sed)/libexec/gnubin:$PATH"
         HB="$(brew --prefix)"
         IFLAGS="-I$HB/include"; for d in "$HB"/opt/*/include; do IFLAGS="$IFLAGS -I$d"; done
         LFLAGS="-L$HB/lib";     for d in "$HB"/opt/*/lib;     do LFLAGS="$LFLAGS -L$d"; done
