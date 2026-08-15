@@ -1,0 +1,75 @@
+# macOS CMake CI for libretroshare on its own.
+#
+# Same standalone build as the Ubuntu and Windows jobs: libretroshare has its
+# own top level CMakeLists.txt and pulls rnp, OpenPGP-SDK, BitDHT, rapidjson,
+# restbed and udp-discovery-cpp through FetchContent, so no super-project and no
+# submodules are involved. Only the Homebrew formulae below are installed, and
+# none of the GUI ones the super-project needs -- this repository builds no
+# interface.
+#
+# Homebrew keeps most of these keg-only, so their headers and libraries are not
+# on the default search paths. Same treatment as the super-project's macOS job:
+# harvest every opt/* include and lib directory into the compiler and linker
+# flags, and expose the prefixes to find_package() through CMAKE_PREFIX_PATH.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: macOS CMake C/C++ CI
+
+on:
+  push:
+    paths-ignore:
+    - '**/*.md'
+  pull_request:
+    paths-ignore:
+    - '**/*.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: macOS / CMake
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Install Homebrew dependencies
+      run: >
+        brew install
+        cmake ninja pkg-config
+        openssl@3 sqlcipher miniupnpc json-c
+        bzip2 zlib doxygen
+
+    - name: CMake configure
+      run: |
+        HB="$(brew --prefix)"
+        IFLAGS="-I$HB/include"; for d in "$HB"/opt/*/include; do IFLAGS="$IFLAGS -I$d"; done
+        LFLAGS="-L$HB/lib";     for d in "$HB"/opt/*/lib;     do LFLAGS="$LFLAGS -L$d"; done
+        PREFIX="$HB";           for d in "$HB"/opt/*;          do PREFIX="$PREFIX;$d"; done
+        cmake -G Ninja -B Build-cmake -S . \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH="$PREFIX" \
+          -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
+          -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF \
+          -DRS_SQLCIPHER=ON -DRS_BITDHT=ON \
+          -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON \
+          -DRS_FORUM_DEEP_INDEX=OFF \
+          -DCMAKE_C_FLAGS="$IFLAGS" -DCMAKE_CXX_FLAGS="$IFLAGS" \
+          -DCMAKE_EXE_LINKER_FLAGS="$LFLAGS" \
+          -DCMAKE_SHARED_LINKER_FLAGS="$LFLAGS" \
+          -DCMAKE_MODULE_LINKER_FLAGS="$LFLAGS"
+
+    - name: CMake build
+      run: cmake --build Build-cmake -j$(sysctl -n hw.ncpu)
