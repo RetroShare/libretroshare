@@ -451,6 +451,15 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
     JsonApiServer* jas = dynamic_cast<JsonApiServer*>(rsJsonApi);
     if(!jas)
     {
+        /* Not reachable today -- rsJsonApi is only ever set to a JsonApiServer,
+         * here and in the plugin handoff of StartupRetroShare(). Should that
+         * change, replacing it silently would leave every plugin holding the
+         * pointer it received in setInterfaces() talking to an abandoned
+         * object, with no trace of why. */
+        if(rsJsonApi)
+            RsErr() << "rsJsonApi is set but is not a JsonApiServer. Replacing "
+                    << "it: plugins still hold the previous pointer.";
+
         jas = new JsonApiServer();
         rsJsonApi = jas;
     }
@@ -537,8 +546,6 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
     }
     else
         RsInfo() << "  Not starting JSON API, since it is currently not required by any service." ;
-
-    rsJsonApi = jas;
 }
 #endif
 
