@@ -52,7 +52,7 @@ jobs:
         sudo apt-get update &&
         sudo apt-get install -y
         build-essential g++ cmake ninja-build pkg-config git
-        libssl-dev zlib1g-dev libbz2-dev libjson-c-dev libbotan-2-dev
+        libssl-dev zlib1g-dev libbz2-dev libjson-c-dev libbotan-2-dev rapidjson-dev
         libsqlcipher-dev libminiupnpc-dev
         doxygen python3
 

@@ -50,7 +50,7 @@ jobs:
         brew install
         cmake ninja pkg-config
         openssl@3 botan@2 sqlcipher miniupnpc json-c
-        bzip2 zlib doxygen gnu-sed
+        bzip2 zlib doxygen gnu-sed rapidjson
 
     # The restbed patch step of CMakeLists.txt runs `sed -i -e ...`, which is
     # GNU syntax: BSD sed reads the argument after -i as a backup suffix and
