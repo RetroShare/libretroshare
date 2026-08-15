@@ -77,6 +77,8 @@ jobs:
           -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
           -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
           -DRS_FORUM_DEEP_INDEX=OFF
+          -DCMAKE_CXX98_STANDARD_COMPILE_OPTION=-std=gnu++17
+          -DCMAKE_CXX98_EXTENSION_COMPILE_OPTION=-std=gnu++17
           -DCMAKE_C_FLAGS="-include string.h -include stdint.h"
           -DCMAKE_CXX_FLAGS="-include cstring -include cstdint -Wno-template-body"
 
