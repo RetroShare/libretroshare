@@ -1,0 +1,70 @@
+# Ubuntu CMake CI for libretroshare on its own.
+#
+# libretroshare has a top level CMakeLists.txt of its own -- project(retroshare)
+# -- and pulls what it needs through FetchContent: rnp, OpenPGP-SDK, BitDHT,
+# rapidjson, restbed, udp-discovery-cpp. So it configures and builds without the
+# RetroShare super-project, without submodules and without any graft. Only the
+# system libraries below have to be installed.
+#
+# Options mirror the Linux CMake job of the super-project, minus everything that
+# does not exist in this repository: no GUI, no service, no friendserver, no
+# plugins. Everything else is left at the value a normal build uses, so the CI
+# compiles what people actually ship -- RS_MINIUPNPC in particular defaults to
+# ON, and switching it off to save one package would leave that code untested.
+#
+# Two deliberate departures: RS_JSON_API is OFF by default here and is turned
+# on, since it is the part of the tree most exposed to breakage and the reason
+# restbed is fetched at all; RS_WEBUI stays off, as it only serves files the
+# super-project provides.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Ubuntu CMake C/C++ CI
+
+on:
+  push:
+    paths-ignore:
+    - '**/*.md'
+  pull_request:
+    paths-ignore:
+    - '**/*.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Ubuntu / CMake
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Install dependencies
+      run: >
+        sudo apt-get update &&
+        sudo apt-get install -y
+        build-essential g++ cmake ninja-build pkg-config git
+        libssl-dev zlib1g-dev libbz2-dev libjson-c-dev
+        libsqlcipher-dev libminiupnpc-dev
+        doxygen python3
+
+    - name: CMake configure
+      run: >
+        cmake -G Ninja -B Build-cmake -S .
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DCMAKE_BUILD_TYPE=Release
+        -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF
+        -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
+        -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
+        -DRS_FORUM_DEEP_INDEX=OFF
+
+    - name: CMake build
+      run: cmake --build Build-cmake -j$(nproc)
