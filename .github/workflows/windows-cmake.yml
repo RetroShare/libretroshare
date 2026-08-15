@@ -73,6 +73,10 @@ jobs:
       # headers that need C++11. This launcher rewrites that one flag and
       # forwards everything else untouched, so nothing else in the build is
       # affected and CMakeLists.txt stays as it is.
+      #
+      # Invoked as "bash;<script>": ninja calls the launcher through
+      # CreateProcess, which cannot run a .sh -- it reports "%1 is not a valid
+      # Win32 application" -- so bash has to be named explicitly.
       - name: Compiler launcher rewriting -std=gnu++98
         run: |
           cat > "$RUNNER_TEMP/cxx-launcher.sh" <<'SH'
@@ -91,7 +95,7 @@ jobs:
       - name: CMake configure
         run: >
           cmake -G Ninja -B Build-cmake -S .
-          -DCMAKE_CXX_COMPILER_LAUNCHER="$RUNNER_TEMP/cxx-launcher.sh"
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=bash;$RUNNER_TEMP/cxx-launcher.sh"
           -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           -DCMAKE_BUILD_TYPE=Release
           -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF
