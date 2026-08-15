@@ -60,6 +60,7 @@ jobs:
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-doxygen
             mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-libbotan
             mingw-w64-ucrt-x86_64-sqlcipher
             mingw-w64-ucrt-x86_64-miniupnpc
             mingw-w64-ucrt-x86_64-json-c
