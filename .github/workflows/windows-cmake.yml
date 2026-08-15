@@ -68,17 +68,36 @@ jobs:
             mingw-w64-ucrt-x86_64-bzip2
             mingw-w64-ucrt-x86_64-zlib
 
+      # udp-discovery-cpp sets CXX_STANDARD 98 as a target property, which no
+      # command line option can override, and its own sources then include
+      # headers that need C++11. This launcher rewrites that one flag and
+      # forwards everything else untouched, so nothing else in the build is
+      # affected and CMakeLists.txt stays as it is.
+      - name: Compiler launcher rewriting -std=gnu++98
+        run: |
+          cat > "$RUNNER_TEMP/cxx-launcher.sh" <<'SH'
+          #!/usr/bin/env bash
+          args=()
+          for a in "$@"; do
+            case "$a" in
+              -std=gnu++98|-std=c++98) a="-std=gnu++17" ;;
+            esac
+            args+=("$a")
+          done
+          exec "${args[@]}"
+          SH
+          chmod +x "$RUNNER_TEMP/cxx-launcher.sh"
+
       - name: CMake configure
         run: >
           cmake -G Ninja -B Build-cmake -S .
+          -DCMAKE_CXX_COMPILER_LAUNCHER="$RUNNER_TEMP/cxx-launcher.sh"
           -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           -DCMAKE_BUILD_TYPE=Release
           -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF
           -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
           -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
           -DRS_FORUM_DEEP_INDEX=OFF
-          -DCMAKE_CXX98_STANDARD_COMPILE_OPTION=-std=gnu++17
-          -DCMAKE_CXX98_EXTENSION_COMPILE_OPTION=-std=gnu++17
           -DCMAKE_C_FLAGS="-include string.h -include stdint.h"
           -DCMAKE_CXX_FLAGS="-include cstring -include cstdint -Wno-template-body"
 
