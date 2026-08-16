@@ -136,6 +136,15 @@ public:
      * This endpoint is available before account login because the Tor
      * connection must be configured before hidden-node initialization starts.
      *
+     * @param[in] controlAddress Tor control listener address, usually
+     *            `127.0.0.1`
+     * @param[in] controlPort Tor control listener TCP port
+     * @param[in] controlPassword Tor control password, or an empty string for
+     *            null/cookie authentication
+     * @param[in] socksAddress Tor SOCKS listener address, usually `127.0.0.1`
+     * @param[in] socksPort Tor SOCKS listener TCP port
+     * @return true if the external Tor configuration was accepted
+     *
      * @jsonapi{development,unauthenticated}
      */
     static bool setExternalTorConnection(
