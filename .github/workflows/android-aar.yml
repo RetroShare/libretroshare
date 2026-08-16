@@ -1,0 +1,65 @@
+name: Android AAR Build
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-aar:
+    name: API ${{ matrix.api-level }} / ${{ matrix.build-type }} / arm64-v8a
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api-level: 21
+            build-type: Debug
+            gradle-task: bundleDebugAar
+            image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21_arm64-v8a_bundleDebugAar
+          - api-level: 21
+            build-type: Release
+            gradle-task: bundleReleaseAar
+            image: registry.gitlab.com/retroshare/retroshare:android_aar_base_21_arm64-v8a_bundleReleaseAar
+          - api-level: 24
+            build-type: Debug
+            gradle-task: bundleDebugAar
+            image: registry.gitlab.com/retroshare/retroshare:android_aar_base_24_arm64-v8a_bundleDebugAar
+          - api-level: 24
+            build-type: Release
+            gradle-task: bundleReleaseAar
+            image: registry.gitlab.com/retroshare/retroshare:android_aar_base_24_arm64-v8a_bundleReleaseAar
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build Android AAR
+        run: |
+          rm -rf /libretroshare-aar/ /libretroshare-build/
+          SOURCE_VERSION="$(printf '%.8s' "$GITHUB_SHA")"
+          ./gradlew "${{ matrix.gradle-task }}" \
+            -Dorg.gradle.project.buildDir=/libretroshare-build/ \
+            -PANDROID_MIN_API_LEVEL="${{ matrix.api-level }}" \
+            -PLIBRETROSHARE_SOURCE_VERSION="$SOURCE_VERSION" \
+            -PNATIVE_TOOLCHAINS_DIR=/libretroshare-native-toolchains/ \
+            -PJNI_NATIVE_LIBS_ARCHS=arm64-v8a
+
+      - name: Upload Android AAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: libretroshare-api${{ matrix.api-level }}-${{ matrix.build-type }}-arm64-v8a
+          path: /libretroshare-build/outputs/aar/*.aar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
