@@ -25,7 +25,11 @@
 #include <cstdint>
 #include <deque>
 #include <array>
+#include <map>
 #include <mutex>
+#include <condition_variable>
+#include <set>
+#include <thread>
 
 #include "retroshare/rsevents.h"
 #include "util/rsthreads.h"
@@ -71,18 +75,44 @@ protected:
 
 	RsMutex mHandlerMapMtx;
 
-	/** Held by handleEvent() for the whole duration of the callbacks dispatch
-	 * loop, so that unregisterEventsHandler() can act as a barrier: after it
-	 * returns, the removed handler is guaranteed to be neither running nor about
-	 * to start. Without this, unregister only removes the handler from the map,
-	 * but handleEvent() runs callbacks on a *copy* taken outside mHandlerMapMtx
-	 * (on purpose, to let callbacks re-enter), so a callback whose owner is
-	 * being destroyed on another thread could still fire against a dangling
-	 * object -> use-after-free (typically a SIGSEGV in qobject_cast<QThread*>
-	 * inside RsQThreadUtils::postToObject at shutdown). Recursive so that a
-	 * callback re-entering (self-unregister or synchronous sendEvent) on the
-	 * dispatching thread does not deadlock. */
-	std::recursive_mutex mDispatchMtx;
+	/** Per-handler in-flight barrier for unregisterEventsHandler().
+	 *
+	 * handleEvent() runs callbacks on a *copy* taken outside mHandlerMapMtx (on
+	 * purpose, so a callback may send events or unregister itself). Without a
+	 * barrier, a callback whose owner is being destroyed on another thread could
+	 * still fire against a dangling object -> use-after-free (typically a SIGSEGV
+	 * in qobject_cast<QThread*> inside RsQThreadUtils::postToObject at shutdown).
+	 *
+	 * At snapshot time (still under mHandlerMapMtx) handleEvent() records each
+	 * handler id it is about to run, together with the dispatching thread, in
+	 * mHandlersInFlight, and clears each entry as the corresponding callback
+	 * returns. unregisterEventsHandler() erases the handler from the map (so no
+	 * *future* dispatch can pick it up) and then waits on mDispatchStateCv until
+	 * that specific handler is no longer running on any *other* thread. Once it
+	 * returns, the handler is guaranteed neither running nor about to start, so a
+	 * caller that unregisters from its destructor can be destroyed safely.
+	 *
+	 * Recording under the same lock as the snapshot is what makes this race-free:
+	 * unregister either erases a handler before handleEvent() snapshots it (it is
+	 * never run) or after (its in-flight mark is already visible and unregister
+	 * waits for it).
+	 *
+	 * Unlike a single mutex held across the whole dispatch, callbacks still run
+	 * with NO events-service lock held, and a slow or deliberately blocking
+	 * handler (e.g. the synchronous passphrase / plugin-confirmation dialogs sent
+	 * through sendEvent(), which block the caller via Qt::BlockingQueuedConnection)
+	 * only ever delays unregister of *that same* handler, never of an unrelated
+	 * one -> no cross-thread deadlock between a widget teardown and a blocking
+	 * handler.
+	 *
+	 * The dispatching thread is intentionally not waited on: a callback that
+	 * unregisters itself (or is re-entered through a synchronous sendEvent) on
+	 * the dispatching thread must not deadlock waiting on itself, and in that
+	 * case the owner is running its own code, not being destroyed concurrently. */
+	std::mutex mDispatchStateMtx;
+	std::condition_variable mDispatchStateCv;
+	std::map< RsEventsHandlerId_t, std::multiset<std::thread::id> >
+	        mHandlersInFlight;
 
 	RsEventsHandlerId_t mLastHandlerId;
 
