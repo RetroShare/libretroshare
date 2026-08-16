@@ -128,6 +128,21 @@ public:
 	 */
     static RsTorConnectivityStatus torConnectivityStatus() ;
 
+    /**
+     * Configure TorManager to attach to an already running Tor instance.
+     * This must be called before start(). The external process is never
+     * stopped or taken over by RetroShare.
+     *
+     * This endpoint is available before account login because the Tor
+     * connection must be configured before hidden-node initialization starts.
+     *
+     * @jsonapi{development,unauthenticated}
+     */
+    static bool setExternalTorConnection(
+            const std::string& controlAddress, uint16_t controlPort,
+            const std::string& controlPassword,
+            const std::string& socksAddress, uint16_t socksPort );
+
     static void setTorDataDirectory(const std::string& dir);
     static void setHiddenServiceDirectory(const std::string& dir);
 
