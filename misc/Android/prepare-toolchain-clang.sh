@@ -859,8 +859,18 @@ build_librnp()
 	# 3. Add -static linking via MKF so the binary doesn't need the Android
 	#    dynamic linker which is unavailable on the host even via qemu
 	# 4. Remove quotes around FOF so CMake expands the list correctly
-	# TODO: remove when upstream patches are accepted
 	#
+	# Skip the patch when the checkout already handles the emulator on its own:
+	# rnp got this upstream (rnpgp/rnp 0a0672af, merged 2026-07-31) and
+	# LIBRNP_SOURCE_VERSION tracks origin/main, so patching on top of it
+	# prepends the emulator twice and the probe becomes
+	# "qemu-aarch64 /usr/bin/qemu-aarch64 build/findopensslfeatures", which
+	# fails with "Invalid ELF image for this architecture".
+	# TODO: drop the whole block once no supported rnp version needs it
+	#
+	grep -q CMAKE_CROSSCOMPILING_EMULATOR \
+		"${S_dir}/cmake/Modules/FindOpenSSLFeatures.cmake" ||
+	{
 	sed -i '/foreach(feature "hashes"/i\
 if(CMAKE_CROSSCOMPILING_EMULATOR)\
   set(FOF ${CMAKE_CROSSCOMPILING_EMULATOR} ${FOF})\
@@ -877,6 +887,7 @@ endif(CMAKE_CROSSCOMPILING_EMULATOR)' \
 
 	sed -i 's|COMMAND "${FOF}" "${feature}"|COMMAND ${FOF} "${feature}"|' \
 		"${S_dir}/cmake/Modules/FindOpenSSLFeatures.cmake"
+	}
 
 	rm -rf "$B_dir"; mkdir "$B_dir"
 	pushd "$B_dir" || return $?
