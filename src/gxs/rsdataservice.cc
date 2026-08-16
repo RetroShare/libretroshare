@@ -26,6 +26,7 @@
  * #define RS_DATA_SERVICE_DEBUG_CACHE 1
  ****/
 
+#include <chrono>
 #include <fstream>
 #include <util/rsdir.h>
 #include <algorithm>
@@ -130,6 +131,10 @@ RsDataService::RsDataService(const std::string &serviceDir, const std::string &d
 
     mDb = new RetroDb(mDbPath, RetroDb::OPEN_READWRITE_CREATE, key);
     mUseCache = true;
+    mMsgMetaDataCache_ContainsAllDatabase = false;
+    mMsgMetaDataCache_ColdFullReads = 0;
+    mMsgMetaWarmupStarted = false;
+    mMsgMetaWarmupStop = false;
 
     initialise(isNewDatabase);
 
@@ -212,6 +217,12 @@ RsDataService::~RsDataService(){
     std::cerr << "RsDataService::~RsDataService()";
     std::cerr << std::endl;
 #endif
+
+    // Stop the cache warm-up thread before closing the DB it reads from. It
+    // checks the flag between two slices, so this waits one slice at most.
+    mMsgMetaWarmupStop = true;
+    if(mMsgMetaWarmupThread.joinable())
+        mMsgMetaWarmupThread.join();
 
     mDb->closeDb();
     delete mDb;
@@ -1290,6 +1301,134 @@ void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg
     return;
 }
 
+void RsDataService::msgMetaWarmupThreadBody()
+{
+    // Read the meta of every message of the database in a single sequential
+    // scan, and fill the per-group caches with the result.
+    //
+    // The per-group query "WHERE grpId=?" is served through
+    // INDEX_MESSAGES_GRPID, which means one row lookup -- one disk seek -- per
+    // message, scattered across the whole file. Doing that once per group makes
+    // the cost of warming up the caches proportional to the number of groups
+    // times the size of the file. A single scan reads the file in physical
+    // order instead, so warming up every group costs one pass whatever the
+    // number of groups.
+    //
+    // Measured on a synthetic database of the same shape and size as a real
+    // gxsforums_db (235 MB, 23 KB rows), cold cache: 20 per-group queries took
+    // 29.4 s where the single scan took 2.1 s, and the scan does not get more
+    // expensive as groups are added.
+    //
+    // Cold, that same scan was measured at up to 57 s on a real forums db, so
+    // it cannot run under mDbMutex in one go: it proceeds in slices of
+    // WARMUP_SLICE_ROWS rows by increasing rowid, taking the mutex only for
+    // the duration of one slice so that readers interleave between slices.
+    // Messages stored while the scan runs are put into the caches by
+    // storeMessage() itself, so rows the slices could miss (rowid reuse after
+    // a deletion) are covered; until the scan completes, cold groups keep
+    // being served by the indexed per-group query.
+
+    // The slice size adapts so that one slice -- hence one mDbMutex hold --
+    // stays around WARMUP_SLICE_TARGET_MS. With a fixed row count, a cold
+    // slice of a large-row database was measured at ~10 s, which is exactly
+    // the reader stall this thread exists to avoid.
+    static const int64_t WARMUP_SLICE_TARGET_MS = 250;
+    static const uint32_t WARMUP_SLICE_MIN_ROWS = 64;
+    static const uint32_t WARMUP_SLICE_MAX_ROWS = 4096;
+
+    uint32_t slice_rows = 256;
+
+    std::list<std::string> columns(mMsgMetaColumns);
+    columns.push_front("rowid");
+
+    int64_t last_rowid = 0;
+    bool done = false;
+    uint64_t total_rows = 0;
+    uint32_t n_slices = 0;
+    auto t0 = std::chrono::steady_clock::now();
+
+    while(!done && !mMsgMetaWarmupStop)
+    {
+        auto slice_t0 = std::chrono::steady_clock::now();
+
+        {
+            RsStackMutex stack(mDbMutex);
+
+            if(mMsgMetaDataCache_ContainsAllDatabase)
+                return;
+
+            RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, columns,
+                        "rowid > " + std::to_string(last_rowid),
+                        "rowid LIMIT " + std::to_string(slice_rows));
+
+            if(!c)
+            {
+                RsErr() << __PRETTY_FUNCTION__ << ": failed to query message meta data. Giving up cache warm-up." << std::endl;
+                return;
+            }
+
+            uint32_t n_rows = 0;
+            bool valid = c->moveToFirst();
+
+            while(valid)
+            {
+                last_rowid = c->getInt64(0);
+
+                auto m = locked_getMsgMeta(*c, 1);
+
+                if(m != nullptr)
+                    mMsgMetaDataCache[m->mGroupId].updateMeta(m->mMsgId, m);
+
+                ++n_rows;
+                valid = c->moveToNext();
+            }
+
+            delete c;
+
+            total_rows += n_rows;
+            ++n_slices;
+
+            if(n_rows < slice_rows)
+            {
+                // Last slice. Every group of this database now holds all its
+                // metas, including the ones that have no message at all and
+                // would otherwise be re-queried forever.
+                for(auto& it: mMsgMetaDataCache)
+                    it.second.setCacheUpToDate(true);
+
+                mMsgMetaDataCache_ContainsAllDatabase = true;
+                done = true;
+            }
+        }
+
+        if(!done)
+        {
+            // Rescale the next slice towards the per-slice time target.
+            int64_t slice_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - slice_t0).count();
+
+            if(slice_ms > 0)
+            {
+                uint64_t next = (uint64_t)slice_rows * WARMUP_SLICE_TARGET_MS / slice_ms;
+                slice_rows = (uint32_t)std::min<uint64_t>(WARMUP_SLICE_MAX_ROWS,
+                                        std::max<uint64_t>(WARMUP_SLICE_MIN_ROWS, next));
+            }
+            else
+                slice_rows = WARMUP_SLICE_MAX_ROWS;
+
+            // Let the readers waiting on mDbMutex in between two slices.
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+    }
+
+    if(done)
+        RsInfo() << mDbName << ": message meta cache warm-up completed: "
+                 << total_rows << " metas in " << n_slices << " slices, "
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - t0).count()
+                 << " ms" << std::endl;
+}
+
 int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaResult& msgMeta)
 {
     RsStackMutex stack(mDbMutex);
@@ -1298,6 +1437,30 @@ int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaRes
     rstime::RsScopeTimer timer("");
     int resultCount = 0;
 #endif
+
+    // Whole-group requests that the cache cannot serve are the expensive ones:
+    // one row lookup per message, scattered over the whole file. Counting them
+    // across calls matters, because callers ask for one group at a time -- the
+    // GUI computes the statistics of each group with its own request. As soon as
+    // a second group needs such a read, sweeping the database is what is
+    // happening, and one sequential scan is cheaper than continuing group by
+    // group. The scan runs on its own thread in mutex-released slices -- cold,
+    // it takes tens of seconds, and the caller possibly only needs a handful of
+    // metas from one group. See msgMetaWarmupThreadBody().
+    if(mUseCache && !mMsgMetaDataCache_ContainsAllDatabase && !mMsgMetaWarmupStarted)
+    {
+        uint32_t cold_groups = 0;
+
+        for(auto mit(reqIds.begin()); mit != reqIds.end(); ++mit)
+            if(mit->second.empty() && !mMsgMetaDataCache[mit->first].isCacheUpToDate())
+                ++cold_groups;
+
+        if(cold_groups + mMsgMetaDataCache_ColdFullReads > 1)
+        {
+            mMsgMetaWarmupStarted = true;
+            mMsgMetaWarmupThread = std::thread(&RsDataService::msgMetaWarmupThreadBody, this);
+        }
+    }
 
     for(auto mit(reqIds.begin()); mit != reqIds.end(); ++mit)
     {
@@ -1316,6 +1479,8 @@ int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaRes
                 cache->getFullMetaList(msgMeta[grpId]);
             else
 			{
+                ++mMsgMetaDataCache_ColdFullReads;
+
 				RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, mMsgMetaColumns, KEY_GRP_ID+ "='" + grpId.toStdString() + "'", "");
 
 				if (c)
