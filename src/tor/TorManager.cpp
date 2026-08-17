@@ -998,7 +998,7 @@ TorManager *RsTor::instance()
 {
 #ifdef __APPLE__
     assert(pthread_main_np() != 0); // On macOS, ensure we are on the main thread
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(__ANDROID__)
     assert(getpid() == syscall(SYS_gettid)); // On Linux, ensure we are on the main thread
 #endif
 
