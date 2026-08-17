@@ -878,6 +878,23 @@ endif(CMAKE_CROSSCOMPILING_EMULATOR)' \
 	sed -i 's|COMMAND "${FOF}" "${feature}"|COMMAND ${FOF} "${feature}"|' \
 		"${S_dir}/cmake/Modules/FindOpenSSLFeatures.cmake"
 
+	# The feature probe is linked statically, and OpenSSL 1.1.1 libcrypto.a
+	# pulls in dso_dlfcn.o which references dlopen/dlsym/dlclose/dlerror.
+	# CMake's FindOpenSSL does not put ${CMAKE_DL_LIBS} in the OpenSSL::Crypto
+	# interface here, so nothing provides them and the link dies with
+	#
+	#   ld.lld: error: undefined symbol: dlopen
+	#   >>> referenced by dso_dlfcn.c
+	#   >>>               dso_dlfcn.o:(dlfcn_load) in archive .../libcrypto.a
+	#
+	# The NDK ships a static libdl.a defining those symbols, so link it
+	# explicitly. It has to come after libcrypto.a for the static linker to
+	# pick it up, hence a linked library rather than CMAKE_EXE_LINKER_FLAGS,
+	# which CMake places before the objects.
+	sed -i \
+		's|(findopensslfeatures PRIVATE OpenSSL::Crypto)|(findopensslfeatures PRIVATE OpenSSL::Crypto dl)|' \
+		"${S_dir}/cmake/Modules/FindOpenSSLFeatures.cmake"
+
 	rm -rf "$B_dir"; mkdir "$B_dir"
 	pushd "$B_dir" || return $?
 	# CRYPTO_BACKEND use openssl on which we already depends instead of default
