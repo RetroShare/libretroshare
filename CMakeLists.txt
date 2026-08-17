@@ -379,7 +379,23 @@ if(RS_RNPLIB)
 
 	set(RNPLIB_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/")
 
-	if(EXISTS "${RNPLIB_DEVEL_DIR}/CMakeLists.txt")
+	## On Android prefer an already built and installed librnp, which
+	## prepare-toolchain-clang.sh puts in the sysroot before configuring us.
+	## Building it inline instead cannot work: librnp's CMake runs a freshly
+	## compiled findopensslfeatures to enumerate the OpenSSL features, and that
+	## binary is an Android executable the build host cannot run -- either not
+	## at all, or through binfmt/qemu which then fails on the missing Android
+	## dynamic linker:
+	##   qemu-aarch64: Could not open '/system/bin/linker64': No such file or
+	##   directory
+	## The inline build is only reached when libretroshare is checked out
+	## inside the RetroShare super-project, which is why building from a
+	## standalone clone has always worked.
+	if(RS_ANDROID)
+		find_library(RS_PREBUILT_RNP_LIBRARY NAMES rnp)
+	endif(RS_ANDROID)
+
+	if(NOT RS_PREBUILT_RNP_LIBRARY AND EXISTS "${RNPLIB_DEVEL_DIR}/CMakeLists.txt")
 		message(STATUS "librnp source found at ${RNPLIB_DEVEL_DIR} using it")
 		rnplib_set_inline_build_options()
 		add_subdirectory("${RNPLIB_DEVEL_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/librnp")
