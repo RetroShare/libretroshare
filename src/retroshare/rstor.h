@@ -186,12 +186,14 @@ public:
     /*!
      * \brief getHiddenServiceInfo
      * 			Gets information about the hidden service setup by RS to run.
-     * \param service_id
-     * \param service_onion_address
-     * \param service_port
-     * \param service_target_address
-     * \param target_port
-     * \return
+     * \param[out] service_id Tor service identifier without the `.onion` suffix
+     * \param[out] service_onion_address Complete generated onion hostname
+     * \param[out] service_port Public onion-service port
+     * \param[out] service_target_address Local address receiving Tor traffic
+     * \param[out] target_port Local port receiving Tor traffic
+     * \return true when an AutoTor hidden service is available
+     *
+     * @jsonapi{development}
      */
     static bool getHiddenServiceInfo(std::string& service_id,
                                      std::string& service_onion_address,
