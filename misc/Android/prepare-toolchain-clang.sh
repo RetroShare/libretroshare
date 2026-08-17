@@ -918,7 +918,14 @@ build_libretroshare()
 	rm -rf $B_dir
 	mkdir $B_dir || return $?
 	pushd $B_dir || return $?
+	## CRYPTO_BACKEND matters only when libretroshare CMake ends up building
+	## librnp inline, which happens when it is checked out inside the
+	## RetroShare super-project, as ../supportlibs/librnp then exists. Without
+	## it rnp defaults to botan, which the Android toolchain does not provide,
+	## and configure dies on "Could NOT find Botan". Keep it aligned with the
+	## backend build_librnp uses for the sysroot copy.
 	andro_cmake -B. -H${S_dir} \
+		-D CRYPTO_BACKEND=openssl \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
 		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
