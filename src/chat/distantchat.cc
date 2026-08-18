@@ -327,11 +327,40 @@ bool DistantChatService::getDistantChatStatus(const DistantChatPeerId& tunnel_id
 
 bool DistantChatService::closeDistantChatConnexion(const DistantChatPeerId &tunnel_id)
 {
-    mGxsTunnels->closeExistingTunnel(RsGxsTunnelId(tunnel_id), DISTANT_CHAT_GXS_TUNNEL_SERVICE_ID) ;
-    
-    // also remove contact. Or do we wait for the notification?
-    
-    return true ;
+    // The contact has to go with the tunnel: the entry in mDistantChatContacts
+    // is the core's record of an open conversation -- handleOutgoingItem()
+    // accepts outgoing items for as long as it is there -- and
+    // markDistantChatAsClosed(), the remote-close path, removes it. Nothing
+    // removed it when we closed the conversation ourselves.
+
+    bool tunnel_closed = mGxsTunnels->closeExistingTunnel(
+                RsGxsTunnelId(tunnel_id), DISTANT_CHAT_GXS_TUNNEL_SERVICE_ID );
+
+    bool contact_removed = false;
+    {
+        RS_STACK_MUTEX(mDistantChatMtx) ;
+
+        auto it = mDistantChatContacts.find(tunnel_id) ;
+
+        if(it != mDistantChatContacts.end())
+        {
+            mDistantChatContacts.erase(it) ;
+            contact_removed = true ;
+        }
+    }
+
+    // The two can disagree in one direction only: p3GxsTunnelService prunes
+    // remotely-closed tunnels on its own after 20s, so the tunnel may already
+    // be gone while the contact is still registered. The converse -- a closed
+    // tunnel with no contact -- is an anomaly.
+    if(tunnel_closed && !contact_removed)
+        std::cerr << "(EE) closeDistantChatConnexion(): tunnel " << tunnel_id << " was closed, but no distant chat contact was registered for it." << std::endl;
+
+    // Answering true whatever happened made every client -- the chat window,
+    // the web UI, any JSON API caller -- report a conversation as closed when
+    // nothing had been closed at all, the tunnel having died on its own before.
+
+    return tunnel_closed || contact_removed ;
 }
 
 uint32_t DistantChatService::getDistantChatPermissionFlags()
