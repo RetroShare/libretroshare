@@ -296,6 +296,31 @@ int	p3ChatService::tick()
 {
 	if(receivedItems()) receiveChatQueue();
 
+	std::map<DistantChatPeerId, std::pair<RsGxsId, RsGxsId>> contacts;
+	getDistantChatContacts(contacts);
+	for(const auto& contact : contacts)
+	{
+		DistantChatPeerInfo tunnelInfo;
+		if(!getDistantChatStatus(contact.first, tunnelInfo) ||
+		        tunnelInfo.status != RS_DISTANT_CHAT_STATUS_CAN_TALK)
+			continue;
+
+		RsContactStatus status;
+		if(!rsIdentity || !rsIdentity->isARegularContact(contact.second.second) ||
+		        !rsIdentity->getContactsStatusOwn(contact.second.first, status))
+			continue;
+
+		bool shouldSend = false;
+		{
+			RS_STACK_MUTEX(mDGMutex);
+			auto it = mContactsStatusSentAt.find(contact.first);
+			shouldSend = it == mContactsStatusSentAt.end() ||
+			        it->second < status.mTimestamp;
+			if(shouldSend) mContactsStatusSentAt[contact.first] = status.mTimestamp;
+		}
+		if(shouldSend) sendContactsStatus(contact.first);
+	}
+
 	DistributedChatService::flush();
 
 	return 0;
@@ -1245,6 +1270,28 @@ void p3ChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
 
     DistantChatPeerInfo dcpinfo;
 
+	if(cs->flags & RS_CHAT_FLAG_GXS_CONTACT_STATUS)
+	{
+		RsGxsId ownId, contactId;
+		if(cs->status_string.empty() ||
+		        !getDistantChatIdentities(
+		                DistantChatPeerId(cs->PeerId()), ownId, contactId ))
+			return;
+
+		const auto value = static_cast<uint8_t>(cs->status_string[0]);
+		if(value < static_cast<uint8_t>(RsStatusValue::RS_STATUS_AWAY) ||
+		        value > static_cast<uint8_t>(RsStatusValue::RS_STATUS_ONLINE))
+			return;
+
+		RsContactStatus status;
+		status.mGxsId = contactId;
+		status.mStatus = static_cast<RsStatusValue>(value);
+		status.mCustomState = cs->status_string.substr(1);
+		status.mTimestamp = time(nullptr);
+		if(rsIdentity) rsIdentity->updateContactsStatus(status);
+		return;
+	}
+
 	if(cs->flags & RS_CHAT_FLAG_REQUEST_CUSTOM_STATE) 	// no state here just a request.
 		sendCustomState(cs->PeerId()) ;
 	else if(cs->flags & RS_CHAT_FLAG_CUSTOM_STATE)		// Check if new custom string is available at peer's. 
@@ -1649,6 +1696,24 @@ std::cerr << "p3chatservice: sending requested status string for peer " << peer_
 	cs->PeerId(peer_id);
 
 	sendChatItem(cs);
+
+	sendContactsStatus(DistantChatPeerId(peer_id));
+}
+
+void p3ChatService::sendContactsStatus(const DistantChatPeerId& peerId)
+{
+	RsGxsId ownId, contactId;
+	RsContactStatus status;
+	if(!getDistantChatIdentities(peerId, ownId, contactId) || !rsIdentity ||
+	        !rsIdentity->isARegularContact(contactId) ||
+	        !rsIdentity->getContactsStatusOwn(ownId, status)) return;
+
+	RsChatStatusItem* item = new RsChatStatusItem;
+	item->PeerId(RsPeerId(peerId));
+	item->flags = RS_CHAT_FLAG_GXS_CONTACT_STATUS;
+	item->status_string.assign(1, static_cast<char>(status.mStatus));
+	item->status_string += status.mCustomState;
+	sendChatItem(item);
 }
 
 RsChatAvatarInfoItem *p3ChatService::locked_makeOwnAvatarInfoItem()

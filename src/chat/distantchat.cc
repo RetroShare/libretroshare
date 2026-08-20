@@ -189,6 +189,22 @@ void DistantChatService::notifyTunnelStatus( const RsGxsTunnelId& tunnel_id, uin
     auto ev = std::make_shared<RsDistantChatEvent>();
     ev->mId = DistantChatPeerId(tunnel_id);
 
+	if(tunnel_status == RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_TUNNEL_DN ||
+	        tunnel_status == RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_REMOTELY_CLOSED)
+	{
+		RsGxsId ownId, contactId;
+		if(getDistantChatIdentities(
+		            DistantChatPeerId(tunnel_id), ownId, contactId ) &&
+		        rsIdentity && rsIdentity->isARegularContact(contactId))
+		{
+			RsContactStatus status;
+			status.mGxsId = contactId;
+			status.mStatus = RsStatusValue::RS_STATUS_OFFLINE;
+			status.mTimestamp = time(nullptr);
+			rsIdentity->updateContactsStatus(status);
+		}
+	}
+
 #warning TODO: I had to comment out calls to notifyPeerStatusChanged, which anyway looked misplaced here. Probably a hack.
     switch(tunnel_status)
     {
@@ -323,6 +339,40 @@ bool DistantChatService::getDistantChatStatus(const DistantChatPeerId& tunnel_id
 	}
 
 	return true;
+}
+
+bool DistantChatService::getDistantChatIdentities(
+        const DistantChatPeerId& tunnelId, RsGxsId& ownId, RsGxsId& contactId )
+{
+	RS_STACK_MUTEX(mDistantChatMtx);
+	auto it = mDistantChatContacts.find(tunnelId);
+	if(it == mDistantChatContacts.end()) return false;
+	if(rsIdentity && rsIdentity->isOwnId(it->second.from_id))
+	{
+		ownId = it->second.from_id;
+		contactId = it->second.to_id;
+	}
+	else if(rsIdentity && rsIdentity->isOwnId(it->second.to_id))
+	{
+		ownId = it->second.to_id;
+		contactId = it->second.from_id;
+	}
+	else return false;
+	return true;
+}
+
+void DistantChatService::getDistantChatContacts(
+        std::map<DistantChatPeerId, std::pair<RsGxsId, RsGxsId>>& contacts )
+{
+	RS_STACK_MUTEX(mDistantChatMtx);
+	contacts.clear();
+	for(const auto& entry : mDistantChatContacts)
+	{
+		if(rsIdentity && rsIdentity->isOwnId(entry.second.from_id))
+			contacts[entry.first] = { entry.second.from_id, entry.second.to_id };
+		else if(rsIdentity && rsIdentity->isOwnId(entry.second.to_id))
+			contacts[entry.first] = { entry.second.to_id, entry.second.from_id };
+	}
 }
 
 bool DistantChatService::closeDistantChatConnexion(const DistantChatPeerId &tunnel_id)
