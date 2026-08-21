@@ -209,7 +209,6 @@ find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(BZip2 REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(Xapian)
 
 ################################################################################
 ### build configuration
@@ -263,33 +262,12 @@ else()
 	message(FATAL_ERROR "must specify either RS_LIBRETROSHARE_STATIC or RS_LIBRETROSHARE_SHARED")
 endif()
 
-if(BUILD_SHARED_LIBS)
-	## Ensure statically linked libraries such as openpgpsdk are compiled with
-	## PIC Which is needed for shared library
-	## Not sure if this is needed. In any case, it would need to be set before any
-	## library targets are created.
-	# set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
 	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
 	add_definitions(-DUNICODE -D_UNICODE)
-
-	if(BUILD_SHARED_LIBS)
-		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			# We must use an explicit list of heavy 3rd-party archives instead of "ALL" for --exclude-libs.
-			# Using "ALL" also hides symbols from CMake's internal objects.a archive (created by WINDOWS_EXPORT_ALL_SYMBOLS),
-			# which prevents libretroshare from exporting its own core C++ symbols, causing massive linkage errors downstream.
-			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,libbitdht.a:librnp.a:libsexpp.a:libudp-discovery.a:librestbed.a:libsqlcipher.a:libbotan-2.a:libbotan-3.a:libz.a:libbz2.a")
-		endif()
-	endif()
-endif()
-
-if(RS_ANDROID)
-	if(BUILD_SHARED_LIBS)
-		target_link_options(${PROJECT_NAME} PRIVATE LINKER:--no-undefined)
-	endif()
 endif()
 
 ################################################################################
@@ -312,10 +290,10 @@ target_link_libraries(${PROJECT_NAME}
 
 target_compile_definitions(${PROJECT_NAME}
 	PUBLIC
-	LIBRS_MAJOR_VERSION="${LIBRS_MAJOR_VERSION}"
-	LIBRS_MINOR_VERSION="${LIBRS_MINOR_VERSION}"
-	LIBRS_MINI_VERSION="${LIBRS_MINI_VERSION}"
-	LIBRS_EXTRA_VERSION="${LIBRS_EXTRA_VERSION}"
+	"LIBRS_MAJOR_VERSION=${LIBRS_MAJOR_VERSION}"
+	"LIBRS_MINOR_VERSION=${LIBRS_MINOR_VERSION}"
+	"LIBRS_MINI_VERSION=${LIBRS_MINI_VERSION}"
+	"LIBRS_EXTRA_VERSION=${LIBRS_EXTRA_VERSION}"
 	PRIVATE
 	SQLITE_HAS_CODEC
 	RS_ENABLE_GXS
@@ -353,12 +331,9 @@ if(RS_GXSTHEWIRE)
 endif(RS_GXSTHEWIRE)
 
 if(RS_FORUM_DEEP_INDEX)
-	if(NOT Xapian_FOUND)
-		message(FATAL_ERROR "forum deep index requires Xapian")
-	endif()
+	find_package(Xapian REQUIRED)
 
 	target_link_libraries(${PROJECT_NAME} PRIVATE ${XAPIAN_LIBRARIES})
-
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_DEEP_FORUMS_INDEX)
 endif(RS_FORUM_DEEP_INDEX)
 
@@ -430,11 +405,11 @@ endif()
 if(RS_RNPLIB)
 	find_package(rnp REQUIRED)
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE rnp::librnp)
+	target_link_libraries(${PROJECT_NAME} PUBLIC rnp::librnp)
 else()
 	find_package(openpgpsdk REQUIRED)
 
-	target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk::openpgpsdk)
+	target_link_libraries(${PROJECT_NAME} PUBLIC openpgpsdk::openpgpsdk)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENPGPSDK)
 endif(RS_RNPLIB)
@@ -522,7 +497,7 @@ endif(RS_CPPTRACE_STACKTRACE)
 ### Linux
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	target_compile_definitions(${PROJECT_NAME} PUBLIC
-		RS_DATA_DIR="${RS_DATA_DIR}"
+		"RS_DATA_DIR=\"${CMAKE_INSTALL_PREFIX}/${RS_DATA_DIR}\""
 	)
 endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 

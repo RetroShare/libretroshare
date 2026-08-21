@@ -48,7 +48,6 @@
 #include "retroshare/rsiface.h"
 #include "retroshare/rsversion.h"
 #include "plugins/pluginmanager.h"
-#include "retroshare/rsversion.h"
 #include "rsserver/rsloginhandler.h"
 #ifdef RS_WEBUI
 #include "jsonapi/p3webui.h"
