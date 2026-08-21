@@ -302,11 +302,7 @@ bool doPortRestrictions = false;
  */
 const char*
 RsInit::libRetroShareVersion() {
-	return
-    RS_PRIVATE_STRINGIFY(LIBRS_MAJOR_VERSION) "."
-    RS_PRIVATE_STRINGIFY(LIBRS_MINOR_VERSION) "."
-    RS_PRIVATE_STRINGIFY(LIBRS_MINI_VERSION)
-    RS_PRIVATE_STRINGIFY(LIBRS_EXTRA_VERSION);
+	return RS_PRIVATE_STRINGIFY(LIBRS_FULL_VERSION);
 }
 
 /********

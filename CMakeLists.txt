@@ -229,9 +229,13 @@ set(LIBRS_MINI_VERSION "${PROJECT_VERSION_PATCH}")
 if(DEFINED RS_EXTRA_VERSION AND NOT (RS_EXTRA_VERSION STREQUAL ""))
 	set(LIBRS_EXTRA_VERSION "${RS_EXTRA_VERSION}")
 else()
-	git_describe_working_tree(V_GIT_DESCRIBE --tags --long --always --dirty --match v*.*.*)
+	git_describe_working_tree(V_GIT_DESCRIBE
+		--tags --long --always --dirty --match v*.*.*
+	)
 	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)$")
-	if(V_GIT_DESCRIBE AND V_GIT_DESCRIBE MATCHES "${V_GIT_DESCRIBE_REGEXP}")
+	if(NOT V_GIT_DESCRIBE)
+		set(LIBRS_EXTRA_VERSION "-unknown")
+	elseif(V_GIT_DESCRIBE MATCHES "${V_GIT_DESCRIBE_REGEXP}")
 		string(
 			REGEX REPLACE
 			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
@@ -240,13 +244,17 @@ else()
 		list(GET V_GIT_DESCRIBE_LIST 1 LIBRS_MINOR_VERSION)
 		list(GET V_GIT_DESCRIBE_LIST 2 LIBRS_MINI_VERSION)
 		list(GET V_GIT_DESCRIBE_LIST 3 LIBRS_EXTRA_VERSION)
-	elseif(V_GIT_DESCRIBE)
-		set(LIBRS_EXTRA_VERSION "-${V_GIT_DESCRIBE}")
 	else()
-		set(LIBRS_EXTRA_VERSION "-unknown")
+		set(LIBRS_EXTRA_VERSION "-${V_GIT_DESCRIBE}")
 	endif()
 endif()
-message(STATUS "libRetroShare version ${LIBRS_MAJOR_VERSION}.${LIBRS_MINOR_VERSION}.${LIBRS_MINI_VERSION}${LIBRS_EXTRA_VERSION}")
+string(CONCAT LIBRS_FULL_VERSION
+	${LIBRS_MAJOR_VERSION}
+	.${LIBRS_MINOR_VERSION}
+	.${LIBRS_MINI_VERSION}
+	"${LIBRS_EXTRA_VERSION}"
+)
+message(STATUS "libretroshare version ${LIBRS_FULL_VERSION}")
 
 
 ################################################################################
@@ -290,6 +298,7 @@ target_link_libraries(${PROJECT_NAME}
 
 target_compile_definitions(${PROJECT_NAME}
 	PUBLIC
+	"LIBRS_FULL_VERSION=${LIBRS_FULL_VERSION}"
 	"LIBRS_MAJOR_VERSION=${LIBRS_MAJOR_VERSION}"
 	"LIBRS_MINOR_VERSION=${LIBRS_MINOR_VERSION}"
 	"LIBRS_MINI_VERSION=${LIBRS_MINI_VERSION}"
@@ -439,7 +448,6 @@ endif(RS_BITDHT)
 find_package(RapidJSON REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC RapidJSON)
 get_target_property(tmp RapidJSON INTERFACE_INCLUDE_DIRECTORIES)
-message(STATUS "rapidjson interface: ${tmp}")
 
 ################################################################################
 ### SQLite3 / SQLCipher
@@ -578,17 +586,7 @@ install(
 	COMPONENT libretroshare
 	EXCLUDE_FROM_ALL
 	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
-	PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}"
+	FILE_SET HEADERS DESTINATION "${RS_INCLUDE_INSTALL_DIR}"
 )
 
-## As of today libretroshare doesn't hide implementation details properly so it
-## is necessary to install private headers too
-foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
-	get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
-	install(
-		FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
-		DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}"
-		COMPONENT libretroshare
-		EXCLUDE_FROM_ALL
-	)
-endforeach()
+## TODO: export targets and create config packages for install and build trees

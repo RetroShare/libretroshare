@@ -55,11 +55,6 @@ target_sources(${PROJECT_NAME}
   "${CMAKE_CURRENT_BINARY_DIR}/jsonapi-wrappers.inl"
 )
 
-target_include_directories(${PROJECT_NAME}
-  PRIVATE
-  "${JSONAPI_GENERATOR_OUTPUT_DIR}"
-)
-
 find_package(restbed REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE restbed::restbed)
 
