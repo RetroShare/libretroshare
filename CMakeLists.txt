@@ -430,7 +430,9 @@ if(RS_BITDHT)
 	find_package(bitdht REQUIRED)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
-	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht)
+	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht::bitdht)
+
+	install(FILES "${BD_BOOT_FILE}" DESTINATION "${RS_DATA_DIR}")
 
 	if(RS_BITDHT_STUNNER)
 		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
@@ -447,7 +449,6 @@ endif(RS_BITDHT)
 
 find_package(RapidJSON REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC RapidJSON)
-get_target_property(tmp RapidJSON INTERFACE_INCLUDE_DIRECTORIES)
 
 ################################################################################
 ### SQLite3 / SQLCipher

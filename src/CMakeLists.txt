@@ -871,7 +871,6 @@ endif(RS_JSON_API)
 
 target_sources(${PROJECT_NAME}
 	PUBLIC FILE_SET HEADERS
-	BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
 	FILES
   ${RS_PUBLIC_HEADERS}
 	## libretroshare doesn't hide implementation details properly so it

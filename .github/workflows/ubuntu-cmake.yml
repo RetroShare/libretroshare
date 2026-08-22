@@ -53,8 +53,43 @@ jobs:
         sudo apt-get install -y
         build-essential g++ cmake ninja-build pkg-config git
         libssl-dev zlib1g-dev libbz2-dev libjson-c-dev libbotan-2-dev rapidjson-dev
-        libsqlcipher-dev libminiupnpc-dev
+        libsqlcipher-dev libminiupnpc-dev libasio-dev
         doxygen python3
+
+    - name: Install BitDHT
+      run: |
+        git clone https://github.com/dbear496/RetroShare_BitDHT.git libbitdht \
+          --branch cmake-refactor
+        cd libbitdht
+        cmake -G Ninja -B build
+        cmake --build build -j$(nproc)
+
+    - name: Install restbed
+      run: |
+        git clone https://github.com/Corvusoft/restbed.git
+        cd restbed
+        git checkout --detach 6001a322809b5005b8bcccdf593fdda6f0173691
+        cmake -G Ninja -B build -DBUILD_TESTS=NO -DBUILD_SSL=NO \
+          -DBUILD_STATIC_LIBRARY=YES -DBUILD_SHARED_LIBRARY=NO \
+          -DBUILD_DEVEL_PACKAGE=YES \
+          --install-prefix=/usr/local -DCMAKE_INSTALL_LIBDIR=lib
+        cmake --build build -j$(nproc)
+        sudo cmake --install build
+
+    - name: Install rnp
+      run: |
+        git clone https://github.com/rnpgp/rnp.git --recurse-submodules
+        cd rnp
+        cmake -G Ninja -B build
+        cmake --build build -j$(nproc)
+        sudo cmake --install build
+
+    - name: Install udp-discovery-cpp
+      run: |
+        git clone https://github.com/truvorskameikin/udp-discovery-cpp.git
+        cd udp-discovery-cpp
+        cmake -G Ninja -B build
+        cmake --build build -j$(nproc)
 
     - name: CMake configure
       run: >
@@ -65,6 +100,9 @@ jobs:
         -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
         -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
         -DRS_FORUM_DEEP_INDEX=OFF
+        -DBITDHT_ROOT=${{github.workspace}}/libbitdht/build
+        -DRAPIDJSON_ROOT=${{github.workspace}}/rapidjson/build
+        -DUDP-DISCOVERY-CPP_ROOT=${{github.workspace}}/udp-discovery-cpp\;${{github.workspace}}/udp-discovery-cpp/build
 
     - name: CMake build
       run: cmake --build Build-cmake -j$(nproc)
