@@ -540,28 +540,64 @@ public:
 	 */
 	virtual bool setAsRegularContact(const RsGxsId& id, bool isContact) = 0;
 
-	/** @jsonapi{development} Get presence for all regular GXS contacts. */
+	/**
+	 * @brief Get presence for all regular GXS contacts
+	 * @jsonapi{development}
+	 * @param[out] statuses contact presence information
+	 * @return true on success
+	 */
 	virtual bool getContactsStatusList(
 	        std::list<RsContactStatus>& statuses ) = 0;
 
-	/** @jsonapi{development} Get presence for one regular GXS contact. */
+	/**
+	 * @brief Get presence for one regular GXS contact
+	 * @jsonapi{development}
+	 * @param[in] id GXS identity of the contact
+	 * @param[out] status contact presence information
+	 * @return false if the identity is not a regular contact
+	 */
 	virtual bool getContactsStatus(
 	        const RsGxsId& id, RsContactStatus& status ) = 0;
 
-	/** @jsonapi{development} Get locally selected presence for an own identity. */
+	/**
+	 * @brief Get locally selected presence for an own identity
+	 * @jsonapi{development}
+	 * @param[in] id own GXS identity
+	 * @param[out] status locally selected presence information
+	 * @return false if the identity is not owned by this node
+	 */
 	virtual bool getContactsStatusOwn(
 	        const RsGxsId& id, RsContactStatus& status ) = 0;
 
-	/** @jsonapi{development} Set presence advertised by an own identity. */
+	/**
+	 * @brief Set presence advertised by an own identity
+	 * @jsonapi{development}
+	 * @param[in] id own GXS identity
+	 * @param[in] status presence state to advertise
+	 * @param[in] customState custom presence string
+	 * @return false for an invalid identity, state, or custom string
+	 */
 	virtual bool setContactsStatusOwn(
 	        const RsGxsId& id, RsStatusValue status,
 	        const std::string& customState ) = 0;
 
-	/** @jsonapi{development} Get a contact's custom presence string. */
+	/**
+	 * @brief Get a contact's custom presence string
+	 * @jsonapi{development}
+	 * @param[in] id GXS identity of the contact
+	 * @param[out] customState custom presence string
+	 * @return false if the identity is not a regular contact
+	 */
 	virtual bool getContactsStatusCustomStateString(
 	        const RsGxsId& id, std::string& customState ) = 0;
 
-	/** @jsonapi{development} Set an own identity's custom presence string. */
+	/**
+	 * @brief Set an own identity's custom presence string
+	 * @jsonapi{development}
+	 * @param[in] id own GXS identity
+	 * @param[in] customState custom presence string
+	 * @return false for an invalid identity or custom string
+	 */
 	virtual bool setContactsStatusCustomStateStringOwn(
 	        const RsGxsId& id, const std::string& customState ) = 0;
 
