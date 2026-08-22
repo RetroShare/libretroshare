@@ -2539,7 +2539,12 @@ void RsGenExchange::publishMsgs()
     for(auto grpit:msgChangeMap)
         grpMetas.insert(std::make_pair(grpit.first, std::make_shared<RsGxsGrpMetaData>()));
 
-    mDataStore->retrieveGxsGrpMetaData(grpMetas);
+    // The test is here to avoid the default behavior to retrieve all groups when the list is empty. Since publishMsgs()
+    // holds mGenMtx, that full scan would otherwise block every GUI call that needs mGenMtx (getDefaultSyncPeriod(),
+    // getSyncPeriod(), etc) for as long as the data service mutex is held by another thread.
+
+    if(!grpMetas.empty())
+        mDataStore->retrieveGxsGrpMetaData(grpMetas);
 
     for(auto it(msgChangeMap.begin());it!=msgChangeMap.end();++it)
     {
