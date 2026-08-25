@@ -49,6 +49,7 @@ void RsGxsIdLocalInfoItem::clear()
     mTimeStamps.clear() ;
 	mContacts.clear();
 	mOwnContactsStatus.clear();
+	mContactsStatus.clear();
 }
 void RsGxsIdGroupItem::clear()
 {
@@ -65,6 +66,9 @@ void RsGxsIdLocalInfoItem::serial_process(RsGenericSerializer::SerializeJob j,Rs
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
 		return;
 	RsTypeSerializer::serial_process(j,ctx,mOwnContactsStatus,"mOwnContactsStatus");
+	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
+		return;
+	RsTypeSerializer::serial_process(j,ctx,mContactsStatus,"mContactsStatus");
 }
 
 void RsGxsIdGroupItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)

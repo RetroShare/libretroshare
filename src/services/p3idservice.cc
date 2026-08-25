@@ -398,11 +398,18 @@ bool p3IdService::setContactsStatusCustomStateStringOwn(
 
 bool p3IdService::updateContactsStatus(const RsContactStatus& status)
 {
+	bool changed = true;
 	{
 		RS_STACK_MUTEX(mIdMtx);
 		if(mContacts.find(status.mGxsId) == mContacts.end()) return false;
+		auto oldStatus = mContactsStatus.find(status.mGxsId);
+		changed = oldStatus == mContactsStatus.end() ||
+		        oldStatus->second.mStatus != status.mStatus ||
+		        oldStatus->second.mCustomState != status.mCustomState;
 		mContactsStatus[status.mGxsId] = status;
+		IndicateConfigChanged();
 	}
+	if(!changed) return true;
 	auto event = std::make_shared<RsGxsIdentityEvent>();
 	event->mIdentityEventCode = RsGxsIdentityEventCode::CONTACT_STATUS_CHANGED;
 	event->mIdentityId = RsGxsGroupId(status.mGxsId);
@@ -483,6 +490,7 @@ bool p3IdService::loadList(std::list<RsItem*>& items)
 
             mContacts = lii->mContacts ;
 			mOwnContactsStatus = lii->mOwnContactsStatus;
+			mContactsStatus = lii->mContactsStatus;
         }
 
 	    RsConfigKeyValueSet *vitem = dynamic_cast<RsConfigKeyValueSet *>(*it);
@@ -556,6 +564,7 @@ bool p3IdService::saveList(bool& cleanup,std::list<RsItem*>& items)
 
     item->mContacts = mContacts ;
 	item->mOwnContactsStatus = mOwnContactsStatus;
+	item->mContactsStatus = mContactsStatus;
 
     items.push_back(item) ;
 

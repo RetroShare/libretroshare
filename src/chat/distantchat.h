@@ -105,7 +105,7 @@ private:
 	        const RsGxsTunnelId& id, unsigned char* data, uint32_t data_size );
 
     // Utility functions.
-    
+
     void markDistantChatAsClosed(const DistantChatPeerId& dcpid) ;
 
     RsGxsTunnelService *mGxsTunnels ;

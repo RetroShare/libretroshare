@@ -189,22 +189,6 @@ void DistantChatService::notifyTunnelStatus( const RsGxsTunnelId& tunnel_id, uin
     auto ev = std::make_shared<RsDistantChatEvent>();
     ev->mId = DistantChatPeerId(tunnel_id);
 
-	if(tunnel_status == RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_TUNNEL_DN ||
-	        tunnel_status == RsGxsTunnelService::RS_GXS_TUNNEL_STATUS_REMOTELY_CLOSED)
-	{
-		RsGxsId ownId, contactId;
-		if(getDistantChatIdentities(
-		            DistantChatPeerId(tunnel_id), ownId, contactId ) &&
-		        rsIdentity && rsIdentity->isARegularContact(contactId))
-		{
-			RsContactStatus status;
-			status.mGxsId = contactId;
-			status.mStatus = RsStatusValue::RS_STATUS_OFFLINE;
-			status.mTimestamp = time(nullptr);
-			rsIdentity->updateContactsStatus(status);
-		}
-	}
-
 #warning TODO: I had to comment out calls to notifyPeerStatusChanged, which anyway looked misplaced here. Probably a hack.
     switch(tunnel_status)
     {
