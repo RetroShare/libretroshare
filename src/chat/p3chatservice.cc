@@ -287,6 +287,8 @@ p3ChatService::p3ChatService( p3ServiceControl *sc, p3IdService *pids,
 	addSerialType(_serializer);
 	mGxsTransport.registerGxsTransClient( GxsTransSubServices::P3_CHAT_SERVICE,
 	                                      this );
+	mGxsTransport.registerGxsTransClient(
+	            GxsTransSubServices::P3_CONTACT_STATUS, this );
 }
 
 RsServiceInfo p3ChatService::getServiceInfo()
@@ -1795,7 +1797,7 @@ bool p3ChatService::sendContactsStatusBackground(
 
 	RsGxsTransId mailId = RSRandom::random_u64();
 	return mGxsTransport.sendData(
-	            mailId, GxsTransSubServices::P3_CHAT_SERVICE,
+	            mailId, GxsTransSubServices::P3_CONTACT_STATUS,
 	            status.mGxsId, contactId, data.data(), size );
 }
 
