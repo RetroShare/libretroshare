@@ -32,5 +32,5 @@ find_package_handle_standard_args(MiniUPnPc
 )
 
 if(MiniUPnPc_FOUND)
-  add_library(MiniUPnPc::MiniUPnPc ALIAS PkgConfig::MiniUPnPc)
+  add_library(miniupnpc::miniupnpc ALIAS PkgConfig::MiniUPnPc)
 endif()

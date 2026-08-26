@@ -432,7 +432,10 @@ if(RS_BITDHT)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
 	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht::bitdht)
 
-	install(FILES "${BD_BOOT_FILE}" DESTINATION "${RS_DATA_DIR}")
+	install(FILES "${BD_BOOT_FILE}"
+		DESTINATION "${RS_DATA_DIR}"
+		COMPONENT libretroshare
+	)
 
 	if(RS_BITDHT_STUNNER)
 		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
@@ -472,7 +475,7 @@ endif()
 if(RS_MINIUPNPC)
 	find_package(MiniUPnPc REQUIRED)
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_LIBMINIUPNPC)
-	target_link_libraries(${PROJECT_NAME} PRIVATE MiniUPnPc::MiniUPnPc)
+	target_link_libraries(${PROJECT_NAME} PRIVATE miniupnpc::miniupnpc)
 endif(RS_MINIUPNPC)
 
 if(RS_LIBUPNP)
