@@ -22,6 +22,21 @@
 
 namespace RsUtil {
 
-	std::string rs_getpass(const std::string& prompt,bool no_echo=true) ;
+	/**
+	 * @brief Read a line from the console, optionally without echoing it.
+	 * @param prompt      text written before reading, may be empty
+	 * @param no_echo     when true the typed characters are not shown
+	 * @param eof         optional, set to true when the input stream ended
+	 *                    before a complete line could be read
+	 * @return the line read, or an empty string when the input ended
+	 *
+	 * When the input stream is closed -- a service started from systemd or
+	 * docker with no terminal attached, stdin redirected from /dev/null, an
+	 * ssh session dropping mid-prompt -- there is no line to return and *eof
+	 * is set. Callers looping on this function must stop on that condition,
+	 * otherwise they spin on an input that will never come.
+	 */
+	std::string rs_getpass( const std::string& prompt, bool no_echo = true,
+	                        bool* eof = nullptr );
 
 }
