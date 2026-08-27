@@ -58,7 +58,8 @@ $%callbackParamsSerialization%$
 			sStream << "data: " << compactJSON << ctx.mJson << "\n\n";
 			const std::string message = sStream.str();
 
-			lService->schedule( [weakSession, message]()
+            auto io_context = lService->get_io_context();
+			asio::post(*io_context, [weakSession, message]()
 			{
 				auto session = weakSession.lock();
 				if(!session || session->is_closed()) return;
