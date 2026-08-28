@@ -1,22 +1,21 @@
 # RetroShare decentralized communication platform
 #
 # Copyright (C) 2021-2026  Gioacchino Mazzurco <gio@retroshare.cc>
+# Copyright (C) 2026       David Bears <dbear4q@gmail.com>
 #
 # SPDX-License-Identifier: CC0-1.0
 
-cmake_minimum_required (VERSION 3.18.0)
-project(retroshare)
+cmake_minimum_required(VERSION 3.24...4.4.1)
+project(retroshare
+	VERSION 0.6.7
+	LANGUAGES CXX C
+)
+
+
+################################################################################
+### options
 
 include(CMakeDependentOption)
-include(GNUInstallDirs)
-
-set(FETCHCONTENT_QUIET OFF)
-include(FetchContent)
-
-if(WIN32)
-	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
-	add_definitions(-DUNICODE -D_UNICODE)
-endif()
 
 option(
 	RS_SQLCIPHER
@@ -133,26 +132,23 @@ option(
 	"Build the experimental, off-by-default GXS 'The Wire' service"
 	OFF )
 
-option(
-	RS_LIBRETROSHARE_STANDALONE_INSTALL
-	"Install libretroshare as a stand-alone library"
-	OFF )
+include(GNUInstallDirs)
 
 set(
 	RS_DATA_DIR
-	"${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}"
+	"${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 	CACHE PATH
 	"Path where to install RetroShare system wide data" )
 
 set(
 	RS_INCLUDE_INSTALL_DIR
-	"${CMAKE_INSTALL_FULL_INCLUDEDIR}/${PROJECT_NAME}"
+	"${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}"
 	CACHE PATH
 	"Path where to install libretroshare headers" )
 
 set(
 	RS_LIB_INSTALL_DIR
-	"${CMAKE_INSTALL_FULL_LIBDIR}"
+	"${CMAKE_INSTALL_LIBDIR}"
 	CACHE PATH
 	"Path where to install libretroshare compiled library" )
 
@@ -196,87 +192,328 @@ option(
 	OFF )
 
 set(
-	RS_MAJOR_VERSION
-	""
-	CACHE STRING
-	"Specify RetroShare major version" )
-
-set(
-	RS_MINOR_VERSION
-	""
-	CACHE STRING
-	"Specify RetroShare minor version" )
-
-set(
-	RS_MINI_VERSION
-	""
-	CACHE STRING
-	"Specify RetroShare mini version" )
-
-set(
 	RS_EXTRA_VERSION
 	""
 	CACHE STRING
 	"Specify an extra string to append to RetroShare version to make it more descriptive" )
 
 ################################################################################
+### dependencies
 
-find_package(Git REQUIRED)
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/mk/cmake")
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
+set(FETCHCONTENT_QUIET OFF)
+include(FetchContent)
+
+find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(BZip2 REQUIRED)
+find_package(ZLIB REQUIRED)
 
 ################################################################################
+### build configuration
 
 if(RS_DEVELOPMENT_BUILD)
 	set(CMAKE_VERBOSE_MAKEFILE ON)
 	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif(RS_DEVELOPMENT_BUILD)
 
+
 ################################################################################
+### version
 
-include(src/CMakeLists.txt)
-list(TRANSFORM RS_SOURCES PREPEND src/)
-list(TRANSFORM RS_PUBLIC_HEADERS PREPEND src/)
-
-if(RS_LIBRETROSHARE_STATIC)
-	add_library(${PROJECT_NAME} STATIC ${RS_SOURCES})
-endif(RS_LIBRETROSHARE_STATIC)
-
-if(RS_LIBRETROSHARE_SHARED)
-	add_library(${PROJECT_NAME} SHARED ${RS_SOURCES})
-
-	## Ensure statically linked libraries such as openpgpsdk are compiled with
-	## PIC Which is needed for shared library
-	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-	## Make the linker fail at build time if libretroshare.so contains any
-	## undefined symbol, instead of silently producing a .so that crashes at
-	## runtime with
-	## java.lang.UnsatisfiedLinkError: dlopen failed: cannot locate symbol $symbol
-	## This is especially important on Android where every dependency (bzip2,
-	## OpenSSL, SQLite, librnp, ...) is statically linked: an undefined
-	## reference in libretroshare.so has no provider at runtime, unlike on
-	## Linux where those deps are shared system libraries resolved via
-	## DT_NEEDED.
-	## The same hardening would be valuable on other platforms too
-	## (-Wl,-z,defs on Linux, -Wl,-undefined,error on macOS) but there the
-	## shared-deps model makes the trade-off less clear, so it is
-	## Android-only for now.
-	if(RS_ANDROID)
-		target_link_options(${PROJECT_NAME} PRIVATE LINKER:--no-undefined)
+include(GetGitRevisionDescription)
+set(LIBRS_MAJOR_VERSION "${PROJECT_VERSION_MAJOR}")
+set(LIBRS_MINOR_VERSION "${PROJECT_VERSION_MINOR}")
+set(LIBRS_MINI_VERSION "${PROJECT_VERSION_PATCH}")
+if(DEFINED RS_EXTRA_VERSION AND NOT (RS_EXTRA_VERSION STREQUAL ""))
+	set(LIBRS_EXTRA_VERSION "${RS_EXTRA_VERSION}")
+else()
+	git_describe_working_tree(V_GIT_DESCRIBE
+		--tags --long --always --dirty --match v*.*.*
+	)
+	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)$")
+	if(NOT V_GIT_DESCRIBE)
+		set(LIBRS_EXTRA_VERSION "-unknown")
+	elseif(V_GIT_DESCRIBE MATCHES "${V_GIT_DESCRIBE_REGEXP}")
+		string(
+			REGEX REPLACE
+			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
+			V_GIT_DESCRIBE_LIST "${V_GIT_DESCRIBE}" )
+		list(GET V_GIT_DESCRIBE_LIST 0 LIBRS_MAJOR_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 1 LIBRS_MINOR_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 2 LIBRS_MINI_VERSION)
+		list(GET V_GIT_DESCRIBE_LIST 3 LIBRS_EXTRA_VERSION)
+	else()
+		set(LIBRS_EXTRA_VERSION "-${V_GIT_DESCRIBE}")
 	endif()
+endif()
+string(CONCAT LIBRS_FULL_VERSION
+	${LIBRS_MAJOR_VERSION}
+	.${LIBRS_MINOR_VERSION}
+	.${LIBRS_MINI_VERSION}
+	"${LIBRS_EXTRA_VERSION}"
+)
+message(STATUS "libretroshare version ${LIBRS_FULL_VERSION}")
 
-	if(WIN32)
-		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			# We must use an explicit list of heavy 3rd-party archives instead of "ALL" for --exclude-libs.
-			# Using "ALL" also hides symbols from CMake's internal objects.a archive (created by WINDOWS_EXPORT_ALL_SYMBOLS),
-			# which prevents libretroshare from exporting its own core C++ symbols, causing massive linkage errors downstream.
-			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,libbitdht.a:librnp.a:libsexpp.a:libudp-discovery.a:librestbed.a:libsqlcipher.a:libbotan-2.a:libbotan-3.a:libz.a:libbz2.a")
-		endif()
-	endif()
-endif(RS_LIBRETROSHARE_SHARED)
+
+################################################################################
+### general compilation options
+
+if(RS_LIBRETROSHARE_STATIC AND RS_LIBRETROSHARE_SHARED)
+	message(FATAL_ERROR "building both static and shared library is not supported")
+elseif(RS_LIBRETROSHARE_STATIC)
+	set(BUILD_SHARED_LIBS NO)
+elseif(RS_LIBRETROSHARE_SHARED)
+	set(BUILD_SHARED_LIBS YES)
+else()
+	message(FATAL_ERROR "must specify either RS_LIBRETROSHARE_STATIC or RS_LIBRETROSHARE_SHARED")
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(WIN32)
+	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
+	add_definitions(-DUNICODE -D_UNICODE)
+endif()
+
+################################################################################
+### targets
+
+add_library(${PROJECT_NAME})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
+target_link_libraries(${PROJECT_NAME}
+	## TODO: I have a suspicion some of these need to be public
+	PRIVATE
+	${CMAKE_DL_LIBS}
+	Threads::Threads
+	OpenSSL::SSL
+	OpenSSL::Crypto
+	BZip2::BZip2
+	ZLIB::ZLIB
+)
+
+target_compile_definitions(${PROJECT_NAME}
+	PUBLIC
+	"LIBRS_FULL_VERSION=${LIBRS_FULL_VERSION}"
+	"LIBRS_MAJOR_VERSION=${LIBRS_MAJOR_VERSION}"
+	"LIBRS_MINOR_VERSION=${LIBRS_MINOR_VERSION}"
+	"LIBRS_MINI_VERSION=${LIBRS_MINI_VERSION}"
+	"LIBRS_EXTRA_VERSION=${LIBRS_EXTRA_VERSION}"
+	PRIVATE
+	SQLITE_HAS_CODEC
+	RS_ENABLE_GXS
+	GXS_ENABLE_SYNC_MSGS
+	RS_USE_GXS_DISTANT_SYNC
+	RS_GXS_TRANS
+	V07_NON_BACKWARD_COMPATIBLE_CHANGE_001
+	V07_NON_BACKWARD_COMPATIBLE_CHANGE_002
+	V07_NON_BACKWARD_COMPATIBLE_CHANGE_003
+)
+
+if(RS_DEVELOPMENT_BUILD)
+	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
+endif(RS_DEVELOPMENT_BUILD)
+
+if(RS_SPLIT_DEBUG)
+	target_compile_options(${PROJECT_NAME} PRIVATE "-g")
+	target_compile_options(${PROJECT_NAME} PRIVATE "-gsplit-dwarf")
+endif(RS_SPLIT_DEBUG)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT RS_NO_LTO)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
+endif()
+
+if(RS_USE_CALENDAR)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_CALENDAR)
+endif(RS_USE_CALENDAR)
+
+if(RS_GXSWIKIPOS)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_WIKI)
+endif(RS_GXSWIKIPOS)
+
+if(RS_GXSTHEWIRE)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_WIRE)
+endif(RS_GXSTHEWIRE)
+
+if(RS_FORUM_DEEP_INDEX)
+	find_package(Xapian REQUIRED)
+
+	target_link_libraries(${PROJECT_NAME} PRIVATE ${XAPIAN_LIBRARIES})
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_DEEP_FORUMS_INDEX)
+endif(RS_FORUM_DEEP_INDEX)
+
+if(RS_GXS_SEND_ALL)
+	target_compile_definitions(
+		${PROJECT_NAME} PUBLIC RS_GXS_SEND_ALL )
+endif(RS_GXS_SEND_ALL)
+
+if(RS_V07_BREAKING_CHANGES)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE
+		V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
+		V07_NON_BACKWARD_COMPATIBLE_CHANGE_UNNAMED
+	)
+endif()
+
+if(NOT RS_DH_PRIME_INIT_CHECK)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE
+		RS_DISABLE_DIFFIE_HELLMAN_INIT_CHECK
+	)
+endif(NOT RS_DH_PRIME_INIT_CHECK)
+
+if(NOT RS_WARN_DEPRECATED)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
+	target_compile_options(${PROJECT_NAME} PRIVATE
+		-Wno-deprecated
+		-Wno-deprecated-declarations
+	)
+endif(NOT RS_WARN_DEPRECATED)
+
+if(RS_WARN_LESS)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_CPP)
+
+	target_compile_options(${PROJECT_NAME} PRIVATE
+		-Wno-cpp
+		-Wno-inconsistent-missing-override
+	)
+endif(RS_WARN_LESS)
+
+if(RS_WEBUI)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_WEBUI)
+endif(RS_WEBUI)
+
+if(RS_EXPORT_JNI_ONLOAD)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC
+		RS_LIBRETROSHARE_EXPORT_JNI_ONLOAD
+	)
+endif(RS_EXPORT_JNI_ONLOAD)
+
+
+################################################################################
+### libsam3
+
+if(RS_USE_I2P_SAM3)
+	find_package(libsam3 REQUIRED)
+	target_link_libraries(${PROJECT_NAME}
+		PRIVATE
+		libsam3::libsam3
+	)
+	target_compile_definitions(${PROJECT_NAME}
+		PRIVATE
+		RS_USE_I2P_SAM3
+		RS_USE_I2P_SAM3_LIBSAM3
+	)
+endif()
+
+################################################################################
+### rnp / openpgpsdk
+
+if(RS_RNPLIB)
+	find_package(rnp REQUIRED)
+
+	target_link_libraries(${PROJECT_NAME} PUBLIC rnp::librnp)
+else()
+	find_package(openpgpsdk REQUIRED)
+
+	target_link_libraries(${PROJECT_NAME} PUBLIC openpgpsdk::openpgpsdk)
+
+	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENPGPSDK)
+endif(RS_RNPLIB)
+
+################################################################################
+### bitdht
+
+if(RS_BITDHT)
+	find_package(bitdht REQUIRED)
+
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
+	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht::bitdht)
+
+	install(FILES "${BD_BOOT_FILE}"
+		DESTINATION "${RS_DATA_DIR}"
+		COMPONENT libretroshare
+	)
+
+	if(RS_BITDHT_STUNNER)
+		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
+
+		if(RS_BITDHT_STUNNER_EXT_IP)
+			# TODO: Refactor this define to use proper prefix and then flag as public
+			target_compile_definitions(${PROJECT_NAME} PRIVATE ALLOW_DHT_STUNNER)
+		endif(RS_BITDHT_STUNNER_EXT_IP)
+	endif(RS_BITDHT_STUNNER)
+endif(RS_BITDHT)
+
+################################################################################
+### RapidJSON
+
+find_package(RapidJSON REQUIRED)
+target_link_libraries(${PROJECT_NAME} PUBLIC RapidJSON)
+
+################################################################################
+### SQLite3 / SQLCipher
+
+## TODO: Check if https://github.com/rbock/sqlpp11 or
+## https://github.com/rbock/sqlpp17 may improve GXS code
+if(RS_SQLCIPHER)
+	find_package(SQLCipher REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE SQLCipher::SQLCipher)
+else()
+	# TODO: Refactor this define to use proper prefix and then flag as
+	# public
+	target_compile_definitions(${PROJECT_NAME} PRIVATE NO_SQLCIPHER)
+	find_package(SQLite3 REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE SQLite::SQLite3)
+endif()
+
+################################################################################
+### UPnP
+
+if(RS_MINIUPNPC)
+	find_package(MiniUPnPc REQUIRED)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_LIBMINIUPNPC)
+	target_link_libraries(${PROJECT_NAME} PRIVATE miniupnpc::miniupnpc)
+endif(RS_MINIUPNPC)
+
+if(RS_LIBUPNP)
+	message(FATAL_ERROR "UPnP support via libupnp is currently not supported")
+	#target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_LIBUPNP)
+endif(RS_LIBUPNP)
+
+################################################################################
+### UDP-Discovery
+
+if(RS_BRODCAST_DISCOVERY)
+	find_package(udp-discovery-cpp REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE
+		udp-discovery-cpp::udp-discovery
+	)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
+endif(RS_BRODCAST_DISCOVERY)
+
+################################################################################
+### cpptrace
+
+if(RS_CPPTRACE_STACKTRACE)
+	find_package(cpptrace REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE)
+endif(RS_CPPTRACE_STACKTRACE)
+
+################################################################################
+### Platforms
+
+### Linux
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	target_compile_definitions(${PROJECT_NAME} PUBLIC
+		"RS_DATA_DIR=\"${CMAKE_INSTALL_PREFIX}/${RS_DATA_DIR}\""
+	)
+endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+### Windows
 if(WIN32)
 	target_compile_definitions(
 		${PROJECT_NAME} PUBLIC
@@ -292,662 +529,68 @@ if(WIN32)
 		NOCRYPT
 		# Prevents <windows.h> from including extra headers and polluting the namespace
 		WIN32_LEAN_AND_MEAN
-		WIN_DLL_EXPORT )
+		WIN_DLL_EXPORT
+	)
 	target_link_libraries(${PROJECT_NAME} PUBLIC ws2_32 winmm iphlpapi)
+
+	if(BUILD_SHARED_LIBS)
+		set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+		if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+			# We must use an explicit list of heavy 3rd-party archives instead of "ALL" for --exclude-libs.
+			# Using "ALL" also hides symbols from CMake's internal objects.a archive (created by WINDOWS_EXPORT_ALL_SYMBOLS),
+			# which prevents libretroshare from exporting its own core C++ symbols, causing massive linkage errors downstream.
+			target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--export-all-symbols,--exclude-libs,libbitdht.a:librnp.a:libsexpp.a:libudp-discovery.a:librestbed.a:libsqlcipher.a:libbotan-2.a:libbotan-3.a:libz.a:libbz2.a")
+		endif()
+	endif()
+
+	# Disabling LTO (Interprocedural Optimization) on Windows is necessary for RetroShare
+	# because enabling it causes the MinGW linker (ld) to run out of memory or exhaust the maximum
+	# number of exported symbols, or emit "multiple definition" errors during LTO code generation.
+	# While this makes the binary fatter and slower, it prevents fatal build failures.
+	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
 endif()
 
-## As of today libretroshare doesn't hide implementation details properly so it
-## is necessary to flag all implementation headers as public
-target_include_directories(
-	${PROJECT_NAME}
-	PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src" )
-
-set_target_properties(
-	${PROJECT_NAME}
-	PROPERTIES PUBLIC_HEADER "${RS_PUBLIC_HEADERS}" )
-
-if(RS_LIBRETROSHARE_STANDALONE_INSTALL)
-	install(
-		TARGETS ${PROJECT_NAME}
-		LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
-		PUBLIC_HEADER DESTINATION "${RS_INCLUDE_INSTALL_DIR}" )
-
-	## As of today libretroshare doesn't hide implementation details properly so it
-	## is necessary to install private headers too
-	foreach(P_HEADER ${RS_IMPLEMENTATION_HEADERS})
-		get_filename_component(P_DIR "${P_HEADER}" DIRECTORY)
-		install(
-			FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/${P_HEADER}"
-			DESTINATION "${RS_INCLUDE_INSTALL_DIR}/${P_DIR}" )
-	endforeach()
-endif(RS_LIBRETROSHARE_STANDALONE_INSTALL)
-
-if(RS_SPLIT_DEBUG)
-	target_compile_options(${PROJECT_NAME} PRIVATE "-g")
-	target_compile_options(${PROJECT_NAME} PRIVATE "-gsplit-dwarf")
-endif(RS_SPLIT_DEBUG)
-
-if(RS_DEVELOPMENT_BUILD)
-	target_compile_options(${PROJECT_NAME} PRIVATE "-O0")
-endif(RS_DEVELOPMENT_BUILD)
-
-if(RS_ANDROID)
-	target_link_libraries(${PROJECT_NAME} PRIVATE log)
-endif(RS_ANDROID)
-
-
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
-
-find_package(Threads REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
-
-find_package(OpenSSL REQUIRED)
-target_include_directories(${PROJECT_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-
-## bzip2 is referenced directly by libretroshare (e.g. BZ2_bzlibVersion in
-## rsserver/p3face-info.cc) and transitively by several statically-linked
-## dependencies (librnp, openpgpsdk, sqlcipher). It must be linked
-## explicitly.
-find_package(BZip2 REQUIRED)
-target_include_directories(${PROJECT_NAME} PRIVATE ${BZIP2_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PRIVATE BZip2::BZip2)
-
-## Link explicitly for the same reason as bzip2
-find_package(ZLIB REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE ZLIB::ZLIB)
-
-################################################################################
-if(RS_RNPLIB)
-	## json-c is referenced transitively by librnp (json-utils.cpp,
-	## rnp.cpp, stream-dump.cpp) but not exported by librnp's CMake target.
-	find_package(json-c REQUIRED)
-	target_link_libraries(${PROJECT_NAME} PRIVATE json-c::json-c)
-
-	macro(rnplib_set_inline_build_options)
-		set(RNPLIB_BUILD_SHARED ${RS_LIBRETROSHARE_SHARED})
-		set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-		set(BUILD_TESTING OFF)
-		set(BUILD_SHARED_LIBS ${RNPLIB_BUILD_SHARED})
-		set(DOWNLOAD_GTEST OFF)
-		set(ENABLE_DOC OFF CACHE BOOL "Disable librnp docs" FORCE)
-	endmacro()
-
-	macro(rnplib_restore_build_options)
-		set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
-	endmacro()
-
-	set(RNPLIB_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/librnp/")
-
-	if(EXISTS "${RNPLIB_DEVEL_DIR}/CMakeLists.txt")
-		message(STATUS "librnp source found at ${RNPLIB_DEVEL_DIR} using it")
-		rnplib_set_inline_build_options()
-		add_subdirectory("${RNPLIB_DEVEL_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/librnp")
-		rnplib_restore_build_options()
-		set(RNPLIB_SRC_DIR "${RNPLIB_DEVEL_DIR}")
-		set(RNPLIB_BIN_DIR "${CMAKE_CURRENT_BINARY_DIR}/librnp")
-		set(RNPLIB_INLINE_BUILD ON)
-	else()
-		find_library(LIBRNP_LIBRARY NAMES rnp)
-		if(LIBRNP_LIBRARY)
-			message(STATUS "Found pre-built librnp at ${LIBRNP_LIBRARY}")
-			find_library(LIBSEXPP_LIBRARY NAMES sexpp)
-			target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRNP_LIBRARY})
-			if(LIBSEXPP_LIBRARY)
-				message(STATUS "and sexpp at ${LIBSEXPP_LIBRARY}")
-				target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSEXPP_LIBRARY})
-			endif()
-			set(RNPLIB_INLINE_BUILD OFF)
-		else()
-			message(STATUS "librnp not found locally, using FetchContent")
-			rnplib_set_inline_build_options()
-			FetchContent_Declare(
-				librnp
-				GIT_REPOSITORY "https://github.com/rnpgp/rnp.git"
-				GIT_TAG "origin/main"
-				GIT_SHALLOW TRUE
-				GIT_PROGRESS TRUE
-				TIMEOUT 10
-			)
-			FetchContent_MakeAvailable(librnp)
-			rnplib_restore_build_options()
-			set(RNPLIB_SRC_DIR "${librnp_SOURCE_DIR}")
-			set(RNPLIB_BIN_DIR "${librnp_BINARY_DIR}")
-			set(RNPLIB_INLINE_BUILD ON)
-		endif()
-	endif()
-
-	if(RNPLIB_INLINE_BUILD)
-		target_include_directories(${PROJECT_NAME} PUBLIC
-			"${RNPLIB_SRC_DIR}/include"
-			"${RNPLIB_BIN_DIR}/src/lib"
-		)
-
-		if(RNPLIB_BUILD_SHARED)
-			target_link_libraries(${PROJECT_NAME} PRIVATE librnp)
-		else()
-			target_link_libraries(${PROJECT_NAME} PRIVATE librnp sexpp)
-		endif()
-	endif()
-else()
-
-	set(OPENPGPSDK_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../openpgpsdk/")
-	if(EXISTS "${OPENPGPSDK_DEVEL_DIR}/CMakeLists.txt" )
-		message(
-			STATUS
-			"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
-		add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
-	else()
-		FetchContent_Declare(
-			openpgpsdk
-			GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
-			GIT_TAG "origin/master"
-			GIT_SHALLOW TRUE
-			GIT_PROGRESS TRUE
-			TIMEOUT 10
-		)
-		FetchContent_MakeAvailable(openpgpsdk)
-	endif()
-
-	target_link_libraries(${PROJECT_NAME} PRIVATE openpgpsdk)
-
-	target_compile_definitions(${PROJECT_NAME} PUBLIC USE_OPENPGPSDK)
-
-endif(RS_RNPLIB)
-
-################################################################################
-
-if(RS_BITDHT)
-	set(BITDHT_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libbitdht/")
-	if(EXISTS "${BITDHT_DEVEL_DIR}/CMakeLists.txt" )
-		message(
-			STATUS
-			"BitDHT submodule found at ${BITDHT_DEVEL_DIR} using it" )
-		add_subdirectory(${BITDHT_DEVEL_DIR} ${CMAKE_BINARY_DIR}/bitdht)
-		set(RS_BITDHT_DIR "${BITDHT_DEVEL_DIR}")
-	else()
-		FetchContent_Declare(
-			bitdht
-			GIT_REPOSITORY "https://github.com/RetroShare/BitDHT.git"
-			GIT_TAG "origin/master"
-			GIT_SHALLOW TRUE
-			GIT_PROGRESS TRUE
-			TIMEOUT 10
-		)
-		FetchContent_MakeAvailable(bitdht)
-
-		set(RS_BITDHT_DIR "${bitdht_SOURCE_DIR}")
-	endif()
-
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_BITDHT)
-	target_link_libraries(${PROJECT_NAME} PRIVATE bitdht)
-
-	if(RS_BITDHT_STUNNER)
-		target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_DHT_STUNNER)
-
-		if(RS_BITDHT_STUNNER_EXT_IP)
-			# TODO: Refactor this define to use proper prefix and then flag as
-			# public
-			target_compile_definitions(
-				${PROJECT_NAME} PRIVATE ALLOW_DHT_STUNNER )
-		endif(RS_BITDHT_STUNNER_EXT_IP)
-	endif(RS_BITDHT_STUNNER)
-endif(RS_BITDHT)
-
-################################################################################
-
-set(RAPIDJSON_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/rapidjson/")
-find_path(
-	RS_RAPIDJSON_INCLUDE "rapidjson/document.h"
-	PATH_SUFFIXES "include" "includes" )
-if(EXISTS "${RS_RAPIDJSON_INCLUDE}")
-	message( STATUS
-	         "RapidJSON found in system at ${RS_RAPIDJSON_INCLUDE}" )
-	target_include_directories(
-		${PROJECT_NAME}
-		PUBLIC "${RS_RAPIDJSON_INCLUDE}" )
-elseif(EXISTS "${RAPIDJSON_DEVEL_DIR}/CMakeLists.txt")
-	message( STATUS
-	         "RapidJSON found in development dir at ${RAPIDJSON_DEVEL_DIR}" )
-	target_include_directories(
-		${PROJECT_NAME}
-		PUBLIC "${RAPIDJSON_DEVEL_DIR}/include" )
-else()
-	FetchContent_Declare(
-		rapidjson
-		GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
-	)
-	FetchContent_MakeAvailable(rapidjson)
-endif()
-
-################################################################################
-
-if(RS_JSON_API)
-	find_package(Doxygen REQUIRED)
-	find_package(Python3 REQUIRED)
-
-	set(
-		JSON_API_GENERATOR_WORK_DIR
-		"${CMAKE_BINARY_DIR}/jsonapi-generator.workdir/" )
-
-	set(
-		JSON_API_GENERATOR_DOXYFILE
-		"${JSON_API_GENERATOR_WORK_DIR}/jsonapi-generator-doxygen.conf" )
-
-	set(
-		JSONAPI_GENERATOR_OUTPUT_DIR
-		"${JSON_API_GENERATOR_WORK_DIR}/src/" )
-
-	set(
-		JSONAPI_GENERATOR_SOURCE_DIR
-		"${CMAKE_CURRENT_SOURCE_DIR}/src/jsonapi/" )
-
-	set(
-		JSONAPI_GENERATOR_EXECUTABLE
-		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
-
-	file(READ "src/jsonapi/jsonapi-generator-doxygen.conf" DOXYFILE_CONTENT)
-	string(APPEND DOXYFILE_CONTENT
-		"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
-		"EXCLUDE="
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
-	)
-	file(WRITE "${JSON_API_GENERATOR_DOXYFILE}" "${DOXYFILE_CONTENT}")
-
-	add_custom_command(
-		OUTPUT
-			"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-includes.inl"
-			"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-wrappers.inl"
-		COMMAND ${DOXYGEN_EXECUTABLE} ${JSON_API_GENERATOR_DOXYFILE}
-		COMMAND
-			${Python3_EXECUTABLE} ${JSONAPI_GENERATOR_EXECUTABLE}
-			${JSONAPI_GENERATOR_SOURCE_DIR} ${JSONAPI_GENERATOR_OUTPUT_DIR}
-		MAIN_DEPENDENCY "${JSONAPI_GENERATOR_EXECUTABLE}"
-		DEPENDS ${JSON_API_GENERATOR_DOXYFILE} ${RS_PUBLIC_HEADERS} )
-
-	target_sources(
-		${PROJECT_NAME} PRIVATE
-		"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-includes.inl"
-		"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-wrappers.inl" )
-
-	target_include_directories(
-		${PROJECT_NAME} PRIVATE "${JSONAPI_GENERATOR_OUTPUT_DIR}" )
-
-	set(BUILD_TESTS OFF CACHE BOOL "Do not build restbed tests")
-	set(BUILD_SSL OFF CACHE BOOL "Do not build restbed SSL support")
-	set(BUILD_SHARED_LIBRARY ${RS_LIBRETROSHARE_SHARED})
-	set(BUILD_SHARED_LIBS ${RS_LIBRETROSHARE_SHARED})
-
-	set(RESTBED_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/restbed/")
-	if(RS_ANDROID)
-		## At moment depending on restbed the CMake way doesn't seems to work at
-		## least on Android due to upstream CMake file limitation, patches
-		## should be sent upstream.
-		## Restbed is therefore compiled by Android toolchain preparation script
-		target_link_libraries(${PROJECT_NAME} PRIVATE restbed)
-	elseif(NOT WIN32 AND EXISTS "${RESTBED_DEVEL_DIR}/CMakeLists.txt")
-		## On Windows, skip the local submodule: recent restbed HEAD requires
-		## system ASIO (not available by default on MSYS2/MinGW). Fall through
-		## to FetchContent which downloads restbed 4.8 with bundled ASIO.
-		message( STATUS
-		         "Restbed submodule found at ${RESTBED_DEVEL_DIR} using it" )
-		add_subdirectory(
-			${RESTBED_DEVEL_DIR}
-			${CMAKE_BINARY_DIR}/restbed
-			EXCLUDE_FROM_ALL )
-		# EXCLUDE_FROM_ALL prevent executing install directives from included
-		# dependencies see https://stackoverflow.com/a/64900982
-
-		set(RESTBED_TARGET restbed-static)
-		if(TARGET restbed-shared AND BUILD_SHARED_LIBS)
-			set(RESTBED_TARGET restbed-shared)
-		endif()
-
-		target_include_directories(
-			${PROJECT_NAME} PUBLIC "${RESTBED_DEVEL_DIR}/source/" )
-		target_link_libraries(${PROJECT_NAME} PRIVATE ${RESTBED_TARGET})
-	else()
-		message( WARNING
-		         "FetchContent restbed, will be installed if you run make install")
-		FetchContent_Declare(
-			restbed
-			GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
-			GIT_TAG "4.8"
-			GIT_SUBMODULES dependency/asio dependency/catch
-			GIT_SHALLOW TRUE
-			GIT_PROGRESS TRUE
-			TIMEOUT 10
-			# PATCH_COMMAND applies hotfixes to restbed before building:
-			# 1. Removes /wd4251 (MSVC-specific flag) that breaks GCC/Clang builds.
-			# 2. Bumps CMake minimum version to 3.5.0 to suppress deprecation warnings in CMake >= 3.27.
-			PATCH_COMMAND sed -i -e "s|/wd4251||g" -e "s|VERSION 3.1.0|VERSION 3.5.0|g" CMakeLists.txt
-		)
-		FetchContent_MakeAvailable(restbed)
-
-		set(RESTBED_TARGET restbed-static)
-		if(TARGET restbed-shared AND BUILD_SHARED_LIBS)
-			set(RESTBED_TARGET restbed-shared)
-		endif()
-
-		target_include_directories(
-			${PROJECT_NAME} PUBLIC ${restbed_SOURCE_DIR}/source/ )
-		target_link_libraries(${PROJECT_NAME} PRIVATE ${RESTBED_TARGET})
-		if(WIN32)
-			if(TARGET restbed-static)
-				target_link_libraries(restbed-static PUBLIC ws2_32 winmm iphlpapi mswsock)
-			endif()
-			if(TARGET restbed-shared)
-				target_link_libraries(restbed-shared PUBLIC ws2_32 winmm iphlpapi mswsock)
-			endif()
-		endif()
-	endif()
-
-
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_JSONAPI)
-endif(RS_JSON_API)
-
-################################################################################
-
-if(RS_FORUM_DEEP_INDEX)
-	find_package(Xapian REQUIRED)
-	target_link_libraries(${PROJECT_NAME} PRIVATE ${XAPIAN_LIBRARIES})
-
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_DEEP_FORUMS_INDEX)
-endif(RS_FORUM_DEEP_INDEX)
-
-################################################################################
-
-## TODO: Check if https://github.com/rbock/sqlpp11 or
-## https://github.com/rbock/sqlpp17 may improve GXS code
-if(RS_SQLCIPHER)
-	find_library(RS_SQL_LIB "sqlcipher" REQUIRED)
-	find_path(
-		RS_SQL_LIB_INCLUDE "sqlcipher/sqlite3.h"
-		PATH_SUFFIXES "include" "includes"
-		REQUIRED )
-	target_include_directories(
-		${PROJECT_NAME}
-		PRIVATE "${RS_SQL_LIB_INCLUDE}/sqlcipher" )
-	target_link_libraries(${PROJECT_NAME} PRIVATE ${RS_SQL_LIB})
-else()
-	# TODO: Refactor this define to use proper prefix and then flag as
-	# public
-	target_compile_definitions(${PROJECT_NAME} PRIVATE NO_SQLCIPHER)
-	find_package(SQLite3 REQUIRED)
-	target_link_libraries(${PROJECT_NAME} PRIVATE SQLite::SQLite3)
-endif()
-
-target_compile_definitions(
-	${PROJECT_NAME} PRIVATE
-	SQLITE_HAS_CODEC
-	RS_ENABLE_GXS
-	GXS_ENABLE_SYNC_MSGS
-	RS_USE_GXS_DISTANT_SYNC
-	RS_GXS_TRANS
-	V07_NON_BACKWARD_COMPATIBLE_CHANGE_001
-	V07_NON_BACKWARD_COMPATIBLE_CHANGE_002
-	V07_NON_BACKWARD_COMPATIBLE_CHANGE_003 )
-
-if(RS_V07_BREAKING_CHANGES)
-	target_compile_definitions(
-		${PROJECT_NAME} PRIVATE
-		V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-		V07_NON_BACKWARD_COMPATIBLE_CHANGE_UNNAMED )
-endif()
-
-if(NOT RS_DH_PRIME_INIT_CHECK)
-	target_compile_definitions(
-		${PROJECT_NAME} PRIVATE RS_DISABLE_DIFFIE_HELLMAN_INIT_CHECK )
-endif(NOT RS_DH_PRIME_INIT_CHECK)
-
-if(RS_MINIUPNPC)
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_USE_LIBMINIUPNPC )
-	target_link_libraries(${PROJECT_NAME} PRIVATE miniupnpc)
-endif(RS_MINIUPNPC)
-
-if(RS_LIBUPNP)
-	message(FATAL_ERROR "UPnP support via libupnp is currently not supported")
-	#target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_LIBUPNP)
-endif(RS_LIBUPNP)
-
-if(RS_GXS_SEND_ALL)
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_GXS_SEND_ALL )
-endif(RS_GXS_SEND_ALL)
-
-if(RS_USE_CALENDAR)
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_USE_CALENDAR )
-endif(RS_USE_CALENDAR)
-
-# Enable the experimental GXS Wiki (WikiPoos) service. The define is PUBLIC so
-# that consumers (retroshare-gui, retroshare-service) that link libretroshare
-# see the same RS_USE_WIKI guard used in rsserver/rsinit.cc and the GUI.
-if(RS_GXSWIKIPOS)
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_USE_WIKI )
-endif(RS_GXSWIKIPOS)
-
-# Enable the experimental GXS 'The Wire' service (see note above).
-if(RS_GXSTHEWIRE)
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_USE_WIRE )
-endif(RS_GXSTHEWIRE)
-
-if(RS_BRODCAST_DISCOVERY)
-	## TODO: upstream option to disable tests building
-	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
-	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
-
-	set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-
-	set(UDP_DISCOVERY_DEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../supportlibs/udp-discovery-cpp/")
-	if(EXISTS "${UDP_DISCOVERY_DEVEL_DIR}/CMakeLists.txt")
-		message( STATUS
-		         "UDP discovery source found at ${UDP_DISCOVERY_DEVEL_DIR} using it" )
-		add_subdirectory(${UDP_DISCOVERY_DEVEL_DIR} ${CMAKE_BINARY_DIR}/udp-discovery-cpp/)
-
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
-		target_include_directories(
-			${PROJECT_NAME} PRIVATE "${UDP_DISCOVERY_DEVEL_DIR}" )
-	else()
-		FetchContent_Declare(
-			udp-discovery-cpp
-			GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
-			GIT_TAG "origin/master"
-			GIT_SHALLOW TRUE
-			GIT_PROGRESS TRUE
-			TIMEOUT 10
-		)
-		FetchContent_MakeAvailable(udp-discovery-cpp)
-
-		## TODO: Temporary work around target_include_directories PUBLIC should
-		## be added upstream
-		target_include_directories(
-			${PROJECT_NAME} PRIVATE "${udp-discovery-cpp_SOURCE_DIR}" )
-	endif()
-
-	target_link_libraries(${PROJECT_NAME} PRIVATE udp-discovery)
-
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
-endif(RS_BRODCAST_DISCOVERY)
-
-if(NOT RS_WARN_DEPRECATED)
-	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
-	target_compile_options(
-		${PROJECT_NAME} PRIVATE
-		-Wno-deprecated -Wno-deprecated-declarations )
-endif(NOT RS_WARN_DEPRECATED)
-
-if(RS_WARN_LESS)
-	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_CPP)
-
-	target_compile_options(
-		${PROJECT_NAME} PRIVATE
-		-Wno-cpp -Wno-inconsistent-missing-override )
-endif(RS_WARN_LESS)
-
-if(RS_WEBUI)
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_WEBUI)
-endif(RS_WEBUI)
-
-################################################################################
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_DATA_DIR="${RS_DATA_DIR}" )
-endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-
-################################################################################
-
+### Mac
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa")
 endif()
 
-################################################################################
-
-if(RS_EXPORT_JNI_ONLOAD)
-	target_compile_definitions(
-		${PROJECT_NAME} PUBLIC RS_LIBRETROSHARE_EXPORT_JNI_ONLOAD )
-endif(RS_EXPORT_JNI_ONLOAD)
-
-################################################################################
-
+### Android
 if(RS_ANDROID)
-	FetchContent_Declare(
-		jni-hpp
-		GIT_REPOSITORY "https://github.com/RetroShare/jni.hpp.git"
-		GIT_TAG "origin/master"
-		GIT_SHALLOW TRUE
-		GIT_PROGRESS TRUE
-		TIMEOUT 10
-	)
-	FetchContent_MakeAvailable(jni-hpp)
-
-	target_include_directories(
-		${PROJECT_NAME} PRIVATE "${jni-hpp_SOURCE_DIR}/include" )
-endif(RS_ANDROID)
-
-################################################################################
-
-
-set(V_VERSION_SET OFF)
-
-if( NOT RS_MAJOR_VERSION STREQUAL "" AND
-    NOT RS_MINOR_VERSION STREQUAL "" AND
-    NOT RS_MINI_VERSION  STREQUAL "" )
-	message(STATUS "libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
-	set(V_VERSION_SET ON)
-else()
-	set(V_GIT_DESCRIBE_OUTPUT "")
-	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
-
-	execute_process(
-		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT
-		RESULT_VARIABLE V_GIT_RESULT ) # Avoid CMake failure if git fails
-
-	if( V_GIT_RESULT EQUAL 0 AND
-	    V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}" )
-		string(
-			REGEX REPLACE
-			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
-			V_GIT_DESCRIBE_LIST ${V_GIT_DESCRIBE_OUTPUT} )
-		list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
-
-		message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
-		set(V_VERSION_SET ON)
-	else()
-		message(WARNING "Determining libRetroShare version via git failed please specify it through CMake command line arguments!")
+	target_link_libraries(${PROJECT_NAME} PRIVATE log)
+	if(BUILD_SHARED_LIBS)
+		target_link_options(${PROJECT_NAME} PRIVATE LINKER:--no-undefined)
 	endif()
-endif()
 
-if(V_VERSION_SET)
-	target_compile_definitions(
-		${PROJECT_NAME}
-		PUBLIC RS_MAJOR_VERSION=${RS_MAJOR_VERSION}
-		PUBLIC RS_MINOR_VERSION=${RS_MINOR_VERSION}
-		PUBLIC RS_MINI_VERSION=${RS_MINI_VERSION}
-		PUBLIC RS_EXTRA_VERSION="${RS_EXTRA_VERSION}" )
-endif(V_VERSION_SET)
+	## On Android all symbols except for the few ones used called via JNI can be
+	## kept hidden allowing for more optimization, and reduced binary size
+	# TODO: Use generator expressions instead of CMAKE_BUILD_TYPE see
+	# https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#build-configurations
+	# https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#manual:cmake-generator-expressions(7)
+	if(CMAKE_BUILD_TYPE STREQUAL "Release")
+		set_property(TARGET ${PROJECT_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
+		set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_VISIBILITY_PRESET hidden)
+		set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
+	endif()
 
-################################################################################
-
-# Engine build hash exposed through RsInit::libRetroShareVersion().
-# Ported from the qmake build (libretroshare.pro RS_LIB_VERSION_HASH block):
-# describe the libretroshare submodule itself and drop the leading 'v' to
-# match the GUI version style. Used only inside libretroshare, hence PRIVATE.
-execute_process(
-	COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
-	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-	OUTPUT_VARIABLE RS_LIB_VERSION_HASH
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-	RESULT_VARIABLE V_GIT_HASH_RESULT ) # Avoid CMake failure if git fails
-
-if(V_GIT_HASH_RESULT EQUAL 0 AND NOT RS_LIB_VERSION_HASH STREQUAL "")
-	string(REGEX REPLACE "^v" "" RS_LIB_VERSION_HASH "${RS_LIB_VERSION_HASH}")
-	message(STATUS "libRetroShare engine hash ${RS_LIB_VERSION_HASH}")
-	target_compile_definitions(
-		${PROJECT_NAME}
-		PRIVATE RS_LIB_VERSION_HASH="${RS_LIB_VERSION_HASH}" )
-else()
-	message(WARNING "Determining libRetroShare engine hash via git failed")
+	find_package(jni.hpp REQUIRED)
+	target_link_libraries(${PROJECT_NAME} PRIVATE jni.hpp::jni.hpp)
 endif()
 
 ################################################################################
+### subdirectories
 
-# TODO: Use generator expressions instead of CMAKE_BUILD_TYPE see
-# https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#build-configurations
-# https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#manual:cmake-generator-expressions(7)
-
-## On Android all symbols except for the few ones used called via JNI can be
-## kept hidden allowing for more optimization, and reduced binary size
-if(RS_ANDROID AND CMAKE_BUILD_TYPE STREQUAL "Release")
-	set_property(TARGET ${PROJECT_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
-	set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_VISIBILITY_PRESET hidden)
-	set_property(TARGET ${PROJECT_NAME} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
-endif()
-
-# Note: Disabling LTO (Interprocedural Optimization) on Windows is necessary for RetroShare 
-# because enabling it causes the MinGW linker (ld) to run out of memory or exhaust the maximum
-# number of exported symbols, or emit "multiple definition" errors during LTO code generation. 
-# While this makes the binary fatter and slower, it prevents fatal build failures.
-# The same escape hatch (-DRS_NO_LTO=ON) also works around lto1 internal compiler
-# errors (segfault in the IPA icf pass) with the older GCC 10 LTO plugin, e.g. when
-# building on Debian 11 to produce a portable (old-glibc) AppImage.
-if(CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT WIN32 AND NOT RS_NO_LTO)
-	set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION ON)
-endif()
+add_subdirectory(src)
 
 ################################################################################
+### install
 
-if(RS_CPPTRACE_STACKTRACE)
-    FetchContent_Declare(
-      cpptrace
-      GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-      GIT_TAG v0.3.1
-      GIT_SHALLOW TRUE
-      GIT_PROGRESS TRUE
-      TIMEOUT 10
-    )
-    FetchContent_MakeAvailable(cpptrace)
-    target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
-    target_compile_definitions(
-        ${LIBRARY_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
-endif(RS_CPPTRACE_STACKTRACE)
+install(
+	TARGETS ${PROJECT_NAME}
+	COMPONENT libretroshare
+	EXCLUDE_FROM_ALL
+	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
+	FILE_SET HEADERS DESTINATION "${RS_INCLUDE_INSTALL_DIR}"
+)
 
-if(RS_USE_I2P_SAM3)
-	target_link_libraries(${PROJECT_NAME} PRIVATE sam3)
-endif()
+## TODO: export targets and create config packages for install and build trees

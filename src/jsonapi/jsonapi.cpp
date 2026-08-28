@@ -44,7 +44,7 @@
 #include "retroshare/rsversion.h"
 
 // Generated at compile time
-#include "jsonapi-includes.inl"
+#include "jsonapi/jsonapi-includes.inl"
 
 /*extern*/ RsJsonApi* rsJsonApi = nullptr;
 
@@ -538,7 +538,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 	}, true);
 
 // Generated at compile time
-#include "jsonapi-wrappers.inl"
+#include "jsonapi/jsonapi-wrappers.inl"
 }
 
 void JsonApiServer::registerHandler(

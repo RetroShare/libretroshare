@@ -52,15 +52,43 @@ jobs:
         openssl@3 botan@2 sqlcipher miniupnpc json-c
         bzip2 zlib doxygen gnu-sed rapidjson
 
-    # The restbed patch step of CMakeLists.txt runs `sed -i -e ...`, which is
-    # GNU syntax: BSD sed reads the argument after -i as a backup suffix and
-    # fails with "sed: -e: No such file or directory". The super-project never
-    # hits it -- it has restbed as a submodule and takes the add_subdirectory
-    # branch instead of FetchContent -- so this only shows up in the standalone
-    # build. Put GNU sed first in PATH rather than patch the CMakeLists.
+    - name: Install BitDHT
+      run: |
+        git clone https://github.com/dbear496/RetroShare_BitDHT.git libbitdht \
+          --branch cmake-refactor
+        cd libbitdht
+        cmake -G Ninja -B build
+        cmake --build build -j$(nproc)
+
+    - name: Install restbed
+      run: |
+        git clone https://github.com/Corvusoft/restbed.git
+        cd restbed
+        git checkout --detach 6001a322809b5005b8bcccdf593fdda6f0173691
+        cmake -G Ninja -B build -DBUILD_TESTS=NO -DBUILD_SSL=NO \
+          -DBUILD_STATIC_LIBRARY=YES -DBUILD_SHARED_LIBRARY=NO \
+          -DBUILD_DEVEL_PACKAGE=YES \
+          --install-prefix=/usr/local -DCMAKE_INSTALL_LIBDIR=lib
+        cmake --build build -j$(nproc)
+        sudo cmake --install build
+
+    - name: Install rnp
+      run: |
+        git clone https://github.com/rnpgp/rnp.git --recurse-submodules
+        cd rnp
+        cmake -G Ninja -B build
+        cmake --build build -j$(nproc)
+        sudo cmake --install build
+
+    - name: Install udp-discovery-cpp
+      run: |
+        git clone https://github.com/truvorskameikin/udp-discovery-cpp.git
+        cd udp-discovery-cpp
+        cmake -G Ninja -B build
+        cmake --build build -j$(nproc)
+
     - name: CMake configure
       run: |
-        export PATH="$(brew --prefix gnu-sed)/libexec/gnubin:$PATH"
         HB="$(brew --prefix)"
         IFLAGS="-I$HB/include"; for d in "$HB"/opt/*/include; do IFLAGS="$IFLAGS -I$d"; done
         LFLAGS="-L$HB/lib";     for d in "$HB"/opt/*/lib;     do LFLAGS="$LFLAGS -L$d"; done

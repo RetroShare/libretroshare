@@ -1,11 +1,24 @@
 # RetroShare decentralized communication platform
 #
-# Copyright (C) 2021  Gioacchino Mazzurco <gio@retroshare.cc>
+# Copyright (C) 2021      Gioacchino Mazzurco <gio@retroshare.cc>
+# Copyright (C) 2026      David Bears <dbear4q@gmail.com>
 #
 # SPDX-License-Identifier: CC0-1.0
 
-list(
-	APPEND RS_PUBLIC_HEADERS
+target_sources(${PROJECT_NAME}
+	PUBLIC FILE_SET HEADERS
+	BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+
+	PRIVATE FILE_SET private_HEADERS TYPE HEADERS
+	BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4")
+	target_sources(${PROJECT_NAME}
+		PRIVATE FILE_SET SOURCES
+	)
+endif()
+
+list(APPEND RS_PUBLIC_HEADERS
 	retroshare/rsexpr.h
 	retroshare/rsgxsdistsync.h
 	retroshare/rsiface.h
@@ -25,7 +38,7 @@ list(
 	retroshare/rsreputations.h
 	retroshare/rsservicecontrol.h
 	retroshare/rstokenservice.h
-	retroshare/rsturtle.h	
+	retroshare/rsturtle.h
 	retroshare/rsgossipdiscovery.h
 	retroshare/rsgxscommon.h
 	retroshare/rsposted.h
@@ -46,59 +59,58 @@ list(
 	retroshare/rsfiles.h
 	retroshare/rsinit.h
 	retroshare/rspeers.h
-	retroshare/rstor.h )
+	retroshare/rstor.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	chat/distantchat.cc
 	chat/p3chatservice.cc
 	chat/rschatitems.cc
-	chat/distributedchat.cc )
+	chat/distributedchat.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	chat/distantchat.h
 	chat/distributedchat.h
 	chat/p3chatservice.h
-	chat/rschatitems.h )
+	chat/rschatitems.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	crypto/chacha20.cpp
 	crypto/hashstream.cc
 	crypto/rsaes.cc
-	crypto/rscrypto.cpp )
+	crypto/rscrypto.cpp
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	crypto/chacha20.h
 	crypto/hashstream.h
 	crypto/rsaes.h
 	crypto/rscrypto.h )
 
 if(RS_BITDHT)
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rsdht.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rsdht.h
+	)
 
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		dht/connectstatebox.cc
 		dht/p3bitdht.cc
 		dht/p3bitdht_interface.cc
 		dht/p3bitdht_peernet.cc
 		dht/p3bitdht_peers.cc
-		dht/p3bitdht_relay.cc )
+		dht/p3bitdht_relay.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		dht/connectstatebox.h
 		dht/p3bitdht.h
-		dht/stunaddrassist.h )
+		dht/stunaddrassist.h
+	)
 endif(RS_BITDHT)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	file_sharing/filelist_io.cc
 	file_sharing/rsfilelistitems.cc
 	file_sharing/file_tree.cc
@@ -116,10 +128,10 @@ list(
 	ft/ftcontroller.cc
 	ft/ftdatamultiplex.cc
 	ft/ftextralist.cc
-	ft/ftserver.cc )
+	ft/ftserver.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	file_sharing/directory_list.h
 	file_sharing/directory_storage.h
 	file_sharing/directory_updater.h
@@ -140,25 +152,25 @@ list(
 	ft/ftsearch.h
 	ft/ftserver.h
 	ft/fttransfermodule.h
-	ft/ftturtlefiletransferitem.h )
+	ft/ftturtlefiletransferitem.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	grouter/groutermatrix.cc
 	grouter/grouteritems.cc
-	grouter/p3grouter.cc )
+	grouter/p3grouter.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	grouter/groutercache.h
 	grouter/grouterclientservice.h
 	grouter/grouteritems.h
 	grouter/groutermatrix.h
 	grouter/groutertypes.h
-	grouter/p3grouter.h )
+	grouter/p3grouter.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	gxs/rsgxsdata.cc
 	gxs/rsgxsrequesttypes.cc
 	gxs/gxssecurity.cc
@@ -170,10 +182,10 @@ list(
 	gxs/rsgxsutil.cc
 	gxs/rsnxsobserver.cpp
 	gxs/rsgenexchange.cc
-	gxs/rsgxsnetservice.cc )
+	gxs/rsgxsnetservice.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	gxs/gxssecurity.h
 	gxs/gxstokenqueue.h
 	gxs/rsdataservice.h
@@ -191,83 +203,95 @@ list(
 	gxs/rsgxsrequesttypes.h
 	gxs/rsgxsutil.h
 	gxs/rsnxs.h
-	gxs/rsnxsobserver.h )
+	gxs/rsnxsobserver.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	gxstrans/p3gxstransitems.cc
-	gxstrans/p3gxstrans.cc )
+	gxstrans/p3gxstrans.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	gxstrans/p3gxstrans.h
-	gxstrans/p3gxstransitems.h )
+	gxstrans/p3gxstransitems.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	gxstunnel/rsgxstunnelitems.cc
-	gxstunnel/p3gxstunnel.cc )
+	gxstunnel/p3gxstunnel.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	gxstunnel/p3gxstunnel.h
-	gxstunnel/rsgxstunnelitems.h )
+	gxstunnel/rsgxstunnelitems.h
+)
 
 if(RS_JSON_API)
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rsjsonapi.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rsjsonapi.h
+	)
 
-	list(
-		APPEND RS_SOURCES
-		jsonapi/jsonapi.cpp )
+	list(APPEND RS_SOURCES
+		jsonapi/jsonapi.cpp
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		jsonapi/jsonapi.h
-		jsonapi/jsonapiitems.h )
+		jsonapi/jsonapiitems.h
+	)
 endif(RS_JSON_API)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	pgp/pgpauxutils.cc
 	pgp/pgphandler.cc
 	pgp/pgpkeyutil.cc
-	pgp/rscertificate.cc )
+	pgp/rscertificate.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	pgp/pgpauxutils.h
 	pgp/pgphandler.h
 	pgp/pgpkeyutil.h
-	pgp/rscertificate.h )
+	pgp/rscertificate.h
+)
 
 if(RS_RNPLIB)
-	list(APPEND RS_SOURCES pgp/rnppgphandler.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/rnppgphandler.h)
+	list(APPEND RS_SOURCES
+		pgp/rnppgphandler.cc
+	)
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		pgp/rnppgphandler.h
+	)
 else()
-	list(APPEND RS_SOURCES pgp/openpgpsdkhandler.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS pgp/openpgpsdkhandler.h)
+	list(APPEND RS_SOURCES
+		pgp/openpgpsdkhandler.cc
+	)
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		pgp/openpgpsdkhandler.h
+	)
 endif()
 
 #./plugins/rscacheservice.h
 #./plugins/rspqiservice.h
 
 if(WIN32)
-	list(APPEND RS_SOURCES plugins/dlfcn_win32.cc)
-	list(APPEND RS_IMPLEMENTATION_HEADERS plugins/dlfcn_win32.h)
+	list(APPEND RS_SOURCES
+		plugins/dlfcn_win32.cc
+	)
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		plugins/dlfcn_win32.h
+	)
 endif()
 
-list(
-	APPEND RS_SOURCES
-	plugins/pluginmanager.cc )
+list(APPEND RS_SOURCES
+	plugins/pluginmanager.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
-	plugins/pluginmanager.h )
+list(APPEND RS_IMPLEMENTATION_HEADERS
+	plugins/pluginmanager.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	pqi/pqibin.cc
 	pqi/pqiipset.cc
 	pqi/pqiloopback.cc
@@ -297,10 +321,10 @@ list(
 	pqi/p3peermgr.cc
 	pqi/pqinetwork.cc
 	pqi/pqissl.cc
-	pqi/pqisslpersongrp.cc )
+	pqi/pqisslpersongrp.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	pqi/authgpg.h
 	pqi/authssl.h
 	pqi/p3cfgmgr.h
@@ -339,7 +363,9 @@ list(
 	pqi/pqistore.h
 	pqi/pqistreamer.h
 	pqi/pqithreadstreamer.h
-	pqi/sslfns.h )
+	pqi/sslfns.h
+)
+
 if(RS_USE_I2P_SAM3)
 	list(APPEND RS_SOURCES
 		pqi/pqissli2psam3.cpp
@@ -348,8 +374,8 @@ if(RS_USE_I2P_SAM3)
 		pqi/pqissli2psam3.h
 	)
 endif()
-list(
-	APPEND RS_SOURCES
+
+list(APPEND RS_SOURCES
 	rsitems/rsbanlistitems.cc
 	rsitems/rsbwctrlitems.cc
 	rsitems/rsconfigitems.cc
@@ -362,25 +388,25 @@ list(
 	rsitems/rsgxsupdateitems.cc
 	rsitems/rshistoryitems.cc
 	rsitems/rsrttitems.cc
-	rsitems/rsserviceinfoitems.cc )
+	rsitems/rsserviceinfoitems.cc
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	rsitems/rsgxschannelitems.cc
 	rsitems/rsgxscircleitems.cc
 	rsitems/rsgxsitems.cc
-	rsitems/rsmsgitems.cc )
+	rsitems/rsmsgitems.cc
+)
 
 #./rsitems/rsphotoitems.cc
 #./rsitems/rsphotoitems.h
 #./rsitems/rsposteditems.h
 
-list(
-	APPEND RS_SOURCES
-	rsitems/rsnxsitems.cc )
+list(APPEND RS_SOURCES
+	rsitems/rsnxsitems.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	rsitems/itempriorities.h
 	rsitems/rsbanlistitems.h
 	rsitems/rsbwctrlitems.h
@@ -405,10 +431,10 @@ list(
 	rsitems/rsrttitems.h
 	rsitems/rsserviceids.h
 	rsitems/rsserviceinfoitems.h
-	rsitems/rsstatusitems.h )
+	rsitems/rsstatusitems.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	rsserver/p3status.cc
 	rsserver/p3face-config.cc
 	rsserver/p3face-info.cc
@@ -418,20 +444,20 @@ list(
 	rsserver/p3face-server.cc
 	rsserver/p3peers.cc
 	rsserver/rsaccounts.cc
-	rsserver/rsinit.cc )
+	rsserver/rsinit.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	rsserver/p3face.h
 	rsserver/p3history.h
 	rsserver/p3peers.h
 	rsserver/p3serverconfig.h
 	rsserver/p3status.h
 	rsserver/rsaccounts.h
-	rsserver/rsloginhandler.h )
+	rsserver/rsloginhandler.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	serialiser/rsbaseserial.cc
 	serialiser/rsserializable.cc
 	serialiser/rstlvaddrs.cc
@@ -449,10 +475,10 @@ list(
 	serialiser/rstlvstring.cc
 	serialiser/rsserializer.cc
 	serialiser/rstypeserializer.cc
-	serialiser/rsserial.cc )
+	serialiser/rsserial.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	serialiser/rsbaseserial.h
 	serialiser/rsserial.h
 	serialiser/rsserializable.h
@@ -473,7 +499,9 @@ list(
 	serialiser/rstlvlist.h
 	serialiser/rstlvmaps.h
 	serialiser/rstlvstring.h
-	serialiser/rstypeserializer.h )
+	serialiser/rstypeserializer.h
+)
+
 # ./services/autoproxy
 if(RS_USE_I2P_SAM3)
 	list(APPEND RS_SOURCES
@@ -483,8 +511,7 @@ if(RS_USE_I2P_SAM3)
 		services/autoproxy/p3i2psam3.h
 	)
 endif()
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	services/autoproxy/rsautoproxymonitor.cc
 	services/p3bwctrl.cc
 	services/p3heartbeat.cc
@@ -500,10 +527,10 @@ list(
 	services/p3msgservice.cc
 	services/p3idservice.cc
 	services/p3gxschannels.cc
-	services/p3gxsforums.cc )
+	services/p3gxsforums.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	services/p3banlist.h
 	services/p3bwctrl.h
 	services/p3gxschannels.h
@@ -520,129 +547,123 @@ list(
 	services/p3service.h
 	services/p3serviceinfo.h
 	services/p3statusservice.h
-	services/rseventsservice.h )
+	services/rseventsservice.h
+)
 
 if(RS_USE_CALENDAR)
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rsgxscalendar.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rsgxscalendar.h
+	)
 
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		rsitems/rsgxscalendaritems.cc
-		services/p3gxscalendar.cc )
+		services/p3gxscalendar.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		rsitems/rsgxscalendaritems.h
-		services/p3gxscalendar.h )
+		services/p3gxscalendar.h
+	)
 endif(RS_USE_CALENDAR)
-	
-# The Wiki (WikiPoos) and The Wire are experimental, off-by-default GXS
-# services. Their sources are compiled only when the matching option is set.
-# The options live in the top-level CMakeLists.txt (RS_GXSWIKIPOS /
-# RS_GXSTHEWIRE), which also adds the RS_USE_WIKI / RS_USE_WIRE compile
-# definitions that gate the service instantiation in rsserver/rsinit.cc and
-# the corresponding GUI code.
+
 if(RS_GXSWIKIPOS)
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		services/p3wiki.cc
-		rsitems/rswikiitems.cc )
+		rsitems/rswikiitems.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		services/p3wiki.h
-		rsitems/rswikiitems.h )
+		rsitems/rswikiitems.h
+	)
 
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rswiki.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rswiki.h
+	)
 endif(RS_GXSWIKIPOS)
 
 if(RS_GXSTHEWIRE)
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		services/p3wire.cc
-		rsitems/rswireitems.cc )
+		rsitems/rswireitems.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		services/p3wire.h
-		rsitems/rswireitems.h )
+		rsitems/rswireitems.h
+	)
 
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rswire.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rswire.h
+	)
 endif(RS_GXSTHEWIRE)
 
 #./services/p3photoservice.cc
 #./services/p3photoservice.h
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	services/p3postbase.cc
 	services/p3posted.cc
-	rsitems/rsposteditems.cc )
+	rsitems/rsposteditems.cc
+)
 
 if(RS_BRODCAST_DISCOVERY)
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rsbroadcastdiscovery.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rsbroadcastdiscovery.h
+	)
 
-	list(
-		APPEND RS_SOURCES
-		services/broadcastdiscoveryservice.cc )
+	list(APPEND RS_SOURCES
+		services/broadcastdiscoveryservice.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
-		services/broadcastdiscoveryservice.h )
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		services/broadcastdiscoveryservice.h
+	)
 endif(RS_BRODCAST_DISCOVERY)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	tcponudp/tcppacket.cc
 	tcponudp/tcpstream.cc
 	tcponudp/tou.cc
 	tcponudp/udppeer.cc
 	tcponudp/bss_tou.cc
-	tcponudp/udprelay.cc )
+	tcponudp/udprelay.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	tcponudp/bio_tou.h
 	tcponudp/rsudpstack.h
 	tcponudp/tcppacket.h
 	tcponudp/tcpstream.h
 	tcponudp/tou.h
 	tcponudp/udppeer.h
-	tcponudp/udprelay.h )
+	tcponudp/udprelay.h
+)
 
 if(RS_BITDHT_STUNNER)
-	list(
-		APPEND RS_SOURCES
-		tcponudp/udpstunner.cc )
+	list(APPEND RS_SOURCES
+		tcponudp/udpstunner.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
-		tcponudp/udpstunner.h )
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		tcponudp/udpstunner.h
+	)
 endif(RS_BITDHT_STUNNER)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	turtle/rsturtleitem.cc
-	turtle/p3turtle.cc )
+	turtle/p3turtle.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	turtle/p3turtle.h
 	turtle/rsturtleitem.h
 	turtle/turtleclientservice.h
 	turtle/turtlestatistics.h
-	turtle/turtletypes.h )
+	turtle/turtletypes.h
+)
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	util/contentvalue.cc
 	util/rsdbbind.cc
 	util/rsdiscspace.cc
@@ -670,10 +691,10 @@ list(
 	util/rsnet_ss.cc
 	util/rsstacktrace.cc
 	util/rsthreads.cc
-	util/i2pcommon.cpp )
+	util/i2pcommon.cpp
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	util/i2pcommon.h
 	util/argstream.h
 	util/contentvalue.h
@@ -721,18 +742,19 @@ list(
 	util/rsurl.h
 	util/rswin.h
 	util/smallobject.h
-	util/stacktrace.h )
+	util/stacktrace.h
+)
 
 if(RS_FORUM_DEEP_INDEX)
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		deep_search/commonutils.cpp
-		deep_search/forumsindex.cpp )
+		deep_search/forumsindex.cpp
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		deep_search/commonutils.hpp
-		deep_search/forumsindex.hpp )
+		deep_search/forumsindex.hpp
+	)
 endif(RS_FORUM_DEEP_INDEX)
 
 
@@ -744,52 +766,50 @@ endif(RS_FORUM_DEEP_INDEX)
 #./deep_search/channelsindex.cpp
 #./deep_search/channelsindex.hpp
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	gossipdiscovery/gossipdiscoveryitems.cc
-	gossipdiscovery/p3gossipdiscovery.cc )
+	gossipdiscovery/p3gossipdiscovery.cc
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	gossipdiscovery/gossipdiscoveryitems.h
-	gossipdiscovery/p3gossipdiscovery.h )
+	gossipdiscovery/p3gossipdiscovery.h
+)
 
 if(RS_MINIUPNPC)
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		rs_upnp/upnphandler_miniupnp.cc
-		rs_upnp/upnputil.cc )
+		rs_upnp/upnputil.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		rs_upnp/upnphandler_miniupnp.h
-		rs_upnp/upnputil.h )
+		rs_upnp/upnputil.h
+	)
 endif(RS_MINIUPNPC)
 
 #./rs_upnp/UPnPBase.cpp
 #./rs_upnp/upnphandler_libupnp.cc
 #./rs_upnp/upnptest.cc
 
-#if(CMAKE_SYSTEM_NAME STREQUAL "Android")
 if(RS_ANDROID)
-	list(
-		APPEND RS_SOURCES
+	list(APPEND RS_SOURCES
 		rs_android/errorconditionwrap.cpp
 		rs_android/retroshareserviceandroid.cpp
-		rs_android/rsjni.cpp )
+		rs_android/rsjni.cpp
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
+	list(APPEND RS_IMPLEMENTATION_HEADERS
 		rs_android/androidcoutcerrcatcher.hpp
 		rs_android/ifaddrs-android.h
 		rs_android/LocalArray.h
 		rs_android/retroshareserviceandroid.hpp
 		rs_android/rsjni.hpp
-		rs_android/ScopedFd.h )
+		rs_android/ScopedFd.h
+	)
 endif()
 
-list(
-	APPEND RS_SOURCES
+list(APPEND RS_SOURCES
 	pqi/rstcpsocket.cc
 	pqi/pqiproxy.cc
 	tor/AddOnionCommand.cpp
@@ -805,10 +825,10 @@ list(
 	tor/TorControlCommand.cpp
 	tor/TorControlSocket.cpp
 	tor/TorProcess.cpp
-	tor/TorManager.cpp )
+	tor/TorManager.cpp
+)
 
-list(
-	APPEND RS_IMPLEMENTATION_HEADERS
+list(APPEND RS_IMPLEMENTATION_HEADERS
 	pqi/pqiproxy.h
 	pqi/rstcpsocket.h
 	tor/AddOnionCommand.h
@@ -827,18 +847,45 @@ list(
 	tor/TorManager.h
 	tor/TorProcess.h
 	tor/TorTypes.h
-	tor/Useful.h )
+	tor/Useful.h
+)
 
 if(RS_WEBUI)
-	list(
-		APPEND RS_PUBLIC_HEADERS
-		retroshare/rswebui.h )
+	list(APPEND RS_PUBLIC_HEADERS
+		retroshare/rswebui.h
+	)
 
-	list(
-		APPEND RS_SOURCES
-		jsonapi/p3webui.cc )
+	list(APPEND RS_SOURCES
+		jsonapi/p3webui.cc
+	)
 
-	list(
-		APPEND RS_IMPLEMENTATION_HEADERS
-		jsonapi/p3webui.h )
+	list(APPEND RS_IMPLEMENTATION_HEADERS
+		jsonapi/p3webui.h
+	)
 endif(RS_WEBUI)
+
+if(RS_JSON_API)
+	add_subdirectory(jsonapi)
+endif(RS_JSON_API)
+
+
+target_sources(${PROJECT_NAME}
+	PUBLIC FILE_SET HEADERS
+	FILES
+  ${RS_PUBLIC_HEADERS}
+	## libretroshare doesn't hide implementation details properly so it
+	## is necessary to flag all implementation headers as public.
+	${RS_IMPLEMENTATION_HEADERS}
+)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4")
+	target_sources(${PROJECT_NAME}
+		PRIVATE FILE_SET SOURCES
+		FILES
+		${RS_SOURCES}
+	)
+else()
+	target_sources(${PROJECT_NAME}
+		PRIVATE
+		${RS_SOURCES}
+	)
+endif()

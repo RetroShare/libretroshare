@@ -67,7 +67,7 @@ HIDE_UNDOC_CLASSES     = NO
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-#INPUT                  =
+INPUT                  = @PROJECT_SOURCE_DIR@/src/
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -150,7 +150,10 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                =
+EXCLUDE                = \
+  @CMAKE_CURRENT_SOURCE_DIR@/src/tests \
+  @CMAKE_CURRENT_SOURCE_DIR@/src/unused \
+  @CMAKE_CURRENT_SOURCE_DIR@/src/unfinished \
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -227,4 +230,3 @@ MACRO_EXPANSION        = NO
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 EXPAND_ONLY_PREDEF     = NO
-
