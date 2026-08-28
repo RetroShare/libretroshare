@@ -22,6 +22,10 @@
 
 #include "p3webui.h"
 
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
+#include <sstream>
 #include <thread>
 #include <iostream>
 #include <fstream>
@@ -32,9 +36,11 @@
 #include "util/rsthreads.h"
 #include "util/rsdebug.h"
 #include "retroshare/rswebui.h"
+#include "retroshare/rsinit.h"
 #include "rsserver/rsaccounts.h"
 #include "retroshare/rsjsonapi.h"
 #include "util/rsdir.h"
+#include "util/rsbase64.h"
 
 /*extern*/ RsWebUi* rsWebUi = new p3WebUI;
 
@@ -105,6 +111,94 @@ public:
 		}
 	}
 };
+
+static std::string jsonEscape(const std::string& value)
+{
+	std::string escaped;
+	for(char c : value)
+		switch(c)
+		{
+		case '\\': escaped += "\\\\"; break;
+		case '"': escaped += "\\\""; break;
+		case '\n': escaped += "\\n"; break;
+		case '\r': escaped += "\\r"; break;
+		case '\t': escaped += "\\t"; break;
+		default: escaped += c;
+		}
+	return escaped;
+}
+
+static const char* stickerMime(const std::filesystem::path& path)
+{
+	std::string ext = path.extension().string();
+	std::transform(ext.begin(), ext.end(), ext.begin(),
+	               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	if(ext == ".png") return "image/png";
+	if(ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+	if(ext == ".gif") return "image/gif";
+	if(ext == ".webp") return "image/webp";
+	return nullptr;
+}
+
+static void stickers_handler(const std::shared_ptr<restbed::Session> session)
+{
+	namespace fs = std::filesystem;
+	const std::vector<fs::path> roots = {
+		fs::path(RsAccounts::AccountDirectory()) / "stickers",
+		fs::path(RsAccounts::ConfigDirectory()) / "stickers",
+		fs::path(RsAccounts::systemDataDirectory()) / "stickers"
+	};
+	std::ostringstream json;
+	json << "{\"groups\":[";
+	bool firstGroup = true;
+	for(const fs::path& root : roots)
+	{
+		std::error_code ec;
+		if(!fs::is_directory(root, ec)) continue;
+		std::vector<fs::path> directories = { root };
+		for(fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec), end;
+		    it != end; it.increment(ec))
+			if(!ec && it->is_directory()) directories.push_back(it->path());
+		for(const fs::path& directory : directories)
+		{
+			std::vector<fs::path> images;
+			for(fs::directory_iterator it(directory, fs::directory_options::skip_permission_denied, ec), end;
+			    it != end; it.increment(ec))
+				if(!ec && it->is_regular_file() && stickerMime(it->path())
+				        && it->path().filename() != "groupicon.png") images.push_back(it->path());
+			if(images.empty()) continue;
+			std::sort(images.begin(), images.end());
+			if(!firstGroup) json << ',';
+			firstGroup = false;
+			json << "{\"name\":\"" << jsonEscape(directory.filename().string()) << "\",\"stickers\":[";
+			bool firstSticker = true;
+			for(const fs::path& image : images)
+			{
+				std::ifstream stream(image, std::ios::binary);
+				if(!stream) continue;
+				const std::vector<uint8_t> bytes {
+				        std::istreambuf_iterator<char>(stream),
+				        std::istreambuf_iterator<char>() };
+				std::string encoded;
+				RsBase64::encode(bytes.data(), bytes.size(), encoded, true, false);
+				if(!firstSticker) json << ',';
+				firstSticker = false;
+				json << "{\"name\":\"" << jsonEscape(image.filename().string())
+				     << "\",\"src\":\"data:" << stickerMime(image) << ";base64," << encoded << "\"}";
+			}
+			json << "]}";
+		}
+	}
+	json << "]}";
+	const std::string bodyString = json.str();
+	const std::vector<uint8_t> body(bodyString.begin(), bodyString.end());
+	const std::multimap<std::string, std::string> headers {
+		{ "Content-Type", "application/json" },
+		{ "Content-Length", std::to_string(body.size()) },
+		{ "Cache-Control", "no-store" }
+	};
+	session->close(restbed::OK, body, headers);
+}
 
 std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 {
@@ -183,6 +277,10 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		                      } );
 		resource7->set_method_handler( "GET", handler<APPLICATION_OCTET_STREAM>::get_handler );
 
+		auto stickersResource = std::make_shared<restbed::Resource>();
+		stickersResource->set_paths( { "/{dir: stickers}/{filename: index.json}" } );
+		stickersResource->set_method_handler("GET", stickers_handler);
+
 		rtab.push_back(resource1);
 		rtab.push_back(resource2);
 		rtab.push_back(resource3);
@@ -190,6 +288,7 @@ std::vector< std::shared_ptr<restbed::Resource> > p3WebUI::getResources() const
 		rtab.push_back(resource5);
 		rtab.push_back(resource6);
 		rtab.push_back(resource7);
+		rtab.push_back(stickersResource);
 	}
 
 	return rtab;
