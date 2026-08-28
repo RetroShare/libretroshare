@@ -30,11 +30,13 @@
 #define PASS_MAX 512
 
 namespace RsUtil {
-std::string rs_getpass(const std::string& prompt,bool /*no_echo*/)
+std::string rs_getpass(const std::string& prompt,bool /*no_echo*/,bool *eof)
 {
     static char getpassbuf [PASS_MAX + 1];
     size_t i = 0;
     int c;
+
+    if(eof) *eof = false;
 
     if (!prompt.empty()) {
         std::cerr << prompt ;
@@ -43,12 +45,24 @@ std::string rs_getpass(const std::string& prompt,bool /*no_echo*/)
 
     for (;;) {
         c = _getch ();
-        if (c == '\r') {
+
+        // A closed console gives EOF for every call from then on. Without this
+        // the loop only leaves through the PASS_MAX branch, returning 512 bytes
+        // of 0xFF as if the user had typed them.
+        if (c == EOF) {
+            if(eof) *eof = true;
+            getpassbuf [0] = '\0';
+            i = 0;
+            break;
+        }
+
+        // '\n' is what a redirected stdin carries, '\r' what the console gives.
+        if (c == '\r' || c == '\n') {
             getpassbuf [i] = '\0';
             break;
         }
         else if (i < PASS_MAX) {
-            getpassbuf[i++] = c;
+            getpassbuf[i++] = static_cast<char>(c);
         }
 
         if (i >= PASS_MAX) {
@@ -78,31 +92,54 @@ static int getch()
     int ch;
     struct termios t_old, t_new;
 
-    tcgetattr(STDIN_FILENO, &t_old);
-    t_new = t_old;
-    t_new.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
+    // tcgetattr fails whenever stdin is not a terminal, leaving t_old
+    // uninitialized: applying it below would push a random terminal
+    // configuration onto whatever stdin happens to be.
+    const bool isTerminal = (tcgetattr(STDIN_FILENO, &t_old) == 0);
+
+    if(isTerminal)
+    {
+        t_new = t_old;
+        t_new.c_lflag &= ~(ICANON | ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &t_new);
+    }
 
     ch = getchar();
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
+    if(isTerminal)
+        tcsetattr(STDIN_FILENO, TCSANOW, &t_old);
+
     return ch;
 }
 
 namespace RsUtil {
 
-std::string rs_getpass(const std::string& prompt, bool no_echo)
+std::string rs_getpass(const std::string& prompt, bool no_echo, bool *eof)
 {
-  const char BACKSPACE=127;
-  const char RETURN=10;
+  const int BACKSPACE=127;
+  const int RETURN=10;
 
   std::string password;
-  unsigned char ch=0;
+
+  if(eof) *eof = false;
 
   std::cout <<prompt; std::cout.flush();
 
+  // ch must be an int: getch() forwards getchar(), whose EOF is -1. Stored in
+  // an unsigned char that becomes 0xFF, which never equals RETURN, so a closed
+  // stdin made this loop append one 0xFF byte per iteration forever -- one core
+  // at 100% and a string growing until the process is killed.
+  int ch = 0;
+
   while((ch=getch())!=RETURN)
     {
+       if(ch==EOF)
+         {
+            if(eof) *eof = true;
+            password.clear();
+            break;
+         }
+
        if(ch==BACKSPACE)
          {
             if(password.length()!=0)
@@ -114,11 +151,11 @@ std::string rs_getpass(const std::string& prompt, bool no_echo)
          }
        else
          {
-             password+=ch;
+             password+=static_cast<char>(ch);
              if(no_echo)
                  std::cout <<'*';
              else
-                 std::cout << ch,std::cout.flush();
+                 std::cout << static_cast<char>(ch),std::cout.flush();
          }
     }
   std::cout <<std::endl;
