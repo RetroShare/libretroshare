@@ -560,10 +560,27 @@ if(RS_JSON_API)
 	)
 	file(WRITE "${JSON_API_GENERATOR_DOXYFILE}" "${DOXYFILE_CONTENT}")
 
+	# Doxygen never purges its output directory, and the generator emits one
+	# #include per *_8h.xml file it finds there. Without removing them first, the
+	# XML of a public header that has been removed or renamed survives forever and
+	# keeps being turned into an #include of a file that no longer exists.
+	# cmake -E rm does not expand wildcards, so the glob is done by a generated
+	# script run at build time.
+	set(
+		JSON_API_PURGE_XML_SCRIPT
+		"${JSON_API_GENERATOR_WORK_DIR}/purge-stale-header-xml.cmake" )
+	file(WRITE "${JSON_API_PURGE_XML_SCRIPT}"
+		"file(GLOB stale_header_xml \"${JSONAPI_GENERATOR_OUTPUT_DIR}/xml/*_8h.xml\")\n"
+		"if(stale_header_xml)\n"
+		"\tfile(REMOVE \${stale_header_xml})\n"
+		"endif()\n"
+	)
+
 	add_custom_command(
 		OUTPUT
 			"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-includes.inl"
 			"${JSONAPI_GENERATOR_OUTPUT_DIR}/jsonapi-wrappers.inl"
+		COMMAND ${CMAKE_COMMAND} -P "${JSON_API_PURGE_XML_SCRIPT}"
 		COMMAND ${DOXYGEN_EXECUTABLE} ${JSON_API_GENERATOR_DOXYFILE}
 		COMMAND
 			${Python3_EXECUTABLE} ${JSONAPI_GENERATOR_EXECUTABLE}

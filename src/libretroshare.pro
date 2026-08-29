@@ -1029,9 +1029,14 @@ rs_jsonapi {
     genjsonapi.clean = $${WRAPPERS_INCL_FILE} $${WRAPPERS_REG_FILE}
     genjsonapi.CONFIG += target_predeps combine no_link
     genjsonapi.variable_out = HEADERS
+    # Doxygen never purges its output directory, and the generator emits one
+    # #include per *_8h.xml file it finds there. Without removing them first, the
+    # XML of a public header that has been removed or renamed survives forever and
+    # keeps being turned into an #include of a file that no longer exists.
     win32-g++:isEmpty(QMAKE_SH) {
         genjsonapi.commands = \
             $(CHK_DIR_EXISTS) $$shell_path($$JSONAPI_GENERATOR_OUT) $(MKDIR) $$shell_path($${JSONAPI_GENERATOR_OUT}) $$escape_expand(\\n\\t) \
+            -$(DEL_FILE) $$shell_path($${JSONAPI_GENERATOR_OUT}/xml/*_8h.xml) $$escape_expand(\\n\\t) \
             $(COPY_FILE) $$shell_path($${DOXIGEN_CONFIG_SRC}) $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t) \
             echo OUTPUT_DIRECTORY=$${JSONAPI_GENERATOR_OUT} >> $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t) \
             echo INPUT=$${DOXIGEN_INPUT_DIRECTORY} >> $$shell_path($${DOXIGEN_CONFIG_OUT}) $$escape_expand(\\n\\t) \
@@ -1039,6 +1044,7 @@ rs_jsonapi {
     } else {
         genjsonapi.commands = \
             mkdir -p $${JSONAPI_GENERATOR_OUT} && \
+            rm -f $${JSONAPI_GENERATOR_OUT}/xml/*_8h.xml && \
             cp $${DOXIGEN_CONFIG_SRC} $${DOXIGEN_CONFIG_OUT} && \
             echo OUTPUT_DIRECTORY=$${JSONAPI_GENERATOR_OUT} >> $${DOXIGEN_CONFIG_OUT} && \
             echo INPUT=$${DOXIGEN_INPUT_DIRECTORY} >> $${DOXIGEN_CONFIG_OUT} && \
