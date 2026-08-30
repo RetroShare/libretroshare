@@ -1581,10 +1581,24 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 			const RsGxsGroupId& grpId = mit->first;
 			std::vector<RsGxsMsgItem*>& gxsMsgItems = msgItems[grpId];
 			std::vector<RsNxsMsg*>& nxsMsgsV = mit->second;
-			std::vector<RsNxsMsg*>::iterator vit = nxsMsgsV.begin();
-			for(; vit != nxsMsgsV.end(); ++vit)
+
+			// Deserialise in parallel: the database work is over (getMsgData
+			// above), what remains is pure in-memory decoding. Results land in
+			// a pre-sized array so the loop shares no mutable state; they are
+			// merged serially below, which also keeps the output order stable.
+			//
+			// THREAD-SAFETY NOTE: mSerialiser must remain stateless/re-entrant
+			// for this to be safe (see the comment on its declaration).
+			//
+			// Builds without OpenMP simply ignore the pragma and run the loop
+			// serially.
+			std::vector<RsGxsMsgItem*> tempItems(nxsMsgsV.size(), nullptr);
+			uint32_t deserialisation_errors = 0;
+
+			#pragma omp parallel for reduction(+:deserialisation_errors)
+			for(size_t i = 0; i < nxsMsgsV.size(); ++i)
 			{
-				RsNxsMsg*& msg = *vit;
+				RsNxsMsg* msg = nxsMsgsV[i];
 				RsItem* item = NULL;
 
 				if(msg->msg.bin_len != 0)
@@ -1595,23 +1609,31 @@ bool RsGenExchange::getMsgData(uint32_t token, GxsMsgDataMap &msgItems)
 					RsGxsMsgItem* mItem = dynamic_cast<RsGxsMsgItem*>(item);
 					if (mItem)
 					{
-						mItem->meta = *((*vit)->metaData); // get meta info from nxs msg
-						gxsMsgItems.push_back(mItem);
+						mItem->meta = *(msg->metaData); // get meta info from nxs msg
+						tempItems[i] = mItem;
 					}
 					else
 					{
-						std::cerr << "RsGenExchange::getMsgData() deserialisation/dynamic_cast ERROR";
-						std::cerr << std::endl;
+						++deserialisation_errors;
 						delete item;
 					}
 				}
 				else
-				{
-					std::cerr << "RsGenExchange::getMsgData() deserialisation ERROR";
-					std::cerr << std::endl;
-				}
+					++deserialisation_errors;
+
 				delete msg;
 			}
+
+			// Serial merge of the successful items. Errors are reported once,
+			// from a single thread, instead of interleaved lines from the
+			// parallel loop.
+			for(size_t i = 0; i < tempItems.size(); ++i)
+				if(tempItems[i])
+					gxsMsgItems.push_back(tempItems[i]);
+
+			if(deserialisation_errors > 0)
+				std::cerr << "RsGenExchange::getMsgData() " << deserialisation_errors
+				          << " deserialisation error(s) in group " << grpId << std::endl;
 		}
 	}
 
@@ -2539,7 +2561,12 @@ void RsGenExchange::publishMsgs()
     for(auto grpit:msgChangeMap)
         grpMetas.insert(std::make_pair(grpit.first, std::make_shared<RsGxsGrpMetaData>()));
 
-    mDataStore->retrieveGxsGrpMetaData(grpMetas);
+    // The test is here to avoid the default behavior to retrieve all groups when the list is empty. Since publishMsgs()
+    // holds mGenMtx, that full scan would otherwise block every GUI call that needs mGenMtx (getDefaultSyncPeriod(),
+    // getSyncPeriod(), etc) for as long as the data service mutex is held by another thread.
+
+    if(!grpMetas.empty())
+        mDataStore->retrieveGxsGrpMetaData(grpMetas);
 
     for(auto it(msgChangeMap.begin());it!=msgChangeMap.end();++it)
     {
