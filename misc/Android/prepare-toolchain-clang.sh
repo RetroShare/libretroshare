@@ -888,9 +888,10 @@ endif(CMAKE_CROSSCOMPILING_EMULATOR)' \
 	#   >>>               dso_dlfcn.o:(dlfcn_load) in archive .../libcrypto.a
 	#
 	# The NDK ships a static libdl.a defining those symbols, so link it
-	# explicitly. It has to come after libcrypto.a for the static linker to
-	# pick it up, hence a linked library rather than CMAKE_EXE_LINKER_FLAGS,
-	# which CMake places before the objects.
+	# explicitly, as a linked library rather than CMAKE_EXE_LINKER_FLAGS so
+	# it is ordered after libcrypto.a for linkers that resolve archives in a
+	# single pass (lld does not care, GNU ld does).
+	# Submitted upstream as rnpgp/rnp#2473; drop this sed once it is in.
 	sed -i \
 		's|(findopensslfeatures PRIVATE OpenSSL::Crypto)|(findopensslfeatures PRIVATE OpenSSL::Crypto dl)|' \
 		"${S_dir}/cmake/Modules/FindOpenSSLFeatures.cmake"
