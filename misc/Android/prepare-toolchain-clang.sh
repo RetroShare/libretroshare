@@ -749,11 +749,21 @@ build_tiff()
 
 	pushd $B_dir
 	#TODO: build dependecies to support more formats
+	# tiff cmake/FindCMath.cmake looks for pow(3) first without any library
+	# then with whatever find_library(NAMES m) returned. On Android pow lives
+	# in libm, and libm is under the API level directory of the NDK sysroot,
+	# which andro_cmake does not put in CMAKE_LIBRARY_PATH, so find_library
+	# comes back empty, the second check links without -lm just like the first
+	# one and configure aborts with
+	#   Could NOT find CMath (missing: CMath_pow)
+	# Give it the library explicitly instead of widening the search path for
+	# every dependency.
 	andro_cmake \
 		-DBUILD_SHARED_LIBS=OFF \
 		-Dlibdeflate=OFF -Djbig=OFF -Dlzma=OFF -Dzstd=OFF -Dwebp=OFF \
 		-Djpeg12=OFF \
 		-Dcxx=OFF \
+		-DCMath_LIBRARY="${SYSROOT}/usr/lib/${compilerTriple}/${ANDROID_PLATFORM_VER}/libm.so" \
 		-B. -S../$S_dir    || return $?
 	make -j${HOST_NUM_CPU} || return $?
 	make install           || return $?
