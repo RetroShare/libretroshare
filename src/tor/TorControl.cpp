@@ -211,6 +211,8 @@ void TorControl::connect(const std::string &address, uint16_t port)
         setStatus(SocketConnected);
         setTorStatus(TorOffline);	// connected and running, but not yet ready
     }
+    else
+        setStatus(NotConnected);	// so that the owner can try connecting again
 }
 
 void TorControl::reconnect()
@@ -221,7 +223,14 @@ void TorControl::reconnect()
         return;
 
     setStatus(Connecting);
-    mSocket->connectToHost(mTorAddress, mControlPort);
+
+    if(mSocket->connectToHost(mTorAddress, mControlPort))
+    {
+        setStatus(SocketConnected);
+        setTorStatus(TorOffline);	// connected and running, but not yet ready
+    }
+    else
+        setStatus(NotConnected);	// so that the owner can try connecting again
 }
 
 void TorControl::authenticateReply(TorControlCommand *sender)

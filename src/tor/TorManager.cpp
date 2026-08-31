@@ -38,11 +38,9 @@
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
 #include <thread>
+#include <mutex>
 #if !defined(_WIN32) && !defined(__MINGW32__)
 #include <unistd.h>
-#endif
-#ifdef __linux__
-#include <sys/syscall.h>
 #endif
 
 #include "TorManager.h"
@@ -80,6 +78,7 @@ public:
     ByteArray externalControlPassword;
     std::string externalSocksAddress;
     uint16_t externalSocksPort;
+    time_t lastControlConnectAttempt;
 
 	HiddenService *hiddenService ;
 
@@ -132,6 +131,7 @@ TorManagerPrivate::TorManagerPrivate(TorManager *parent)
     , useExternalTor(false)
     , externalControlPort(0)
     , externalSocksPort(0)
+    , lastControlConnectAttempt(0)
     , hiddenService(NULL)
 {
     control->set_statusChanged_callback([this](int new_status,int /*old_status*/) { controlStatusChanged(new_status); });
@@ -548,10 +548,28 @@ void TorManager::threadTick()
         break;
 
     case TorControl::NotConnected:
+    {
+        // The connection attempt is synchronous and threadTick() runs every
+        // 50ms, so throttle retries when the control port is unreachable
+        // (e.g. an external Tor that is not started yet).
+
+        time_t now = time(nullptr);
+
+        if(now < d->lastControlConnectAttempt + 2)
+            break;
+        d->lastControlConnectAttempt = now;
+
         if(d->useExternalTor)
+        {
+            RsInfo() << "Connecting to external tor at " << d->externalControlAddress << ":" << d->externalControlPort << "..." ;
             d->control->connect(d->externalControlAddress,d->externalControlPort);
+        }
         else
+        {
+            RsInfo() << "Connecting to tor process at " << d->process->controlHost() << ":" << d->process->controlPort() << "..." ;
             d->control->connect(d->process->controlHost(),d->process->controlPort());
+        }
+    }
         break;
 
     case TorControl::SocketConnected:
@@ -990,17 +1008,14 @@ void RsTor::setHiddenServiceDirectory(const std::string& dir)
     instance()->setHiddenServiceDirectory(dir);
 }
 
-#ifdef __APPLE__
-#include <pthread.h>
-#endif
-
 TorManager *RsTor::instance()
 {
-#ifdef __APPLE__
-    assert(pthread_main_np() != 0); // On macOS, ensure we are on the main thread
-#elif defined(__linux__) && !defined(__ANDROID__)
-    assert(getpid() == syscall(SYS_gettid)); // On Linux, ensure we are on the main thread
-#endif
+    // RsTor methods are exposed through the JSON API, so this can be reached
+    // from any thread. Protect the lazy initialisation, which the former
+    // main-thread asserts used to guard.
+
+    static std::mutex instanceMutex;
+    std::unique_lock<std::mutex> lock(instanceMutex);
 
     if(rsTorMgr == nullptr)
         rsTorMgr = new TorManager;
