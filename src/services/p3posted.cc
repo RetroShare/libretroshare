@@ -958,5 +958,33 @@ bool p3Posted::editBoard(RsPostedGroup& board)
 	return true;
 }
 
+bool p3Posted::pinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId)
+{
+	std::vector<RsPostedGroup> groupsInfo;
+	if(!getBoardsInfo({boardId}, groupsInfo))
+	{
+		std::cerr << __PRETTY_FUNCTION__ << " Error! Board not found." << std::endl;
+		return false;
+	}
+
+	RsPostedGroup board = groupsInfo.front();
+	board.mPinnedPosts.ids.insert(postId);
+	return editBoard(board);
+}
+
+bool p3Posted::unpinPost(const RsGxsGroupId& boardId, const RsGxsMessageId& postId)
+{
+	std::vector<RsPostedGroup> groupsInfo;
+	if(!getBoardsInfo({boardId}, groupsInfo))
+	{
+		std::cerr << __PRETTY_FUNCTION__ << " Error! Board not found." << std::endl;
+		return false;
+	}
+
+	RsPostedGroup board = groupsInfo.front();
+	board.mPinnedPosts.ids.erase(postId);
+	return editBoard(board);
+}
+
 RsPosted::~RsPosted() = default;
 RsGxsPostedEvent::~RsGxsPostedEvent() = default;
