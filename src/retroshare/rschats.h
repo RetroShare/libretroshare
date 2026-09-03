@@ -249,6 +249,7 @@ enum class RsDistantChatEventCode: uint8_t
     TUNNEL_STATUS_TUNNEL_DN               = 0x02,
     TUNNEL_STATUS_REMOTELY_CLOSED         = 0x03,
     TUNNEL_STATUS_CONNECTION_REFUSED      = 0x04,
+    TUNNEL_STATUS_LOCALLY_CLOSED          = 0x05, // we closed it ourselves (closeDistantChatConnexion), from any client of this core
 };
 
 struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system

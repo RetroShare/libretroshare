@@ -360,7 +360,25 @@ bool DistantChatService::closeDistantChatConnexion(const DistantChatPeerId &tunn
     // the web UI, any JSON API caller -- report a conversation as closed when
     // nothing had been closed at all, the tunnel having died on its own before.
 
-    return tunnel_closed || contact_removed ;
+    bool closed = tunnel_closed || contact_removed ;
+
+    // The client that asked for the close knows about it; the others do not,
+    // and a conversation closed from the web UI stayed open in the desktop
+    // chat window. Polling cannot fix that: once the tunnel is gone,
+    // getDistantChatStatus() answers the same false for a conversation the
+    // peer closed (where the window should stay open) and for one we closed
+    // from another client (where it should go). Only an explicit event tells
+    // them apart, so post it here -- and every client of this core drops the
+    // conversation at the same time.
+    if(closed && rsEvents)
+    {
+        auto ev = std::make_shared<RsDistantChatEvent>();
+        ev->mEventCode = RsDistantChatEventCode::TUNNEL_STATUS_LOCALLY_CLOSED;
+        ev->mId = tunnel_id;
+        rsEvents->postEvent(ev);
+    }
+
+    return closed ;
 }
 
 uint32_t DistantChatService::getDistantChatPermissionFlags()
