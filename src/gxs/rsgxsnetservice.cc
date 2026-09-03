@@ -2282,6 +2282,14 @@ bool RsGxsNetService::locked_checkTransacTimedOut(NxsTransaction* tr)
 
 void RsGxsNetService::processTransactions()
 {
+    // Completed incoming transactions collected below are decrypted after
+    // mNxsMutex is released: per-item circle decryption of a large sync
+    // transaction costs seconds of RSA, and holding the mutex for that long
+    // blocks every other user of the service (tick, item reception, API).
+    std::list<NxsTransaction*> completed_incoming;
+
+    { // scope for mNxsMutex
+
     RS_STACK_MUTEX(mNxsMutex) ;
 
     for(TransactionsPeerMap::iterator mit = mTransactions.begin();mit != mTransactions.end(); ++mit)
@@ -2463,31 +2471,16 @@ void RsGxsNetService::processTransactions()
 
                     // move to completed transactions
 
-                    // Try to decrypt the items that need to be decrypted. This function returns true if the transaction is not encrypted.
+                    // The transaction leaves the active map now; its items are
+                    // decrypted once mNxsMutex is released, and it is queued
+                    // into mComplTransactions afterwards.
 
-                    if(processTransactionForDecryption(tr))
-		    {
-#ifdef NXS_NET_DEBUG_7
-			    GXSNETDEBUG_P_(tr->mTransaction->PeerId()) << "   successfully decrypted/processed transaction " << transN << ". Adding to completed list." << std::endl;
-#endif
-			    mComplTransactions.push_back(tr);
-
-			    // transaction processing done
-			    // for this id, add to removal list
-			    toRemove.push_back(mmit->first);
+                    completed_incoming.push_back(tr);
+                    toRemove.push_back(mmit->first);
 #ifdef NXS_NET_DEBUG_1
-			    int total_transaction_time = (int)time(NULL) - (tr->mTimeOut - mTransactionTimeOut) ;
-			    GXSNETDEBUG_P_(mit->first) << "    incoming completed " << tr->mTransaction->nItems << " items transaction in " << total_transaction_time << " seconds." << std::endl;
+                    int total_transaction_time = (int)time(NULL) - (tr->mTimeOut - mTransactionTimeOut) ;
+                    GXSNETDEBUG_P_(mit->first) << "    incoming completed " << tr->mTransaction->nItems << " items transaction in " << total_transaction_time << " seconds." << std::endl;
 #endif
-		    }
-		    else
-		    {
-#ifdef NXS_NET_DEBUG_7
-			    GXSNETDEBUG_P_(tr->mTransaction->PeerId()) << "   no decryption occurred because of unloaded keys. Will retry later. TransN=" << transN << std::endl;
-#endif
-		    }
-
-
                 }
                 else if(flag & NxsTransaction::FLAG_STATE_STARTING)
                 {
@@ -2528,6 +2521,25 @@ void RsGxsNetService::processTransactions()
         }
 
     }
+
+    } // end of scope for mNxsMutex
+
+    if(completed_incoming.empty())
+        return;
+
+    // Decrypt the completed incoming transactions outside the mutex. They were
+    // removed from mTransactions above, so this thread is their only owner.
+    // processTransactionForDecryption() replaces the encrypted items in place;
+    // items whose keys are not available simply stay encrypted and are dropped
+    // at validation, as before.
+
+    for(auto tr : completed_incoming)
+        processTransactionForDecryption(tr);
+
+    RS_STACK_MUTEX(mNxsMutex) ;
+
+    for(auto tr : completed_incoming)
+        mComplTransactions.push_back(tr);
 }
 
 bool RsGxsNetService::getGroupNetworkStats(const RsGxsGroupId& gid,RsGroupNetworkStats& stats)
