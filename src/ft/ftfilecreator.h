@@ -144,8 +144,16 @@ class ftFileCreator: public ftFileProvider
 
 		ChunkMap chunkMap ;
 
+
 		rstime_t _last_recv_time_t ;	/// last time stamp when data was received. Used for queue control.
 		rstime_t _creation_time ;		/// time at which the file creator was created. Used to spot long-inactive transfers.
+
+        // MP4 Smart Preview
+        bool _mp4_index_found;
+        uint64_t _mp4_index_offset;
+        bool _mp4_scan_abandoned;	/// the file is not a parseable MP4, or too many fruitless scans: stop looking
+        uint32_t _mp4_scan_attempts;	/// number of atom walks that ended without a conclusion
+        bool checkForMp4Index();
 };
 
 #endif // FT_FILE_CREATOR_HEADER
