@@ -235,6 +235,8 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 			std::string locationName;
 			std::string pgpName;
 			std::string password;
+			bool makeHidden = false;
+			bool makeAutoTor = false;
 
 			// JSON API only
 			std::string apiUser;
@@ -249,6 +251,8 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 				RS_SERIAL_PROCESS(locationName);
 				RS_SERIAL_PROCESS(pgpName);
 				RS_SERIAL_PROCESS(password);
+				RS_SERIAL_PROCESS(makeHidden);
+				RS_SERIAL_PROCESS(makeAutoTor);
 
 				// JSON API only
 				RS_SERIAL_PROCESS(apiUser);
@@ -265,7 +269,8 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 
 			if(!retval) // call retroshare C++ API
 				retval = rsLoginHelper->createLocationV2(
-				            locationId, pgpId, locationName, pgpName, password );
+				            locationId, pgpId, locationName, pgpName, password,
+				            makeHidden, makeAutoTor );
 
 			if(!retval) retval = authorizeUser(apiUser, apiPass);
 

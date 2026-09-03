@@ -38,11 +38,9 @@
 #include "util/rsdir.h"
 #include "retroshare/rsinit.h"
 #include <thread>
+#include <mutex>
 #if !defined(_WIN32) && !defined(__MINGW32__)
 #include <unistd.h>
-#endif
-#ifdef __linux__
-#include <sys/syscall.h>
 #endif
 
 #include "TorManager.h"
@@ -74,6 +72,13 @@ public:
     bool configNeeded;
     bool mVerbose;
     std::string userProvidedTorExecutablePath;
+    bool useExternalTor;
+    std::string externalControlAddress;
+    uint16_t externalControlPort;
+    ByteArray externalControlPassword;
+    std::string externalSocksAddress;
+    uint16_t externalSocksPort;
+    time_t lastControlConnectAttempt;
 
 	HiddenService *hiddenService ;
 
@@ -123,6 +128,10 @@ TorManagerPrivate::TorManagerPrivate(TorManager *parent)
     , control(new TorControl())
     , configNeeded(false)
     , mVerbose(false)
+    , useExternalTor(false)
+    , externalControlPort(0)
+    , externalSocksPort(0)
+    , lastControlConnectAttempt(0)
     , hiddenService(NULL)
 {
     control->set_statusChanged_callback([this](int new_status,int /*old_status*/) { controlStatusChanged(new_status); });
@@ -371,6 +380,32 @@ std::string TorManager::torExecutablePath() const
     return (d==nullptr)?(std::string()):(d->torExecutablePath());
 }
 
+bool TorManager::setExternalTorConnection(
+        const std::string& controlAddress, uint16_t controlPort,
+        const std::string& controlPassword,
+        const std::string& socksAddress, uint16_t socksPort )
+{
+    if(isRunning())
+    {
+        d->setError("Cannot change Tor connection while TorManager is running.");
+        return false;
+    }
+    if(controlAddress.empty() || controlPort == 0 ||
+            socksAddress.empty() || socksPort == 0)
+    {
+        d->setError("External Tor control and SOCKS endpoints must be valid.");
+        return false;
+    }
+
+    d->useExternalTor = true;
+    d->externalControlAddress = controlAddress;
+    d->externalControlPort = controlPort;
+    d->externalControlPassword = ByteArray(controlPassword);
+    d->externalSocksAddress = socksAddress;
+    d->externalSocksPort = socksPort;
+    return true;
+}
+
 const std::list<std::string>& TorManager::logMessages() const
 {
     return d->logMessages;
@@ -394,43 +429,14 @@ bool TorManager::startTorManager()
         //emit errorChanged(); // not needed because there's no error to handle
     }
 
-#ifdef TODO
-    SettingsObject settings("tor");
-
-    // If a control port is defined by config or environment, skip launching tor
-    if (!settings.read("controlPort").isUndefined() ||
-        !qEnvironmentVariableIsEmpty("TOR_CONTROL_PORT"))
+    if(d->useExternalTor)
     {
-        QHostAddress address(settings.read("controlAddress").toString());
-        quint16 port = (quint16)settings.read("controlPort").toInt();
-        QByteArray password = settings.read("controlPassword").toString().toLatin1();
-
-        if (!qEnvironmentVariableIsEmpty("TOR_CONTROL_HOST"))
-            address = QHostAddress(qgetenv("TOR_CONTROL_HOST"));
-
-        if (!qEnvironmentVariableIsEmpty("TOR_CONTROL_PORT")) {
-            bool ok = false;
-            port = qgetenv("TOR_CONTROL_PORT").toUShort(&ok);
-            if (!ok)
-                port = 0;
-        }
-
-        if (!qEnvironmentVariableIsEmpty("TOR_CONTROL_PASSWD"))
-            password = qgetenv("TOR_CONTROL_PASSWD");
-
-        if (!port) {
-            d->setError("Invalid control port settings from environment or configuration");
-            return false;
-        }
-
-        if (address.isNull())
-            address = QHostAddress::LocalHost;
-
-        d->control->setAuthPassword(password);
-        d->control->connect(address, port);
+        RsInfo() << "Connecting to external Tor control port at "
+                 << d->externalControlAddress << ":" << d->externalControlPort;
+        d->control->setAuthPassword(d->externalControlPassword);
+        d->control->connect(d->externalControlAddress, d->externalControlPort);
     }
     else
-#endif
     {
         // Launch a bundled Tor instance
         std::string executable = d->torExecutablePath();
@@ -503,7 +509,8 @@ bool TorManager::startTorManager()
 
 void TorManager::run()
 {
-    d->process->start();
+    if(d->process)
+        d->process->start();
 
     while(!shouldStop())
     {
@@ -512,7 +519,8 @@ void TorManager::run()
     }
 
     d->control->shutdownSync();
-    d->process->stop();
+    if(d->process)
+        d->process->stop();
 
     if(rsEvents)
     {
@@ -526,10 +534,12 @@ void TorManager::threadTick()
 {
     static bool authenticated_msg_already_given = false;
 
-    d->process->tick();
-
-    if(d->process->state() != TorProcess::Ready)
-        return;
+    if(d->process)
+    {
+        d->process->tick();
+        if(d->process->state() != TorProcess::Ready)
+            return;
+    }
 
     switch(d->control->status())
     {
@@ -538,8 +548,28 @@ void TorManager::threadTick()
         break;
 
     case TorControl::NotConnected:
-        RsInfo() << "Connecting to tor process at " << d->process->controlHost() << ":" << d->process->controlPort() << "..." ;
-        d->control->connect(d->process->controlHost(),d->process->controlPort());
+    {
+        // The connection attempt is synchronous and threadTick() runs every
+        // 50ms, so throttle retries when the control port is unreachable
+        // (e.g. an external Tor that is not started yet).
+
+        time_t now = time(nullptr);
+
+        if(now < d->lastControlConnectAttempt + 2)
+            break;
+        d->lastControlConnectAttempt = now;
+
+        if(d->useExternalTor)
+        {
+            RsInfo() << "Connecting to external tor at " << d->externalControlAddress << ":" << d->externalControlPort << "..." ;
+            d->control->connect(d->externalControlAddress,d->externalControlPort);
+        }
+        else
+        {
+            RsInfo() << "Connecting to tor process at " << d->process->controlHost() << ":" << d->process->controlPort() << "..." ;
+            d->control->connect(d->process->controlHost(),d->process->controlPort());
+        }
+    }
         break;
 
     case TorControl::SocketConnected:
@@ -551,7 +581,8 @@ void TorManager::threadTick()
             setupHiddenService();
         }
 
-        d->control->setAuthPassword(d->process->controlPassword());
+        d->control->setAuthPassword(d->useExternalTor
+                ? d->externalControlPassword : d->process->controlPassword());
         d->control->authenticate();
         RsInfo() << "Authenticating..." ;
         break;
@@ -587,6 +618,12 @@ bool TorManager::getProxyServerInfo(std::string& proxy_server_adress,uint16_t& p
 {
 	proxy_server_adress = control()->socksAddress();
 	proxy_server_port   = control()->socksPort();
+
+    if(d->useExternalTor && (proxy_server_adress.empty() || proxy_server_port == 0))
+    {
+        proxy_server_adress = d->externalSocksAddress;
+        proxy_server_port = d->externalSocksPort;
+    }
 
 	return proxy_server_port > 1023 ;
 }
@@ -796,7 +833,17 @@ void TorManagerPrivate::setError(const std::string &message)
 
 bool RsTor::isTorAvailable()
 {
-    return !instance()->d->torExecutablePath().empty();
+    return instance()->d->useExternalTor || !instance()->d->torExecutablePath().empty();
+}
+
+bool RsTor::setExternalTorConnection(
+        const std::string& controlAddress, uint16_t controlPort,
+        const std::string& controlPassword,
+        const std::string& socksAddress, uint16_t socksPort )
+{
+    return instance()->setExternalTorConnection(
+            controlAddress, controlPort, controlPassword,
+            socksAddress, socksPort );
 }
 
 bool RsTor::getHiddenServiceInfo(std::string& service_id,
@@ -840,11 +887,17 @@ void RsTor::setTorExecutablePath(const std::string& e)
 
 std::string RsTor::socksAddress()
 {
-    return instance()->control()->socksAddress();
+    std::string address;
+    uint16_t port = 0;
+    instance()->getProxyServerInfo(address, port);
+    return address;
 }
 uint16_t RsTor::socksPort()
 {
-    return instance()->control()->socksPort();
+    std::string address;
+    uint16_t port = 0;
+    instance()->getProxyServerInfo(address, port);
+    return port;
 }
 
 static RsTorStatus torStatus(Tor::TorControl::TorStatus t)
@@ -955,17 +1008,14 @@ void RsTor::setHiddenServiceDirectory(const std::string& dir)
     instance()->setHiddenServiceDirectory(dir);
 }
 
-#ifdef __APPLE__
-#include <pthread.h>
-#endif
-
 TorManager *RsTor::instance()
 {
-#ifdef __APPLE__
-    assert(pthread_main_np() != 0); // On macOS, ensure we are on the main thread
-#elif defined(__linux__)
-    assert(getpid() == syscall(SYS_gettid)); // On Linux, ensure we are on the main thread
-#endif
+    // RsTor methods are exposed through the JSON API, so this can be reached
+    // from any thread. Protect the lazy initialisation, which the former
+    // main-thread asserts used to guard.
+
+    static std::mutex instanceMutex;
+    std::unique_lock<std::mutex> lock(instanceMutex);
 
     if(rsTorMgr == nullptr)
         rsTorMgr = new TorManager;

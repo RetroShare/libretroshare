@@ -128,6 +128,30 @@ public:
 	 */
     static RsTorConnectivityStatus torConnectivityStatus() ;
 
+    /**
+     * Configure TorManager to attach to an already running Tor instance.
+     * This must be called before start(). The external process is never
+     * stopped or taken over by RetroShare.
+     *
+     * This endpoint is available before account login because the Tor
+     * connection must be configured before hidden-node initialization starts.
+     *
+     * @param[in] controlAddress Tor control listener address, usually
+     *            `127.0.0.1`
+     * @param[in] controlPort Tor control listener TCP port
+     * @param[in] controlPassword Tor control password, or an empty string for
+     *            null/cookie authentication
+     * @param[in] socksAddress Tor SOCKS listener address, usually `127.0.0.1`
+     * @param[in] socksPort Tor SOCKS listener TCP port
+     * @return true if the external Tor configuration was accepted
+     *
+     * @jsonapi{development,unauthenticated}
+     */
+    static bool setExternalTorConnection(
+            const std::string& controlAddress, uint16_t controlPort,
+            const std::string& controlPassword,
+            const std::string& socksAddress, uint16_t socksPort );
+
     static void setTorDataDirectory(const std::string& dir);
     static void setHiddenServiceDirectory(const std::string& dir);
 
@@ -162,12 +186,14 @@ public:
     /*!
      * \brief getHiddenServiceInfo
      * 			Gets information about the hidden service setup by RS to run.
-     * \param service_id
-     * \param service_onion_address
-     * \param service_port
-     * \param service_target_address
-     * \param target_port
-     * \return
+     * \param[out] service_id Tor service identifier without the `.onion` suffix
+     * \param[out] service_onion_address Complete generated onion hostname
+     * \param[out] service_port Public onion-service port
+     * \param[out] service_target_address Local address receiving Tor traffic
+     * \param[out] target_port Local port receiving Tor traffic
+     * \return true when an AutoTor hidden service is available
+     *
+     * @jsonapi{development}
      */
     static bool getHiddenServiceInfo(std::string& service_id,
                                      std::string& service_onion_address,

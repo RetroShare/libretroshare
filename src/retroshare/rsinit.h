@@ -498,7 +498,9 @@ public:
 	        RsPgpId& pgpId,
 	        const std::string& locationName,
 	        const std::string& pgpName,
-	        const std::string& password
+	        const std::string& password,
+	        bool makeHidden = false,
+	        bool makeAutoTor = false
 	        /* JSON API only
 	         * const std::string& apiUser
 	         * const std::string& apiPass */ );

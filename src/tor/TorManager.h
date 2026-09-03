@@ -62,6 +62,11 @@ public:
     std::string torExecutablePath() const;
     void setTorExecutablePath(const std::string& tor_exe_full_path) ;
 
+    bool setExternalTorConnection(
+            const std::string& controlAddress, uint16_t controlPort,
+            const std::string& controlPassword,
+            const std::string& socksAddress, uint16_t socksPort );
+
     std::string hiddenServiceDirectory() const;
     void setHiddenServiceDirectory(const std::string &path);
 

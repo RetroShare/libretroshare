@@ -2162,6 +2162,15 @@ bool RsInit::startAutoTor()
     std::string service_id;
     RsTor::setupHiddenService();
 
+    // If the connection to the Tor control port cannot be established at all
+    // (e.g. an external Tor that is not running, or a wrong control port),
+    // fail after a while instead of waiting forever. Once the control link
+    // has been seen up, wait indefinitely for Tor to bootstrap, as before.
+
+    const time_t control_connect_timeout = 30;	// seconds
+    time_t start_time = time(nullptr);
+    bool control_link_seen = false;
+
     while(RsTor::torStatus() != RsTorStatus::READY && RsTor::getHiddenServiceStatus(service_id) != RsTorHiddenServiceStatus::ONLINE)	// runs until some status is reached: either tor works, or it fails.
     {
         rstime::rs_usleep(0.5*1000*1000) ;
@@ -2174,6 +2183,24 @@ bool RsInit::startAutoTor()
             std::cerr << "(EE) Tor hidden service cannot be started: " << error_msg << std::endl;
             return false;
         }
+
+        if(!control_link_seen)
+            switch(RsTor::torConnectivityStatus())
+            {
+            case RsTorConnectivityStatus::SOCKET_CONNECTED:
+            case RsTorConnectivityStatus::AUTHENTICATING:
+            case RsTorConnectivityStatus::AUTHENTICATED:
+            case RsTorConnectivityStatus::HIDDEN_SERVICE_READY:
+                control_link_seen = true;
+                break;
+            default:
+                if(time(nullptr) > start_time + control_connect_timeout)
+                {
+                    std::cerr << "(EE) Cannot establish a connection to the Tor control port. Giving up." << std::endl;
+                    return false;
+                }
+                break;
+            }
         // process Qt event loop to deal with messages of online/offline info
         // QCoreApplication::processEvents();
     }
@@ -2236,7 +2263,8 @@ void RsLoginHelper::getLocations(std::vector<RsLoginHelper::Location>& store)
 std::error_condition RsLoginHelper::createLocationV2(
         RsPeerId& locationId, RsPgpId& pgpId,
         const std::string& locationName, const std::string& pgpName,
-        const std::string& password )
+        const std::string& password,
+        bool makeHidden, bool makeAutoTor )
 {
 	if(isLoggedIn()) return RsInitErrorNum::ALREADY_LOGGED_IN;
 	if(locationName.empty()) return RsInitErrorNum::INVALID_LOCATION_NAME;
@@ -2256,7 +2284,7 @@ std::error_condition RsLoginHelper::createLocationV2(
     RsLoginHandler::cachePgpPassphrase(password);
 
 	bool ret = RsAccounts::createNewAccount(
-	            pgpId, "", locationName, "", false, false, sslPassword,
+	            pgpId, "", locationName, "", makeHidden, makeAutoTor, sslPassword,
 	            locationId, errorMessage );
 	if(!ret)
 	{
