@@ -445,7 +445,24 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
     std::cerr << std::endl;
     RsInfo() << "Configuring web services" ;
 
-    JsonApiServer* jas = new JsonApiServer();
+    // Plugins receive RsPlugInInterfaces during core startup, before the GUI
+    // calls startupWebServices(). Reuse the server created for that handoff so
+    // resource providers registered by plugins are not lost here.
+    JsonApiServer* jas = dynamic_cast<JsonApiServer*>(rsJsonApi);
+    if(!jas)
+    {
+        /* Not reachable today -- rsJsonApi is only ever set to a JsonApiServer,
+         * here and in the plugin handoff of StartupRetroShare(). Should that
+         * change, replacing it silently would leave every plugin holding the
+         * pointer it received in setInterfaces() talking to an abandoned
+         * object, with no trace of why. */
+        if(rsJsonApi)
+            RsErr() << "rsJsonApi is set but is not a JsonApiServer. Replacing "
+                    << "it: plugins still hold the previous pointer.";
+
+        jas = new JsonApiServer();
+        rsJsonApi = jas;
+    }
     bool jsonapi_needed = force_start_jsonapi;
 
     // add jsonapi server to config manager so that it can save/load its tokens
@@ -529,8 +546,6 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
     }
     else
         RsInfo() << "  Not starting JSON API, since it is currently not required by any service." ;
-
-    rsJsonApi = jas;
 }
 #endif
 
@@ -1675,6 +1690,22 @@ int RsServer::StartupRetroShare()
 #endif
     interfaces.mServiceControl = serviceCtrl;
     interfaces.mPluginHandler  = mPluginsManager;
+#ifdef RS_JSONAPI
+    // The GUI configures web services after plugins are initialized. Create
+    // the server now so plugins can register providers in setInterfaces().
+    // startupWebServices() will configure and reuse this same instance later.
+    //
+    // This has to stay *after* the "if (rsJsonApi) connectToConfigManager()"
+    // block above: that block exists for retroshare-service and Android, where
+    // startupWebServices() already ran before login. Creating the server before
+    // it would make the GUI connect the config manager here and again in
+    // startupWebServices(), reloading jsonapi.cfg twice.
+    if(!rsJsonApi)
+        rsJsonApi = new JsonApiServer();
+    interfaces.mJsonApi = rsJsonApi;
+#else
+    interfaces.mJsonApi = nullptr;
+#endif
     // gxs
     interfaces.mGxsDir          = currGxsDir;
     interfaces.mIdentity        = mGxsIdService;
@@ -1690,8 +1721,42 @@ int RsServer::StartupRetroShare()
 	interfaces.mGxsTunnels = mGxsTunnels;
     interfaces.mReputations     = mReputations;
     interfaces.mPosted          = mPosted;
-    
+
+#ifdef RS_JSONAPI
+    // Service and Android start JSON API before plugins are initialized. Take
+    // one snapshot here so all newly registered providers are published with
+    // at most one core-owned restart after every plugin received interfaces.
+    const bool jsonApiWasRunning = rsJsonApi && rsJsonApi->isRunning();
+    const std::size_t jsonApiProviderCount = jsonApiWasRunning ?
+                rsJsonApi->getResourceProviders().size() : 0;
+#endif
 	mPluginsManager->setInterfaces(interfaces);
+#ifdef RS_JSONAPI
+    if( jsonApiWasRunning && jsonApiProviderCount !=
+            rsJsonApi->getResourceProviders().size() )
+    {
+        RsInfo() << "Restarting JSON API once to publish plugin resources.";
+
+        /* The restart must not run on the JSON API server thread.
+         * StartupRetroShare() is reached from RsLoginHelper::attemptLogin() and
+         * createLocationV2(), both exposed through the JSON API, and restbed
+         * serves its handlers on the thread that called Service::start(), which
+         * is JsonApiServer::run() itself. restart() calls RsThread::fullstop(),
+         * and joining our own thread makes waitWhileStopping() bail out with an
+         * error instead of waiting; the subsequent RsThread::start() then fails
+         * with "attempt to start already running thread" and the server stays
+         * down for good. The /rsJsonApi/restart handler takes the same care.
+         * Dispatching also keeps the RESTART_BURST_PROTECTION wait, which is
+         * meant to throttle API clients, off the startup path. */
+        RsThread::async([]()
+        {
+            const std::error_condition restartError = rsJsonApi->restart(true);
+            if(restartError)
+                RsErr() << "Failed restarting JSON API after plugin "
+                        << "initialization: " << restartError.message();
+        });
+    }
+#endif
 
 	// now add plugin objects inside the loop:
 	// 	- client services provided by plugins.
