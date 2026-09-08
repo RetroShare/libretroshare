@@ -531,6 +531,31 @@ bool GxsSecurity::validateNxsMsg(const RsNxsMsg& msg, const RsTlvKeySignature& s
 	return false;
 }
 
+bool GxsSecurity::getAdminSignature(const char* data, uint32_t size,
+                                    const RsTlvSecurityKeySet& keys,
+                                    RsTlvKeySignature& signature)
+{
+    for(const auto& entry : keys.private_keys)
+        if(entry.second.keyFlags & RSTLV_KEY_DISTRIB_ADMIN)
+            return getSignature(data, size, entry.second, signature);
+    return false;
+}
+
+bool GxsSecurity::validateAdminSignature(const RsNxsMsg& msg,
+                                         const RsTlvSecurityKeySet& keys)
+{
+    if(!msg.metaData) return false;
+    const auto found = msg.metaData->signSet.keySignSet.find(ADMIN_SIGNATURE_INDEX);
+    if(found == msg.metaData->signSet.keySignSet.end()) return false;
+    // validateNxsMsg temporarily clears and restores the metadata signatures.
+    const RsTlvKeySignature signature = found->second;
+    for(const auto& entry : keys.public_keys)
+        if((entry.second.keyFlags & RSTLV_KEY_DISTRIB_ADMIN)
+                && validateNxsMsg(msg, signature, entry.second))
+            return true;
+    return false;
+}
+
 bool GxsSecurity::encrypt(uint8_t *& out, uint32_t &outlen, const uint8_t *in, uint32_t inlen, const RsTlvPublicRSAKey& key)
 {
 #ifdef DISTRIB_DEBUG

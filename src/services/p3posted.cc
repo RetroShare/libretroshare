@@ -20,6 +20,8 @@
  *                                                                             *
  *******************************************************************************/
 #include "services/p3posted.h"
+#include "services/postedversions.h"
+#include "gxs/gxssecurity.h"
 #include "retroshare/rsgxscircles.h"
 #include "retroshare/rspeers.h"
 #include "rsitems/rsposteditems.h"
@@ -67,6 +69,12 @@ bool p3Posted::groupShareKeys(const RsGxsGroupId& groupId,const std::set<RsPeerI
 {
         RsGenExchange::shareGroupPublishKey(groupId,peers) ;
         return true ;
+}
+
+bool p3Posted::service_requiresAdminSignature(const RsGxsMsgMetaData& meta) const
+{
+    return meta.mParentId.isNull() && !meta.mOrigMsgId.isNull()
+            && meta.mOrigMsgId != meta.mMsgId;
 }
 
 bool p3Posted::getGroupData(const uint32_t &token, std::vector<RsPostedGroup> &groups)
@@ -120,6 +128,32 @@ bool p3Posted::getPostData(
 	for(; mit != msgData.end(); ++mit)
 	{
 		std::vector<RsGxsMsgItem*>& msgItems = mit->second;
+
+		// Recheck revisions already in the database too: older clients could
+		// store edits before admin signatures were mandatory on receipt.
+		GxsMsgReq revisionIds;
+		for(const auto* item : msgItems)
+			if(dynamic_cast<const RsGxsPostedPostItem*>(item)
+			        && !item->meta.mOrigMsgId.isNull()
+			        && item->meta.mOrigMsgId != item->meta.mMsgId)
+				revisionIds[mit->first].insert(item->meta.mMsgId);
+		std::set<RsGxsMessageId> authenticated;
+		if(!revisionIds.empty())
+		{
+			RsTlvSecurityKeySet keys;
+			if(getGroupKeys(mit->first, keys))
+			{
+				GxsMsgResult revisions;
+				getDataStore()->retrieveNxsMsgs(revisionIds, revisions, true);
+				for(auto& group : revisions)
+					for(auto* revision : group.second)
+					{
+						if(revision && GxsSecurity::validateAdminSignature(*revision, keys))
+							authenticated.insert(revision->msgId);
+						delete revision;
+					}
+			}
+		}
 		std::vector<RsGxsMsgItem*>::iterator vit = msgItems.begin();
 
 		for(; vit != msgItems.end(); ++vit)
@@ -129,6 +163,14 @@ bool p3Posted::getPostData(
 
 			if(postItem)
 			{
+				const auto& meta = postItem->meta;
+				if(!meta.mParentId.isNull()
+				        || (!meta.mOrigMsgId.isNull() && meta.mOrigMsgId != meta.mMsgId
+				            && !authenticated.count(meta.mMsgId)))
+				{
+					delete postItem;
+					continue;
+				}
 				// TODO Really needed all of these lines?
 				RsPostedPost msg = postItem->mPost;
 				msg.mMeta = postItem->meta;
@@ -380,7 +422,9 @@ bool p3Posted::getBoardAllContent( const RsGxsGroupId& groupId,
 	if( !requestMsgInfo(token, opts, std::list<RsGxsGroupId>({groupId})) || waitToken(token) != RsTokenService::COMPLETE )
 		return false;
 
-	return getPostData(token, posts, comments, votes);
+	if(!getPostData(token, posts, comments, votes)) return false;
+	PostedVersions::resolve(posts);
+	return true;
 }
 
 bool p3Posted::getRelatedComments( const RsGxsGroupId& gid,const std::set<RsGxsMessageId>& messageIds, std::vector<RsGxsComment> &comments )
@@ -405,6 +449,7 @@ bool p3Posted::getBoardContent( const RsGxsGroupId& groupId,
                                 std::vector<RsGxsComment>& comments,
                                 std::vector<RsGxsVote>& votes )
 {
+	if(contentsIds.empty()) return getBoardAllContent(groupId, posts, comments, votes);
 	uint32_t token;
 	RsTokReqOptions opts;
 	opts.mReqType = GXS_REQUEST_TYPE_MSG_DATA;
@@ -412,10 +457,24 @@ bool p3Posted::getBoardContent( const RsGxsGroupId& groupId,
 	GxsMsgReq msgIds;
 	msgIds[groupId] = contentsIds;
 
+	// Include every revision of requested posts, but leave comment/vote
+	// requests alone. Fetch metadata first to avoid loading the whole board.
+	std::vector<RsMsgMetaData> summaries;
+	if(!getBoardPostSummaries(groupId, summaries)) return false;
+	std::set<RsGxsMessageId> roots;
+	for(const auto& meta : summaries)
+		if(contentsIds.count(meta.mMsgId))
+			roots.insert(meta.mOrigMsgId.isNull() ? meta.mMsgId : meta.mOrigMsgId);
+	msgIds[groupId].insert(roots.begin(), roots.end());
+	for(const auto& meta : summaries)
+		if(roots.count(meta.mOrigMsgId)) msgIds[groupId].insert(meta.mMsgId);
+
 	if( !requestMsgInfo(token, opts, msgIds) ||
 	        waitToken(token) != RsTokenService::COMPLETE ) return false;
 
-	return getPostData(token, posts, comments, votes);
+	if(!getPostData(token, posts, comments, votes)) return false;
+	PostedVersions::resolve(posts);
+	return true;
 }
 
 bool p3Posted::getBoardPostSummaries(
@@ -798,13 +857,16 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
                             const RsGxsId& authorId,
                             const RsGxsImage& image,
                             RsGxsMessageId& postId,
-                            std::string& error_message)
+                            std::string& error_message,
+                            const RsGxsMessageId& origPostId)
 {
+    error_message.clear();
     // check boardId
 
     std::vector<RsPostedGroup> groupsInfo;
 
-    if(!getBoardsInfo( { boardId }, groupsInfo))
+    if(boardId.isNull() || !getBoardsInfo( { boardId }, groupsInfo)
+            || groupsInfo.size() != 1)
     {
         error_message = "Board with Id " + boardId.toStdString() + " does not exist.";
         RsErr() << error_message;
@@ -821,6 +883,31 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
     }
 
     RsPostedPost post;
+    if(title.empty())
+    {
+        error_message = "Please add a title.";
+        return false;
+    }
+
+    if(!origPostId.isNull())
+    {
+        if(!IS_GROUP_ADMIN(groupsInfo.front().mMeta.mSubscribeFlags))
+        {
+            error_message = "Only a board administrator can edit posts.";
+            return false;
+        }
+
+        std::vector<RsPostedPost> originals;
+        std::vector<RsGxsComment> comments;
+        std::vector<RsGxsVote> votes;
+        if(!getBoardContent(boardId, {origPostId}, originals, comments, votes)
+                || originals.size() != 1)
+        {
+            error_message = "The original post is not available locally.";
+            return false;
+        }
+        post.mMeta.mOrigMsgId = originals.front().mMeta.mMsgId;
+    }
     post.mMeta.mGroupId = boardId;
     post.mLink = link.toString();
     post.mImage = image;
@@ -833,13 +920,64 @@ bool p3Posted::createPostV2(const RsGxsGroupId& boardId,
     RsGenericSerializer::SerializeContext ctx;
     post.serial_process(RsGenericSerializer::SIZE_ESTIMATE,ctx);
 
-    if(ctx.mSize > 200000) {
+    if(!ctx.mOk || ctx.mOffset > 200000) {
         error_message = "Maximum size of 200000 bytes exceeded for board post.";
         RsErr() << error_message;
         return false;
     }
 
-    return createPost(post,postId);
+    if(!createPost(post,postId))
+    {
+        error_message = "Failed to publish the post. Check your signing identity and board permissions.";
+        return false;
+    }
+    return true;
+}
+
+bool p3Posted::setPostPinned(const RsGxsGroupId& boardId,
+                           const RsGxsMessageId& postId, bool pinned,
+                           std::string& errorMessage)
+{
+    RS_STACK_MUTEX(mPinUpdateMutex);
+    errorMessage.clear();
+    std::vector<RsPostedGroup> groups;
+    if(boardId.isNull() || postId.isNull()
+            || !getBoardsInfo({boardId}, groups) || groups.size() != 1)
+    {
+        errorMessage = "Board or post not found.";
+        return false;
+    }
+    auto& board = groups.front();
+    if(!IS_GROUP_ADMIN(board.mMeta.mSubscribeFlags))
+    {
+        errorMessage = "Only a board administrator can pin posts.";
+        return false;
+    }
+
+    RsGxsMessageId originalId = postId;
+    if(pinned)
+    {
+        std::vector<RsPostedPost> posts;
+        std::vector<RsGxsComment> comments;
+        std::vector<RsGxsVote> votes;
+        if(!getBoardContent(boardId, {postId}, posts, comments, votes)
+                || posts.size() != 1)
+        {
+            errorMessage = "The post is not available locally.";
+            return false;
+        }
+        originalId = posts.front().mMeta.mMsgId;
+    }
+    // Unpinning remains possible even after a post expires locally.
+    if(pinned == (board.mPinnedPosts.ids.count(originalId) != 0)) return true;
+    if(pinned) board.mPinnedPosts.ids.insert(originalId);
+    else board.mPinnedPosts.ids.erase(originalId);
+    if(!editBoard(board))
+    {
+        errorMessage = "Failed to update the board's pinned posts.";
+        return false;
+    }
+    return true;
 }
 
 bool p3Posted::createCommentV2(
