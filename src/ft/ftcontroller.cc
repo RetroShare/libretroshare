@@ -945,7 +945,14 @@ bool ftController::FileRequest(
     flags |=  RS_FILE_REQ_ENCRYPTED ;
     flags &= ~RS_FILE_REQ_UNENCRYPTED ;
 
-	if(size == 0)	// we treat this special case because
+	// SHA1 of the empty string. A size of 0 is only trustworthy when paired
+	// with this hash: elsewhere it usually means the real size hasn't been
+	// synced from the remote peer yet, and short-circuiting here would
+	// silently drop an empty stub in the destination without ever starting
+	// a real transfer once the size becomes known.
+	static const RsFileHash emptyFileHash("da39a3ee5e6b4b0d3255bfef95601890afd80709");
+
+	if(size == 0 && hash == emptyFileHash)	// we treat this special case because
 	{
 		/* if no destpath - send to download directory */
 		std::string destination ;
