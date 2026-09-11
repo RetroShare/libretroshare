@@ -99,6 +99,7 @@ public:
     bool    MessageSend(Rs::Mail::MessageInfo &info) override;
     bool    SystemMessage(const std::string &title, const std::string &message, uint32_t systemFlag) override;
     bool    MessageToDraft(Rs::Mail::MessageInfo &info, const std::string &msgParentId) override;
+    bool    addMessage(const Rs::Mail::MessageInfo &info, Rs::Mail::BoxName box) override;
     bool    MessageToTrash(const std::string &mid, bool bTrash) override;
 
     bool 	getMessageTag(const std::string &msgId, Rs::Mail::MsgTagInfo& info) override;
