@@ -288,10 +288,10 @@ class p3turtle: public p3Service, public RsTurtle, public p3Config
 		virtual std::string getPeerNameForVirtualPeerId(const RsPeerId& virtual_peer_id);
 		
 		/// get info about tunnels
-		virtual void getInfo(std::vector<std::vector<std::string> >&,
-									std::vector<std::vector<std::string> >&,
-									std::vector<TurtleSearchRequestDisplayInfo >&,
-									std::vector<TurtleTunnelRequestDisplayInfo >&) const ;
+		virtual void getInfo(std::vector<std::vector<std::string>>& hashes_info,
+		                     std::vector<std::vector<std::string>>& tunnels_info,
+		                     std::vector<TurtleSearchRequestDisplayInfo>& search_reqs_info,
+		                     std::vector<TurtleTunnelRequestDisplayInfo>& tunnel_reqs_info) const ;
 		
 		virtual void getTrafficStatistics(TurtleTrafficStatisticsInfo& info) const ;
 
