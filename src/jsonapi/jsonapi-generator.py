@@ -176,7 +176,7 @@ def processFile(file):
 					callbackParams = pType
 				else:
 					pType = pType.replace('&', '').replace(' ', '')
-				
+
 				# Apparently some xml declarations include new lines ('\n') and/or multiple spaces
 				# Strip them using python magic
 				pType = ' '.join(pType.split())
@@ -225,8 +225,8 @@ def processFile(file):
 
 			inputParamsDeserialization = ''
 			if hasInput:
-				inputParamsDeserialization += '\t\t{\n' 
-				inputParamsDeserialization += '\t\t\tRsGenericSerializer::SerializeContext& ctx(cReq);\n' 
+				inputParamsDeserialization += '\t\t{\n'
+				inputParamsDeserialization += '\t\t\tRsGenericSerializer::SerializeContext& ctx(cReq);\n'
 				inputParamsDeserialization += '\t\t\tRsGenericSerializer::SerializeJob j(RsGenericSerializer::FROM_JSON);\n';
 
 			outputParamsSerialization = ''
@@ -249,9 +249,9 @@ def processFile(file):
 					outputParamsSerialization += '\t\t\tRS_SERIAL_PROCESS('
 					outputParamsSerialization += mp._name + ');\n'
 
-			if hasInput: 
+			if hasInput:
 				inputParamsDeserialization += '\t\t}\n'
-			if retvalType != 'void': 
+			if retvalType != 'void':
 				outputParamsSerialization += '\t\t\tRS_SERIAL_PROCESS(retval);\n'
 			if hasOutput:
 				outputParamsSerialization += '\t\t}\n'
@@ -271,7 +271,8 @@ def processFile(file):
 				std::chrono::seconds(maxWait+120) );
 			auto lService = weakService.lock();
 			if(!lService || lService->is_down()) return;
-			lService->schedule( [=]()
+            auto io_context = lService->get_io_context();
+			asio::post(*io_context, [=]()
 			{
 				auto session = weakSession.lock();
 				if(session && session->is_open())
