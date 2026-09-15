@@ -156,32 +156,12 @@ public:
 		RsTurtle() {}
 		virtual ~RsTurtle() {}
 
-		/**
-		 * @brief Enable or disable turtle router permanently
-		 * @jsonapi{development}
-		 * @param[in] enable pass true to enable, false to disable
-		 */
-		virtual void setEnabled(bool enable) = 0 ;
-
-		/**
-		 * @brief Check if turtle router is permanently enabled
-		 * @jsonapi{development}
-		 * @return true if enabled, false otherwise
-		 */
+		// This is saved permanently.
+		virtual void setEnabled(bool) = 0 ;
 		virtual bool enabled() const = 0 ;
 
-		/**
-		 * @brief Enable or disable turtle router for current session
-		 * @jsonapi{development}
-		 * @param[in] enable pass true to enable, false to disable
-		 */
-		virtual void setSessionEnabled(bool enable) = 0 ;
-
-		/**
-		 * @brief Check if turtle router is session enabled
-		 * @jsonapi{development}
-		 * @return true if session enabled, false otherwise
-		 */
+		// This is temporary, used by Operating Mode.
+		virtual void setSessionEnabled(bool) = 0 ;
 		virtual bool sessionEnabled() const = 0 ;
 
 		/** Lauches a search request through the pipes, and immediately returns
@@ -244,12 +224,7 @@ public:
 		 */
 		virtual void getTrafficStatistics(TurtleTrafficStatisticsInfo& info) const = 0;
 
-		/**
-		 * @brief Check if peer is turtle peer
-		 * @jsonapi{development}
-		 * @param[in] peer_id peer id to check
-		 * @return true if turtle peer, false otherwise
-		 */
+		// Convenience function.
 		virtual bool isTurtlePeer(const RsPeerId& peer_id) const = 0 ;
 
 		/**
