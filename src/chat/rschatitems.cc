@@ -56,6 +56,10 @@ RsItem *RsChatSerialiser::create_item(uint16_t service_id,uint8_t item_sub_id) c
 	case RS_PKT_SUBTYPE_CHAT_AVATAR_INFO: return new RsChatAvatarInfoItem();
     case RS_PKT_SUBTYPE_CHAT_AVATAR_CONFIG: return new RsChatAvatarConfigItem();
 	case RS_PKT_SUBTYPE_OUTGOING_MAP: return new PrivateOugoingMapItem();
+	case RS_PKT_SUBTYPE_CHAT_LOBBY_HISTORY_PROBE:      return new RsChatLobbyHistoryProbeItem();
+	case RS_PKT_SUBTYPE_CHAT_LOBBY_HISTORY_PROBE_RESP: return new RsChatLobbyHistoryProbeResponseItem();
+	case RS_PKT_SUBTYPE_CHAT_LOBBY_HISTORY_REQUEST:    return new RsChatLobbyHistoryRequestItem();
+	case RS_PKT_SUBTYPE_CHAT_LOBBY_HISTORY_DATA:       return new RsChatLobbyHistoryDataItem();
 	default:
 		std::cerr << "Unknown packet type in chat!" << std::endl;
 		return NULL;
@@ -220,3 +224,32 @@ void PrivateOugoingMapItem::serial_process(
         RsGenericSerializer::SerializeJob j,
         RsGenericSerializer::SerializeContext& ctx )
 { RS_SERIAL_PROCESS(store); }
+
+/***************** Lobby History Retrieval Protocol *****************/
+
+
+
+void RsChatLobbyHistoryProbeItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+	RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_id,"lobby_id") ;
+}
+
+void RsChatLobbyHistoryProbeResponseItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+	RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_id,         "lobby_id") ;
+	RsTypeSerializer::serial_process<uint32_t>(j,ctx,available_count,  "available_count") ;
+	RsTypeSerializer::serial_process<uint32_t>(j,ctx,oldest_timestamp, "oldest_timestamp") ;
+}
+
+void RsChatLobbyHistoryRequestItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+	RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_id,         "lobby_id") ;
+	RsTypeSerializer::serial_process<uint32_t>(j,ctx,max_count,        "max_count") ;
+	RsTypeSerializer::serial_process<uint32_t>(j,ctx,oldest_timestamp, "oldest_timestamp") ;
+}
+
+void RsChatLobbyHistoryDataItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+	RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_id,"lobby_id") ;
+	RsTypeSerializer::serial_process          (j,ctx,msgs,    "msgs") ;
+}
