@@ -115,6 +115,8 @@ rs_jsonapi {
 
 linux-* {
     mLibs += dl
+    # OpenMP runtime needed for parallel deserialization in rsgenexchange.cc
+    LIBS += -fopenmp
 }
 
 rs_deep_channels_index | rs_deep_files_index | rs_deep_forums_index {
