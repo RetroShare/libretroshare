@@ -34,6 +34,7 @@
 
 #include <rsserver/p3face.h>
 #include <util/rsdir.h>
+#include <util/rsdebug.h>
 #include <retroshare/rsversion.h>
 #include <util/folderiterator.h>
 #include <ft/ftserver.h>
@@ -415,6 +416,9 @@ bool RsPluginManager::loadPlugin(const std::string& plugin_name,bool first_time)
 	pinfo.info_string = "" ;
 
 	_accepted_hashes.insert(pinfo.file_hash) ;	// do it now, to avoid putting in list a plugin that might have crashed during the load.
+	RsInfo() << "PLUGINSDIR: Successfully loaded plugin in memory: "
+	         << (p ? p->getPluginName() : "Unknown")
+	         << " from path: " << plugin_name;
 	return true;
 }
 
