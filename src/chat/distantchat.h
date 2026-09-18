@@ -63,6 +63,10 @@ public:
     // each pair of talking GXS id needs to be treated separately
     
     virtual bool getDistantChatStatus(const DistantChatPeerId &tunnel_id, DistantChatPeerInfo& cinfo) ;
+	bool getDistantChatIdentities(const DistantChatPeerId& tunnelId,
+	                              RsGxsId& ownId, RsGxsId& contactId);
+	void getDistantChatContacts(
+	        std::map<DistantChatPeerId, std::pair<RsGxsId, RsGxsId>>& contacts );
 
     // derived in p3ChatService, so as to pass down some info
     virtual void handleIncomingItem(RsItem *) = 0;
@@ -101,7 +105,7 @@ private:
 	        const RsGxsTunnelId& id, unsigned char* data, uint32_t data_size );
 
     // Utility functions.
-    
+
     void markDistantChatAsClosed(const DistantChatPeerId& dcpid) ;
 
     RsGxsTunnelService *mGxsTunnels ;

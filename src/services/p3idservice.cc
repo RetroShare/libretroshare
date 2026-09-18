@@ -294,10 +294,127 @@ bool p3IdService::setAsRegularContact(const RsGxsId& id,bool b)
     if( (!b) &&(it != mContacts.end()))
     {
         mContacts.erase(it) ;
+		mContactsStatus.erase(id);
         slowIndicateConfigChanged() ;
     }
 
     return true ;
+}
+
+bool p3IdService::getContactsStatusList(
+        std::list<RsContactStatus>& statuses )
+{
+	RS_STACK_MUTEX(mIdMtx);
+	statuses.clear();
+	for(const auto& id : mContacts)
+	{
+		auto it = mContactsStatus.find(id);
+		if(it != mContactsStatus.end()) statuses.push_back(it->second);
+		else
+		{
+			RsContactStatus status;
+			status.mGxsId = id;
+			statuses.push_back(status);
+		}
+	}
+	return true;
+}
+
+bool p3IdService::getContactsStatus(
+        const RsGxsId& id, RsContactStatus& status )
+{
+	RS_STACK_MUTEX(mIdMtx);
+	if(mContacts.find(id) == mContacts.end()) return false;
+	auto it = mContactsStatus.find(id);
+	if(it == mContactsStatus.end())
+	{
+		status = RsContactStatus();
+		status.mGxsId = id;
+		return true;
+	}
+	status = it->second;
+	return true;
+}
+
+bool p3IdService::getContactsStatusOwn(
+        const RsGxsId& id, RsContactStatus& status )
+{
+	if(!isOwnId(id)) return false;
+	RS_STACK_MUTEX(mIdMtx);
+	auto it = mOwnContactsStatus.find(id);
+	if(it == mOwnContactsStatus.end())
+	{
+		status = RsContactStatus();
+		status.mGxsId = id;
+		status.mStatus = RsStatusValue::RS_STATUS_ONLINE;
+		return true;
+	}
+	status = it->second;
+	return true;
+}
+
+bool p3IdService::setContactsStatusOwn(
+        const RsGxsId& id, RsStatusValue status,
+        const std::string& customState )
+{
+	if(!isOwnId(id) || status < RsStatusValue::RS_STATUS_AWAY ||
+	        status > RsStatusValue::RS_STATUS_ONLINE || customState.size() > 255)
+		return false;
+
+	{
+		RS_STACK_MUTEX(mIdMtx);
+		RsContactStatus& ownStatus = mOwnContactsStatus[id];
+		const rstime_t previousTimestamp = ownStatus.mTimestamp;
+		ownStatus.mGxsId = id;
+		ownStatus.mStatus = status;
+		ownStatus.mCustomState = customState;
+		ownStatus.mTimestamp = std::max<rstime_t>(
+		            time(nullptr), previousTimestamp + 1 );
+		IndicateConfigChanged();
+	}
+	auto event = std::make_shared<RsGxsIdentityEvent>();
+	event->mIdentityEventCode = RsGxsIdentityEventCode::CONTACT_STATUS_CHANGED;
+	event->mIdentityId = RsGxsGroupId(id);
+	rsEvents->postEvent(event);
+	return true;
+}
+
+bool p3IdService::getContactsStatusCustomStateString(
+        const RsGxsId& id, std::string& customState )
+{
+	RsContactStatus status;
+	if(!getContactsStatus(id, status)) return false;
+	customState = status.mCustomState;
+	return true;
+}
+
+bool p3IdService::setContactsStatusCustomStateStringOwn(
+        const RsGxsId& id, const std::string& customState )
+{
+	RsContactStatus status;
+	if(!getContactsStatusOwn(id, status)) return false;
+	return setContactsStatusOwn(id, status.mStatus, customState);
+}
+
+bool p3IdService::updateContactsStatus(const RsContactStatus& status)
+{
+	bool changed = true;
+	{
+		RS_STACK_MUTEX(mIdMtx);
+		if(mContacts.find(status.mGxsId) == mContacts.end()) return false;
+		auto oldStatus = mContactsStatus.find(status.mGxsId);
+		changed = oldStatus == mContactsStatus.end() ||
+		        oldStatus->second.mStatus != status.mStatus ||
+		        oldStatus->second.mCustomState != status.mCustomState;
+		mContactsStatus[status.mGxsId] = status;
+		IndicateConfigChanged();
+	}
+	if(!changed) return true;
+	auto event = std::make_shared<RsGxsIdentityEvent>();
+	event->mIdentityEventCode = RsGxsIdentityEventCode::CONTACT_STATUS_CHANGED;
+	event->mIdentityId = RsGxsGroupId(status.mGxsId);
+	rsEvents->postEvent(event);
+	return true;
 }
 
 void p3IdService::slowIndicateConfigChanged()
@@ -372,6 +489,8 @@ bool p3IdService::loadList(std::list<RsItem*>& items)
                 mKeysTS[it2->first].TS = it2->second;
 
             mContacts = lii->mContacts ;
+			mOwnContactsStatus = lii->mOwnContactsStatus;
+			mContactsStatus = lii->mContactsStatus;
         }
 
 	    RsConfigKeyValueSet *vitem = dynamic_cast<RsConfigKeyValueSet *>(*it);
@@ -444,6 +563,8 @@ bool p3IdService::saveList(bool& cleanup,std::list<RsItem*>& items)
 		item->mTimeStamps[it->first] = it->second.TS;
 
     item->mContacts = mContacts ;
+	item->mOwnContactsStatus = mOwnContactsStatus;
+	item->mContactsStatus = mContactsStatus;
 
     items.push_back(item) ;
 

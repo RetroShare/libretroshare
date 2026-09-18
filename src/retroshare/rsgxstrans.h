@@ -33,7 +33,8 @@ enum  class RS_DEPRECATED_FOR(RsServiceType) GxsTransSubServices : uint16_t
 	UNKNOWN         = 0x00,
 	TEST_SERVICE    = 0x01,
 	P3_MSG_SERVICE  = 0x02,
-	P3_CHAT_SERVICE = 0x03
+	P3_CHAT_SERVICE = 0x03,
+	P3_CONTACT_STATUS = 0x04
 };
 
 /// Values must fit into uint8_t
