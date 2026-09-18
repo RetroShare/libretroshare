@@ -13,6 +13,24 @@ include(GNUInstallDirs)
 set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
+################################################################################
+## Offline build guard. Several dependencies fall back to FetchContent (network
+## download at configure time) when their local sources are absent. For
+## offline/distribution builds (e.g. a Debian source package) that fallback must
+## be a hard error: it would silently build against an unpinned upstream tip.
+option(
+	RS_FETCH_MISSING_DEPS
+	"Allow downloading missing dependencies at configure time via FetchContent. Turn OFF for offline/distribution builds: a missing dependency then stops the configure with an explicit error instead of a silent network download." ON )
+
+macro(rs_fetch_fallback_guard RS_FFG_DEP_NAME)
+	if(RS_FETCH_MISSING_DEPS)
+		message(STATUS "${RS_FFG_DEP_NAME} not found locally, downloading it via FetchContent (pass -DRS_FETCH_MISSING_DEPS=OFF to make this an error)")
+	else()
+		message(FATAL_ERROR "${RS_FFG_DEP_NAME} not found locally and RS_FETCH_MISSING_DEPS is OFF: refusing to download it at configure time. Provide its sources (git submodule / complete source tarball) or the system library." )
+	endif()
+endmacro()
+################################################################################
+
 if(WIN32)
 	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
 	add_definitions(-DUNICODE -D_UNICODE)
@@ -228,7 +246,10 @@ set(
 
 ################################################################################
 
-find_package(Git REQUIRED)
+# Git is optional: it is only used to stamp versions (git describe, with a
+# Source_Version file fallback for source tarballs) and by the FetchContent
+# network fallbacks, which are guarded by RS_FETCH_MISSING_DEPS.
+find_package(Git)
 
 ################################################################################
 
@@ -439,6 +460,7 @@ if(RS_RNPLIB)
 		else()
 			message(STATUS "librnp not found locally, using FetchContent")
 			rnplib_set_inline_build_options()
+			rs_fetch_fallback_guard(librnp)
 			FetchContent_Declare(
 				librnp
 				GIT_REPOSITORY "https://github.com/rnpgp/rnp.git"
@@ -476,6 +498,7 @@ else()
 			"openpgpsdk source found at ${OPENPGPSDK_DEVEL_DIR} using it" )
 		add_subdirectory("${OPENPGPSDK_DEVEL_DIR}" "${CMAKE_BINARY_DIR}/openpgpsdk")
 	else()
+		rs_fetch_fallback_guard(openpgpsdk)
 		FetchContent_Declare(
 			openpgpsdk
 			GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
@@ -504,6 +527,7 @@ if(RS_BITDHT)
 		add_subdirectory(${BITDHT_DEVEL_DIR} ${CMAKE_BINARY_DIR}/bitdht)
 		set(RS_BITDHT_DIR "${BITDHT_DEVEL_DIR}")
 	else()
+		rs_fetch_fallback_guard(bitdht)
 		FetchContent_Declare(
 			bitdht
 			GIT_REPOSITORY "https://github.com/RetroShare/BitDHT.git"
@@ -551,6 +575,7 @@ elseif(EXISTS "${RAPIDJSON_DEVEL_DIR}/CMakeLists.txt")
 		${PROJECT_NAME}
 		PUBLIC "${RAPIDJSON_DEVEL_DIR}/include" )
 else()
+	rs_fetch_fallback_guard(rapidjson)
 	FetchContent_Declare(
 		rapidjson
 		GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
@@ -670,6 +695,7 @@ if(RS_JSON_API)
 	else()
 		message( WARNING
 		         "FetchContent restbed, will be installed if you run make install")
+		rs_fetch_fallback_guard(restbed)
 		FetchContent_Declare(
 			restbed
 			GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
@@ -814,6 +840,7 @@ if(RS_BRODCAST_DISCOVERY)
 		target_include_directories(
 			${PROJECT_NAME} PRIVATE "${UDP_DISCOVERY_DEVEL_DIR}" )
 	else()
+		rs_fetch_fallback_guard(udp-discovery-cpp)
 		FetchContent_Declare(
 			udp-discovery-cpp
 			GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
@@ -877,6 +904,7 @@ endif(RS_EXPORT_JNI_ONLOAD)
 ################################################################################
 
 if(RS_ANDROID)
+	rs_fetch_fallback_guard(jni-hpp)
 	FetchContent_Declare(
 		jni-hpp
 		GIT_REPOSITORY "https://github.com/RetroShare/jni.hpp.git"
@@ -925,7 +953,33 @@ else()
 		message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
 		set(V_VERSION_SET ON)
 	else()
-		message(WARNING "Determining libRetroShare version via git failed please specify it through CMake command line arguments!")
+		# Source tarball fallback: an unpacked source tarball carries no git
+		# metadata, so the tarball preparation script stores the output of
+		# `git describe --tags --long --match v*.*.*` in a Source_Version file
+		# next to this CMakeLists.txt. The trailing newline is re-appended so
+		# the same regexp as the git path applies.
+		set(V_VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version")
+		set(V_FILE_DESCRIBE_OUTPUT "")
+		if(EXISTS "${V_VERSION_FILE}")
+			file(READ "${V_VERSION_FILE}" V_FILE_DESCRIBE_OUTPUT)
+			string(STRIP "${V_FILE_DESCRIBE_OUTPUT}" V_FILE_DESCRIBE_OUTPUT)
+			set(V_FILE_DESCRIBE_OUTPUT "${V_FILE_DESCRIBE_OUTPUT}\n")
+		endif()
+		if(V_FILE_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
+			string(
+				REGEX REPLACE
+				"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
+				V_GIT_DESCRIBE_LIST ${V_FILE_DESCRIBE_OUTPUT} )
+			list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
+			list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
+			list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
+			list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
+
+			message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via Source_Version file")
+			set(V_VERSION_SET ON)
+		else()
+			message(WARNING "Determining libRetroShare version via git or Source_Version failed please specify it through CMake command line arguments!")
+		endif()
 	endif()
 endif()
 
@@ -950,6 +1004,16 @@ execute_process(
 	OUTPUT_VARIABLE RS_LIB_VERSION_HASH
 	OUTPUT_STRIP_TRAILING_WHITESPACE
 	RESULT_VARIABLE V_GIT_HASH_RESULT ) # Avoid CMake failure if git fails
+
+# Source tarball fallback: reuse the Source_Version file (see the version
+# detection above) when git metadata is absent.
+if(NOT V_GIT_HASH_RESULT EQUAL 0 OR RS_LIB_VERSION_HASH STREQUAL "")
+	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version")
+		file(READ "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version" RS_LIB_VERSION_HASH)
+		string(STRIP "${RS_LIB_VERSION_HASH}" RS_LIB_VERSION_HASH)
+		set(V_GIT_HASH_RESULT 0)
+	endif()
+endif()
 
 if(V_GIT_HASH_RESULT EQUAL 0 AND NOT RS_LIB_VERSION_HASH STREQUAL "")
 	string(REGEX REPLACE "^v" "" RS_LIB_VERSION_HASH "${RS_LIB_VERSION_HASH}")
@@ -989,6 +1053,7 @@ endif()
 ################################################################################
 
 if(RS_CPPTRACE_STACKTRACE)
+    rs_fetch_fallback_guard(cpptrace)
     FetchContent_Declare(
       cpptrace
       GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
