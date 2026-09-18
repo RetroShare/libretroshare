@@ -978,7 +978,7 @@ if(RS_CPPTRACE_STACKTRACE)
     FetchContent_MakeAvailable(cpptrace)
     target_link_libraries(${PROJECT_NAME} PRIVATE cpptrace::cpptrace)
     target_compile_definitions(
-        ${LIBRARY_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
+        ${PROJECT_NAME} PRIVATE RS_JEREMY_RIFKIN_CPPTRACE )
 endif(RS_CPPTRACE_STACKTRACE)
 
 if(RS_USE_I2P_SAM3)
