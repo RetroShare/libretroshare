@@ -61,6 +61,13 @@ option(
 	"Enable use RNP lib for PGP"
 	ON )
 
+cmake_dependent_option(
+	RS_SYSTEM_LIBRNP
+	"Link the system librnp instead of building the vendored copy"
+	OFF
+	"RS_RNPLIB"
+	OFF )
+
 option(
 	RS_JSON_API
 	"Use restbed to expose libretroshare as JSON API via HTTP"
@@ -394,6 +401,21 @@ if(RS_RNPLIB)
 	if(RS_ANDROID)
 		find_library(RS_PREBUILT_RNP_LIBRARY NAMES rnp)
 	endif(RS_ANDROID)
+
+	## Distribution policies (e.g. Debian) forbid embedded copies of packaged
+	## libraries, so a missing system librnp must fail instead of falling back
+	## to the vendored sources.
+	if(RS_SYSTEM_LIBRNP)
+		find_library(RS_PREBUILT_RNP_LIBRARY NAMES rnp)
+		if(NOT RS_PREBUILT_RNP_LIBRARY)
+			message(FATAL_ERROR "RS_SYSTEM_LIBRNP is ON but no system librnp was found (install librnp-dev or equivalent)")
+		endif()
+		## PUBLIC because rnp/rnp.h is reached from the public authgpg.h
+		find_path(RS_SYSTEM_RNP_INCLUDE "rnp/rnp.h")
+		if(RS_SYSTEM_RNP_INCLUDE)
+			target_include_directories(${PROJECT_NAME} PUBLIC "${RS_SYSTEM_RNP_INCLUDE}")
+		endif()
+	endif(RS_SYSTEM_LIBRNP)
 
 	if(NOT RS_PREBUILT_RNP_LIBRARY AND EXISTS "${RNPLIB_DEVEL_DIR}/CMakeLists.txt")
 		message(STATUS "librnp source found at ${RNPLIB_DEVEL_DIR} using it")
