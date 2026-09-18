@@ -38,6 +38,7 @@ class RsTurtle;
 
 /**
  * Pointer to global instance of RsTurtle service implementation
+ * @jsonapi{development}
  */
 extern RsTurtle* rsTurtle;
 
@@ -54,7 +55,7 @@ struct TurtleFileInfo : RsSerializable
 
 	/// @see RsSerializable::serial_process
 	void serial_process( RsGenericSerializer::SerializeJob j,
-						 RsGenericSerializer::SerializeContext& ctx )
+						 RsGenericSerializer::SerializeContext& ctx ) override
 	{
 		RS_SERIAL_PROCESS(size);
 		RS_SERIAL_PROCESS(hash);
@@ -65,26 +66,57 @@ struct TurtleFileInfo : RsSerializable
 	}
 } RS_DEPRECATED_FOR(TurtleFileInfoV2);
 
-struct TurtleTunnelRequestDisplayInfo
+struct TurtleTunnelRequestDisplayInfo : RsSerializable
 {
+	TurtleTunnelRequestDisplayInfo() : request_id(0), age(0), depth(0) {}
+
 	uint32_t request_id ;     // Id of the request
 	RsPeerId source_peer_id ; // Peer that relayed the request
 	uint32_t age ;            // Age in seconds
 	uint32_t depth ;          // Depth of the request. Might be altered.
+
+	/// @see RsSerializable::serial_process
+	void serial_process( RsGenericSerializer::SerializeJob j,
+	                     RsGenericSerializer::SerializeContext& ctx ) override
+	{
+		RS_SERIAL_PROCESS(request_id);
+		RS_SERIAL_PROCESS(source_peer_id);
+		RS_SERIAL_PROCESS(age);
+		RS_SERIAL_PROCESS(depth);
+	}
 };
-struct TurtleSearchRequestDisplayInfo
+
+struct TurtleSearchRequestDisplayInfo : RsSerializable
 {
+	TurtleSearchRequestDisplayInfo() : request_id(0), age(0), depth(0), hits(0) {}
+
 	uint32_t request_id ;     // Id of the request
 	RsPeerId source_peer_id ; // Peer that relayed the request
 	uint32_t age ;            // Age in seconds
 	uint32_t depth ;          // Depth of the request. Might be altered.
 	uint32_t hits ;
 	std::string keywords;
+
+	/// @see RsSerializable::serial_process
+	void serial_process( RsGenericSerializer::SerializeJob j,
+	                     RsGenericSerializer::SerializeContext& ctx ) override
+	{
+		RS_SERIAL_PROCESS(request_id);
+		RS_SERIAL_PROCESS(source_peer_id);
+		RS_SERIAL_PROCESS(age);
+		RS_SERIAL_PROCESS(depth);
+		RS_SERIAL_PROCESS(hits);
+		RS_SERIAL_PROCESS(keywords);
+	}
 };
 
-class TurtleTrafficStatisticsInfo
+class TurtleTrafficStatisticsInfo : public RsSerializable
 {
 	public:
+		TurtleTrafficStatisticsInfo()
+		    : unknown_updn_Bps(0.0f), data_up_Bps(0.0f), data_dn_Bps(0.0f),
+		      tr_up_Bps(0.0f), tr_dn_Bps(0.0f), total_up_Bps(0.0f), total_dn_Bps(0.0f) {}
+
 		float unknown_updn_Bps ;	// unknown data transit bitrate (in Bytes per sec.)
 		float data_up_Bps ;			// upload (in Bytes per sec.)
 		float data_dn_Bps ;			// download (in Bytes per sec.)
@@ -94,6 +126,20 @@ class TurtleTrafficStatisticsInfo
 		float total_dn_Bps ;			// turtle network management bitrate (in Bytes per sec.)
 
 		std::vector<float> forward_probabilities ;	// probability to forward a TR as a function of depth.
+
+		/// @see RsSerializable::serial_process
+		void serial_process( RsGenericSerializer::SerializeJob j,
+		                     RsGenericSerializer::SerializeContext& ctx ) override
+		{
+			RS_SERIAL_PROCESS(unknown_updn_Bps);
+			RS_SERIAL_PROCESS(data_up_Bps);
+			RS_SERIAL_PROCESS(data_dn_Bps);
+			RS_SERIAL_PROCESS(tr_up_Bps);
+			RS_SERIAL_PROCESS(tr_dn_Bps);
+			RS_SERIAL_PROCESS(total_up_Bps);
+			RS_SERIAL_PROCESS(total_dn_Bps);
+			RS_SERIAL_PROCESS(forward_probabilities);
+		}
 };
 
 // Interface class for turtle hopping.
@@ -150,22 +196,56 @@ public:
 		///
 		virtual void registerTunnelService(RsTurtleClientService *service) = 0;
 
+		/**
+		 * @brief Get peer name for virtual peer id
+		 * @jsonapi{development}
+		 * @param[in] virtual_peer_id virtual peer id
+		 * @return peer name
+		 */
 		virtual std::string getPeerNameForVirtualPeerId(const RsPeerId& virtual_peer_id) = 0;
 		
-		// Get info from the turtle router. I use std strings to hide the internal structs.
-		//
-		virtual void getInfo(std::vector<std::vector<std::string> >&,std::vector<std::vector<std::string> >&,
-									std::vector<TurtleSearchRequestDisplayInfo>&,std::vector<TurtleTunnelRequestDisplayInfo>&) const = 0;
+		/**
+		 * @brief Get info from the turtle router
+		 * @jsonapi{development}
+		 * @param[out] hashes_info active hashes info
+		 * @param[out] tunnels_info active tunnels info
+		 * @param[out] search_reqs_info active search requests info
+		 * @param[out] tunnel_reqs_info active tunnel requests info
+		 */
+		virtual void getInfo(std::vector<std::vector<std::string>>& hashes_info,
+		                     std::vector<std::vector<std::string>>& tunnels_info,
+		                     std::vector<TurtleSearchRequestDisplayInfo>& search_reqs_info,
+		                     std::vector<TurtleTunnelRequestDisplayInfo>& tunnel_reqs_info) const = 0;
 
-		// Get info about turtle traffic. See TurtleTrafficStatisticsInfo members for details.
-		//
+		/**
+		 * @brief Get info about turtle traffic
+		 * @jsonapi{development}
+		 * @param[out] info traffic statistics info
+		 */
 		virtual void getTrafficStatistics(TurtleTrafficStatisticsInfo& info) const = 0;
 
 		// Convenience function.
 		virtual bool isTurtlePeer(const RsPeerId& peer_id) const = 0 ;
 
-		// Hardcore handles
+		/**
+		 * @brief Set max tunnel request forward rate
+		 * @jsonapi{development}
+		 * @param[in] max_tr_up_rate max rate
+		 */
 		virtual void setMaxTRForwardRate(int max_tr_up_rate) = 0 ;
+
+		/**
+		 * @brief Get max tunnel request forward rate
+		 * @jsonapi{development}
+		 * @return max TR forward rate
+		 */
         virtual int  getMaxTRForwardRate() const = 0 ;
+
+		/**
+		 * @brief Get max tunnel request forward rate limits
+		 * @jsonapi{development}
+		 * @param[out] low lower limit
+		 * @param[out] high higher limit
+		 */
         virtual void getMaxTRForwardRateLimits(int& low,int& high) const = 0 ;
 };
