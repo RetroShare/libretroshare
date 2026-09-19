@@ -174,6 +174,12 @@ public:
 		*/
     void getAvatarData(const RsPeerId& peer_id,unsigned char *& data,int& size) override;
 
+	/// @see RsChats
+	bool getAvatar(const RsPeerId& pid, RsGxsImage& avatar) override;
+
+	/// @see RsChats
+	bool getOwnAvatar(RsGxsImage& avatar) override;
+
 	/*!
 		 * Sets the avatar data and size for client's account
 		 * @param data is copied, so should be destroyed by the caller
@@ -275,6 +281,11 @@ private:
 
 	/// Sends a request for an avatar to the peer of given id
 	void sendAvatarRequest(const RsPeerId& peer_id) ;
+
+	/*! Create the avatar bookkeeping entry for the given peer if needed, then
+	 * ask the peer for its avatar, at most once per minute.
+	 * The caller MUST hold mChatMtx before calling this. */
+	void locked_requestAvatar(const RsPeerId& peer_id) ;
 
 	/// Send a request for custom status string
 	void sendCustomStateRequest(const RsPeerId& peer_id);
