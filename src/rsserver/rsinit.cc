@@ -445,21 +445,11 @@ void RsInit::startupWebServices(const RsConfigOptions& conf,bool force_start_jso
     std::cerr << std::endl;
     RsInfo() << "Configuring web services" ;
 
-    // Plugins receive RsPlugInInterfaces during core startup, before the GUI
-    // calls startupWebServices(). Reuse the server created for that handoff so
-    // resource providers registered by plugins are not lost here.
+    // Reuse the server StartupRetroShare() created for the plugin handoff,
+    // otherwise the resource providers plugins registered would be lost.
     JsonApiServer* jas = dynamic_cast<JsonApiServer*>(rsJsonApi);
     if(!jas)
     {
-        /* Not reachable today -- rsJsonApi is only ever set to a JsonApiServer,
-         * here and in the plugin handoff of StartupRetroShare(). Should that
-         * change, replacing it silently would leave every plugin holding the
-         * pointer it received in setInterfaces() talking to an abandoned
-         * object, with no trace of why. */
-        if(rsJsonApi)
-            RsErr() << "rsJsonApi is set but is not a JsonApiServer. Replacing "
-                    << "it: plugins still hold the previous pointer.";
-
         jas = new JsonApiServer();
         rsJsonApi = jas;
     }
