@@ -61,6 +61,7 @@
 #include "rsitems/rsconfigitems.h"
 #include <stdio.h>
 #include <unistd.h>		/* for (u)sleep() */
+#include <filesystem>
 #include "util/rstime.h"
 
 /******
@@ -945,15 +946,27 @@ bool ftController::FileRequest(
     flags |=  RS_FILE_REQ_ENCRYPTED ;
     flags &= ~RS_FILE_REQ_UNENCRYPTED ;
 
-	// SHA1 of the empty string. A size of 0 is only trustworthy when paired
-	// with this hash: elsewhere it usually means the real size hasn't been
-	// synced from the remote peer yet, and short-circuiting here would
-	// silently drop an empty stub in the destination without ever starting
-	// a real transfer once the size becomes known.
-	static const RsFileHash emptyFileHash("da39a3ee5e6b4b0d3255bfef95601890afd80709");
-
-	if(size == 0 && hash == emptyFileHash)	// we treat this special case because
+	if(size == 0)	// we treat this special case because
 	{
+		// SHA1 of the empty string: a size of 0 is only ever legitimate
+		// when paired with this hash (a genuinely empty file, nothing to
+		// transfer). Every real caller (remote dir sync, links, search,
+		// collections, mail, channels) sources size from the same record
+		// as the hash, so size==0 with any other hash is malformed input -
+		// refuse it instead of creating a transfer for it, which would sit
+		// as a permanent zero-progress entry with no legitimate way for
+		// its size to later be corrected.
+		static const RsFileHash emptyFileHash("da39a3ee5e6b4b0d3255bfef95601890afd80709");
+
+		if(hash != emptyFileHash)
+		{
+			RsErr() << __PRETTY_FUNCTION__ << " refusing FileRequest for "
+			        << fname << " with size 0 and hash " << hash
+			        << ", which is not the hash of an empty file."
+			        << " This should not normally happen." << std::endl;
+			return false;
+		}
+
 		/* if no destpath - send to download directory */
 		std::string destination ;
 
@@ -961,6 +974,22 @@ bool ftController::FileRequest(
 			destination = mDownloadPath + "/" + fname;
 		else
 			destination = dest + "/" + fname;
+
+		// Unlike a non-empty file, this never goes through moveFile() at
+		// completion (which would otherwise create the destination
+		// directory on the way), so it needs to be created here - this
+		// matters when downloading into a not-yet-created sub-folder of a
+		// directory/collection download.
+		std::string destDir, destFile;
+		RsDirUtil::splitDirFromFile(destination, destDir, destFile);
+		if(!destDir.empty())
+		{
+			std::error_code ec;
+			std::filesystem::create_directories(destDir, ec);
+			if(ec)
+				RsErr() << __PRETTY_FUNCTION__ << " Could not create directory "
+				        << destDir << " : " << ec.message() << std::endl;
+		}
 
 		// create void file with the target name.
 		FILE *f = RsDirUtil::rs_fopen(destination.c_str(),"w") ;
