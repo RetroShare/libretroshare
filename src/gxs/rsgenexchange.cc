@@ -61,7 +61,7 @@
 
 static const uint32_t INDEX_AUTHEN_IDENTITY     = 0x00000010; // identity
 static const uint32_t INDEX_AUTHEN_PUBLISH      = 0x00000020; // publish key
-static const uint32_t INDEX_AUTHEN_ADMIN        = 0x00000040; // admin key
+static const uint32_t INDEX_AUTHEN_ADMIN        = GxsSecurity::ADMIN_SIGNATURE_INDEX;
 
 static const uint32_t MSG_CLEANUP_PERIOD     = 60*59; // 59 minutes
 static const uint32_t INTEGRITY_CHECK_PERIOD = 60*31; // 31 minutes
@@ -643,6 +643,16 @@ int RsGenExchange::createGroupSignatures(RsTlvKeySignatureSet& signSet, RsTlvBin
 int RsGenExchange::createMsgSignatures(RsTlvKeySignatureSet& signSet, RsTlvBinaryData& msgData,
                                         const RsGxsMsgMetaData& msgMeta, const RsGxsGrpMetaData& grpMeta)
 {
+    if(service_requiresAdminSignature(msgMeta))
+    {
+        RsTlvKeySignature signature;
+        if(!GxsSecurity::getAdminSignature(
+                    static_cast<const char*>(msgData.bin_data), msgData.bin_len,
+                    grpMeta.keys, signature))
+            return SIGN_FAIL;
+        signSet.keySignSet[INDEX_AUTHEN_ADMIN] = signature;
+    }
+
     uint32_t grpFlag = grpMeta.mGroupFlags;
 
 #ifdef GEN_EXCH_DEBUG
@@ -835,6 +845,10 @@ int RsGenExchange::createMessage(RsNxsMsg* msg)
 
 int RsGenExchange::validateMsg(RsNxsMsg *msg, const uint32_t& grpFlag, const uint32_t& /*signFlag*/, RsTlvSecurityKeySet& grpKeySet)
 {
+    if(service_requiresAdminSignature(*msg->metaData)
+            && !GxsSecurity::validateAdminSignature(*msg, grpKeySet))
+        return VALIDATE_FAIL;
+
     // 1 - determine which signatures are needed, by looking for the flags corresponding to the
     //     type of message we have, in the authentication policy of the service
 
