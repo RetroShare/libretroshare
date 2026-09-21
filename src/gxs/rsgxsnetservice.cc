@@ -3359,6 +3359,25 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	RsPeerId peerId = tr->mTransaction->PeerId();
 	for(;mit != grps.end(); ++mit)
 	{
+		// A group larger than the maximum packet size (262143 bytes) can never be serialised by pqistreamer: fragmentGrp() is not
+		// used and receivers do not defragment groups. Sending it would only produce "Serialised packet is too big" errors, and the
+		// peer would request the same group again at every sync. So skip it, and tell which group it is.
+		if(mit->second == NULL)
+			continue ;
+
+		static const uint32_t MAX_GRP_SEND_SIZE = 250000 ;
+		const uint32_t grpTotalSize = mit->second->grp.TlvSize() + mit->second->meta.TlvSize() ;
+
+		if(grpTotalSize > MAX_GRP_SEND_SIZE)
+		{
+			std::cerr << "(EE) RsGxsNetService: NOT sending group " << mit->first << " to peer " << peerId << " : group data is " << grpTotalSize
+			          << " bytes, more than the " << MAX_GRP_SEND_SIZE << " bytes that fit in a packet. Service type 0x" << std::hex << mServType << std::dec
+			          << ". This group (channel/board/forum/etc.) has an oversized image or description." << std::endl;
+			delete mit->second ;
+			mit->second = NULL ;
+			continue ;
+		}
+
 #warning csoler: Should make sure that no private key information is sneaked in here for the grp
 		mit->second->PeerId(peerId); // set so it gets sent to right peer
 		mit->second->transactionNumber = transN;
@@ -3385,7 +3404,7 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	ntr->transactionNumber = transN;
 	ntr->transactFlag = RsNxsTransacItem::FLAG_BEGIN_P1 | RsNxsTransacItem::FLAG_TYPE_GRPS;
 	ntr->updateTS = updateTS;
-	ntr->nItems = grps.size();
+	ntr->nItems = newTr->mItems.size();
 	ntr->PeerId(tr->mTransaction->PeerId());
 
 	newTr->mTransaction = new RsNxsTransacItem(*ntr);
