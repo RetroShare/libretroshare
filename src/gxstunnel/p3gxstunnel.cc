@@ -1625,6 +1625,16 @@ void p3GxsTunnelService::locked_dropPendingData(const RsGxsTunnelId& tunnel_id)
         }
         else
             ++it ;
+
+    // Same for keep-alives and ACKs: only a successful send removes them.
+    for(auto it(pendingGxsTunnelItems.begin());it!=pendingGxsTunnelItems.end();)
+        if((*it)->PeerId() == peer)
+        {
+            delete *it ;
+            it = pendingGxsTunnelItems.erase(it) ;
+        }
+        else
+            ++it ;
 }
 
 bool p3GxsTunnelService::closeExistingTunnel(const RsGxsTunnelId& tunnel_id, uint32_t service_id)
@@ -1689,6 +1699,7 @@ bool p3GxsTunnelService::closeExistingTunnel(const RsGxsTunnelId& tunnel_id, uin
 	    cs->PeerId(RsPeerId(tunnel_id)) ;
 
 	    locked_sendEncryptedTunnelData(cs) ;	// that needs to be done off-mutex and before we close the tunnel also ignoring failure.
+	    delete cs ;
 
 	    if(direction == RsTurtleGenericTunnelItem::DIRECTION_SERVER) 	// nothing more to do for server side.
 	    {
