@@ -246,6 +246,8 @@ private:
     // Comunication with Turtle service
 
     bool locked_sendEncryptedTunnelData(RsGxsTunnelItem *item) ;
+    // Frees the data items of a tunnel that is being forgotten (no ACK can arrive any more).
+    void locked_dropPendingData(const RsGxsTunnelId& tunnel_id) ;
     bool locked_sendClearTunnelData(RsGxsTunnelDHPublicKeyItem *item);	// this limits the usage to DH items. Others should be encrypted!
     
 #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004

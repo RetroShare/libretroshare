@@ -206,6 +206,7 @@ void p3GxsTunnelService::flush()
 	{
 		std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::iterator tmp = it ;
 		++tmp ;
+		locked_dropPendingData(it->first) ;
 		_gxs_tunnel_contacts.erase(it) ;
 		it=tmp ;
 		continue ;
@@ -1612,6 +1613,20 @@ bool p3GxsTunnelService::getTunnelInfo(const RsGxsTunnelId& tunnel_id,GxsTunnelI
     return true ;
 }
 
+void p3GxsTunnelService::locked_dropPendingData(const RsGxsTunnelId& tunnel_id)
+{
+    const RsPeerId peer(tunnel_id) ;
+
+    for(auto it(pendingGxsTunnelDataItems.begin());it!=pendingGxsTunnelDataItems.end();)
+        if(it->second.data_item->PeerId() == peer)
+        {
+            delete it->second.data_item ;
+            it = pendingGxsTunnelDataItems.erase(it) ;
+        }
+        else
+            ++it ;
+}
+
 bool p3GxsTunnelService::closeExistingTunnel(const RsGxsTunnelId& tunnel_id, uint32_t service_id)
 {
     // two cases: 
@@ -1693,6 +1708,11 @@ bool p3GxsTunnelService::closeExistingTunnel(const RsGxsTunnelId& tunnel_id, uin
 	    }
 
 	    _gxs_tunnel_contacts.erase(it) ;
+
+	    // Drop the data items still waiting for an ACK on this tunnel. Without a
+	    // tunnel they can never be sent again, but flush() would keep trying
+	    // (serializing each of them on every tick) and they were never freed.
+	    locked_dropPendingData(tunnel_id) ;
 
 	    // GxsTunnelService::removeVirtualPeerId() will be called by the turtle service.
     }
