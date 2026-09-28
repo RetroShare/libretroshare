@@ -107,7 +107,7 @@ option(
 cmake_dependent_option(
 	RS_LIBRETROSHARE_SHARED
 	"Build RetroShare shared library"
-	OFF
+	ON
 	"NOT RS_LIBRETROSHARE_STATIC"
 	OFF )
 
@@ -276,6 +276,12 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(RS_LIBRETROSHARE_SHARED)
+	# Some static-lib dependencies can be linked into shared libretroshare, so
+	# they need PIC.
+	set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 if(WIN32)
 	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
