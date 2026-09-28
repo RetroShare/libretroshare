@@ -100,7 +100,6 @@ jobs:
         -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
         -DRS_FORUM_DEEP_INDEX=OFF
         -DBITDHT_ROOT=${{github.workspace}}/libbitdht/build
-        -DRAPIDJSON_ROOT=${{github.workspace}}/rapidjson/build
         -DUDP-DISCOVERY-CPP_ROOT=${{github.workspace}}/udp-discovery-cpp\;${{github.workspace}}/udp-discovery-cpp/build
 
     - name: CMake build
