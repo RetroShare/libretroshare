@@ -655,9 +655,7 @@ void p3GxsTunnelService::removeVirtualPeer(const TurtleFileHash& hash,const Turt
 
         if(it2 == _gxs_tunnel_contacts.end())
         {
-            // A null tunnel id means the DH handshake never completed on this virtual peer: the turtle tunnel died first.
-            if(!tunnel_id.isNull())
-                std::cerr << "(EE) Cannot find tunnel id " << tunnel_id << " in contact list. Weird." << std::endl;
+            std::cerr << "(EE) Cannot find tunnel id " << tunnel_id << " in contact list. Weird." << std::endl;
             return ;
         }
         if(it2->second.virtual_peer_id == virtual_peer_id)
@@ -1028,10 +1026,10 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item)
     it->second.tunnel_id = tunnel_id ;
     it->second.gxs_id = senders_id ;
 
-    // Turtle can bring up several tunnels for the same pair of identities: one per direction when both ends call each
-    // other, or several routes for one hash. The contact entry holds a single AES key, so a second handshake would
-    // overwrite the key of the tunnel that is already talking, and both tunnels would then fail every HMAC check and
-    // restart DH sessions forever. Keep the tunnel that talks, ignore the newcomer.
+    // When both ends request a tunnel to each other, turtle brings up one tunnel per direction for the same pair of
+    // identities. The contact entry holds a single AES key, so the second handshake would overwrite the key of the
+    // tunnel that is already talking, and both tunnels would then fail every HMAC check and restart DH sessions
+    // forever. Keep the tunnel that talks, ignore the newcomer.
     {
         std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::const_iterator cit = _gxs_tunnel_contacts.find(tunnel_id) ;
 
@@ -1041,7 +1039,6 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item)
         {
             std::cerr << "(WW) GxsTunnel: tunnel " << tunnel_id << " is already active on virtual peer " << cit->second.virtual_peer_id
                       << ". Ignoring duplicate tunnel on virtual peer " << vpid << "." << std::endl;
-            it->second.status = RS_GXS_TUNNEL_DH_STATUS_UNINITIALIZED ;
             return ;
         }
     }
