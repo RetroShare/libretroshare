@@ -632,7 +632,7 @@ if(NOT FETCH_DEPENDENCY_PROVIDER)
 	)
 	write_basic_package_version_file(
 		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-${config}-install.cmake"
-		COMPATIBILITY SemanticVersion
+		COMPATIBILITY SameMinorVersion
 	)
 	foreach(config config config-version)
 		install(FILES
@@ -659,7 +659,7 @@ if(NOT FETCH_DEPENDENCY_PROVIDER)
 	)
 	write_basic_package_version_file(
 		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-config-version.cmake"
-	  COMPATIBILITY SemanticVersion
+	  COMPATIBILITY SameMinorVersion
 	)
 endif()
 

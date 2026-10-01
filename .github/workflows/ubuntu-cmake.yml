@@ -6,6 +6,11 @@
 # RetroShare super-project, without submodules and without any graft. Only the
 # system libraries below have to be installed.
 #
+# The jobs `without-fetch` builds libretroshare without the Fetch Dependency
+# Provider. All dependencies that are not available from the Ubuntu repository
+# are built from source and made available to the build through find_package.
+# This is likely the way distro packagers will want to build libretroshare.
+#
 # Options mirror the Linux CMake job of the super-project, minus everything that
 # does not exist in this repository: no GUI, no service, no friendserver, no
 # plugins. Everything else is left at the value a normal build uses, so the CI
@@ -37,8 +42,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Ubuntu / CMake
+  with-fetch:
+    name: Ubuntu / CMake / w/ Fetch
     runs-on: ubuntu-latest
 
     steps:
@@ -55,18 +60,53 @@ jobs:
         zlib1g-dev libbz2-dev libjson-c-dev libbotan-2-dev rapidjson-dev
         libsqlcipher-dev libminiupnpc-dev libasio-dev doxygen python3
 
-    - name: Install BitDHT
+    - name: CMake configure
+      run: cmake -G Ninja -B Build-cmake -S .
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        -DCMAKE_BUILD_TYPE=Release
+        -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF
+        -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
+        -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
+        -DRS_FORUM_DEEP_INDEX=OFF
+        -DFETCH_DEPENDENCY_PROVIDER=ON
+
+    - name: CMake build
+      run: cmake --build Build-cmake -j$(nproc)
+
+
+  without-fetch:
+    name: Ubuntu / CMake / w/o Fetch
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Install dependencies
+      run: >
+        sudo apt-get update &&
+        sudo apt-get install -y
+        build-essential g++ cmake ninja-build pkg-config git libssl-dev
+        zlib1g-dev libbz2-dev libjson-c-dev libbotan-2-dev rapidjson-dev
+        libsqlcipher-dev libminiupnpc-dev libasio-dev doxygen python3
+
+    - name: Build BitDHT
       run: |
-        git clone https://github.com/dbear496/RetroShare_BitDHT.git libbitdht \
-          --branch cmake-refactor
-        cd libbitdht
-        cmake -G Ninja -B build
+        git clone https://github.com/RetroShare/BitDHT.git deps/BitDHT
+        cd deps/BitDHT
+        git remote add dbear496 \
+          https://github.com/dbear496/RetroShare_BitDHT.git
+        git fetch --all
+        git checkout dbear496/cmake-refactor
+        cmake -G Ninja -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         cmake --build build -j$(nproc)
 
-    - name: Install restbed
+    - name: Build restbed
       run: |
-        git clone https://github.com/Corvusoft/restbed.git
-        cd restbed
+        git clone https://github.com/Corvusoft/restbed.git deps/restbed
+        cd deps/restbed
         git checkout --detach 6001a322809b5005b8bcccdf593fdda6f0173691
         cmake -G Ninja -B build -DBUILD_TESTS=NO -DBUILD_SSL=NO \
           -DBUILD_STATIC_LIBRARY=YES -DBUILD_SHARED_LIBRARY=NO \
@@ -75,32 +115,46 @@ jobs:
         cmake --build build -j$(nproc)
         sudo cmake --install build
 
-    - name: Install rnp
+    - name: Build rnp
       run: |
-        git clone https://github.com/rnpgp/rnp.git --recurse-submodules
-        cd rnp
+        git clone https://github.com/rnpgp/rnp.git --recurse-submodules deps/rnp
+        cd deps/rnp
         cmake -G Ninja -B build
         cmake --build build -j$(nproc)
         sudo cmake --install build
 
-    - name: Install udp-discovery-cpp
+    - name: Build sam3
       run: |
-        git clone https://github.com/truvorskameikin/udp-discovery-cpp.git
-        cd udp-discovery-cpp
-        cmake -G Ninja -B build
+        git clone https://github.com/i2p/libsam3.git deps/libsam3
+        cd deps/libsam3
+        git config set --append \
+          remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
+        git fetch
+        git checkout origin/pr/30
+        LDFLAGS=-fPIC make -j$(nproc)
+
+    - name: Build udp-discovery-cpp
+      run: |
+        git clone https://github.com/truvorskameikin/udp-discovery-cpp.git \
+          deps/udp-discovery-cpp
+        cd deps/udp-discovery-cpp
+        cmake -G Ninja -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         cmake --build build -j$(nproc)
 
     - name: CMake configure
-      run: >
-        cmake -G Ninja -B Build-cmake -S .
+      run: cmake -G Ninja -B Build-cmake -S .
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DCMAKE_BUILD_TYPE=Release
         -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF
         -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
         -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON
         -DRS_FORUM_DEEP_INDEX=OFF
-        -DBITDHT_ROOT=${{github.workspace}}/libbitdht/build
-        -DUDP-DISCOVERY-CPP_ROOT=${{github.workspace}}/udp-discovery-cpp\;${{github.workspace}}/udp-discovery-cpp/build
+        -DRS_USE_I2P_SAM3=ON
+        -DFETCH_DEPENDENCY_PROVIDER=OFF
+        -DBITDHT_ROOT=$(realpath deps/BitDHT/build)
+        -DSAM3_ROOT=$(realpath deps/libsam3)
+        -DUDP-DISCOVERY-CPP_ROOT=$(
+          realpath deps/udp-discovery-cpp{,/build} | tr '\n' ';')
 
     - name: CMake build
       run: cmake --build Build-cmake -j$(nproc)
