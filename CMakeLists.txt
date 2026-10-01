@@ -16,6 +16,8 @@ project(retroshare
 	LANGUAGES CXX C
 )
 
+string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
+
 
 ################################################################################
 ### options
@@ -598,12 +600,69 @@ add_subdirectory(src)
 ################################################################################
 ### install
 
-install(
-	TARGETS ${PROJECT_NAME}
-	COMPONENT libretroshare
-	EXCLUDE_FROM_ALL
+set(BUILD_CONFIG_DIR "${PROJECT_BINARY_DIR}/cmake")
+set(INSTALL_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${LIBNAME}")
+set(TARGET_NAMESPACE retroshare)
+set(INSTALL_COMPONENT COMPONENT libretroshare EXCLUDE_FROM_ALL)
+
+install(TARGETS ${PROJECT_NAME}
+	EXPORT ${PROJECT_NAME}_export
+	${INSTALL_COMPONENT}
 	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
 	FILE_SET HEADERS DESTINATION "${RS_INCLUDE_INSTALL_DIR}"
 )
 
-## TODO: export targets and create config packages for install and build trees
+
+# If dependencies are fetched via FetchContent, then their targets might not
+# have export sets, and this prevents us from using our own export set.
+if(NOT FETCH_DEPENDENCY_PROVIDER)
+	## config for install tree
+	install(EXPORT ${PROJECT_NAME}_export
+		DESTINATION "${INSTALL_CONFIG_DIR}"
+		FILE ${PROJECT_NAME_LOWER}-targets.cmake
+		NAMESPACE ${TARGET_NAMESPACE}::
+		${INSTALL_COMPONENT}
+		# EXPORT_PACKAGE_DEPENDENCIES
+	)
+	include(CMakePackageConfigHelpers)
+	configure_package_config_file(
+		mk/cmake/retroshare-config.cmake.in
+		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-config-install.cmake"
+		INSTALL_DESTINATION "${INSTALL_CONFIG_DIR}"
+	)
+	write_basic_package_version_file(
+		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-${config}-install.cmake"
+		COMPATIBILITY SemanticVersion
+	)
+	foreach(config config config-version)
+		install(FILES
+			"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-${config}-install.cmake"
+			DESTINATION "${INSTALL_CONFIG_DIR}"
+			RENAME ${config}.cmake
+			${INSTALL_COMPONENT}
+		)
+	endforeach()
+
+
+	## config for build tree
+	export(EXPORT ${PROJECT_NAME}_export
+	  FILE "${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-targets.cmake"
+	  NAMESPACE ${TARGET_NAMESPACE}::
+	  # EXPORT_PACKAGE_DEPENDENCIES
+	)
+	include(CMakePackageConfigHelpers)
+	configure_package_config_file(
+		mk/cmake/retroshare-config.cmake.in
+	  "${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-config.cmake"
+	  INSTALL_DESTINATION "${BUILD_CONFIG_DIR}"
+		INSTALL_PREFIX "${PROJECT_BINARY_DIR}"
+	)
+	write_basic_package_version_file(
+		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-config-version.cmake"
+	  COMPATIBILITY SemanticVersion
+	)
+endif()
+
+
+## Alias target for super-builds
+add_library(${TARGET_NAMESPACE}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
