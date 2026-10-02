@@ -108,9 +108,9 @@ jobs:
         git clone https://github.com/Corvusoft/restbed.git deps/restbed
         cd deps/restbed
         git checkout --detach 6001a322809b5005b8bcccdf593fdda6f0173691
-        cmake -G Ninja -B build -DBUILD_TESTS=NO -DBUILD_SSL=NO \
-          -DBUILD_STATIC_LIBRARY=YES -DBUILD_SHARED_LIBRARY=NO \
-          -DBUILD_DEVEL_PACKAGE=YES \
+        cmake -G Ninja -B build -DBUILD_TESTS=OFF -DBUILD_SSL=OFF \
+          -DBUILD_STATIC_LIBRARY=ON -DBUILD_SHARED_LIBRARY=OFF \
+          -DBUILD_DEVEL_PACKAGE=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           --install-prefix=/usr/local -DCMAKE_INSTALL_LIBDIR=lib
         cmake --build build -j$(nproc)
         sudo cmake --install build
@@ -145,6 +145,7 @@ jobs:
       run: cmake -G Ninja -B Build-cmake -S .
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         -DCMAKE_BUILD_TYPE=Release
+        -DRS_LIBRETROSHARE_SHARED=ON -DRS_LIBRETROSHARE_STATIC=OFF
         -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF
         -DRS_SQLCIPHER=ON -DRS_BITDHT=ON
         -DRS_BRODCAST_DISCOVERY=ON -DRS_MINIUPNPC=ON

@@ -217,15 +217,6 @@ find_package(BZip2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
 ################################################################################
-### build configuration
-
-if(RS_DEVELOPMENT_BUILD)
-	set(CMAKE_VERBOSE_MAKEFILE ON)
-	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-endif(RS_DEVELOPMENT_BUILD)
-
-
-################################################################################
 ### version
 
 include(GetGitRevisionDescription)
@@ -265,6 +256,11 @@ message(STATUS "libretroshare version ${LIBRS_FULL_VERSION}")
 
 ################################################################################
 ### general compilation options
+
+if(RS_DEVELOPMENT_BUILD)
+	set(CMAKE_VERBOSE_MAKEFILE ON)
+	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif(RS_DEVELOPMENT_BUILD)
 
 if(RS_LIBRETROSHARE_STATIC AND RS_LIBRETROSHARE_SHARED)
 	message(FATAL_ERROR "building both static and shared library is not supported")
@@ -604,6 +600,10 @@ set(BUILD_CONFIG_DIR "${PROJECT_BINARY_DIR}/cmake")
 set(INSTALL_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${LIBNAME}")
 set(TARGET_NAMESPACE retroshare)
 set(INSTALL_COMPONENT COMPONENT libretroshare EXCLUDE_FROM_ALL)
+if(CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_DEPENDENCIES)
+	set(EXPORT_PACKAGE_DEPENDENCIES EXPORT_PACKAGE_DEPENDENCIES)
+endif()
+
 
 install(TARGETS ${PROJECT_NAME}
 	EXPORT ${PROJECT_NAME}_export
@@ -622,7 +622,7 @@ if(NOT FETCH_DEPENDENCY_PROVIDER)
 		FILE ${PROJECT_NAME_LOWER}-targets.cmake
 		NAMESPACE ${TARGET_NAMESPACE}::
 		${INSTALL_COMPONENT}
-		# EXPORT_PACKAGE_DEPENDENCIES
+		${EXPORT_PACKAGE_DEPENDENCIES}
 	)
 	include(CMakePackageConfigHelpers)
 	configure_package_config_file(
@@ -631,7 +631,7 @@ if(NOT FETCH_DEPENDENCY_PROVIDER)
 		INSTALL_DESTINATION "${INSTALL_CONFIG_DIR}"
 	)
 	write_basic_package_version_file(
-		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-${config}-install.cmake"
+		"${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-config-version-install.cmake"
 		COMPATIBILITY SameMinorVersion
 	)
 	foreach(config config config-version)
@@ -648,7 +648,7 @@ if(NOT FETCH_DEPENDENCY_PROVIDER)
 	export(EXPORT ${PROJECT_NAME}_export
 	  FILE "${BUILD_CONFIG_DIR}/${PROJECT_NAME_LOWER}-targets.cmake"
 	  NAMESPACE ${TARGET_NAMESPACE}::
-	  # EXPORT_PACKAGE_DEPENDENCIES
+	  ${EXPORT_PACKAGE_DEPENDENCIES}
 	)
 	include(CMakePackageConfigHelpers)
 	configure_package_config_file(
@@ -664,5 +664,5 @@ if(NOT FETCH_DEPENDENCY_PROVIDER)
 endif()
 
 
-## Alias target for super-builds
+## Alias target for super-builds (brought in via add_subdirectory)
 add_library(${TARGET_NAMESPACE}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
