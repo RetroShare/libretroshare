@@ -53,6 +53,12 @@ void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,Rs
 		return ;
 
 	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
+
+	// Backward compat: if only description+image were written, stop here
+	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
+		return ;
+
+	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mPinnedPosts,"mPinnedPosts") ;
 }
 
 RsItem *RsGxsPostedSerialiser::create_item(uint16_t service_id,uint8_t item_subtype) const
@@ -119,6 +125,7 @@ void RsGxsPostedGroupItem::clear()
 {
 	mDescription.clear();
 	mGroupImage.TlvClear();
+	mPinnedPosts.TlvClear();
 }
 
 bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
@@ -137,6 +144,10 @@ bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
 	{
 		mGroupImage.binData.setBinData(group.mGroupImage.mData, group.mGroupImage.mSize);
 	}
+
+	// Copy pinned posts
+	mPinnedPosts = group.mPinnedPosts;
+
 	return true;
 }
 
@@ -154,5 +165,9 @@ bool RsGxsPostedGroupItem::toPostedGroup(RsPostedGroup &group, bool moveImage)
 	{
 		group.mGroupImage.copy((uint8_t *) mGroupImage.binData.bin_data, mGroupImage.binData.bin_len);
 	}
+
+	// Copy pinned posts
+	group.mPinnedPosts = mPinnedPosts;
+
 	return true;
 }
