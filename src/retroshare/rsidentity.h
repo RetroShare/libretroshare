@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "retroshare/rstokenservice.h"
+#include "retroshare/rsstatus.h"
 #include "retroshare/rsgxsifacehelper.h"
 #include "retroshare/rsreputations.h"
 #include "retroshare/rsids.h"
@@ -317,7 +318,8 @@ enum class RsGxsIdentityEventCode: uint8_t
     UNKNOWN                    = 0x00,
     NEW_IDENTITY               = 0x01,
     DELETED_IDENTITY           = 0x02,
-    UPDATED_IDENTITY           = 0x03,
+	UPDATED_IDENTITY           = 0x03,
+	CONTACT_STATUS_CHANGED     = 0x04,
 };
 
 struct RsGxsIdentityEvent: public RsEvent
@@ -389,6 +391,26 @@ struct RsIdentityDetails : RsSerializable
 };
 
 
+
+/** Ephemeral presence information associated with a regular GXS contact. */
+struct RsContactStatus : RsSerializable
+{
+	RsContactStatus() : mStatus(RsStatusValue::RS_STATUS_OFFLINE), mTimestamp(0) {}
+
+	RsGxsId mGxsId;
+	RsStatusValue mStatus;
+	std::string mCustomState;
+	rstime_t mTimestamp;
+
+	void serial_process( RsGenericSerializer::SerializeJob j,
+	                     RsGenericSerializer::SerializeContext& ctx ) override
+	{
+		RS_SERIAL_PROCESS(mGxsId);
+		RS_SERIAL_PROCESS(mStatus);
+		RS_SERIAL_PROCESS(mCustomState);
+		RS_SERIAL_PROCESS(mTimestamp);
+	}
+};
 
 /** The Main Interface Class for GXS people identities */
 class RsIdentity: public RsGxsIfaceHelper
@@ -517,6 +539,71 @@ public:
 	 * @return false on error, true otherwise
 	 */
 	virtual bool setAsRegularContact(const RsGxsId& id, bool isContact) = 0;
+
+	/**
+	 * @brief Get presence for all regular GXS contacts
+	 * @jsonapi{development}
+	 * @param[out] statuses contact presence information
+	 * @return true on success
+	 */
+	virtual bool getContactsStatusList(
+	        std::list<RsContactStatus>& statuses ) = 0;
+
+	/**
+	 * @brief Get presence for one regular GXS contact
+	 * @jsonapi{development}
+	 * @param[in] id GXS identity of the contact
+	 * @param[out] status contact presence information
+	 * @return false if the identity is not a regular contact
+	 */
+	virtual bool getContactsStatus(
+	        const RsGxsId& id, RsContactStatus& status ) = 0;
+
+	/**
+	 * @brief Get locally selected presence for an own identity
+	 * @jsonapi{development}
+	 * @param[in] id own GXS identity
+	 * @param[out] status locally selected presence information
+	 * @return false if the identity is not owned by this node
+	 */
+	virtual bool getContactsStatusOwn(
+	        const RsGxsId& id, RsContactStatus& status ) = 0;
+
+	/**
+	 * @brief Set presence advertised by an own identity
+	 * @jsonapi{development}
+	 * @param[in] id own GXS identity
+	 * @param[in] status presence state to advertise
+	 * @param[in] customState custom presence string
+	 * @return false for an invalid identity, state, or custom string
+	 */
+	virtual bool setContactsStatusOwn(
+	        const RsGxsId& id, RsStatusValue status,
+	        const std::string& customState ) = 0;
+
+	/**
+	 * @brief Get a contact's custom presence string
+	 * @jsonapi{development}
+	 * @param[in] id GXS identity of the contact
+	 * @param[out] customState custom presence string
+	 * @return false if the identity is not a regular contact
+	 */
+	virtual bool getContactsStatusCustomStateString(
+	        const RsGxsId& id, std::string& customState ) = 0;
+
+	/**
+	 * @brief Set an own identity's custom presence string
+	 * @jsonapi{development}
+	 * @param[in] id own GXS identity
+	 * @param[in] customState custom presence string
+	 * @return false for an invalid identity or custom string
+	 */
+	virtual bool setContactsStatusCustomStateStringOwn(
+	        const RsGxsId& id, const std::string& customState ) = 0;
+
+	/** Internal hook used by authenticated contact transports. */
+	virtual bool updateContactsStatus(
+	        const RsContactStatus& status ) = 0;
 
 	/**
 	 * @brief Toggle automatic flagging signed by friends identity as contact

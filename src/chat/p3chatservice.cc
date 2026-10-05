@@ -287,6 +287,8 @@ p3ChatService::p3ChatService( p3ServiceControl *sc, p3IdService *pids,
 	addSerialType(_serializer);
 	mGxsTransport.registerGxsTransClient( GxsTransSubServices::P3_CHAT_SERVICE,
 	                                      this );
+	mGxsTransport.registerGxsTransClient(
+	            GxsTransSubServices::P3_CONTACT_STATUS, this );
 }
 
 RsServiceInfo p3ChatService::getServiceInfo()
@@ -295,6 +297,64 @@ RsServiceInfo p3ChatService::getServiceInfo()
 int	p3ChatService::tick()
 {
 	if(receivedItems()) receiveChatQueue();
+
+	// Presence delivery is store-and-forward and independent from chat windows.
+	// Queue only changed states, plus one initial state after startup.
+	if(rsIdentity)
+	{
+		std::list<RsGxsId> ownIds;
+		std::list<RsContactStatus> contactStatuses;
+		if(rsIdentity->getOwnIds(ownIds) &&
+		        rsIdentity->getContactsStatusList(contactStatuses))
+			for(const RsGxsId& ownId : ownIds)
+			{
+				RsContactStatus ownStatus;
+				if(!rsIdentity->getContactsStatusOwn(ownId, ownStatus)) continue;
+				for(const RsContactStatus& contact : contactStatuses)
+				{
+					const auto endpoints = std::make_pair(ownId, contact.mGxsId);
+					bool shouldSend = false;
+					{
+						RS_STACK_MUTEX(mDGMutex);
+						auto it = mContactsStatusBackgroundSentAt.find(endpoints);
+						shouldSend = it == mContactsStatusBackgroundSentAt.end() ||
+						        it->second < ownStatus.mTimestamp;
+					}
+					if(shouldSend && sendContactsStatusBackground(
+					            ownStatus, contact.mGxsId ))
+					{
+						RS_STACK_MUTEX(mDGMutex);
+						mContactsStatusBackgroundSentAt[endpoints] =
+						        ownStatus.mTimestamp;
+					}
+				}
+			}
+	}
+
+	std::map<DistantChatPeerId, std::pair<RsGxsId, RsGxsId>> contacts;
+	getDistantChatContacts(contacts);
+	for(const auto& contact : contacts)
+	{
+		DistantChatPeerInfo tunnelInfo;
+		if(!getDistantChatStatus(contact.first, tunnelInfo) ||
+		        tunnelInfo.status != RS_DISTANT_CHAT_STATUS_CAN_TALK)
+			continue;
+
+		RsContactStatus status;
+		if(!rsIdentity || !rsIdentity->isARegularContact(contact.second.second) ||
+		        !rsIdentity->getContactsStatusOwn(contact.second.first, status))
+			continue;
+
+		bool shouldSend = false;
+		{
+			RS_STACK_MUTEX(mDGMutex);
+			auto it = mContactsStatusSentAt.find(contact.first);
+			shouldSend = it == mContactsStatusSentAt.end() ||
+			        it->second < status.mTimestamp;
+			if(shouldSend) mContactsStatusSentAt[contact.first] = status.mTimestamp;
+		}
+		if(shouldSend) sendContactsStatus(contact.first);
+	}
 
 	DistributedChatService::flush();
 
@@ -1075,6 +1135,35 @@ bool p3ChatService::receiveGxsTransMail( const RsGxsId& authorId,
                                          const uint8_t* data,
                                          uint32_t dataSize )
 {
+	uint32_t parsedSize = dataSize;
+	RsItem* receivedItem = _serializer->deserialise(
+	            const_cast<uint8_t*>(data), &parsedSize );
+	RsChatStatusItem* statusItem = dynamic_cast<RsChatStatusItem*>(receivedItem);
+	if(statusItem && (statusItem->flags & RS_CHAT_FLAG_GXS_CONTACT_STATUS))
+	{
+		bool accepted = rsIdentity && rsIdentity->isOwnId(recipientId) &&
+		        rsIdentity->isARegularContact(authorId) &&
+		        !statusItem->status_string.empty();
+		if(accepted)
+		{
+			const auto value = static_cast<uint8_t>(statusItem->status_string[0]);
+			accepted = value >= static_cast<uint8_t>(RsStatusValue::RS_STATUS_AWAY) &&
+			        value <= static_cast<uint8_t>(RsStatusValue::RS_STATUS_ONLINE);
+			if(accepted)
+			{
+				RsContactStatus status;
+				status.mGxsId = authorId;
+				status.mStatus = static_cast<RsStatusValue>(value);
+				status.mCustomState = statusItem->status_string.substr(1);
+				status.mTimestamp = time(nullptr);
+				rsIdentity->updateContactsStatus(status);
+			}
+		}
+		delete receivedItem;
+		return accepted;
+	}
+	delete receivedItem;
+
 	DistantChatPeerId pid;
 	uint32_t error_code;
 	if(initiateDistantChatConnexion(
@@ -1244,6 +1333,28 @@ void p3ChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
 #endif
 
     DistantChatPeerInfo dcpinfo;
+
+	if(cs->flags & RS_CHAT_FLAG_GXS_CONTACT_STATUS)
+	{
+		RsGxsId ownId, contactId;
+		if(cs->status_string.empty() ||
+		        !getDistantChatIdentities(
+		                DistantChatPeerId(cs->PeerId()), ownId, contactId ))
+			return;
+
+		const auto value = static_cast<uint8_t>(cs->status_string[0]);
+		if(value < static_cast<uint8_t>(RsStatusValue::RS_STATUS_AWAY) ||
+		        value > static_cast<uint8_t>(RsStatusValue::RS_STATUS_ONLINE))
+			return;
+
+		RsContactStatus status;
+		status.mGxsId = contactId;
+		status.mStatus = static_cast<RsStatusValue>(value);
+		status.mCustomState = cs->status_string.substr(1);
+		status.mTimestamp = time(nullptr);
+		if(rsIdentity) rsIdentity->updateContactsStatus(status);
+		return;
+	}
 
 	if(cs->flags & RS_CHAT_FLAG_REQUEST_CUSTOM_STATE) 	// no state here just a request.
 		sendCustomState(cs->PeerId()) ;
@@ -1649,6 +1760,45 @@ std::cerr << "p3chatservice: sending requested status string for peer " << peer_
 	cs->PeerId(peer_id);
 
 	sendChatItem(cs);
+
+	sendContactsStatus(DistantChatPeerId(peer_id));
+}
+
+void p3ChatService::sendContactsStatus(const DistantChatPeerId& peerId)
+{
+	RsGxsId ownId, contactId;
+	RsContactStatus status;
+	if(!getDistantChatIdentities(peerId, ownId, contactId) || !rsIdentity ||
+	        !rsIdentity->isARegularContact(contactId) ||
+	        !rsIdentity->getContactsStatusOwn(ownId, status)) return;
+
+	RsChatStatusItem* item = new RsChatStatusItem;
+	item->PeerId(RsPeerId(peerId));
+	item->flags = RS_CHAT_FLAG_GXS_CONTACT_STATUS;
+	item->status_string.assign(1, static_cast<char>(status.mStatus));
+	item->status_string += status.mCustomState;
+	sendChatItem(item);
+}
+
+bool p3ChatService::sendContactsStatusBackground(
+        const RsContactStatus& status, const RsGxsId& contactId )
+{
+	if(!rsIdentity || !rsIdentity->isOwnId(status.mGxsId) ||
+	        !rsIdentity->isARegularContact(contactId)) return false;
+
+	RsChatStatusItem item;
+	item.flags = RS_CHAT_FLAG_GXS_CONTACT_STATUS;
+	item.status_string.assign(1, static_cast<char>(status.mStatus));
+	item.status_string += status.mCustomState;
+
+	uint32_t size = _serializer->size(&item);
+	std::vector<uint8_t> data(size);
+	if(!_serializer->serialise(&item, data.data(), &size)) return false;
+
+	RsGxsTransId mailId = RSRandom::random_u64();
+	return mGxsTransport.sendData(
+	            mailId, GxsTransSubServices::P3_CONTACT_STATUS,
+	            status.mGxsId, contactId, data.data(), size );
 }
 
 RsChatAvatarInfoItem *p3ChatService::locked_makeOwnAvatarInfoItem()
