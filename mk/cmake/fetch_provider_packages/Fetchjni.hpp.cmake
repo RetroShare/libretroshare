@@ -23,8 +23,8 @@ cmake_minimum_required(VERSION 3.24...4.4)
 FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 
-add_library(jni.hpp::jni.hpp IMPORTED)
+add_library(jni.hpp::jni.hpp INTERFACE IMPORTED)
 
-target_include_directories(jni.hpp::jni.hpp PUBLIC
+target_include_directories(jni.hpp::jni.hpp INTERFACE
 	"${jni.hpp_SOURCE_DIR}/include"
 )
