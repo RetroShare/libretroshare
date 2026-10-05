@@ -229,6 +229,8 @@ public:
             std::map<TurtleVirtualPeerId,RsGxsNetTunnelVirtualPeerId>& turtle_vpid_to_net_tunnel_vpid,
             Bias20Bytes& bias) const override ;
 
+	bool isGXSHash(RsFileHash hash) const;
+
 	RS_DEPRECATED
 	TurtleRequestId turtleSearchRequest(
 	        const std::string& match_string,
