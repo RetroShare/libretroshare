@@ -275,11 +275,7 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(RS_LIBRETROSHARE_SHARED)
-	# Some static-lib dependencies can be linked into shared libretroshare, so
-	# they need PIC.
-	set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
-endif()
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)  # plugins
 
 if(WIN32)
 	# Force Unicode mappings for Windows API (fixes MoveFileEx and similar errors)
