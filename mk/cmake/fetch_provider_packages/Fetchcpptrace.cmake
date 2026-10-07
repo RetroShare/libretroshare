@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------ *\
-# mk/cmake/fetch_provider_packages/Fetchrnp.cmake
+# mk/cmake/fetch_provider_packages/Fetchcpptrace.cmake
 # This file is part of libRetroShare.
 #
 # Copyright (C) 2026      David Bears <dbear4q@gmail.com>
@@ -21,16 +21,12 @@
 cmake_minimum_required(VERSION 3.0...4.4)
 
 include(FetchContent)
-FetchContent_Declare(
-	rnp
-	GIT_REPOSITORY "https://github.com/rnpgp/rnp.git"
-	GIT_TAG "origin/main"
+FetchContent_Declare(cpptrace
+	GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+	GIT_TAG v0.3.1
 	GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
 	TIMEOUT 10
-	EXCLUDE_FROM_ALL
 )
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+FetchContent_MakeAvailable(cpptrace)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
-
-add_library(rnp::librnp ALIAS librnp)

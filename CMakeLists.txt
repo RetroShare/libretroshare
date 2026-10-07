@@ -207,9 +207,11 @@ set(
 ################################################################################
 ### dependencies
 
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/mk/cmake")
+list(APPEND CMAKE_MODULE_PATH
+	"${PROJECT_SOURCE_DIR}/mk/cmake"
+	"${PROJECT_SOURCE_DIR}/mk/cmake/fetch_provider_packages"
+)
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
-include(mk/cmake/fetch_provider_declare.cmake)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)

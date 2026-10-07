@@ -18,13 +18,20 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------ */
 
-cmake_minimum_required(VERSION 3.24...4.4)
+cmake_minimum_required(VERSION 3.0...4.4)
 
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+include(FetchContent)
+FetchContent_Declare(jni.hpp
+	GIT_REPOSITORY "https://github.com/RetroShare/jni.hpp.git"
+	GIT_TAG "origin/master"
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+	TIMEOUT 10
+)
+FetchContent_MakeAvailable(jni.hpp)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 
 add_library(jni.hpp::jni.hpp INTERFACE IMPORTED)
-
 target_include_directories(jni.hpp::jni.hpp INTERFACE
 	"${jni.hpp_SOURCE_DIR}/include"
 )

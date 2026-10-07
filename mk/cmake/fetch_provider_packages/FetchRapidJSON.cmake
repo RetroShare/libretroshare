@@ -18,17 +18,25 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------ */
 
-cmake_minimum_required(VERSION 3.24...4.4)
+cmake_minimum_required(VERSION 3.0...4.4)
 
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+include(FetchContent)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build rapidjson examples.")
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL
+	"Build rapidjson perftests and unittests."
+)
+set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY TRUE)
+
+FetchContent_Declare(RapidJSON
+	GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
+	GIT_TAG "origin/master"
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+	TIMEOUT 10
+	EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(RapidJSON)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
-
-# INSTALL(TARGETS RapidJSON EXPORT RapidJSON-targets)
-# export(EXPORT RapidJSON-targets
-#   FILE "${RapidJSON_BINARY_DIR}/RapidJSON-targets.cmake"
-# )
-#
-# include("${RapidJSON_BINARY_DIR}/RapidJSONConfig.cmake")
 
 target_include_directories(RapidJSON INTERFACE
   "$<BUILD_INTERFACE:${RapidJSON_SOURCE_DIR}/include>"

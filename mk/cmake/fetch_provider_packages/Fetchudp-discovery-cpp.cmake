@@ -20,6 +20,17 @@
 
 cmake_minimum_required(VERSION 3.24...4.4)
 
+set(BUILD_TEST FALSE CACHE BOOL "build udp-discovery-cpp tests")
+
+include(FetchContent)
+FetchContent_Declare(udp-discovery-cpp
+	GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
+	GIT_TAG "origin/master"
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+	TIMEOUT 10
+	PATCH_COMMAND sed -i -e "s/^cmake_minimum_required(VERSION 3.0)\$/cmake_minimum_required(VERSION 3.0...4.4)/" CMakeLists.txt
+)
 FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 

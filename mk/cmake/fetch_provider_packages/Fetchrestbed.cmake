@@ -18,8 +18,25 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------ */
 
-cmake_minimum_required(VERSION 3.24...4.4)
+cmake_minimum_required(VERSION 3.0...4.4)
 
+include(FetchContent)
+find_package(Git REQUIRED)
+find_package(Patch REQUIRED)
+
+set(BUILD_TESTS OFF CACHE BOOL "build restbed tests")
+set(BUILD_SSL OFF CACHE BOOL "enable restbed SSL support")
+FetchContent_Declare(restbed
+	GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
+	GIT_TAG 6001a322809b5005b8bcccdf593fdda6f0173691
+	# GIT_SUBMODULES dependency/asio dependency/catch
+	# GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+	TIMEOUT 10
+	PATCH_COMMAND ${GIT_EXECUTABLE} reset --hard
+	COMMAND ${Patch_EXECUTABLE} -tNp1 -i
+		"${CMAKE_CURRENT_LIST_DIR}/restbed.patch"
+)
 FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 

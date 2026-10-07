@@ -18,9 +18,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------ */
 
-cmake_minimum_required(VERSION 3.24...4.4)
+cmake_minimum_required(VERSION 3.0...4.4)
 
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+include(FetchContent)
+FetchContent_Declare(openpgpsdk
+	GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
+	GIT_TAG "origin/master"
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+	TIMEOUT 10
+	EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(openpgpsdk)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 
 add_library(openpgpsdk::openpgpsdk ALIAS openpgpsdk)
