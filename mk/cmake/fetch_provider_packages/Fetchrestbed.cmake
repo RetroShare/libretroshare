@@ -37,7 +37,7 @@ FetchContent_Declare(restbed
 	COMMAND ${Patch_EXECUTABLE} -tNp1 -i
 		"${CMAKE_CURRENT_LIST_DIR}/restbed.patch"
 )
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+FetchContent_MakeAvailable(restbed)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 
 if(BUILD_SHARED_LIBS)

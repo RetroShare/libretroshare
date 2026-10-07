@@ -21,8 +21,7 @@
 cmake_minimum_required(VERSION 3.0...4.4)
 
 include(FetchContent)
-FetchContent_Declare(
-	rnp
+FetchContent_Declare(rnp
 	GIT_REPOSITORY "https://github.com/rnpgp/rnp.git"
 	GIT_TAG "origin/main"
 	GIT_SHALLOW TRUE
@@ -30,7 +29,7 @@ FetchContent_Declare(
 	TIMEOUT 10
 	EXCLUDE_FROM_ALL
 )
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+FetchContent_MakeAvailable(rnp)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 
 add_library(rnp::librnp ALIAS librnp)

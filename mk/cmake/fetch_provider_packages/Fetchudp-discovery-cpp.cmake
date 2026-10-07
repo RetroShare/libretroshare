@@ -31,7 +31,7 @@ FetchContent_Declare(udp-discovery-cpp
 	TIMEOUT 10
 	PATCH_COMMAND sed -i -e "s/^cmake_minimum_required(VERSION 3.0)\$/cmake_minimum_required(VERSION 3.0...4.4)/" CMakeLists.txt
 )
-FetchContent_MakeAvailable(${FETCH_PROVIDER_PACKAGE_NAME})
+FetchContent_MakeAvailable(udp-discovery-cpp)
 set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
 
 add_library(udp-discovery-cpp::udp-discovery ALIAS udp-discovery)
