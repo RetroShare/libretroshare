@@ -5,7 +5,12 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-cmake_minimum_required(VERSION 3.24...4.4.1)
+# 3.1 : configure_package_config_file(INSTALL_PREFIX)
+# 3.11: add_library() ... target_sources()
+# 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
+# 3.15: list(PREPEND)
+# 3.23: install(TARGETS FILE_SET)
+cmake_minimum_required(VERSION 3.23...4.4)
 
 list(PREPEND CMAKE_PROJECT_TOP_LEVEL_INCLUDES
 	"${CMAKE_CURRENT_SOURCE_DIR}/mk/cmake/fetch_provider.cmake"

@@ -18,6 +18,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------ */
 
+# 3.23: get_target_property(HEADER_SET)
+# 3.23: target_sources(FILE_SET)
+cmake_minimum_required(VERSION 3.23...4.4)
+
 find_package(Doxygen REQUIRED)
 find_package(Python3 REQUIRED)
 
@@ -26,6 +30,8 @@ set(
   "${CMAKE_CURRENT_SOURCE_DIR}/jsonapi-generator.py"
 )
 
+# TODO: use a generator expression for this
+#       remember to remove jsonapi-*.inl
 get_target_property(RS_PUBLIC_HEADERS ${PROJECT_NAME} HEADER_SET)
 
 configure_file(
