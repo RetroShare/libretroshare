@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.24...4.4)
 
 find_library(RESTBED_LIBRARY NAMES restbed)
-find_path(RESTBED_INCLUDE NAMES restbed PATH_SUFFIXES source)
+find_path(RESTBED_INCLUDE NAMES restbed PATH_SUFFIXES corvusoft/restbed source)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(restbed
