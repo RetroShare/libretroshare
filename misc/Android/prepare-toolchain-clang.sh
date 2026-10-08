@@ -651,7 +651,11 @@ build_zlib()
 	andro_cmake -B. -S../$S_dir || return $?
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?
+	# zlib's config package ties ZLIB::ZLIB to the libz.so deleted below and
+	# exports the static one as ZLIB::ZLIBSTATIC, so config mode can never
+	# satisfy find_package(ZLIB) here. Drop it: the FindZLIB module can.
 	rm -fv ${PREFIX}/lib/libz.so*
+	rm -rfv ${PREFIX}/lib/cmake/zlib
 	popd
 }
 
