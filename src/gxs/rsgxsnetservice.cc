@@ -306,6 +306,7 @@ static const uint32_t REJECTED_MESSAGE_RETRY_DELAY            =      24*3600; //
 static const uint32_t GROUP_STATS_UPDATE_DELAY                =          240; // update unsubscribed group statistics every 3 mins
 static const uint32_t GROUP_STATS_UPDATE_NB_PEERS             =            2; // number of peers to which the group stats are asked
 static const uint32_t MAX_ALLOWED_GXS_MESSAGE_SIZE            =       199000; // 200,000 bytes including signature and headers
+static const uint32_t MAX_ALLOWED_GXS_GROUP_SIZE              =       250000; // serialised RsNxsGrp. Groups are not fragmented: one must fit in a RsSerialiser::MAX_SERIAL_SIZE (262143) packet, turtle wrapper included
 static const uint32_t MIN_DELAY_BETWEEN_GROUP_SEARCH          =           40; // dont search same group more than every 40 secs.
 static const uint32_t SAFETY_DELAY_FOR_UNSUCCESSFUL_UPDATE    =            0; // avoid re-sending the same msg list to a peer who asks twice for the same update in less than this time
 
@@ -3357,8 +3358,21 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	// store grp items to send in transaction
 	std::map<RsGxsGroupId, RsNxsGrp*>::iterator mit = grps.begin();
 	RsPeerId peerId = tr->mTransaction->PeerId();
+	RsNxsSerialiser ser(mServType);
+
 	for(;mit != grps.end(); ++mit)
 	{
+		// Groups are sent unfragmented (fragmentGrp() has no caller): one that does not fit in a packet is dropped by pqistreamer,
+		// the peer never gets it and asks again at every sync. Skip it and say which one it is.
+		const uint32_t grpSerialSize = ser.size(mit->second) ;
+
+		if(grpSerialSize > MAX_ALLOWED_GXS_GROUP_SIZE)
+		{
+			std::cerr << "(EE) RsGxsNetService: NOT sending group " << mit->first << " of service 0x" << std::hex << mServType << std::dec << " to peer " << peerId
+			          << ": serialised size is " << grpSerialSize << " bytes, more than the " << MAX_ALLOWED_GXS_GROUP_SIZE << " bytes that fit in a packet (oversized image or description?)" << std::endl;
+			continue ;	// grps still owns the item and deletes it
+		}
+
 #warning csoler: Should make sure that no private key information is sneaked in here for the grp
 		mit->second->PeerId(peerId); // set so it gets sent to right peer
 		mit->second->transactionNumber = transN;
@@ -3385,7 +3399,7 @@ void RsGxsNetService::locked_genSendGrpsTransaction(NxsTransaction* tr)
 	ntr->transactionNumber = transN;
 	ntr->transactFlag = RsNxsTransacItem::FLAG_BEGIN_P1 | RsNxsTransacItem::FLAG_TYPE_GRPS;
 	ntr->updateTS = updateTS;
-	ntr->nItems = grps.size();
+	ntr->nItems = newTr->mItems.size();
 	ntr->PeerId(tr->mTransaction->PeerId());
 
 	newTr->mTransaction = new RsNxsTransacItem(*ntr);
