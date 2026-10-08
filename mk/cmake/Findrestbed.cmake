@@ -26,13 +26,13 @@ find_path(RESTBED_INCLUDE NAMES restbed PATH_SUFFIXES corvusoft/restbed source)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(restbed
-  REQUIRED_VARS RESTBED_LIBRARY RESTBED_INCLUDE
+	REQUIRED_VARS RESTBED_LIBRARY RESTBED_INCLUDE
 )
 
 if(restbed_FOUND AND NOT TARGET restbed::restbed)
-  add_library(restbed::restbed UNKNOWN IMPORTED)
-  set_target_properties(restbed::restbed PROPERTIES
-    IMPORTED_LOCATION "${RESTBED_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "${RESTBED_INCLUDE}"
-  )
+	add_library(restbed::restbed UNKNOWN IMPORTED)
+	set_target_properties(restbed::restbed PROPERTIES
+		IMPORTED_LOCATION "${RESTBED_LIBRARY}"
+		INTERFACE_INCLUDE_DIRECTORIES "${RESTBED_INCLUDE}"
+	)
 endif()
