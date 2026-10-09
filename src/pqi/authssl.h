@@ -112,6 +112,11 @@ public:
 
 	virtual X509* SignX509ReqWithGPG(X509_REQ* req, long days) = 0;
 
+	virtual void addNotifyDeny(const RsPgpId& pgpId, const std::string& name) = 0;
+	virtual void removeNotifyDeny(const RsPgpId& pgpId) = 0;
+	virtual bool isNotifyDenied(const RsPgpId& pgpId) = 0;
+	virtual void getNotifyDenyList(std::map<RsPgpId, std::string>& ids) = 0;
+
 	/**
 	 * @brief Verify PGP signature correcteness on given X509 certificate
 	 * Beware this doesn't check if the PGP signer is friend or not, just if the
@@ -207,6 +212,11 @@ public:
 	bool decrypt(void *&out, int &outlen, const void *in, int inlen) override;
 
 	virtual X509* SignX509ReqWithGPG(X509_REQ *req, long days) override;
+	
+	void addNotifyDeny(const RsPgpId& pgpId, const std::string& name) override;
+	void removeNotifyDeny(const RsPgpId& pgpId) override;
+	bool isNotifyDenied(const RsPgpId& pgpId) override;
+	void getNotifyDenyList(std::map<RsPgpId, std::string>& ids) override;
 
 	/// @see AuthSSL
 	bool AuthX509WithGPG(X509 *x509, bool verbose, uint32_t& auth_diagnostic) override;
@@ -265,4 +275,6 @@ private:
 	RsPgpId _last_gpgid_to_connect;
 	std::string _last_sslcn_to_connect;
 	RsPeerId _last_sslid_to_connect;
+
+	std::map<RsPgpId, std::string> mDenyList;
 };
