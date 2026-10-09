@@ -50,7 +50,7 @@ if(MiniUPnPc_FOUND)
 		${HANDLE_VERSION_RANGE}
 	)
 
-	if(MiniUPnPc_FOUND)
+	if(MiniUPnPc_FOUND AND NOT TARGET miniupnpc::miniupnpc)
 		add_library(miniupnpc::miniupnpc ALIAS PkgConfig::MiniUPnPc)
 	endif()
 

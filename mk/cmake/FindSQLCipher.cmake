@@ -43,6 +43,6 @@ find_package_handle_standard_args(SQLCipher
   ${HANDLE_VERSION_RANGE}
 )
 
-if(SQLCipher_FOUND)
+if(SQLCipher_FOUND AND NOT TARGET SQLCipher::SQLCipher)
   add_library(SQLCipher::SQLCipher ALIAS PkgConfig::SQLCipher)
 endif()
