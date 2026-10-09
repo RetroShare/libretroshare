@@ -1123,6 +1123,8 @@ int pqissl::SSL_Connection_Complete()
 
 				if(!ev->mSslId.isNull())
 					rsEvents->postEvent(ev);
+
+				X509_free(x509); // SSL_get_peer_certificate() hands out a reference
 			}
 		}
 
@@ -1233,6 +1235,7 @@ int pqissl::Authorise_SSL_Connection()
 	Dbg2() << __PRETTY_FUNCTION__ << " Accepting connection to peer: "
 	       << PeerId() << " with address: " << remote_addr << std::endl;
 
+	X509_free(peercert); // SSL_get_peer_certificate() hands out a reference
 	return accept_locked(ssl_connection, sockfd, remote_addr);
 }
 
