@@ -371,7 +371,17 @@ bool RsPluginManager::loadPlugin(const std::string& plugin_name,bool first_time)
 		pinfo.info_string = "" ;
 		dlclose(handle);
 		return false ;
-	} 
+	}
+	if(pinfo.API_version != RS_PLUGIN_API_VERSION)
+	{
+		std::cerr << "    -> Incompatible plugin API version "
+		          << std::hex << pinfo.API_version << "; expected "
+		          << RS_PLUGIN_API_VERSION << std::dec << std::endl;
+		pinfo.status = PLUGIN_STATUS_WRONG_API;
+		pinfo.info_string = "Incompatible plugin API version";
+		dlclose(handle);
+		return false;
+	}
 #ifdef TO_REMOVE
 	if(pinfo.svn_revision == 0)
 	{
