@@ -23,7 +23,7 @@ cmake_minimum_required(VERSION 3.0...4.4)
 include(FetchContent)
 FetchContent_Declare(BitDHT
 	GIT_REPOSITORY "https://github.com/dbear496/RetroShare_BitDHT.git"
-	GIT_TAG af783b6b37b1f140f97e066e980182ab5af60772
+	GIT_TAG 52df60f390d4cd4c1a2d5e25563396255aae6399
 	# GIT_TAG "origin/cmake-refactor"
 	# GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE

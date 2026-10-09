@@ -10,10 +10,12 @@
 # 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
 cmake_minimum_required(VERSION 3.11...4.4)
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
 	list(PREPEND CMAKE_PROJECT_TOP_LEVEL_INCLUDES
 		"${CMAKE_CURRENT_SOURCE_DIR}/mk/cmake/fetch_provider.cmake"
 	)
+else()
+	include(mk/cmake/fetch_provider.cmake)
 endif()
 
 project(retroshare

@@ -32,9 +32,9 @@ set(
 # TODO: use a generator expression for this
 #       remember to remove jsonapi-*.inl
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
-  get_target_property(JSONAPI_HEADERS ${PROJECT_NAME} HEADER_SET)
+  get_target_property(HEADERS_FOR_JSONAPI ${PROJECT_NAME} HEADER_SET)
 else()
-  get_target_property(JSONAPI_HEADERS ${PROJECT_NAME} SOURCES)
+  get_target_property(HEADERS_FOR_JSONAPI ${PROJECT_NAME} SOURCES)
 endif()
 
 configure_file(
@@ -49,7 +49,7 @@ add_custom_command(
   COMMAND ${Python3_EXECUTABLE} ${JSONAPI_GENERATOR_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
   MAIN_DEPENDENCY "${JSONAPI_GENERATOR_EXECUTABLE}"
-  DEPENDS "jsonapi-generator-doxygen.conf" ${JSONAPI_HEADERS}
+  DEPENDS "jsonapi-generator-doxygen.conf" ${HEADERS_FOR_JSONAPI}
 )
 add_custom_target(jsonapi_headers SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/jsonapi-includes.inl"

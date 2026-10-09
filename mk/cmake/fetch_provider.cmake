@@ -75,4 +75,5 @@ if(FETCH_DEPENDENCY_PROVIDER)
 	cmake_language(SET_DEPENDENCY_PROVIDER fetch_provide_dependency
 		SUPPORTED_METHODS FIND_PACKAGE
 	)
+	message(STATUS "registered Fetch dependency provider")
 endif()
