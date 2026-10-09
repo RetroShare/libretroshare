@@ -49,6 +49,7 @@ static const uint32_t RS_GXS_TUNNEL_DH_STATUS_HALF_KEY_DONE = 0x0001 ;
 static const uint32_t RS_GXS_TUNNEL_DH_STATUS_KEY_AVAILABLE = 0x0002 ;
 
 static const uint32_t RS_GXS_TUNNEL_DELAY_BETWEEN_RESEND     = 10 ; // re-send every 10 secs.
+static const rstime_t RS_GXS_TUNNEL_DH_RESTART_MIN_DELAY     = 10 ; // min delay between two DH restarts caused by bad packets on one virtual peer
 static const uint32_t RS_GXS_TUNNEL_DATA_PRINT_STORAGE_DELAY = 600 ; // store old message ids for 10 minutes.
 
 static const uint32_t GXS_TUNNEL_ENCRYPTION_HMAC_SIZE    = SHA_DIGEST_LENGTH ;
@@ -606,6 +607,8 @@ void p3GxsTunnelService::locked_restartDHSession(const RsPeerId& virtual_peer_id
 
     dhinfo.status = RS_GXS_TUNNEL_DH_STATUS_UNINITIALIZED ;
     dhinfo.own_gxs_id = own_gxs_id ;
+    dhinfo.last_dh_restart = time(NULL) ;
+    dhinfo.dropped_packets = 0 ;
 
     if(!locked_initDHSessionKey(dhinfo.dh))
     {
@@ -828,6 +831,31 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
         }
 #endif
 
+        // Data from a duplicate tunnel for this pair of identities (see handleRecvDHPublicKey) was never keyed, so its
+        // HMAC cannot match. Drop it without restarting the DH session of the tunnel that works.
+        if(it2->second.status == RS_GXS_TUNNEL_STATUS_CAN_TALK && it2->second.virtual_peer_id != virtual_peer_id)
+        {
+            ++it->second.dropped_packets ;
+            return false ;
+        }
+
+        // Every undecryptable packet used to restart the DH session. Packets encrypted with the previous key are still in
+        // flight after a restart, so that kept both sides re-keying forever, at the cost of a 2048-bit DH per packet.
+        auto rejectPacket = [&](const char *why)
+        {
+            rstime_t now = time(NULL) ;
+
+            if(it->second.status == RS_GXS_TUNNEL_DH_STATUS_HALF_KEY_DONE || now < it->second.last_dh_restart + RS_GXS_TUNNEL_DH_RESTART_MIN_DELAY)
+            {
+                ++it->second.dropped_packets ;
+                return ;
+            }
+            std::cerr << "(EE) GxsTunnel: " << why << " on tunnel " << tunnel_id << " (virtual peer " << virtual_peer_id
+                      << ", " << it->second.dropped_packets << " packets dropped since the last restart). Restarting DH session." << std::endl;
+
+            locked_restartDHSession(virtual_peer_id,it2->second.own_gxs_id) ;
+        };
+
         memcpy(aes_key,it2->second.aes_key,GXS_TUNNEL_AES_KEY_SIZE) ;
 
 #ifdef DEBUG_GXS_TUNNEL
@@ -843,21 +871,13 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
         
         if(memcmp(hm,&data_bytes[GXS_TUNNEL_ENCRYPTION_IV_SIZE],GXS_TUNNEL_ENCRYPTION_HMAC_SIZE))
         {
-            std::cerr << "(EE) packet HMAC does not match. Computed HMAC=" << RsUtil::BinToHex((char*)hm,GXS_TUNNEL_ENCRYPTION_HMAC_SIZE) << std::endl;
-            std::cerr << "(EE) resetting new DH session." << std::endl;
-
-            locked_restartDHSession(virtual_peer_id,it2->second.own_gxs_id) ;
-
+            rejectPacket("packet HMAC does not match") ;
             return false ;
         }
 
         if(!RsAES::aes_decrypt_8_16(encrypted_data,encrypted_size, aes_key,(uint8_t*)data_bytes,decrypted_data,decrypted_size))
         {
-            std::cerr << "(EE) packet decryption failed." << std::endl;
-            std::cerr << "(EE) resetting new DH session." << std::endl;
-
-            locked_restartDHSession(virtual_peer_id,it2->second.own_gxs_id) ;
-
+            rejectPacket("packet decryption failed") ;
             return false ;
         }
         it2->second.status = RS_GXS_TUNNEL_STATUS_CAN_TALK ;
@@ -1006,6 +1026,23 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item)
     
     it->second.tunnel_id = tunnel_id ;
     it->second.gxs_id = senders_id ;
+
+    // When both ends request a tunnel to each other, turtle brings up one tunnel per direction for the same pair of
+    // identities. The contact entry holds a single AES key, so the second handshake would overwrite the key of the
+    // tunnel that is already talking, and both tunnels would then fail every HMAC check and restart DH sessions
+    // forever. Keep the tunnel that talks, ignore the newcomer.
+    {
+        std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::const_iterator cit = _gxs_tunnel_contacts.find(tunnel_id) ;
+
+        if(cit != _gxs_tunnel_contacts.end() && cit->second.status == RS_GXS_TUNNEL_STATUS_CAN_TALK
+                && cit->second.virtual_peer_id != vpid
+                && _gxs_tunnel_virtual_peer_ids.find(cit->second.virtual_peer_id) != _gxs_tunnel_virtual_peer_ids.end())
+        {
+            std::cerr << "(WW) GxsTunnel: tunnel " << tunnel_id << " is already active on virtual peer " << cit->second.virtual_peer_id
+                      << ". Ignoring duplicate tunnel on virtual peer " << vpid << "." << std::endl;
+            return ;
+        }
+    }
 
     // Looks for the DH params. If not there yet, create them.
     //
@@ -1193,12 +1230,20 @@ bool p3GxsTunnelService::locked_initDHSessionKey(DH *& dh)
     DH_set0_pqg(dh,pp,NULL,gg) ;
 #endif
 
-    int codes = 0 ;
+    // DH_check() runs primality tests on the 2048-bit prime and costs about 230 ms. The prime is a constant, so one check
+    // per process is enough; checking at every DH restart turned each undecryptable packet into a CPU burst.
+    static bool prime_checked = false ;
 
-    if(!DH_check(dh, &codes) || codes != 0)
+    if(!prime_checked)
     {
-        std::cerr << "  (EE) DH check failed!" << std::endl;
-        return false ;
+        int codes = 0 ;
+
+        if(!DH_check(dh, &codes) || codes != 0)
+        {
+            std::cerr << "  (EE) DH check failed!" << std::endl;
+            return false ;
+        }
+        prime_checked = true ;
     }
 
     if(!DH_generate_key(dh))

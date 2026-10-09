@@ -182,7 +182,7 @@ private:
     class GxsTunnelDHInfo
     {
     public:
-        GxsTunnelDHInfo() : dh(0), direction(0), status(0) {}
+        GxsTunnelDHInfo() : dh(0), direction(0), status(0), last_dh_restart(0), dropped_packets(0) {}
 
         DH *dh ;
         RsGxsId gxs_id ;
@@ -191,6 +191,8 @@ private:
         RsTurtleGenericTunnelItem::Direction direction ;
 	uint32_t status ;
 	TurtleFileHash hash ;
+        rstime_t last_dh_restart ;      // throttles DH restarts triggered by undecryptable packets
+        uint32_t dropped_packets ;      // undecryptable packets dropped since the last DH restart
     };
 
     struct GxsTunnelData
