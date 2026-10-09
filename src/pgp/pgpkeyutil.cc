@@ -384,8 +384,32 @@ bool PGPKeyManagement::parseSignature(const unsigned char *signature, size_t sig
 	    {
 		    issuer_found = true ;
 		    info.issuer = PGPKeyParser::read_KeyID(data) ;
-	    }
-	    else
+
+#ifdef DEBUG_PGPUTIL
+            RsDbg() << "Found issuer Packet in issuer subpacket 0x10: " << std::hex << info.issuer << std::dec << std::endl;
+#endif
+        }
+        else if(subpacket_type == PGPKeyParser::PGP_PACKET_TAG_SUBPACKET_SIGNATURE_ISSUER_FINGERPRINT && subpacket_size == 22)
+        {
+            uint8_t key_version = data[0] ; data+=1 ;
+
+            if(key_version != 0x04)
+            {
+                RsErr() << "Found PGP signature subpacket with version 6, which is not supported." << std::endl;
+                data += 20;
+            }
+            else
+            {
+                data += 12;
+                info.issuer = PGPKeyParser::read_KeyID(data) ;
+                issuer_found = true ;
+
+#ifdef DEBUG_PGPUTIL
+                RsDbg() << "Found issuer Packet in fingerprint subpacket 0x21: " << std::hex << info.issuer << std::dec << std::endl;
+#endif
+            }
+        }
+        else
 		    data += subpacket_size-1 ;	// we remove the size of subpacket type
 
 	    if(issuer_found)
