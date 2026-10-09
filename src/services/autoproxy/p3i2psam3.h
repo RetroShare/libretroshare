@@ -1,6 +1,7 @@
 #ifndef P3I2PSAM3_H
 #define P3I2PSAM3_H
 
+#include <chrono>
 #include <queue>
 #include <list>
 
@@ -101,6 +102,10 @@ private:
 
 	// used to keep track of connections, libsam3 does it internally but it can be unreliable since pointers are shared
 	std::list<Sam3Connection *> mValidConnections, mInvalidConnections;
+
+	// Point in time at which the last SAM session was closed. startSession() uses
+	// it to honour kSessionRestartDelay. Guarded by mLock.
+	std::chrono::steady_clock::time_point mLastSessionClosed;
 
 	// mutex
 	RsMutex mLock;
