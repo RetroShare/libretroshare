@@ -18,9 +18,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------ */
 
-# 3.23: get_target_property(HEADER_SET)
-# 3.23: target_sources(FILE_SET)
-cmake_minimum_required(VERSION 3.23...4.4)
+# 3.1 : target_sources()
+cmake_minimum_required(VERSION 3.1...4.4)
 
 find_package(Doxygen REQUIRED)
 find_package(Python3 REQUIRED)
@@ -32,7 +31,11 @@ set(
 
 # TODO: use a generator expression for this
 #       remember to remove jsonapi-*.inl
-get_target_property(RS_PUBLIC_HEADERS ${PROJECT_NAME} HEADER_SET)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
+  get_target_property(JSONAPI_HEADERS ${PROJECT_NAME} HEADER_SET)
+else()
+  get_target_property(JSONAPI_HEADERS ${PROJECT_NAME} SOURCES)
+endif()
 
 configure_file(
   "jsonapi-generator-doxygen.conf.in"
@@ -46,7 +49,7 @@ add_custom_command(
   COMMAND ${Python3_EXECUTABLE} ${JSONAPI_GENERATOR_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
   MAIN_DEPENDENCY "${JSONAPI_GENERATOR_EXECUTABLE}"
-  DEPENDS "jsonapi-generator-doxygen.conf" ${RS_PUBLIC_HEADERS}
+  DEPENDS "jsonapi-generator-doxygen.conf" ${JSONAPI_HEADERS}
 )
 add_custom_target(jsonapi_headers SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/jsonapi-includes.inl"
@@ -55,8 +58,7 @@ add_custom_target(jsonapi_headers SOURCES
 add_dependencies(${PROJECT_NAME} jsonapi_headers)
 
 target_sources(${PROJECT_NAME}
-  PRIVATE FILE_SET private_HEADERS TYPE HEADERS
-  FILES
+  ${PRIVATE_FILESET_private_HEADERS_FILES}
   "${CMAKE_CURRENT_BINARY_DIR}/jsonapi-includes.inl"
   "${CMAKE_CURRENT_BINARY_DIR}/jsonapi-wrappers.inl"
 )

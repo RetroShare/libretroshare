@@ -8,13 +8,13 @@
 # 3.1 : configure_package_config_file(INSTALL_PREFIX)
 # 3.11: add_library() ... target_sources()
 # 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
-# 3.15: list(PREPEND)
-# 3.23: install(TARGETS FILE_SET)
-cmake_minimum_required(VERSION 3.23...4.4)
+cmake_minimum_required(VERSION 3.11...4.4)
 
-list(PREPEND CMAKE_PROJECT_TOP_LEVEL_INCLUDES
-	"${CMAKE_CURRENT_SOURCE_DIR}/mk/cmake/fetch_provider.cmake"
-)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+	list(PREPEND CMAKE_PROJECT_TOP_LEVEL_INCLUDES
+		"${CMAKE_CURRENT_SOURCE_DIR}/mk/cmake/fetch_provider.cmake"
+	)
+endif()
 
 project(retroshare
 	VERSION 0.6.7
@@ -607,12 +607,46 @@ if(CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_DEPENDENCIES)
 	set(EXPORT_PACKAGE_DEPENDENCIES EXPORT_PACKAGE_DEPENDENCIES)
 endif()
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
+	set(FILESET_INSTALL
+		FILE_SET HEADERS DESTINATION "${RS_INCLUDE_INSTALL_DIR}"
+	)
+else()
+	set(FILESET_INSTALL INCLUDES DESTINATION ${RS_INCLUDE_INSTALL_DIR})
+	get_target_property(${PROJECT_NAME}_SOURCES ${PROJECT_NAME} SOURCES)
+	set(headerExtensions .h .hh .h++ .hpp)
+	foreach(source ${${PROJECT_NAME}_SOURCES})
+		cmake_path(GET source EXTENSION ext)
+		string(TOLOWER ${ext} ext)
+		if(NOT ext IN_LIST headerExtensions)
+			continue()
+		endif()
+		foreach(base_ ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/src)
+			cmake_path(IS_PREFIX base_ ${source} basefound)
+			if(basefound)
+				set(base ${base_})
+				break()
+			endif()
+		endforeach()
+		if(NOT basefound)
+			message(SEND_ERROR "couldn't find base for header ${source}")
+			continue()
+		endif()
+
+		cmake_path(GET source PARENT_PATH dest)
+		cmake_path(RELATIVE_PATH dest BASE_DIRECTORY ${base})
+		install(FILES ${source}
+			DESTINATION ${RS_INCLUDE_INSTALL_DIR}/${dest}
+			${INSTALL_COMPONENT}
+		)
+	endforeach()
+endif()
 
 install(TARGETS ${PROJECT_NAME}
 	EXPORT ${PROJECT_NAME}_export
 	${INSTALL_COMPONENT}
 	LIBRARY DESTINATION "${RS_LIB_INSTALL_DIR}"
-	FILE_SET HEADERS DESTINATION "${RS_INCLUDE_INSTALL_DIR}"
+	${FILESET_INSTALL}
 )
 
 
