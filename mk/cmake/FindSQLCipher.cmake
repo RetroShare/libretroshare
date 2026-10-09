@@ -20,18 +20,27 @@
 ## ---------------------------------------------------------------------- ##
 
 # 3.7 : pkg_check_modules(IMPORTED_TARGET)
-cmake_minimum_required(VERSION 3.7...4.4)
+# 3.11: add_library(ALIAS <IMPORTED GLOBAL>)
+# 3.13: pkg_check_modules(GLOBAL)
+cmake_minimum_required(VERSION 3.13...4.4)
+
+# HANDLE_VERSION_RANGE needs 3.19, and nothing here passes a version range.
+unset(HANDLE_VERSION_RANGE)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.19)
+	set(HANDLE_VERSION_RANGE HANDLE_VERSION_RANGE)
+endif()
 
 find_package(PkgConfig)
 if(PkgConfig_FOUND)
-  pkg_check_modules(SQLCipher IMPORTED_TARGET sqlcipher)
+  # GLOBAL so the ALIAS below is legal before 3.18.
+  pkg_check_modules(SQLCipher IMPORTED_TARGET GLOBAL sqlcipher)
 endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SQLCipher
   REQUIRED_VARS SQLCipher_FOUND
   VERSION_VAR SQLCipher_VERSION
-  HANDLE_VERSION_RANGE
+  ${HANDLE_VERSION_RANGE}
 )
 
 if(SQLCipher_FOUND)

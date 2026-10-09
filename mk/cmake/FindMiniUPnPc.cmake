@@ -21,24 +21,33 @@
 
 # 3.7 : pkg_check_modules(IMPORTED_TARGET)
 # 3.9 : string(REGEX MATCH) ... CMAKE_MATCH_<n>
-cmake_minimum_required(VERSION 3.9...4.4)
+# 3.11: add_library(ALIAS <IMPORTED GLOBAL>)
+# 3.13: pkg_check_modules(GLOBAL)
+cmake_minimum_required(VERSION 3.13...4.4)
 
 if(MiniUPnPc_FOUND)
 	return()
+endif()
+
+# HANDLE_VERSION_RANGE needs 3.19, and nothing here passes a version range.
+unset(HANDLE_VERSION_RANGE)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.19)
+	set(HANDLE_VERSION_RANGE HANDLE_VERSION_RANGE)
 endif()
 
 find_package(PkgConfig)
 include(FindPackageHandleStandardArgs)
 
 if(PkgConfig_FOUND)
-	pkg_check_modules(MiniUPnPc IMPORTED_TARGET miniupnpc)
+	# GLOBAL so the ALIAS below is legal before 3.18.
+	pkg_check_modules(MiniUPnPc IMPORTED_TARGET GLOBAL miniupnpc)
 endif()
 
 if(MiniUPnPc_FOUND)
 	find_package_handle_standard_args(MiniUPnPc
 		REQUIRED_VARS MiniUPnPc_FOUND
 		VERSION_VAR MiniUPnPc_VERSION
-		HANDLE_VERSION_RANGE
+		${HANDLE_VERSION_RANGE}
 	)
 
 	if(MiniUPnPc_FOUND)
@@ -69,7 +78,7 @@ endif()
 find_package_handle_standard_args(MiniUPnPc
 	REQUIRED_VARS MiniUPnPc_LIBRARY MiniUPnPc_INCLUDE
 	VERSION_VAR MiniUPnPc_VERSION
-	HANDLE_VERSION_RANGE
+	${HANDLE_VERSION_RANGE}
 )
 
 if(MiniUPnPc_FOUND AND NOT TARGET miniupnpc::miniupnpc)
