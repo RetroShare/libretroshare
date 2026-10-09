@@ -25,7 +25,11 @@
 #include <cstdint>
 #include <deque>
 #include <array>
+#include <map>
+#include <vector>
 #include <mutex>
+#include <atomic>
+#include <condition_variable>
 
 #include "retroshare/rsevents.h"
 #include "util/rsthreads.h"
@@ -71,28 +75,35 @@ protected:
 
 	RsMutex mHandlerMapMtx;
 
-	/** Held by handleEvent() for the whole duration of the callbacks dispatch
-	 * loop, so that unregisterEventsHandler() can act as a barrier: after it
-	 * returns, the removed handler is guaranteed to be neither running nor about
-	 * to start. Without this, unregister only removes the handler from the map,
-	 * but handleEvent() runs callbacks on a *copy* taken outside mHandlerMapMtx
-	 * (on purpose, to let callbacks re-enter), so a callback whose owner is
-	 * being destroyed on another thread could still fire against a dangling
-	 * object -> use-after-free (typically a SIGSEGV in qobject_cast<QThread*>
-	 * inside RsQThreadUtils::postToObject at shutdown). Recursive so that a
-	 * callback re-entering (self-unregister or synchronous sendEvent) on the
-	 * dispatching thread does not deadlock. */
-	std::recursive_mutex mDispatchMtx;
+	/** One registered callback. inFlight counts the dispatches currently
+	 * running it, so unregisterEventsHandler() can wait for the callback to
+	 * finish on other threads while callbacks keep running with no lock held.
+	 * Without that wait a callback whose owner is being destroyed on another
+	 * thread could still fire on a dangling object. Waiting per handler instead
+	 * of on a global dispatch lock avoids deadlocking against handlers that
+	 * block on the GUI thread (passphrase, plugin confirmation). */
+	struct Handler
+	{
+		std::function<void(std::shared_ptr<const RsEvent>)> callback;
+		std::atomic<unsigned> inFlight {0};
+	};
+
+	/// Block until h is not running on any other thread
+	void waitNotRunning(const Handler& h);
+
+	/// Undo one inFlight mark and wake unregisterEventsHandler() if it waits
+	void releaseHandler(Handler& h);
+
+	std::mutex mUnregisterMtx;
+	std::condition_variable mUnregisterCv;
+	std::atomic<unsigned> mUnregisterWaiters {0};
 
 	RsEventsHandlerId_t mLastHandlerId;
 
 	/** Storage for event handlers, keep 10 extra types for plugins that might
 	 * be released indipendently */
-    std::vector<
-	    std::map<
-	        RsEventsHandlerId_t,
-            std::function<void(std::shared_ptr<const RsEvent>)> >
-	> mHandlerMaps;
+	std::vector< std::map<RsEventsHandlerId_t, std::shared_ptr<Handler>> >
+	        mHandlerMaps;
 
     /** Extra event types registered by plugins */
     std::map<std::string,RsEventType> mRegisteredExtraEventTypes;
