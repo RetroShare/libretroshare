@@ -171,6 +171,7 @@ public:
      * @return true/false
      */
     bool tableExists(const std::string& tableName);
+    sqlite3* getSqlHandle() const { return mDb; }
 
 public:
 
