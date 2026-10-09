@@ -22,6 +22,9 @@
 #ifndef RSDATASERVICE_H
 #define RSDATASERVICE_H
 
+#include <atomic>
+#include <thread>
+
 #include "gxs/rsgds.h"
 #include "util/retrodb.h"
 
@@ -309,6 +312,21 @@ private:
     void locked_retrieveMsgMetaList(RetroCursor* c, std::vector<std::shared_ptr<RsGxsMsgMetaData> > &msgMeta);
 
     /*!
+     * \brief Read the meta of every message of the database in one sequential
+     *        scan and fill every per-group cache with it.
+     *
+     * Warming up the caches group by group costs one disk seek per message; a
+     * single scan reads the file in physical order and warms up all the groups
+     * at once. Started when more than one group still needs a cold full read.
+     *
+     * Runs on its own thread, in slices of a few thousand rows by increasing
+     * rowid, taking mDbMutex only for the duration of one slice: a cold scan
+     * of a large database takes tens of seconds, and doing it synchronously
+     * under the lock froze every reader of the service for that long.
+     */
+    void msgMetaWarmupThreadBody();
+
+    /*!
      * Retrieves all the grp meta results from a cursor
      * @param c cursor to result set
      * @param grpMeta group metadata retrieved from cursor are stored here
@@ -467,6 +485,19 @@ private:
 
     t_MetaDataCache<RsGxsGroupId,RsGxsGrpMetaData> mGrpMetaDataCache;
     std::map<RsGxsGroupId,t_MetaDataCache<RsGxsMessageId,RsGxsMsgMetaData> > mMsgMetaDataCache;
+
+    /// True once the warm-up scan has completed: every msg meta of the db is cached.
+    bool mMsgMetaDataCache_ContainsAllDatabase;
+
+    /// Number of whole-group cold reads done so far, to decide when scanning wins.
+    uint32_t mMsgMetaDataCache_ColdFullReads;
+
+    /// Background warm-up of the message meta caches. The thread is started at
+    /// most once (mMsgMetaWarmupStarted, guarded by mDbMutex) and joined in the
+    /// destructor; mMsgMetaWarmupStop asks it to exit between two slices.
+    std::thread mMsgMetaWarmupThread;
+    bool mMsgMetaWarmupStarted;
+    std::atomic<bool> mMsgMetaWarmupStop;
 
     bool mUseCache;
 };
