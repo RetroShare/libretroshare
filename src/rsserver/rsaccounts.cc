@@ -794,6 +794,35 @@ static bool checkAccount(const std::string &accountdir, AccountDetails &account,
 	//#include <CFBundle.h>
 #endif
 
+#if defined(__linux__) && !defined(__ANDROID__)
+#include <limits.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+/* Data directory of a relocatable install, derived from the running executable:
+ * <exedir>/../share/retroshare. Empty when there is no such directory, so a
+ * regular system wide install keeps using the compile time RS_DATA_DIR. */
+static std::string relocatableDataDirectory()
+{
+	char exePath[PATH_MAX];
+	ssize_t pathLen = readlink("/proc/self/exe", exePath, sizeof(exePath)-1);
+	if(pathLen <= 0) return std::string();
+	exePath[pathLen] = '\0';
+
+	std::string candidate(exePath);
+	size_t lastSlash = candidate.rfind('/');
+	if(lastSlash == std::string::npos) return std::string();
+	candidate.replace(lastSlash, std::string::npos, "/../share/retroshare");
+
+	if(!RsDirUtil::checkDirectory(candidate)) return std::string();
+
+	char resolved[PATH_MAX];
+	if(realpath(candidate.c_str(), resolved)) candidate = resolved;
+
+	return candidate;
+}
+#endif // defined(__linux__) && !defined(__ANDROID__)
+
 /*static*/ std::string RsAccountsDetail::PathDataDirectory(bool check)
 {
 	std::string dataDirectory;
@@ -854,6 +883,22 @@ static bool checkAccount(const std::string &accountdir, AccountDetails &account,
 	// cppcheck-suppress ConfigurationNotChecked
 	dataDirectory = RS_DATA_DIR;
 	// For all other OS the data directory must be set in libretroshare.pro
+
+#if defined(__linux__) && !defined(__ANDROID__)
+	/* An AppImage or any other self contained tree is mounted at a location
+	 * unknown at compile time, so RS_DATA_DIR cannot point inside it: when data
+	 * is shipped next to the executable, that copy wins over the system one. */
+	{
+		const std::string relocated = relocatableDataDirectory();
+		if(!relocated.empty())
+		{
+			dataDirectory = relocated;
+			std::cerr << "getRetroshareDataDirectory() relocatable: "
+			          << dataDirectory << std::endl;
+		}
+	}
+#endif // defined(__linux__) && !defined(__ANDROID__)
+
 #else
 #	error "For your target OS automatic data dir discovery is not supported, cannot compile if RS_DATA_DIR variable not set."
 #endif
