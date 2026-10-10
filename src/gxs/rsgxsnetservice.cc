@@ -4297,7 +4297,13 @@ bool RsGxsNetService::checkCanRecvMsgFromPeer(const RsPeerId& sslId, const RsGxs
                 }
 
             if(!can_read)
+            {
+                if(mUnreadableCircleGroupsLogged.insert(grpMeta.mGroupId).second)
+                    RsInfo() << "Service 0x" << std::hex << mServType << std::dec << ": not asking peers for the posts of group "
+                             << grpMeta.mGroupId << " (\"" << grpMeta.mGroupName << "\"): restricted to circle " << grpMeta.mCircleId
+                             << " and none of our identities is a member. Unsubscribe it, or join the circle.";
                 return false;
+            }
         }
         else
         {
