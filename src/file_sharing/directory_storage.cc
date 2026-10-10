@@ -89,14 +89,31 @@ std::string DirectoryStorage::DirIterator::name()      const { const InternalFil
 /*                                                 Directory Storage                                              */
 /******************************************************************************************************************/
 
-DirectoryStorage::DirectoryStorage(const RsPeerId &pid,const std::string& fname)
-    : mPeerId(pid), mDirStorageMtx("Directory storage "+pid.toStdString()),mLastSavedTime(0),mChanged(false),mFileName(fname)
+DirectoryStorage::DirectoryStorage(const RsPeerId &pid,const std::string& fname, bool load_now)
+    : mPeerId(pid), mDirStorageMtx("Directory storage "+pid.toStdString()),mLastSavedTime(0),mChanged(false),mLoaded(load_now),mLoading(false),mFileName(fname)
 {
 	{
 		RS_STACK_MUTEX(mDirStorageMtx) ;
 		mFileHierarchy = new InternalFileHierarchyStorage();
 	}
-    load(fname) ;
+    if(load_now)
+        load(fname) ;
+}
+
+bool DirectoryStorage::loadInBackground()
+{
+    InternalFileHierarchyStorage *h = new InternalFileHierarchyStorage() ;
+    bool ok = h->load(mFileName) ;
+
+    {
+        RS_STACK_MUTEX(mDirStorageMtx) ;
+        std::swap(mFileHierarchy, h) ;
+        mChanged = false ;
+        mLoaded = true ;
+    }
+    delete h ;
+    mLoading = false ;
+    return ok ;
 }
 
 DirectoryStorage::~DirectoryStorage()
@@ -976,8 +993,8 @@ bool LocalDirectoryStorage::serialiseDirEntry(
 /*                                           Remote Directory Storage                                              */
 /******************************************************************************************************************/
 
-RemoteDirectoryStorage::RemoteDirectoryStorage(const RsPeerId& pid,const std::string& fname)
-    : DirectoryStorage(pid,fname)
+RemoteDirectoryStorage::RemoteDirectoryStorage(const RsPeerId& pid,const std::string& fname, bool load_now)
+    : DirectoryStorage(pid,fname,load_now)
 {
     mLastSweepTime = time(NULL) - (RSRandom::random_u32() % DELAY_BETWEEN_REMOTE_DIRECTORIES_SWEEP) ;
 
