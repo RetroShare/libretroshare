@@ -648,6 +648,7 @@ private:
     std::map<RsGxsGroupId,std::set<RsPeerId> > mPendingPublishKeyRecipients ;
 	std::map<RsPeerId, std::set<RsGxsGroupId> > mExplicitRequest;
     std::map<RsPeerId, std::set<RsGxsGroupId> > mPartialMsgUpdates ;
+    std::map<RsGxsGroupId, rstime_t> mUnloadedCircleMsgSyncTS ; // last msg list request for a circle-restricted group whose circle is not loaded
 
     // nxs sync optimisation
     // can pull dynamically the latest timestamp for each message

@@ -302,6 +302,7 @@ static const uint32_t TRANSAC_TIMEOUT                         =         2000; //
 #ifdef TO_REMOVE
 static const uint32_t SECURITY_DELAY_TO_FORCE_CLIENT_REUPDATE =         3600; // force re-update if there happens to be a large delay between our server side TS and the client side TS of friends
 #endif
+static const uint32_t UNLOADED_CIRCLE_MSG_SYNC_RETRY          =          600; // seconds between msg list requests for a group whose circle we have not loaded yet
 static const uint32_t REJECTED_MESSAGE_RETRY_DELAY            =      24*3600; // re-try rejected messages every 24hrs. Most of the time this is because the peer's reputation has changed.
 static const uint32_t GROUP_STATS_UPDATE_DELAY                =          240; // update unsubscribed group statistics every 3 mins
 static const uint32_t GROUP_STATS_UPDATE_NB_PEERS             =            2; // number of peers to which the group stats are asked
@@ -4278,6 +4279,41 @@ bool RsGxsNetService::checkCanRecvMsgFromPeer(const RsPeerId& sslId, const RsGxs
 #ifdef NXS_NET_DEBUG_4
         GXSNETDEBUG_PG(sslId,grpMeta.mGroupId) << "   Circle type: EXTERNAL => returning true. Msgs will be encrypted." << std::endl;
 #endif
+        // The peer encrypts every item of its message list for the circle. Asking for it when none
+        // of our own identities is in the circle only buys, at every sync round, a transaction that
+        // is brute-forced with every own key and never read; and since the list is never read, the
+        // "up to date" stamp is never set and the round repeats forever.
+        if(mCircles->isLoaded(grpMeta.mCircleId))
+        {
+            std::list<RsGxsId> own_ids;
+            mGixs->getOwnIds(own_ids);
+
+            bool can_read = false;
+            for(const auto& id : own_ids)
+                if(mCircles->isRecipient(grpMeta.mCircleId, grpMeta.mGroupId, id))
+                {
+                    can_read = true;
+                    break;
+                }
+
+            if(!can_read)
+                return false;
+        }
+        else
+        {
+            // Membership unknown. A member whose circle has not synced yet must still get the posts,
+            // so keep asking, but at the pace circles sync rather than at every round.
+            mCircles->loadCircle(grpMeta.mCircleId);
+
+            rstime_t now = time(nullptr);
+            rstime_t& last = mUnloadedCircleMsgSyncTS[grpMeta.mGroupId];
+
+            if(now < last + (rstime_t)UNLOADED_CIRCLE_MSG_SYNC_RETRY)
+                return false;
+
+            last = now;
+        }
+
         should_encrypt_id = grpMeta.mCircleId ;
         return true ;
     }
