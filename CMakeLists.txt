@@ -228,28 +228,33 @@ find_package(ZLIB REQUIRED)
 ################################################################################
 ### version
 
-include(GetGitRevisionDescription)
 set(LIBRS_MAJOR_VERSION "${PROJECT_VERSION_MAJOR}")
 set(LIBRS_MINOR_VERSION "${PROJECT_VERSION_MINOR}")
 set(LIBRS_MINI_VERSION "${PROJECT_VERSION_PATCH}")
 if(DEFINED RS_EXTRA_VERSION AND NOT (RS_EXTRA_VERSION STREQUAL ""))
 	set(LIBRS_EXTRA_VERSION "${RS_EXTRA_VERSION}")
 else()
+	include(GetGitRevisionDescription)
 	git_describe_working_tree(V_GIT_DESCRIBE
 		--tags --long --always --dirty --match v*.*.*
 	)
-	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)$")
 	if(NOT V_GIT_DESCRIBE)
 		set(LIBRS_EXTRA_VERSION "-unknown")
-	elseif(V_GIT_DESCRIBE MATCHES "${V_GIT_DESCRIBE_REGEXP}")
-		string(
-			REGEX REPLACE
-			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
-			V_GIT_DESCRIBE_LIST "${V_GIT_DESCRIBE}" )
-		list(GET V_GIT_DESCRIBE_LIST 0 LIBRS_MAJOR_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 1 LIBRS_MINOR_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 2 LIBRS_MINI_VERSION)
-		list(GET V_GIT_DESCRIBE_LIST 3 LIBRS_EXTRA_VERSION)
+	elseif(V_GIT_DESCRIBE MATCHES "^v([0-9]+).([0-9]+).([0-9]+)(.*)$")
+		if(NOT (
+			CMAKE_MATCH_1 EQUAL PROJECT_VERSION_MAJOR AND
+			CMAKE_MATCH_2 EQUAL PROJECT_VERSION_MINOR AND
+			CMAKE_MATCH_3 EQUAL PROJECT_VERSION_PATCH
+		))
+			message(WARNING "libRetroShare version mismatch!"
+				" libRetroShare version is ${PROJECT_VERSION},"
+				" but git describe returned ${V_GIT_DESCRIBE}."
+			)
+		endif()
+		set(LIBRS_MAJOR_VERSION ${CMAKE_MATCH_1})
+		set(LIBRS_MINOR_VERSION ${CMAKE_MATCH_2})
+		set(LIBRS_MINI_VERSION ${CMAKE_MATCH_3})
+		set(LIBRS_EXTRA_VERSION ${CMAKE_MATCH_4})
 	else()
 		set(LIBRS_EXTRA_VERSION "-${V_GIT_DESCRIBE}")
 	endif()
@@ -260,7 +265,7 @@ string(CONCAT LIBRS_FULL_VERSION
 	.${LIBRS_MINI_VERSION}
 	"${LIBRS_EXTRA_VERSION}"
 )
-message(STATUS "libretroshare version ${LIBRS_FULL_VERSION}")
+message(STATUS "libRetroShare version ${LIBRS_FULL_VERSION}")
 
 
 ################################################################################
