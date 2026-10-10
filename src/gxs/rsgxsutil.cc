@@ -212,17 +212,24 @@ void RsGxsIntegrityCheck::run()
 	std::vector<RsGxsGroupId> grps_to_delete;
 	GxsMsgReq msgs_to_delete;
 
-    check(mGenExchangeClient->serviceType(), mGixs, mDs);
+    check(mGenExchangeClient->serviceType(), mGixs, mDs, this);
 
 	RS_STACK_MUTEX(mIntegrityMutex);
 	mDone = true;
 }
 
-bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralDataService *mds)
+bool RsGxsIntegrityCheck::check( uint16_t service_type, RsGixs* mgixs,
+                                 RsGeneralDataService* mds, RsThread* thread )
 {
 #ifdef DEBUG_GXSUTIL
     GXSUTIL_DEBUG() << "Parsing all groups and messages MetaData in service " << std::hex << mds->serviceType() << std::endl;
 #endif
+	/* The pass only reads the store and time-stamps identities, so giving up
+	 * half-way leaves nothing inconsistent behind: the next pass simply
+	 * redoes the work. Checked between every store access so that a shutdown
+	 * never has to wait for a whole pass, nor deletes the store under us. */
+	auto interrupted = [thread]() { return thread && thread->shouldStop(); };
+
     // first take out all the groups
     std::map<RsGxsGroupId, std::shared_ptr<RsGxsGrpMetaData> > grp;
 
@@ -237,6 +244,8 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 
     for( auto git = grp.begin(); git != grp.end(); ++git )
     {
+            if(interrupted()) return false;
+
             const auto& grpMeta = git->second;
 
             if (mds->retrieveMsgIds(grpMeta->mGroupId, msgIds[grpMeta->mGroupId]) == 1)
@@ -259,6 +268,8 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
                     msgIds.erase(msgIds.find(grpMeta->mGroupId));	// could not get them, so group is removed from list.
     }
 
+    if(interrupted()) return false;
+
     // now messages
     GxsMsgMetaResult msgMetas;
 
@@ -266,6 +277,8 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 
     for(auto mit=msgMetas.begin(); mit != msgMetas.end(); ++mit)
 	{
+        if(interrupted()) return false;
+
         const auto& msgM = mit->second;
 
         for(auto vit=msgM.begin(); vit != msgM.end(); ++vit)
@@ -288,6 +301,8 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 				}
 	    }
     }
+
+    if(interrupted()) return false;
 
 	{
 #ifdef DEBUG_GXSUTIL

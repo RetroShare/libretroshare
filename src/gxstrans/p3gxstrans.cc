@@ -415,6 +415,12 @@ void p3GxsTrans::GxsTransIntegrityCleanupThread::run()
 	    {
 		    RsNxsMsg* msg = *vit;
 
+            if(shouldStop())	// shutdown: keep freeing, stop analysing
+            {
+                delete msg;
+                continue;
+            }
+
             RsGxsTransSerializer s ;
             uint32_t size = msg->msg.bin_len;
             RsItem *item = s.deserialise(msg->msg.bin_data,&size);
@@ -448,6 +454,15 @@ void p3GxsTrans::GxsTransIntegrityCleanupThread::run()
 
 			delete item;
 	    }
+    }
+
+    if(shouldStop())
+    {
+        /* Interrupted by a shutdown: the scan is partial, so report nothing
+         * rather than statistics computed over a truncated message set. */
+        RS_STACK_MUTEX(mMtx) ;
+        mDone = true;
+        return;
     }
 
 	// From the collected information, build a list of group messages to delete.
@@ -487,6 +502,29 @@ bool p3GxsTrans::GxsTransIntegrityCleanupThread::isDone()
     RS_STACK_MUTEX(mMtx) ;
     return mDone ;
 }
+void p3GxsTrans::onStopRequested()
+{
+	RsGenExchange::onStopRequested();
+
+	RS_STACK_MUTEX(mPerUserStatsMutex);
+	if(mCleanupThread) mCleanupThread->askForStop();
+}
+
+void p3GxsTrans::run()
+{
+	RsGenExchange::run();
+
+	/* Same reasoning as RsGenExchange::run(): service_tick() no longer runs,
+	 * so the pointer is stable; wait for the cleanup thread before reporting
+	 * this service as stopped, it reads the data store. */
+	GxsTransIntegrityCleanupThread* cleanup = nullptr;
+	{
+		RS_STACK_MUTEX(mPerUserStatsMutex);
+		cleanup = mCleanupThread;
+	}
+	if(cleanup) cleanup->fullstop();
+}
+
 void p3GxsTrans::service_tick()
 {
 	GxsTokenQueue::checkRequests();

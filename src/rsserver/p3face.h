@@ -143,7 +143,7 @@ public:
 		// The real Server Parts.
 
 		//filedexserver *server;
-		//ftServer *ftserver;
+		ftServer *mFtServer;
 
 		p3PeerMgrIMPL *mPeerMgr;
 		p3LinkMgrIMPL *mLinkMgr;

@@ -123,7 +123,12 @@ void RsServer::rsGlobalShutDown()
 
 		rsAutoProxyMonitor::instance()->stopAllRSShutdown();
 
-		// kill all registered service threads
+		/* Signal every service thread first, then wait for them. Each tick
+		 * starts with an uninterruptible sleep (0.5 s for the GXS net
+		 * services), so stopping them one at a time costs the sum of those
+		 * sleeps (~5 s) instead of the longest one. */
+		for(RsTickingThread* service: mRegisteredServiceThreads)
+			service->askForStop();
 		for(RsTickingThread* service: mRegisteredServiceThreads)
 			service->fullstop();
 	}
@@ -137,6 +142,15 @@ void RsServer::rsGlobalShutDown()
 	 * Must run after fullstop() so the RsServer tick thread is no longer
 	 * iterating the peer list concurrently. */
 	if(pqih) pqih->fullstopAllThreads();
+
+	/* Stop the file transfer / file sharing threads (data multiplexer,
+	 * controller, extra list, directory watcher, hash cache). Nothing ever
+	 * stopped them before, they ran until process exit. Everything they work
+	 * on reaches them through the RsServer tick thread (turtle, ftServer::tick)
+	 * or the per-peer streamer threads (p3Service::recv() runs on the streamer
+	 * thread), both stopped above, so by now they are idle and stop within a
+	 * second. */
+	if(mFtServer) mFtServer->StopThreads();
 
 	AuthPGP::exit();
 

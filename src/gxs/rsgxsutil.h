@@ -166,7 +166,13 @@ public:
 	                     RsGenExchange* genex, RsSerialType&,
 	                     RsGixs* gixs );
 
-    static bool check(uint16_t service_type, RsGixs *mgixs, RsGeneralDataService *mds);
+	/**
+	 * @param thread when given, the check gives up (returning false) as soon
+	 *	as thread->shouldStop() is set. run() passes itself so that the check
+	 *	can be interrupted at shutdown instead of outliving the data store.
+	 */
+	static bool check( uint16_t service_type, RsGixs* mgixs,
+	                   RsGeneralDataService* mds, RsThread* thread = nullptr );
     bool isDone();
 
     void run();
