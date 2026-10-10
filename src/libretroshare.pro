@@ -30,11 +30,11 @@ debug {
 #	DEFINES *= DEBUG
 #	DEFINES *= OPENDHT_DEBUG DHT_DEBUG CONN_DEBUG DEBUG_UDP_SORTER P3DISC_DEBUG DEBUG_UDP_LAYER FT_DEBUG EXTADDRSEARCH_DEBUG
 #	DEFINES *= CONTROL_DEBUG FT_DEBUG DEBUG_FTCHUNK P3TURTLE_DEBUG
-#	DEFINES *= P3TURTLE_DEBUG 
+#	DEFINES *= P3TURTLE_DEBUG
 #	DEFINES *= NET_DEBUG
 #	DEFINES *= DISTRIB_DEBUG
 #	DEFINES *= P3TURTLE_DEBUG FT_DEBUG DEBUG_FTCHUNK MPLEX_DEBUG
-#	DEFINES *= STATUS_DEBUG SERV_DEBUG RSSERIAL_DEBUG #CONN_DEBUG 
+#	DEFINES *= STATUS_DEBUG SERV_DEBUG RSSERIAL_DEBUG #CONN_DEBUG
 
         QMAKE_CXXFLAGS -= -O2 -fomit-frame-pointer
         QMAKE_CXXFLAGS *= -g -fno-omit-frame-pointer
@@ -68,11 +68,11 @@ DEFINES *= SERVICES_DSDV
 HEADERS += unused/p3dsdv.h \
 			  unused/rstlvdsdv.h \
 			  unused/rsdsdvitems.h \
-			  unused/rsdsdv.h 
+			  unused/rsdsdv.h
 
 SOURCES *= unused/rstlvdsdv.cc \
 			  unused/rsdsdvitems.cc \
-		  	  unused/p3dsdv.cc 
+		  	  unused/p3dsdv.cc
 }
 bitdht {
 
@@ -114,7 +114,7 @@ SOURCES +=	tcponudp/udppeer.cc \
 
 	DEFINES *= RS_USE_BITDHT
 
-	BITDHT_DIR = ../../libbitdht/src
+	BITDHT_DIR = ../../supportlibs/libbitdht/src
 	DEPENDPATH += . $${BITDHT_DIR}
 	INCLUDEPATH += . $${BITDHT_DIR}
 	PRE_TARGETDEPS *= $${BITDHT_DIR}/lib/libbitdht.a
@@ -146,7 +146,7 @@ PUBLIC_HEADERS =	retroshare/rsdisc.h \
 					retroshare/rsconfig.h \
 					retroshare/rsversion.h \
 					retroshare/rsservicecontrol.h \
-					retroshare/rsgxsdistsync.h 
+					retroshare/rsgxsdistsync.h
 
 rs_webui {
     PUBLIC_HEADERS += retroshare/rswebui.h
@@ -223,7 +223,7 @@ version_detail_bash_script {
 
 #################### Cross compilation for windows under Linux ####################
 
-win32-x-g++ {	
+win32-x-g++ {
 	OBJECTS_DIR = temp/win32xgcc/obj
 	DEFINES *= WINDOWS_SYS WIN32 WIN_CROSS_UBUNTU
 	QMAKE_CXXFLAGS *= -Wmissing-include-dirs
@@ -344,8 +344,8 @@ haiku-* {
 
 	QMAKE_CXXFLAGS *= -Dfseeko64=fseeko -Dftello64=ftello -Dstat64=stat -Dstatvfs64=statvfs -Dfopen64=fopen
         rs_openpgpsdk {
-                OPENPGPSDK_DIR = ../../openpgpsdk/src
-                INCLUDEPATH *= $${OPENPGPSDK_DIR} ../openpgpsdk
+                OPENPGPSDK_DIR = ../../supportlibs/openpgpsdk/src
+                INCLUDEPATH *= $${OPENPGPSDK_DIR} ../supportlibs/openpgpsdk
         }
 	DEFINES *= NO_SQLCIPHER
 	CONFIG += release
@@ -357,7 +357,7 @@ haiku-* {
 rs_openpgpsdk {
         # openpgpsdk
         DEFINES *= USE_OPENPGPSDK
-        OPENPGPSDK_DIR = ../../openpgpsdk/src
+        OPENPGPSDK_DIR = ../../supportlibs/openpgpsdk/src
         DEPENDPATH *= $${OPENPGPSDK_DIR}
         INCLUDEPATH *= $${OPENPGPSDK_DIR}
         PRE_TARGETDEPS *= $${OPENPGPSDK_DIR}/lib/libops.a
@@ -379,7 +379,7 @@ HEADERS +=	ft/ftchunkmap.h \
 			ft/ftsearch.h \
 			ft/ftserver.h \
 			ft/fttransfermodule.h \
-			ft/ftturtlefiletransferitem.h 
+			ft/ftturtlefiletransferitem.h
 
 HEADERS += crypto/chacha20.h \
            crypto/rsaes.h \
@@ -623,11 +623,11 @@ SOURCES += 		rsserver/p3face-config.cc \
 			rsserver/p3serverconfig.cc
 
 SOURCES +=  grouter/p3grouter.cc \
-				grouter/grouteritems.cc \ 
-				grouter/groutermatrix.cc 
+				grouter/grouteritems.cc \
+				grouter/groutermatrix.cc
 
 SOURCES += plugins/pluginmanager.cc \
-				plugins/dlfcn_win32.cc 
+				plugins/dlfcn_win32.cc
 
 SOURCES +=	serialiser/rsbaseserial.cc \
 			rsitems/rsfiletransferitems.cc \
@@ -761,7 +761,7 @@ SOURCES += rsitems/rsnxsitems.cc \
         gxs/rsnxsobserver.cpp
 
 # Tor
-HEADERS += 	retroshare/rstor.h 
+HEADERS += 	retroshare/rstor.h
 
 HEADERS += 	tor/AddOnionCommand.h \
            	tor/AuthenticateCommand.h \
@@ -793,7 +793,7 @@ SOURCES += 	tor/AddOnionCommand.cpp \
 		tor/TorProcess.cpp \
 		tor/CryptoKey.cpp         \
 		tor/PendingOperation.cpp  \
-		tor/StrUtil.cpp        
+		tor/StrUtil.cpp
 
 # gxs tunnels
 HEADERS += gxstunnel/p3gxstunnel.h \
@@ -801,7 +801,7 @@ HEADERS += gxstunnel/p3gxstunnel.h \
 			  retroshare/rsgxstunnel.h
 
 SOURCES += gxstunnel/p3gxstunnel.cc \
-				gxstunnel/rsgxstunnelitems.cc 
+				gxstunnel/rsgxstunnelitems.cc
 
 # new serialization code
 HEADERS += serialiser/rsserializable.h \
@@ -1312,7 +1312,7 @@ rs_sam3_libsam3 {
 
 testnetwork {
 	# used in rsserver/rsinit.cc Enabled Port Restrictions, and makes Proxy Port next to Dht Port.
-	DEFINES *= LOCALNET_TESTING  
+	DEFINES *= LOCALNET_TESTING
 
 	# used in tcponudp/udprelay.cc Debugging Info for Relays.
 	DEFINES *= DEBUG_UDP_RELAY
@@ -1331,10 +1331,10 @@ testnetwork {
 
 test_bitdht {
 	# DISABLE TCP CONNECTIONS...
-	DEFINES *= P3CONNMGR_NO_TCP_CONNECTIONS 
+	DEFINES *= P3CONNMGR_NO_TCP_CONNECTIONS
 
 	# NO AUTO CONNECTIONS??? FOR TESTING DHT STATUS.
-	DEFINES *= P3CONNMGR_NO_AUTO_CONNECTION 
+	DEFINES *= P3CONNMGR_NO_AUTO_CONNECTION
 
 	# ENABLED UDP NOW.
 }

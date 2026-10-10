@@ -1,0 +1,17 @@
+diff --git a/cmake/Findasio.cmake b/cmake/Findasio.cmake
+index 42f4095..e7b0469 100644
+--- a/cmake/Findasio.cmake
++++ b/cmake/Findasio.cmake
+@@ -1,10 +1,10 @@
+ find_path( asio_INCLUDE asio.hpp HINTS "/usr/include" "/usr/local/include" "/opt/local/include" )
+
+ if ( asio_INCLUDE )
+-    set( ASIO_FOUND TRUE )
++    set( asio_FOUND TRUE )
+     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DASIO_STANDALONE=YES" )
+
+     message( STATUS "Found ASIO include at: ${asio_INCLUDE}" )
+ else ( )
+-    message( FATAL_ERROR "Failed to locate ASIO dependency." )
++    message( WARNING "Failed to locate ASIO dependency." )
+ endif ( )

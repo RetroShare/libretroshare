@@ -46,8 +46,8 @@
 #include "retroshare/rsmail.h"
 #include "retroshare/rstor.h"
 #include "retroshare/rsiface.h"
-#include "plugins/pluginmanager.h"
 #include "retroshare/rsversion.h"
+#include "plugins/pluginmanager.h"
 #include "rsserver/rsloginhandler.h"
 #ifdef RS_WEBUI
 #include "jsonapi/p3webui.h"
@@ -300,13 +300,9 @@ bool doPortRestrictions = false;
  * @brief Returns the specific version of the libretroshare engine.
  * This version is retrieved from the git submodule hash during compilation.
  */
-const char* RsInit::libRetroShareVersion()
-{
-#ifdef RS_LIB_VERSION_HASH
-    return RS_LIB_VERSION_HASH;
-#else
-    return "[version not available]";
-#endif
+const char*
+RsInit::libRetroShareVersion() {
+	return RS_PRIVATE_STRINGIFY(LIBRS_FULL_VERSION);
 }
 
 /********
@@ -659,8 +655,8 @@ bool RsInit::LoadCertificates(bool autoLoginNT,LoadCertificateStatus& error_code
         error_code = ERR_NO_ACCOUNT_SELECTED;
         return false;
 	}
-		
-	
+
+
 	if (RsAccounts::AccountPathCertFile() == "")
 	{
 	  std::cerr << "RetroShare needs a certificate" << std::endl;
@@ -675,7 +671,7 @@ bool RsInit::LoadCertificates(bool autoLoginNT,LoadCertificateStatus& error_code
 	}
 
 	//check if password is already in memory
-	
+
 	if(rsInitConfig->passwd == "") {
 		if (RsLoginHandler::getSSLPassword(preferredId,true,rsInitConfig->passwd) == false) {
 #ifdef DEBUG_RSINIT
@@ -722,7 +718,7 @@ bool RsInit::LoadCertificates(bool autoLoginNT,LoadCertificateStatus& error_code
 	// ideally gxs should have its own password
 	rsInitConfig->gxs_passwd = rsInitConfig->passwd;
 	rsInitConfig->passwd = "";
-	
+
 	RsAccounts::storeSelectedAccount();
     return true;
 }
@@ -758,7 +754,7 @@ bool RsInit::isWindowsXP()
     return false;
 #endif
 }
-	
+
 bool RsInit::getStartMinimised()
 {
 	return rsInitConfig->startMinimised;
@@ -803,7 +799,7 @@ void RsInit::SetHiddenLocation(const std::string& hiddenaddress, uint16_t port, 
 #include "retroshare/rsiface.h"
 #include "retroshare/rsturtle.h"
 
-/* global variable now points straight to 
+/* global variable now points straight to
  * ft/ code so variable defined here.
  */
 
@@ -882,10 +878,10 @@ RsGRouter *rsGRouter = NULL ;
 #include "pqi/p3peermgr.h"
 #include "pqi/p3linkmgr.h"
 #include "pqi/p3netmgr.h"
-	
+
 #include "tcponudp/tou.h"
 #include "tcponudp/rsudpstack.h"
-	
+
 #ifdef RS_USE_BITDHT
 #include "dht/p3bitdht.h"
 #ifdef RS_USE_DHT_STUNNER
@@ -1338,9 +1334,9 @@ int RsServer::StartupRetroShare()
 	mPluginsManager->loadPlugins(plugins_directories) ;
 
 	// Also load some plugins explicitly. This is helpful for
-	// - developping plugins 
+	// - developping plugins
 	//
-	std::vector<RsPlugin *> programatically_inserted_plugins ;		
+	std::vector<RsPlugin *> programatically_inserted_plugins ;
 
 	// Push your own plugins into this list, before the call:
 	//
@@ -1421,24 +1417,24 @@ int RsServer::StartupRetroShare()
         // create GXS Circle service
         RsGxsNetService* gxscircles_ns = new RsGxsNetService(
                         RS_SERVICE_GXS_TYPE_GXSCIRCLE, gxscircles_ds, nxsMgr,
-                        mGxsCircles, mGxsCircles->getServiceInfo(), 
+                        mGxsCircles, mGxsCircles->getServiceInfo(),
 			mReputations, mGxsCircles,mGxsIdService,
 			pgpAuxUtils);
 
 		mGxsCircles->setNetworkExchangeService(gxscircles_ns) ;
-    
+
         /**** Posted GXS service ****/
 
         RsGeneralDataService* posted_ds = new RsDataService(currGxsDir + "/", "posted_db",
-                        RS_SERVICE_GXS_TYPE_POSTED, 
+                        RS_SERVICE_GXS_TYPE_POSTED,
 			NULL, rsInitConfig->gxs_passwd);
 
         p3Posted *mPosted = new p3Posted(posted_ds, NULL, mGxsIdService);
 
         // create GXS photo service
         RsGxsNetService* posted_ns = new RsGxsNetService(
-                        RS_SERVICE_GXS_TYPE_POSTED, posted_ds, nxsMgr, 
-			mPosted, mPosted->getServiceInfo(), 
+                        RS_SERVICE_GXS_TYPE_POSTED, posted_ds, nxsMgr,
+			mPosted, mPosted->getServiceInfo(),
 			mReputations, mGxsCircles,mGxsIdService,
 			pgpAuxUtils);
 
@@ -1534,8 +1530,8 @@ int RsServer::StartupRetroShare()
 
         // create GXS photo service
         RsGxsNetService* photo_ns = new RsGxsNetService(
-                        RS_SERVICE_GXS_TYPE_PHOTO, photo_ds, nxsMgr, 
-			mPhoto, mPhoto->getServiceInfo(), 
+                        RS_SERVICE_GXS_TYPE_PHOTO, photo_ds, nxsMgr,
+			mPhoto, mPhoto->getServiceInfo(),
 			mReputations, mGxsCircles,mGxsIdService,
 			pgpAuxUtils);
 
@@ -1551,8 +1547,8 @@ int RsServer::StartupRetroShare()
 
         // create GXS photo service
         RsGxsNetService* wire_ns = new RsGxsNetService(
-                        RS_SERVICE_GXS_TYPE_WIRE, wire_ds, nxsMgr, 
-			mWire, mWire->getServiceInfo(), 
+                        RS_SERVICE_GXS_TYPE_WIRE, wire_ds, nxsMgr,
+			mWire, mWire->getServiceInfo(),
 			mReputations, mGxsCircles,mGxsIdService,
 			pgpAuxUtils);
 
@@ -1690,7 +1686,7 @@ int RsServer::StartupRetroShare()
 	interfaces.mGxsTunnels = mGxsTunnels;
     interfaces.mReputations     = mReputations;
     interfaces.mPosted          = mPosted;
-    
+
 	mPluginsManager->setInterfaces(interfaces);
 
 	// now add plugin objects inside the loop:
@@ -1741,7 +1737,7 @@ int RsServer::StartupRetroShare()
 		rsBanList = NULL ;
 
 	p3BandwidthControl *mBwCtrl = new p3BandwidthControl(pqih);
-	pqih -> addService(mBwCtrl, true); 
+	pqih -> addService(mBwCtrl, true);
 
 #ifdef SERVICES_DSDV
 	p3Dsdv *mDsdv = new p3Dsdv(serviceCtrl);
@@ -1889,7 +1885,7 @@ int RsServer::StartupRetroShare()
 		sockaddr_storage_clear(laddr);
 
 		struct sockaddr_in *lap = (struct sockaddr_in *) &laddr;
-		
+
 		lap->sin_family = AF_INET;
 		lap->sin_port = htons(rsInitConfig->port);
 

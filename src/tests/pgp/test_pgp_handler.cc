@@ -1,4 +1,4 @@
-// COMPILE_LINE: g++ -o test_pgp_handler test_pgp_handler.cc -I../../../openpgpsdk/include  -I../ -L../lib -lretroshare ../../../libbitdht/src/lib/libbitdht.a ../../../openpgpsdk/lib/libops.a -lgnome-keyring -lupnp -lssl -lcrypto -lbz2
+// COMPILE_LINE: g++ -o test_pgp_handler test_pgp_handler.cc -I../../../supportlibs/openpgpsdk/include  -I../ -L../lib -lretroshare ../../../supportlibs/libbitdht/src/lib/libbitdht.a ../../../supportlibs/openpgpsdk/lib/libops.a -lgnome-keyring -lupnp -lssl -lcrypto -lbz2
 //
 #include <string.h>
 #include <stdlib.h>
@@ -42,8 +42,8 @@ static std::string stringFromBytes(unsigned char *bytes,size_t len)
 static std::string askForKeyId(PGPHandler& pgph)
 {
 	// 0 - print keys and key types
-	
-	std::list<PGPIdType> lst ;	
+
+	std::list<PGPIdType> lst ;
 	pgph.availableGPGCertificatesWithPrivateKeys(lst) ;
 
 	std::cerr << lst.size() << " available key pairs: " << std::endl;
@@ -69,7 +69,7 @@ static std::string askForKeyId(PGPHandler& pgph)
 		throw std::runtime_error("No key pair available in supplied keyring.") ;
 
 	// 1 - ask for which key to use.
-	
+
 	int num = -1 ;
 
 	while(true)
@@ -131,7 +131,7 @@ int main(int argc,char *argv[])
 		if(test_pgpid_type + test_keyring_read + test_file_encryption + test_gen_key + test_signature + test_output + test_memory_encryption != 1)
 		{
 			std::cerr << "Options 1 to 6 are mutually exclusive." << std::endl;
-			return 1; 
+			return 1;
 		}
 	if(full_test || test_pgpid_type)
 	{
@@ -199,7 +199,7 @@ int main(int argc,char *argv[])
 
 		std::cerr << "Looking for keys with complete secret/public key pair: " << std::endl;
 
-		std::list<PGPIdType> lst ;	
+		std::list<PGPIdType> lst ;
 		pgph.availableGPGCertificatesWithPrivateKeys(lst) ;
 
 		bool found = false ;
@@ -383,7 +383,7 @@ int main(int argc,char *argv[])
 			std::cerr << "Decryption failed" << std::endl;
 
 		Sha1CheckSum decrypted_sha1 = RsDirUtil::sha1sum(decrypted_mem,decrypted_mem_size) ;
-		
+
 		std::cerr << "Decrypted size: " << decrypted_mem_size << std::endl;
 		std::cerr << "Decrypted hash: " << decrypted_sha1.toStdString() << std::endl;
 
@@ -394,4 +394,3 @@ int main(int argc,char *argv[])
 	FINALREPORT("PGP Handler test") ;
 	return TESTRESULT() ;
 }
-
