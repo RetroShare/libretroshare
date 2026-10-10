@@ -123,7 +123,12 @@ void RsServer::rsGlobalShutDown()
 
 		rsAutoProxyMonitor::instance()->stopAllRSShutdown();
 
-		// kill all registered service threads
+		/* Signal every service thread first, then wait for them. Each tick
+		 * starts with an uninterruptible sleep (0.5 s for the GXS net
+		 * services), so stopping them one at a time costs the sum of those
+		 * sleeps (~5 s) instead of the longest one. */
+		for(RsTickingThread* service: mRegisteredServiceThreads)
+			service->askForStop();
 		for(RsTickingThread* service: mRegisteredServiceThreads)
 			service->fullstop();
 	}
