@@ -891,7 +891,10 @@ void p3FileDatabase::remoteDirLoaderThreadBody()
     {
         mUpdateFlags |= P3FILELISTS_UPDATE_FLAG_REMOTE_DIRS_CHANGED ;
         mUpdateFlags |= P3FILELISTS_UPDATE_FLAG_REMOTE_MAP_CHANGED ;
-        std::cerr << "p3FileDatabase: loaded " << n << " friend directory lists in the background in " << time(NULL)-t0 << " s" << std::endl;
+
+        rstime_t dt = time(NULL) - t0 ;
+        if(n >= 10 || dt >= 1)	// the startup pass; a friend coming online later makes a one-item pass, not worth a line
+            std::cerr << "p3FileDatabase: loaded " << n << " friend directory lists in the background in " << dt << " s" << std::endl;
     }
 }
 
