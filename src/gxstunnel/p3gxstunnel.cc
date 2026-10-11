@@ -845,7 +845,10 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
         {
             rstime_t now = time(NULL) ;
 
-            if(it->second.status == RS_GXS_TUNNEL_DH_STATUS_HALF_KEY_DONE || now < it->second.last_dh_restart + RS_GXS_TUNNEL_DH_RESTART_MIN_DELAY)
+            // Encrypted packets on a virtual peer that is still HALF_KEY_DONE mean the peer completed a handshake we
+            // never did (our copy of its key was lost, or ignored as a duplicate of a tunnel that has since died).
+            // Restart at the same throttled rate, or this tunnel stays dead until the client closes and redials it.
+            if(now < it->second.last_dh_restart + RS_GXS_TUNNEL_DH_RESTART_MIN_DELAY)
             {
                 ++it->second.dropped_packets ;
                 return ;
@@ -1030,7 +1033,8 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item)
     // When both ends request a tunnel to each other, turtle brings up one tunnel per direction for the same pair of
     // identities. The contact entry holds a single AES key, so the second handshake would overwrite the key of the
     // tunnel that is already talking, and both tunnels would then fail every HMAC check and restart DH sessions
-    // forever. Keep the tunnel that talks, ignore the newcomer.
+    // forever. Keep the tunnel that talks, ignore the newcomer: it re-keys itself through rejectPacket() once the
+    // active tunnel is gone.
     {
         std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::const_iterator cit = _gxs_tunnel_contacts.find(tunnel_id) ;
 
