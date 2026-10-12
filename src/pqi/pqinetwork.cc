@@ -253,8 +253,34 @@ std::string socket_errorType(int err)
 	{
 		return std::string("WSAEAFNOSUPPORT (normally UDP related!)");
 	}
+	else if (err == WSAECONNABORTED)
+	{
+		return std::string("WSAECONNABORTED");
+	}
+	else if (err == WSAENETRESET)
+	{
+		return std::string("WSAENETRESET");
+	}
+	else if (err == WSAENETDOWN)
+	{
+		return std::string("WSAENETDOWN");
+	}
+	else if (err == WSAENOTCONN)
+	{
+		return std::string("WSAENOTCONN");
+	}
+	else if (err == WSAESHUTDOWN)
+	{
+		return std::string("WSAESHUTDOWN");
+	}
+	else if (err == WSAEHOSTUNREACH)
+	{
+		return std::string("WSAEHOSTUNREACH");
+	}
 
-	return std::string("----WINDOWS OPERATING SYSTEM FAILURE----");
+	std::string out;
+	rs_sprintf(out, "unknown socket error %d", err);
+	return out;
 }
 
 // implement the improved unix inet address fn.
@@ -481,6 +507,15 @@ int rs_socket_error()
     return WinToUnixError(WSAGetLastError());
 #else
     return errno;
+#endif
+}
+
+int rs_last_socket_error()
+{
+#ifdef WINDOWS_SYS // ie WINDOWS.
+	return WSAGetLastError();
+#else
+	return errno;
 #endif
 }
 /******************* WINDOWS SPECIFIC PART ******************/
