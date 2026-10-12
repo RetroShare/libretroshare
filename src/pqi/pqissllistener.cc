@@ -526,6 +526,8 @@ int	pqissllistenbase::continueSSL(IncomingSSLInfo& incoming_connexion_info, bool
         std::cerr << "  no info." << std::endl;
 #endif
 
+	X509_free(x509); // SSL_get_peer_certificate() hands out a reference; the SSL keeps its own
+
 	// if it succeeds
 	if (0 < completeConnection(fd, incoming_connexion_info))
 		return 1;

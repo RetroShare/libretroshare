@@ -1123,6 +1123,8 @@ int pqissl::SSL_Connection_Complete()
 
 				if(!ev->mSslId.isNull())
 					rsEvents->postEvent(ev);
+
+				X509_free(x509); // SSL_get_peer_certificate() hands out a reference
 			}
 		}
 
@@ -1233,6 +1235,7 @@ int pqissl::Authorise_SSL_Connection()
 	Dbg2() << __PRETTY_FUNCTION__ << " Accepting connection to peer: "
 	       << PeerId() << " with address: " << remote_addr << std::endl;
 
+	X509_free(peercert); // SSL_get_peer_certificate() hands out a reference
 	return accept_locked(ssl_connection, sockfd, remote_addr);
 }
 
@@ -1269,8 +1272,16 @@ int pqissl::accept_locked( SSL *ssl, int fd,
 	if (rsPeers->servicePermissionFlags(PeerId()) & RS_NODE_PERM_REQUIRE_WL)
 		checking_flags |= RSBANLIST_CHECKING_FLAGS_WHITELIST;
 
-    if( RsX509Cert::getCertSslId(*SSL_get_peer_certificate(ssl)) != PeerId())
-        std::cerr << "(EE) pqissl::accept_locked(): PeerId() is " << PeerId() << " but certificate ID is " << RsX509Cert::getCertSslId(*SSL_get_peer_certificate(ssl)) << std::endl;
+    {
+        X509 *peer_cert = SSL_get_peer_certificate(ssl); // a reference of our own, released below
+        if(peer_cert)
+        {
+            RsPeerId cert_id = RsX509Cert::getCertSslId(*peer_cert);
+            if(cert_id != PeerId())
+                std::cerr << "(EE) pqissl::accept_locked(): PeerId() is " << PeerId() << " but certificate ID is " << cert_id << std::endl;
+            X509_free(peer_cert);
+        }
+    }
 
 	if(rsBanList && !rsBanList->isAddressAccepted( foreign_addr, checking_flags, check_result ))
 	{
@@ -1287,6 +1298,7 @@ int pqissl::accept_locked( SSL *ssl, int fd,
 			X509 *x509 = SSL_get_peer_certificate(ssl);
 			auto ev = std::make_shared<RsAuthSslConnectionAutenticationEvent>();
 			ev->mSslId = RsX509Cert::getCertSslId(*x509);
+			X509_free(x509);
 			ev->mLocator = RsUrl(foreign_addr);
 			ev->mErrorCode = RsAuthSslError::IP_IS_BLACKLISTED;
 			rsEvents->postEvent(ev);
