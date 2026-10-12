@@ -20,6 +20,7 @@
  # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ## ------------------------------------------------------------------------- ##
 
+# 3.11: FetchContent
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
@@ -35,7 +36,6 @@ FetchContent_Declare(restbed
 	# GIT_SUBMODULES dependency/asio dependency/catch
 	# GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
-	TIMEOUT 10
 	PATCH_COMMAND ${GIT_EXECUTABLE} reset --hard
 	COMMAND ${Patch_EXECUTABLE} -tNp1 -i
 		"${CMAKE_CURRENT_LIST_DIR}/restbed.patch"

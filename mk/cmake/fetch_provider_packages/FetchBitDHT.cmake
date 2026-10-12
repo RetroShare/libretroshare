@@ -20,6 +20,7 @@
  # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ## ------------------------------------------------------------------------- ##
 
+# 3.11: FetchContent
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
@@ -30,7 +31,6 @@ FetchContent_Declare(BitDHT
 	# GIT_TAG "origin/cmake-refactor"
 	# GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
-	TIMEOUT 10
 	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(BitDHT)

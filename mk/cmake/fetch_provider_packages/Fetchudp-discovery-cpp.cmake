@@ -20,6 +20,9 @@
  # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ## ------------------------------------------------------------------------- ##
 
+# 3.6 : FetchContent_Declare(GIT_SHALLOW)
+# 3.8 : FetchContent_Declare(GIT_PROGRESS)
+# 3.11: FetchContent
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
@@ -31,7 +34,6 @@ FetchContent_Declare(udp-discovery-cpp
 	GIT_TAG "origin/master"
 	GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
-	TIMEOUT 10
 	PATCH_COMMAND sed -i -e "s/^cmake_minimum_required(VERSION 3.0)\$/cmake_minimum_required(VERSION 3.0...4.4)/" CMakeLists.txt
 )
 FetchContent_MakeAvailable(udp-discovery-cpp)
