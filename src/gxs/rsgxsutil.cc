@@ -270,10 +270,19 @@ bool RsGxsIntegrityCheck::check( uint16_t service_type, RsGixs* mgixs,
 
     if(interrupted()) return false;
 
-    // now messages
+    // now messages. One request per group: the store serves them group by
+    // group anyway, and this releases its mutex between groups and lets a stop
+    // request through after one group instead of after the whole pass.
     GxsMsgMetaResult msgMetas;
 
-    mds->retrieveGxsMsgMetaData(msgIds, msgMetas);
+    for(auto mit=msgIds.begin(); mit != msgIds.end(); ++mit)
+    {
+        if(interrupted()) return false;
+
+        GxsMsgReq req;
+        req[mit->first] = mit->second;
+        mds->retrieveGxsMsgMetaData(req, msgMetas);
+    }
 
     for(auto mit=msgMetas.begin(); mit != msgMetas.end(); ++mit)
 	{
