@@ -234,29 +234,23 @@ void    ftServer::StartupThreads()
 
 void ftServer::StopThreads()
 {
+	/* Reverse of StartupThreads(). The objects themselves are deliberately
+	 * left alive: the config manager, the service server and the turtle
+	 * router still hold pointers to them, and the process is about to exit
+	 * anyway -- deleting them here would only turn a clean stop into a
+	 * use-after-free somewhere else. */
+
 	/* stop Dataplex */
 	mFtDataplex->fullstop();
 
 	/* stop Controller thread */
 	mFtController->fullstop();
 
-	/* self contained threads */
 	/* stop ExtraList Thread */
 	mFtExtra->fullstop();
 
-	delete (mFtDataplex);
-	mFtDataplex = nullptr;
-
-	delete (mFtController);
-	mFtController = nullptr;
-
-	delete (mFtExtra);
-	mFtExtra = nullptr;
-
-	/* stop Monitor Thread */
-	mFileDatabase->stopThreads();
-	delete mFileDatabase;
-	mFileDatabase = nullptr;
+	/* stop hash cache and directory watcher threads */
+	if(mFileDatabase) mFileDatabase->stopThreads();
 }
 
 /***************************************************************/

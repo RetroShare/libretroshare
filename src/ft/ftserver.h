@@ -172,6 +172,7 @@ public:
     /***************************************************************/
 
     void StartupThreads();
+    /** Stop every thread started by StartupThreads(); called once at shutdown. */
     void StopThreads();
 
     // member access
