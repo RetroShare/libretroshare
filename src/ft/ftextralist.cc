@@ -32,6 +32,7 @@
 #include <retroshare/rsfiles.h>
 #include "ft/ftextralist.h"
 #include "rsitems/rsconfigitems.h"
+#include "util/rsdebug.h"
 #include "util/rsdir.h"
 #include "util/rstime.h"
 #include <stdio.h>
@@ -99,20 +100,50 @@ void ftExtraList::hashAFile()
 	            details.info.path, details.info.fname, details.info.hash,
 	            details.info.size ))
 	{
-		RS_STACK_MUTEX(extMutex);
+		{
+			RS_STACK_MUTEX(extMutex);
 
-		/* stick it in the available queue */
-		mFiles[details.info.hash] = details;
-		mHashOfHash[makeEncryptedHash(details.info.hash)] = details.info.hash;
+			/* stick it in the available queue */
+			mFiles[details.info.hash] = details;
+			mHashOfHash[makeEncryptedHash(details.info.hash)] = details.info.hash;
 
-		/* add to the path->hash map */
-		mHashedList[details.info.path] = details.info.hash;
-	
-        IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+			/* add to the path->hash map */
+			mHashedList[details.info.path] = details.info.hash;
 
-		auto ev = std::make_shared<RsSharedDirectoriesEvent>();
-		ev->mEventCode = RsSharedDirectoriesEventCode::EXTRA_LIST_FILE_ADDED;
-		rsEvents->postEvent(ev);
+			IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_NOW);
+		}
+
+		if(rsEvents)
+		{
+			auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+			ev->mEventCode = RsSharedDirectoriesEventCode::EXTRA_LIST_FILE_ADDED;
+			ev->mFilePath = details.info.path;
+			ev->mFileHash = details.info.hash;
+			rsEvents->postEvent(ev);
+		}
+	}
+	else
+	{
+		/* hashExtraFile() has already refused the paths that do not exist and
+		 * the directories, so reaching here means the file was there and could
+		 * still not be read: permissions, a share unmounted or a file renamed
+		 * between the two, an I/O error, or this thread being stopped.
+		 *
+		 * Failing silently leaves every caller waiting for a hash that will
+		 * never come -- the file never enters mHashedList, so ExtraFileStatus()
+		 * keeps answering "not ready" forever, and the web UI attach dialog
+		 * polls it once a second for the rest of the session. */
+		RsErr() << __PRETTY_FUNCTION__ << " failed to hash " << details.info.path
+		        << ", it will not be added to the extra list" << std::endl;
+
+		if(rsEvents)
+		{
+			auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+			ev->mEventCode =
+			        RsSharedDirectoriesEventCode::EXTRA_LIST_FILE_HASH_FAILED;
+			ev->mFilePath = details.info.path;
+			rsEvents->postEvent(ev);
+		}
 	}
 }
 
