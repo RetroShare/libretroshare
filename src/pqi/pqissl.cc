@@ -604,7 +604,7 @@ int pqissl::Initiate_Connection()
 	if (osock < 0)
 	{
 		std::string out = "pqissl::Initiate_Connection() Failed to open socket!\n";
-		out += "Socket Error:" + socket_errorType(errno);
+		out += "Socket Error:" + socket_errorType(rs_last_socket_error());
 		rslog(RSL_WARNING, pqisslzone, out);
 
 		net_internal_close(osock);
@@ -1469,14 +1469,14 @@ int 	pqissl::senddata(void *data, int len)
 		// handled by the pqistreamer...
 		if (err == SSL_ERROR_SYSCALL)
 		{
-			rs_sprintf_append(out, "SSL_write() SSL_ERROR_SYSCALL SOCKET_DEAD -> calling reset() errno: %d ", errno);
-			out += socket_errorType(errno);
+			const int errsys = rs_last_socket_error();
+			rs_sprintf_append(out, "SSL_write() SSL_ERROR_SYSCALL SOCKET_DEAD -> calling reset() errno: %d ", errsys);
+			out += socket_errorType(errsys);
 			std::cerr << out << std::endl;
 			rslog(RSL_ALERT, pqisslzone, out);
 
 			/* extra debugging - based on SSL_get_error() man page */
 			{
-				int errsys = errno;
 				int sslerr = 0;
 				std::string out2;
 				rs_sprintf(out2, "SSL_ERROR_SYSCALL, ret == %d errno: %d %s\n", tmppktlen, errsys, socket_errorType(errsys).c_str());
@@ -1623,13 +1623,13 @@ int pqissl::readdata(void *data, int len)
 				out += "pqissl::readdata() " + PeerId().toStdString();
 				out += " SSL_read() SSL_ERROR_SYSCALL";
 				out += " SOCKET_DEAD -> calling reset()";
-				rs_sprintf_append(out, " errno: %d", errno);
-				out += " " + socket_errorType(errno);
+				const int syserr = rs_last_socket_error();
+				rs_sprintf_append(out, " errno: %d", syserr);
+				out += " " + socket_errorType(syserr);
 				rslog(RSL_ALERT, pqisslzone, out);
 
 				/* extra debugging - based on SSL_get_error() man page */
 				{
-					int syserr = errno;
 					int sslerr = 0;
 					std::string out2;
 					rs_sprintf(out2, "SSL_ERROR_SYSCALL, ret == %d errno: %d %s\n", tmppktlen, syserr, socket_errorType(syserr).c_str());
