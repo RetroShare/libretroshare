@@ -560,10 +560,10 @@ static bool find_decoded_string(const std::string& in,const std::string& suspici
 bool GetTlvString(const void *data, uint32_t size, uint32_t *offset,
 			uint16_t type, std::string &in) 
 {
-    if (!data)
+    if (!data || !offset)
         return false;
 
-    if (size < *offset)
+    if (*offset > size || size - *offset < TLV_HEADER_SIZE)
     {
 #ifdef TLV_BASE_DEBUG
         std::cerr << "GetTlvString() FAILED - not enough space" << std::endl;
@@ -579,7 +579,7 @@ bool GetTlvString(const void *data, uint32_t size, uint32_t *offset,
     uint32_t tlvsize = GetTlvSize(tlvstart);
 
     /* check that there is size */
-    if (tlvsize > size || *offset > size - tlvsize)
+    if (tlvsize < TLV_HEADER_SIZE || tlvsize > size - *offset)
     {
 #ifdef TLV_BASE_DEBUG
         std::cerr << "GetTlvString() FAILED - not enough space" << std::endl;
