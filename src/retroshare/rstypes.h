@@ -280,7 +280,7 @@ struct DirStub : RsSerializable
 struct DirDetails : RsSerializable
 {
 	DirDetails() : parent(nullptr), prow(0), ref(nullptr),
-        type(DIR_TYPE_UNKNOWN), size(0), mtime(0), max_mtime(0), count(0) {}
+        type(DIR_TYPE_UNKNOWN), size(0), mtime(0), max_mtime(0), count(0), uploads(0) {}
 
 
 	/* G10h4ck do we still need to keep this as void* instead of uint64_t for
@@ -303,6 +303,7 @@ struct DirDetails : RsSerializable
 	FileStorageFlags flags;
 	uint32_t max_mtime ;	// maximum modification time of the whole hierarchy below.
 	uint32_t count;			// cumulative number of files in the directory hierarchy.
+	uint64_t uploads;		// cumulative number of bytes uploaded for this directory/file.
 
     std::vector<DirStub> children;
     std::list<RsNodeGroupId> parent_groups;	// parent groups for the shared directory
@@ -333,6 +334,7 @@ struct DirDetails : RsSerializable
 		RS_SERIAL_PROCESS(flags);
 		RS_SERIAL_PROCESS(max_mtime);
 		RS_SERIAL_PROCESS(count);
+		RS_SERIAL_PROCESS(uploads);
 		RS_SERIAL_PROCESS(children);
 		RS_SERIAL_PROCESS(parent_groups);
 	}
