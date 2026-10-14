@@ -21,7 +21,6 @@
 ## ------------------------------------------------------------------------- ##
 
 # 3.11: FetchContent
-# 3.13: CMP0077
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
@@ -33,8 +32,10 @@ if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
 	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
 endif()
 
-set(RAPIDJSON_BUILD_EXAMPLES OFF)
-set(RAPIDJSON_BUILD_TESTS OFF)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build rapidjson examples.")
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL
+	"Build rapidjson perftests and unittests."
+)
 set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY TRUE)
 
 include(FetchContent)
