@@ -28,13 +28,23 @@ include(FetchContent)
 find_package(Git REQUIRED)
 find_package(Patch REQUIRED)
 
+set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+)
+mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+	# use the most recent commit that provides set_signal_handler
+	# TODO: update RS to use get_io_context
+	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG
+		6001a322809b5005b8bcccdf593fdda6f0173691
+	)
+endif()
+
 set(BUILD_TESTS OFF CACHE BOOL "build restbed tests")
 set(BUILD_SSL OFF CACHE BOOL "enable restbed SSL support")
 FetchContent_Declare(restbed
 	GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
-	GIT_TAG 6001a322809b5005b8bcccdf593fdda6f0173691
-	# GIT_SUBMODULES dependency/asio dependency/catch
-	# GIT_SHALLOW TRUE
+	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
 	GIT_PROGRESS TRUE
 	PATCH_COMMAND ${GIT_EXECUTABLE} reset --hard
 	COMMAND ${Patch_EXECUTABLE} -tNp1 -i

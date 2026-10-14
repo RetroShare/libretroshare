@@ -21,20 +21,26 @@
 ## ------------------------------------------------------------------------- ##
 
 # 3.11: FetchContent
+# 3.13: CMP0077
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-include(FetchContent)
-set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "Build rapidjson examples.")
-set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL
-	"Build rapidjson perftests and unittests."
+set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
 )
+mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
+endif()
+
+set(RAPIDJSON_BUILD_EXAMPLES OFF)
+set(RAPIDJSON_BUILD_TESTS OFF)
 set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY TRUE)
 
+include(FetchContent)
 FetchContent_Declare(RapidJSON
 	GIT_REPOSITORY "https://github.com/Tencent/rapidjson.git"
-	GIT_TAG "origin/master"
-	GIT_SHALLOW TRUE
+	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
 	GIT_PROGRESS TRUE
 	EXCLUDE_FROM_ALL
 )

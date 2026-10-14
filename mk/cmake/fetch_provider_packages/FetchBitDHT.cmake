@@ -24,12 +24,21 @@
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
+set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+)
+mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+	# TODO: track official BitDHT master once #3 is merged
+	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG
+		52df60f390d4cd4c1a2d5e25563396255aae6399
+	)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(BitDHT
 	GIT_REPOSITORY "https://github.com/dbear496/RetroShare_BitDHT.git"
-	GIT_TAG 52df60f390d4cd4c1a2d5e25563396255aae6399
-	# GIT_TAG "origin/cmake-refactor"
-	# GIT_SHALLOW TRUE
+	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
 	GIT_PROGRESS TRUE
 	EXCLUDE_FROM_ALL
 )

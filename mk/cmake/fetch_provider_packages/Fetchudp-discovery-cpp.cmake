@@ -23,16 +23,24 @@
 # 3.6 : FetchContent_Declare(GIT_SHALLOW)
 # 3.8 : FetchContent_Declare(GIT_PROGRESS)
 # 3.11: FetchContent
+# 3.13: CMP0077
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-set(BUILD_TEST FALSE CACHE BOOL "build udp-discovery-cpp tests")
+set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+)
+mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
+	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
+endif()
+
+set(BUILD_TEST FALSE)
 
 include(FetchContent)
 FetchContent_Declare(udp-discovery-cpp
 	GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
-	GIT_TAG "origin/master"
-	GIT_SHALLOW TRUE
+	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
 	GIT_PROGRESS TRUE
 	PATCH_COMMAND sed -i -e "s/^cmake_minimum_required(VERSION 3.0)\$/cmake_minimum_required(VERSION 3.0...4.4)/" CMakeLists.txt
 )
