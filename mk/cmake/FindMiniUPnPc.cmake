@@ -19,6 +19,7 @@
  # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 ## ---------------------------------------------------------------------- ##
 
+# 3.7 : if(VERSION_GREATER_EQUAL)
 # 3.7 : pkg_check_modules(IMPORTED_TARGET)
 # 3.9 : string(REGEX MATCH) ... CMAKE_MATCH_<n>
 # 3.11: add_library(ALIAS <IMPORTED GLOBAL>)

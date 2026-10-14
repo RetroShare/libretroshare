@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 # 3.1 : configure_package_config_file(INSTALL_PREFIX)
+# 3.7 : if(VERSION_GREATER_EQUAL)
 # 3.11: add_library() ... target_sources()
 # 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
 cmake_minimum_required(VERSION 3.11...4.4)
@@ -352,7 +353,7 @@ if(RS_USE_CALENDAR)
 endif(RS_USE_CALENDAR)
 
 if(RS_GXSWIKIPOS)
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_USE_WIKI)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_USE_WIKI)
 endif(RS_GXSWIKIPOS)
 
 if(RS_GXSTHEWIRE)

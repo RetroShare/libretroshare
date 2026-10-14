@@ -21,7 +21,8 @@
 ## ------------------------------------------------------------------------- ##
 
 # 3.1 : target_sources()
-cmake_minimum_required(VERSION 3.1...4.4)
+# 3.7 : if(VERSION_GREATER_EQUAL)
+cmake_minimum_required(VERSION 3.7...4.4)
 
 find_package(Doxygen REQUIRED)
 find_package(Python3 REQUIRED)
