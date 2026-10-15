@@ -155,6 +155,7 @@ bool RsJsonApi::parseToken(
 }
 
 JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
+    mResourceProvidersMutex("JsonApiServer resource providers"),
     mService(nullptr),
     mListeningPort(RsJsonApi::DEFAULT_PORT),
     mBindingAddress(RsJsonApi::DEFAULT_BINDING_ADDRESS),
@@ -836,7 +837,10 @@ void JsonApiServer::handleCorsOptions(
 
 void JsonApiServer::registerResourceProvider(const JsonApiResourceProvider& rp)
 {
-    mResourceProviders.insert(rp);
+    {
+        RS_STACK_MUTEX(mResourceProvidersMutex);
+        mResourceProviders.insert(rp);
+    }
 
     if(rsEvents)
     {
@@ -847,7 +851,10 @@ void JsonApiServer::registerResourceProvider(const JsonApiResourceProvider& rp)
 }
 void JsonApiServer::unregisterResourceProvider(const JsonApiResourceProvider& rp)
 {
-    mResourceProviders.erase(rp);
+    {
+        RS_STACK_MUTEX(mResourceProvidersMutex);
+        mResourceProviders.erase(rp);
+    }
 
     if(rsEvents)
     {
@@ -857,10 +864,14 @@ void JsonApiServer::unregisterResourceProvider(const JsonApiResourceProvider& rp
     }
 }
 bool JsonApiServer::hasResourceProvider(const JsonApiResourceProvider& rp)
-{ return mResourceProviders.find(rp) != mResourceProviders.end(); }
-
-const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& JsonApiServer::getResourceProviders() const
 {
+    RS_STACK_MUTEX(mResourceProvidersMutex);
+    return mResourceProviders.find(rp) != mResourceProviders.end();
+}
+
+RsJsonApi::ResourceProviderSet JsonApiServer::getResourceProviders() const
+{
+    RS_STACK_MUTEX(mResourceProvidersMutex);
     return mResourceProviders;
 }
 
@@ -868,7 +879,7 @@ std::vector<std::shared_ptr<rb::Resource> > JsonApiServer::getResources() const
 {
 	auto tab = mResources;
 
-	for(auto& rp: mResourceProviders)
+	for(auto& rp: getResourceProviders())
 		for(auto r: rp.get().getResources()) tab.push_back(r);
 
 	return tab;
