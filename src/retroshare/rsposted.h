@@ -32,6 +32,7 @@
 #include "retroshare/rsgxscommon.h"
 #include "retroshare/rsgxscircles.h"
 #include "serialiser/rsserializable.h"
+#include "serialiser/rstlvidset.h"
 
 class RsPosted;
 
@@ -45,6 +46,7 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 {
 	std::string mDescription;
 	RsGxsImage mGroupImage;
+	RsTlvGxsMsgIdSet mPinnedPosts;
 
 	/// @see RsSerializable
 	virtual void serial_process( RsGenericSerializer::SerializeJob j,
@@ -53,6 +55,7 @@ struct RsPostedGroup: public RsSerializable, RsGxsGenericGroupData
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mDescription);
 		RS_SERIAL_PROCESS(mGroupImage);
+		RS_SERIAL_PROCESS(mPinnedPosts);
 	}
 };
 
@@ -65,6 +68,10 @@ struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 
 	std::string mLink;
 	std::string mNotes;
+
+	// Latest revision shown by the blocking content APIs; mMeta retains the
+	// original thread identity, author, timestamp, read status and vote cache.
+	RsGxsMessageId mRevisionId;
 
 	bool     mHaveVoted;
 
@@ -89,6 +96,7 @@ struct RsPostedPost: public RsSerializable, RsGxsGenericMsgData
 		RS_SERIAL_PROCESS(mMeta);
 		RS_SERIAL_PROCESS(mLink);
 		RS_SERIAL_PROCESS(mNotes);
+		RS_SERIAL_PROCESS(mRevisionId);
 		RS_SERIAL_PROCESS(mHaveVoted);
 		RS_SERIAL_PROCESS(mUpVotes);
 		RS_SERIAL_PROCESS(mDownVotes);
@@ -310,6 +318,8 @@ public:
      * @param[in] image          optional post image.
      * @param[out] postId        id of the post after it's been generated
      * @param[out] error_message possible error message if the method returns false
+     * @param[in] origPostId Original post to edit; null creates a new post.
+     *                      Editing requires the board administrator key.
      * @return true if ok, false if an error occured (see error_message)
      */
     virtual bool createPostV2(const RsGxsGroupId& boardId,
@@ -319,7 +329,15 @@ public:
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
                       RsGxsMessageId& postId,
-                      std::string& error_message) =0;
+                      std::string& error_message,
+                      const RsGxsMessageId& origPostId = RsGxsMessageId()) =0;
+
+    /** Pin or unpin a post for everyone. Blocking, administrator-only API.
+     * @jsonapi{development}
+     */
+    virtual bool setPostPinned(const RsGxsGroupId& boardId,
+                              const RsGxsMessageId& postId, bool pinned,
+                              std::string& errorMessage) =0;
 
     /** @brief Add a comment on a post or on another comment. Blocking API.
      * @jsonapi{development}

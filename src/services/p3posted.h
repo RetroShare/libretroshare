@@ -101,7 +101,12 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
                       const RsGxsId& authorId,
                       const RsGxsImage& image,
                       RsGxsMessageId& postId,
-                      std::string& error_message) override;
+                      std::string& error_message,
+                      const RsGxsMessageId& origPostId = RsGxsMessageId()) override;
+
+    bool setPostPinned(const RsGxsGroupId& boardId,
+                       const RsGxsMessageId& postId, bool pinned,
+                       std::string& errorMessage) override;
 
     bool voteForPost(const RsGxsGroupId& boardId,
                      const RsGxsMessageId& postMsgId,
@@ -195,6 +200,8 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
 	}
 
 protected:
+    bool service_requiresAdminSignature(const RsGxsMsgMetaData& meta) const override;
+
     virtual void notifyChanges(std::vector<RsGxsNotify*>& changes) override
     {
         return p3PostBase::notifyChanges(changes);
@@ -202,6 +209,7 @@ protected:
 
 
 private:
+    RsMutex mPinUpdateMutex{"Posted pin updates"};
     // private part of blocking API
     bool vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::string& errorMessage);
 };
