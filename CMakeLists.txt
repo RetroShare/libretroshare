@@ -7,6 +7,7 @@
 
 # 3.1 : configure_package_config_file(INSTALL_PREFIX)
 # 3.7 : if(VERSION_GREATER_EQUAL)
+# 3.10: string(PREPEND)
 # 3.11: add_library() ... target_sources()
 # 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
 cmake_minimum_required(VERSION 3.11...4.4)
@@ -24,6 +25,7 @@ project(retroshare
 	LANGUAGES CXX C
 )
 
+set(PROJECT_NAME_PRETTY "libRetroShare")
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 
 
@@ -206,11 +208,12 @@ option(
 	our implementation"
 	OFF )
 
-set(
-	RS_EXTRA_VERSION
+set(RS_VERSION_SUFFIX
 	""
 	CACHE STRING
-	"Specify an extra string to append to RetroShare version to make it more descriptive" )
+	"Custom version suffix; useful for downstream packaging."
+)
+
 
 ################################################################################
 ### dependencies
@@ -229,44 +232,30 @@ find_package(ZLIB REQUIRED)
 ################################################################################
 ### version
 
-set(LIBRS_MAJOR_VERSION "${PROJECT_VERSION_MAJOR}")
-set(LIBRS_MINOR_VERSION "${PROJECT_VERSION_MINOR}")
-set(LIBRS_MINI_VERSION "${PROJECT_VERSION_PATCH}")
-if(DEFINED RS_EXTRA_VERSION AND NOT (RS_EXTRA_VERSION STREQUAL ""))
-	set(LIBRS_EXTRA_VERSION "${RS_EXTRA_VERSION}")
+if(NOT PROJECT_VERSION)
+	message(SEND_ERROR "${PROJECT_NAME_PRETTY} version seems to be missing!")
+endif()
+if(DEFINED RS_VERSION_SUFFIX AND NOT (RS_VERSION_SUFFIX STREQUAL ""))
+	set(PROJECT_VERSION_FULL "${PROJECT_VERSION}-${RS_VERSION_SUFFIX}")
 else()
 	include(GetGitRevisionDescription)
-	git_describe_working_tree(V_GIT_DESCRIBE
-		--tags --long --always --dirty --match v*.*.*
-	)
-	if(NOT V_GIT_DESCRIBE)
-		set(LIBRS_EXTRA_VERSION "-unknown")
-	elseif(V_GIT_DESCRIBE MATCHES "^v([0-9]+).([0-9]+).([0-9]+)(.*)$")
-		if(NOT (
-			CMAKE_MATCH_1 EQUAL PROJECT_VERSION_MAJOR AND
-			CMAKE_MATCH_2 EQUAL PROJECT_VERSION_MINOR AND
-			CMAKE_MATCH_3 EQUAL PROJECT_VERSION_PATCH
-		))
-			message(WARNING "libRetroShare version mismatch!"
-				" libRetroShare version is ${PROJECT_VERSION},"
-				" but git describe returned ${V_GIT_DESCRIBE}."
+	git_describe_working_tree(PROJECT_VERSION_FULL --dirty --match "v*.*.*")
+	if(PROJECT_VERSION_FULL AND EXISTS ${PROJECT_SOURCE_DIR}/.git)
+		string(SUBSTRING ${PROJECT_VERSION_FULL} 1 -1 PROJECT_VERSION_FULL)
+		string(FIND ${PROJECT_VERSION_FULL}- ${PROJECT_VERSION}- pos)
+		if(NOT pos EQUAL 0)
+			message(WARNING "${PROJECT_NAME_PRETTY} version mismatch!"
+				" Declared version is ${PROJECT_VERSION},"
+				" but git describe returned ${PROJECT_VERSION_FULL}."
 			)
+			string(PREPEND PROJECT_VERSION *)
+			string(PREPEND PROJECT_VERSION_FULL *)
 		endif()
-		set(LIBRS_MAJOR_VERSION ${CMAKE_MATCH_1})
-		set(LIBRS_MINOR_VERSION ${CMAKE_MATCH_2})
-		set(LIBRS_MINI_VERSION ${CMAKE_MATCH_3})
-		set(LIBRS_EXTRA_VERSION ${CMAKE_MATCH_4})
 	else()
-		set(LIBRS_EXTRA_VERSION "-${V_GIT_DESCRIBE}")
+		set(PROJECT_VERSION_FULL "${PROJECT_VERSION}-unknown")
 	endif()
 endif()
-string(CONCAT LIBRS_FULL_VERSION
-	${LIBRS_MAJOR_VERSION}
-	.${LIBRS_MINOR_VERSION}
-	.${LIBRS_MINI_VERSION}
-	"${LIBRS_EXTRA_VERSION}"
-)
-message(STATUS "libRetroShare version ${LIBRS_FULL_VERSION}")
+message(STATUS "${PROJECT_NAME_PRETTY} version: ${PROJECT_VERSION_FULL}")
 
 
 ################################################################################
@@ -319,11 +308,7 @@ target_link_libraries(${PROJECT_NAME}
 
 target_compile_definitions(${PROJECT_NAME}
 	PUBLIC
-	"LIBRS_FULL_VERSION=${LIBRS_FULL_VERSION}"
-	"LIBRS_MAJOR_VERSION=${LIBRS_MAJOR_VERSION}"
-	"LIBRS_MINOR_VERSION=${LIBRS_MINOR_VERSION}"
-	"LIBRS_MINI_VERSION=${LIBRS_MINI_VERSION}"
-	"LIBRS_EXTRA_VERSION=${LIBRS_EXTRA_VERSION}"
+	CMAKE
 	PRIVATE
 	SQLITE_HAS_CODEC
 	RS_ENABLE_GXS

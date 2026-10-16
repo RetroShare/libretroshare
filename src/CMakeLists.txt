@@ -67,7 +67,6 @@ list(APPEND RS_PUBLIC_HEADERS
 	retroshare/rsgxscommon.h
 	retroshare/rsposted.h
 	retroshare/rsstatus.h
-	retroshare/rsversion.h
 	retroshare/rsgxsifacehelper.h
 	retroshare/rshistory.h
 	retroshare/rsidentity.h
@@ -901,6 +900,7 @@ target_sources(${PROJECT_NAME}
 )
 
 
+add_subdirectory(retroshare)
 if(RS_JSON_API)
 	add_subdirectory(jsonapi)
 endif(RS_JSON_API)

@@ -145,6 +145,7 @@ PUBLIC_HEADERS =	retroshare/rsdisc.h \
 					retroshare/rsrtt.h \
 					retroshare/rsconfig.h \
 					retroshare/rsversion.h \
+					retroshare/rsversion-old.h \
 					retroshare/rsservicecontrol.h \
 					retroshare/rsgxsdistsync.h
 
