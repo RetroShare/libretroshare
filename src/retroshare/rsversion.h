@@ -21,7 +21,7 @@
 \* ------------------------------------------------------------------------- */
 
 #ifdef CMAKE
-#include "rsversion-cmake.h"
+#include "retroshare/rsversion-cmake.h"
 #else
-#include "rsversion-qmake.h"
+#include "retroshare/rsversion-qmake.h"
 #endif

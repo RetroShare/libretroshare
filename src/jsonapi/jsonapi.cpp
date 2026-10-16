@@ -167,7 +167,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 	RsThread::setStopTimeout(10);
 #endif
 
-#if !RS_VERSION_AT_LEAST(0,6,6)
+#if !RS_VERSION_ATLEAST(0,6,6,0)
 	registerHandler("/rsLoginHelper/createLocation",
 	                [this](const std::shared_ptr<rb::Session> session)
 	{
@@ -218,7 +218,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 			DEFAULT_API_CALL_JSON_RETURN(rb::OK);
 		} );
 	}, false);
-#endif // !RS_VERSION_AT_LEAST(0,6,6)
+#endif // !RS_VERSION_ATLEAST(0,6,6,0)
 
 	registerHandler("/rsLoginHelper/createLocationV2",
 	                [this](const std::shared_ptr<rb::Session> session)
@@ -997,7 +997,7 @@ void JsonApiServer::run()
 	// so major.minor.patch-extra might be a frankenstein
 	extra = full;
 	extra.erase(0, extra.find("-"));
-	extra.insert("-x"); // mark the deprecation
+	extra.insert(0, "-x"); // mark the deprecation
 #ifdef RS_VERSION_TWEAK
 	extra.insert(0, "." + std::to_string(RS_VERSION_TWEAK));
 #endif

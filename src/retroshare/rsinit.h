@@ -511,7 +511,7 @@ public:
 	 */
 	bool isLoggedIn();
 
-#if !RS_VERSION_AT_LEAST(0,6,6)
+#if !RS_VERSION_ATLEAST(0,6,6,0)
 	/**
 	 * @deprecated Use @see createLocationV2 instead
 	 * @brief Creates a new RetroShare location, and log in once is created
@@ -530,7 +530,7 @@ public:
 	bool createLocation( RsLoginHelper::Location& location,
 	                     const std::string& password, std::string& errorMessage,
 	                     bool makeHidden = false, bool makeAutoTor = false );
-#endif // !RS_VERSION_AT_LEAST(0,6,6)
+#endif // !RS_VERSION_ATLEAST(0,6,6,0)
 
     /**
      * @brief askForPassword	Requests the PGP passphrase for all sorts of uses: signing identities, signing messages, etc.
@@ -562,4 +562,3 @@ public:
 
     static bool cachePgpPassphrase(const std::string& passwd);
 };
-

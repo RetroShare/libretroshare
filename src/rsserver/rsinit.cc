@@ -302,7 +302,7 @@ bool doPortRestrictions = false;
  */
 const char*
 RsInit::libRetroShareVersion() {
-	return RS_PRIVATE_STRINGIFY(LIBRS_FULL_VERSION);
+  return RS_VERSION_FULL;
 }
 
 /********
@@ -2266,7 +2266,7 @@ std::error_condition RsLoginHelper::createLocationV2(
 	return (ret ? std::error_condition() : RsInitErrorNum::LOGIN_FAILED);
 }
 
-#if !RS_VERSION_AT_LEAST(0,6,6)
+#if !RS_VERSION_ATLEAST(0,6,6,0)
 bool RsLoginHelper::createLocation(
         RsLoginHelper::Location& l, const std::string& password,
         std::string& errorMessage, bool makeHidden, bool makeAutoTor )
@@ -2308,7 +2308,7 @@ bool RsLoginHelper::createLocation(
 	rsNotify->setDisableAskPassword(false);
 	return ret;
 }
-#endif // !RS_VERSION_AT_LEAST(0,6,6)
+#endif // !RS_VERSION_ATLEAST(0,6,6,0)
 
 bool RsLoginHelper::isLoggedIn()
 {
