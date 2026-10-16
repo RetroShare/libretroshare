@@ -171,6 +171,11 @@ private:
     void deleteNode(DirectoryStorage::EntryIndex);
     void deleteFileNode(DirectoryStorage::EntryIndex);
 
+    // Recomputes the row of every child of d (sub-directories first, then files). Must be called after
+    // any change to d.subdirs or d.subfiles.
+
+    void updateChildRows(DirEntry& d);
+
     // Removes the given subdirectory from the parent node and all its pendign subdirs. Files are kept, and will go during the cleaning
     // phase. That allows to keep file information when moving them around.
 
