@@ -604,5 +604,14 @@ public:
 	RS_DEPRECATED_FOR(sendMail)
     virtual bool MessageSend(Rs::Mail::MessageInfo &info) = 0;
 
+	/**
+	 * @brief addMessage
+	 * @jsonapi{development}
+	 * @param[in] info message info to add
+	 * @param[in] box box to add the message to
+	 * @return true on success
+	 */
+    virtual bool addMessage(const Rs::Mail::MessageInfo &info, Rs::Mail::BoxName box) = 0;
+
     virtual ~RsMail() = default;
 };
