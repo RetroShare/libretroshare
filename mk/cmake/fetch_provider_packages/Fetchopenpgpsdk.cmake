@@ -24,22 +24,22 @@
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
-	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+set(FETCH_openpgpsdk_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching openpgpsdk"
 )
-mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
+mark_as_advanced(FETCH_openpgpsdk_GIT_TAG)
+if(NOT FETCH_openpgpsdk_GIT_TAG)
+	set(FETCH_openpgpsdk_GIT_TAG origin/master)
 endif()
 
 include(FetchContent)
 FetchContent_Declare(openpgpsdk
 	GIT_REPOSITORY "https://github.com/RetroShare/OpenPGP-SDK.git"
-	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
+	GIT_TAG ${FETCH_openpgpsdk_GIT_TAG}
 	GIT_PROGRESS TRUE
 	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(openpgpsdk)
-set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
+set(openpgpsdk_FOUND TRUE)
 
 add_library(openpgpsdk::openpgpsdk ALIAS openpgpsdk)

@@ -24,23 +24,23 @@
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
-	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+set(FETCH_asio_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching asio"
 )
-mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
+mark_as_advanced(FETCH_asio_GIT_TAG)
+if(NOT FETCH_asio_GIT_TAG)
+	set(FETCH_asio_GIT_TAG origin/master)
 endif()
 
 include(FetchContent)
 FetchContent_Declare(asio
 	GIT_REPOSITORY "https://github.com/chriskohlhoff/asio.git"
-	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
+	GIT_TAG ${FETCH_asio_GIT_TAG}
 	GIT_PROGRESS TRUE
 	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(asio)
-set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
+set(asio_FOUND TRUE)
 
-set(${FETCH_PROVIDER_PACKAGE_NAME}_INCLUDE "${asio_SOURCE_DIR}/include")
+set(asio_INCLUDE "${asio_SOURCE_DIR}/include")
 add_compile_definitions(ASIO_STANDALONE=YES)

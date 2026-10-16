@@ -24,22 +24,22 @@
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
-	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+set(FETCH_jni.hpp_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching jni.hpp"
 )
-mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
+mark_as_advanced(FETCH_jni.hpp_GIT_TAG)
+if(NOT FETCH_jni.hpp_GIT_TAG)
+	set(FETCH_jni.hpp_GIT_TAG origin/master)
 endif()
 
 include(FetchContent)
 FetchContent_Declare(jni.hpp
 	GIT_REPOSITORY "https://github.com/RetroShare/jni.hpp.git"
-	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
+	GIT_TAG ${FETCH_jni.hpp_GIT_TAG}
 	GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(jni.hpp)
-set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
+set(jni.hpp_FOUND TRUE)
 
 add_library(jni.hpp::jni.hpp INTERFACE IMPORTED)
 target_include_directories(jni.hpp::jni.hpp INTERFACE

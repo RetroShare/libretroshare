@@ -24,22 +24,22 @@
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
-	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+set(FETCH_rnp_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching rnp"
 )
-mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/main)
+mark_as_advanced(FETCH_rnp_GIT_TAG)
+if(NOT FETCH_rnp_GIT_TAG)
+	set(FETCH_rnp_GIT_TAG origin/main)
 endif()
 
 include(FetchContent)
 FetchContent_Declare(rnp
 	GIT_REPOSITORY "https://github.com/rnpgp/rnp.git"
-	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
+	GIT_TAG ${FETCH_rnp_GIT_TAG}
 	GIT_PROGRESS TRUE
 	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(rnp)
-set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
+set(rnp_FOUND TRUE)
 
 add_library(rnp::librnp ALIAS librnp)

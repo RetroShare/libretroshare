@@ -27,12 +27,12 @@
 # 3.14: FetchContent_MakeAvailable()
 cmake_minimum_required(VERSION 3.14...4.4)
 
-set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG "" CACHE STRING
-	"git tag to use for fetching ${FETCH_PROVIDER_PACKAGE_NAME}"
+set(FETCH_udp-discovery-cpp_GIT_TAG "" CACHE STRING
+	"git tag to use for fetching udp-discovery-cpp"
 )
-mark_as_advanced(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-if(NOT Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG)
-	set(Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG origin/master)
+mark_as_advanced(FETCH_udp-discovery-cpp_GIT_TAG)
+if(NOT FETCH_udp-discovery-cpp_GIT_TAG)
+	set(FETCH_udp-discovery-cpp_GIT_TAG origin/master)
 endif()
 
 set(BUILD_TEST FALSE)
@@ -40,12 +40,12 @@ set(BUILD_TEST FALSE)
 include(FetchContent)
 FetchContent_Declare(udp-discovery-cpp
 	GIT_REPOSITORY "https://github.com/truvorskameikin/udp-discovery-cpp.git"
-	GIT_TAG ${Fetch${FETCH_PROVIDER_PACKAGE_NAME}_GIT_TAG}
+	GIT_TAG ${FETCH_udp-discovery-cpp_GIT_TAG}
 	GIT_PROGRESS TRUE
 	PATCH_COMMAND sed -i -e "s/^cmake_minimum_required(VERSION 3.0)\$/cmake_minimum_required(VERSION 3.0...4.4)/" CMakeLists.txt
 )
 FetchContent_MakeAvailable(udp-discovery-cpp)
-set(${FETCH_PROVIDER_PACKAGE_NAME}_FOUND TRUE)
+set(udp-discovery-cpp_FOUND TRUE)
 
 add_library(udp-discovery-cpp::udp-discovery ALIAS udp-discovery)
 
