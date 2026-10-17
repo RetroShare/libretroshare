@@ -156,6 +156,22 @@ int InternalFileHierarchyStorage::parentRow(DirectoryStorage::EntryIndex e)
     return mNodes[mNodes[e]->parent_index]->row;
 }
 
+// The row of a node is its position in the children of its parent, in the order getChildIndex() uses:
+// sub-directories first, then files. The GUI rebuilds the QModelIndex of a parent from it (see
+// parentRow()), so it must be recomputed whenever a children list is modified: additions append,
+// removals swap with the last element.
+
+void InternalFileHierarchyStorage::updateChildRows(DirEntry& d)
+{
+    for(uint32_t i=0;i<d.subdirs.size();++i)
+        if(mNodes[d.subdirs[i]] != NULL)
+            mNodes[d.subdirs[i]]->row = i ;
+
+    for(uint32_t i=0;i<d.subfiles.size();++i)
+        if(mNodes[d.subfiles[i]] != NULL)
+            mNodes[d.subfiles[i]]->row = d.subdirs.size() + i ;
+}
+
 // high level modification routines
 
 bool InternalFileHierarchyStorage::isIndexValid(DirectoryStorage::EntryIndex e) const
@@ -215,6 +231,8 @@ bool InternalFileHierarchyStorage::updateSubDirectoryList(
         mNodes.push_back(de) ;
     }
 
+    updateChildRows(d) ;
+
     return true;
 }
 
@@ -273,6 +291,7 @@ bool InternalFileHierarchyStorage::removeDirectory(DirectoryStorage::EntryIndex 
             parent_dir.subdirs.pop_back();
 
             recursRemoveDirectory(indx) ;
+            updateChildRows(parent_dir) ;
 #ifdef DEBUG_DIRECTORY_STORAGE
             print();
             std::string err ;
@@ -360,6 +379,9 @@ bool InternalFileHierarchyStorage::updateSubFilesList(
         mTotalSize  += it->second.size;
         mTotalFiles += 1;
     }
+
+    updateChildRows(d) ;
+
     return true;
 }
 bool InternalFileHierarchyStorage::updateHash(
@@ -613,19 +635,16 @@ bool InternalFileHierarchyStorage::updateDirEntry(
 
     // now update row and parent index for all subnodes
 
-    uint32_t n=0;
     for(uint32_t i=0;i<d.subdirs.size();++i)
     {
         static_cast<DirEntry*>(mNodes[d.subdirs[i]])->dir_update_time = 0 ;	// force the update of the subdir.
 
         mNodes[d.subdirs[i]]->parent_index = indx ;
-        mNodes[d.subdirs[i]]->row = n++ ;
     }
     for(uint32_t i=0;i<d.subfiles.size();++i)
-    {
         mNodes[d.subfiles[i]]->parent_index = indx ;
-        mNodes[d.subfiles[i]]->row = n++ ;
-    }
+
+    updateChildRows(d) ;
 
 
     return true;
@@ -1275,6 +1294,11 @@ bool InternalFileHierarchyStorage::load(const std::string& fname)
 
         if(!check(err_str))
             std::cerr << "(EE) Error while loading file hierarchy " << fname << std::endl;
+
+        // Lists saved by earlier versions carry wrong rows for local directories (see updateChildRows()).
+        for(uint32_t i=0;i<mNodes.size();++i)
+            if(mNodes[i] != NULL && mNodes[i]->type() == FileStorageNode::TYPE_DIR)
+                updateChildRows(*static_cast<DirEntry*>(mNodes[i])) ;
 
         recursUpdateCumulatedSize(mRoot);
 
