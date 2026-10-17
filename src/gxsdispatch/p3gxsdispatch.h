@@ -41,17 +41,21 @@
 //      - multi peers secured distant chat. 
 //
 
+#pragma once
+
 #include <retroshare/rsids.h>
 #include <retroshare/rsgxstunnel.h>
+#include <retroshare/rsgxsdispatch.h>
 #include <services/p3service.h>
 
 typedef uint64_t RsGxsDispatchDataId;
+class RsGxsDispatchItem;
 
 struct DispatchEntry: public RsGxsDispatchInfo
 {
     // Routing information
 
-    std::map<RsDispatchDataId,rstime_t> msg_cache ;		// dispatch data ids with time. Used in the bouncing algorithm.
+    std::map<RsGxsDispatchDataId,rstime_t> msg_cache ;	// dispatch data ids with time. Used in the bouncing algorithm.
     std::map<RsGxsTunnelId,RsGxsId> tunnelled_ids ;		// list ids directly connected by tunnels. Used to broadcast sent messages.
 };
 
@@ -65,10 +69,10 @@ class p3GxsDispatch: public p3Service, public RsGxsTunnelService::RsGxsTunnelCli
 
         bool createGxsDispatch(const RsGxsId& own_id,const std::list<RsGxsId>& participants,uint32_t service_id,RsGxsDispatchId& dispatch_id) override;
         bool leaveGxsDispatch(RsGxsDispatchId dispatch_id) override;
-        bool sendData(void *data,uint32_t size) override;
+        bool sendData(RsGxsDispatchId dispatch_id,void *data,uint32_t size) override;
 
         bool registerClientService(uint32_t service_id,RsGxsDispatchClient *client) const override;
-        bool getDispatchInfo(RsGxsDispatchId id) const override;
+        bool getDispatchInfo(RsGxsDispatchId id,RsGxsDispatchInfo& info) const override;
                 
     protected:
 
@@ -80,16 +84,20 @@ class p3GxsDispatch: public p3Service, public RsGxsTunnelService::RsGxsTunnelCli
         // derived from RsGxsTunnelClient
 
         virtual void notifyTunnelStatus(const RsGxsTunnelId& tunnel_id,uint32_t tunnel_status);
-        virtual void receiveData(const RsGxsTunnelId& id,unsigned char *data,uint32_t data_size);
+        virtual void receiveData(const RsGxsTunnelId& tunnel_id, unsigned char *data, uint32_t data_size);
         virtual void connectToGxsTunnelService(RsGxsTunnelService *tunnel_service);
         virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTunnelId& tunnel_id,bool am_I_client_side);
 
     private:
+        void handleIncomingItem(RsGxsDispatchItem *item);
+
         std::map<RsGxsDispatchId,DispatchEntry> _dispatches;
-        std::map<uint32_t,RsGxsDispatchClient *> _clients;
+        std::map<uint32_t,RsGxsDispatchClient *> _clients;		// in the future think about using multiple clients for the same ID?
 
         bool managePeers(); // peer management for each dispatch: requests new tunnels, close inactive ones etc.
         void debug_dump();
+
+        RsMutex mDispatchMtx;
 };
 
 

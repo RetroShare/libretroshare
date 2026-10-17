@@ -43,20 +43,21 @@
  */
 enum class RsGenericIdType
 {
-	SSL,
-	PGP_ID,
-	SHA1,
-	PGP_FINGERPRINT,
-	GXS_GROUP,
-	GXS_ID,
-	GXS_MSG,
-	GXS_CIRCLE,
-	GROUTER,
-	GXS_TUNNEL,
-	DISTANT_CHAT,
-	NODE_GROUP,
-	SHA256,
-	BIAS_20_BYTES
+    SSL               = 0x0001,
+    PGP_ID            = 0x0002,
+    SHA1              = 0x0003,
+    PGP_FINGERPRINT   = 0x0004,
+    GXS_GROUP         = 0x0005,
+    GXS_ID            = 0x0006,
+    GXS_MSG           = 0x0007,
+    GXS_CIRCLE        = 0x0008,
+    GROUTER           = 0x0009,
+    GXS_TUNNEL        = 0x000a,
+    GXS_DISPATCH      = 0x000b,
+    DISTANT_CHAT      = 0x000c,
+    NODE_GROUP        = 0x000d,
+    SHA256            = 0x000e,
+    BIAS_20_BYTES     = 0x000f
 };
 
 /**
@@ -349,6 +350,7 @@ using RsGxsMessageId    = t_RsGenericIdType<_RsIdSize::SHA1           , false, R
 using RsGxsId           = t_RsGenericIdType<_RsIdSize::CERT_SIGN      , false, RsGenericIdType::GXS_ID         >;
 using RsGxsCircleId     = t_RsGenericIdType<_RsIdSize::CERT_SIGN      , false, RsGenericIdType::GXS_CIRCLE     >;
 using RsGxsTunnelId     = t_RsGenericIdType<_RsIdSize::SSL_ID         , false, RsGenericIdType::GXS_TUNNEL     >;
+using RsGxsDispatchId   = t_RsGenericIdType<_RsIdSize::SSL_ID         , false, RsGenericIdType::GXS_DISPATCH   >;
 using DistantChatPeerId = t_RsGenericIdType<_RsIdSize::SSL_ID         , false, RsGenericIdType::DISTANT_CHAT   >;
 using RsNodeGroupId     = t_RsGenericIdType<_RsIdSize::CERT_SIGN      , false, RsGenericIdType::NODE_GROUP     >;
 

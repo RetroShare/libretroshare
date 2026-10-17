@@ -17,11 +17,11 @@
 //		2 - create new dispatches. Request the status to know whether you can tlk to them or not.
 //
 
+#pragma once
+
 #include <retroshare/rsids.h>
 #include <retroshare/rsgxstunnel.h>
 #include <services/p3service.h>
-
-typedef uint64_t RsGxsDispatchId;
 
 struct RsGxsDispatchInfo
 {
@@ -46,12 +46,18 @@ class RsGxsDispatchClient
 class RsGxsDispatch
 {
     public:
-        bool createGxsDispatch(const RsGxsId& own_id,const std::list<RsGxsId>& participants,uint32_t service_id,RsGxsDispatchId& dispatch_id) =0;
-        bool leaveGxsDispatch(RsGxsDispatchId dispatch_id) =0;
-        bool sendData(RsGxsDispatchId dispatch_id,void *data,uint32_t size) =0;
+        enum class DispatchStatus: int8_t {
+            STATUS_UNKNOWN       = 0x00,
+            STATUS_NOT_CONNECTED = 0x01,
+            STATUS_CONNECTED     = 0x02
+        };
 
-        bool registerClientService(uint32_t service_id,RsGxsDispatchClient *client) const =0;
-        bool getDispatchInfo(RsGxsDispatchId id,RsGxsDispatchInfo& info) const =0;
+        virtual bool createGxsDispatch(const RsGxsId& own_id,const std::list<RsGxsId>& participants,uint32_t service_id,RsGxsDispatchId& dispatch_id) =0;
+        virtual bool leaveGxsDispatch(RsGxsDispatchId dispatch_id) =0;
+        virtual bool sendData(RsGxsDispatchId dispatch_id,void *data,uint32_t size) =0;
+
+        virtual bool registerClientService(uint32_t service_id,RsGxsDispatchClient *client) const =0;
+        virtual bool getDispatchInfo(RsGxsDispatchId id,RsGxsDispatchInfo& info) const =0;
 };
 
 RsGxsDispatch *rsGxsDispatch = nullptr;
