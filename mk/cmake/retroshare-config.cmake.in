@@ -28,7 +28,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/Modules)
 
 include(CMakeFindDependencyMacro)
 find_dependency(RapidJSON)
-include(${CMAKE_CURRENT_LIST_DIR}/Modules/RapidJSONTarget.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/Modules/FixRapidJSONTarget.cmake)
 
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME_LOWER@-targets.cmake")
 

@@ -445,6 +445,7 @@ endif()
 
 if(RS_RNPLIB)
 	find_package(rnp REQUIRED)
+	include(FixRnpDeps)
 
 	target_link_libraries(${PROJECT_NAME} PUBLIC rnp::librnp)
 else()
@@ -483,7 +484,7 @@ endif(RS_BITDHT)
 ### RapidJSON
 
 find_package(RapidJSON 1.1.0 REQUIRED)
-include(RapidJSONTarget)
+include(FixRapidJSONTarget)
 target_link_libraries(${PROJECT_NAME} PUBLIC RapidJSON)
 
 ################################################################################

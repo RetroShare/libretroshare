@@ -1,5 +1,5 @@
 ## ------------------------------------------------------------------------- ##
- # mk/cmake/RapidJSONTarget.cmake
+ # mk/cmake/FixRapidJSONTarget.cmake
  # This file is part of libRetroShare.
  #
  # Copyright (C) 2026      David Bears <dbear4q@gmail.com>
