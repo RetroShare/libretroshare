@@ -30,8 +30,6 @@ if(NOT TARGET rnp::librnp)
 	return()
 endif()
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/FixRnpDeps.Modules)
-
 set(rnp_dep_package_Botan::Botan Botan 2.14.0)
 set(rnp_dep_package_BZip2::BZip2 BZip2)
 set(rnp_dep_package_JSON-C::JSON-C JSON-C 0.11)
@@ -71,6 +69,7 @@ if(rnp_missing_deps)
 		"1a597a67.\n"
 	)
 
+	list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/FixRnpDeps.Modules)
 	foreach(rnp_missing_target ${rnp_missing_deps})
 		find_package(${rnp_dep_package_${rnp_missing_target}})
 	endforeach()
