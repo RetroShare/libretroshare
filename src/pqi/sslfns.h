@@ -79,7 +79,7 @@ X509_REQ *GenerateX509Req(
 		std::string loc, std::string state, std::string country, 
 		int nbits_in, std::string &errString);
 
-X509 *SignX509Certificate(X509_NAME *issuer, EVP_PKEY *privkey, X509_REQ *req, long days);
+X509 *SignX509Certificate(const X509_NAME *issuer, EVP_PKEY *privkey, X509_REQ *req, long days);
 
 /********************************************************************************/
 /********************************************************************************/
@@ -119,12 +119,12 @@ bool getX509id(X509 *x509, RsPeerId &xid);
 
 int pem_passwd_cb(char *buf, int size, int rwflag, void *password);
 
-std::string getX509NameString(X509_NAME *name);
-std::string getX509CNString(X509_NAME *name);
-std::string getX509TypeString(X509_NAME *name, const char *type, int len);
-std::string getX509LocString(X509_NAME *name);
-std::string getX509OrgString(X509_NAME *name);
-std::string getX509CountryString(X509_NAME *name);
+std::string getX509NameString(const X509_NAME *name);
+std::string getX509CNString(const X509_NAME *name);
+std::string getX509TypeString(const X509_NAME *name, const char *type, int len);
+std::string getX509LocString(const X509_NAME *name);
+std::string getX509OrgString(const X509_NAME *name);
+std::string getX509CountryString(const X509_NAME *name);
 std::string getX509Info(X509 *cert);
 
 uint64_t getX509SerialNumber(X509 *cert);
