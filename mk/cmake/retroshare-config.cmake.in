@@ -30,6 +30,14 @@ include(CMakeFindDependencyMacro)
 find_dependency(RapidJSON)
 include(${CMAKE_CURRENT_LIST_DIR}/Modules/FixRapidJSONTarget.cmake)
 
-include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME_LOWER@-targets.cmake")
+@PACKAGE_DEPENDENCIES@
+
+include(IncludeNrsMacro)
+include_nrs(
+	"${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME_LOWER@-targets.cmake"
+	NO_RETURN_SCOPE # targets.cmake might call `return()` in `find_dependency()`
+)
+
+include(FixRnpDeps)
 
 check_required_components("${PACKAGE_FIND_NAME}")

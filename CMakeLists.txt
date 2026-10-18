@@ -10,6 +10,8 @@
 # 3.10: string(PREPEND)
 # 3.11: add_library() ... target_sources()
 # 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
+# 3.12: list(JOIN)
+# 3.12: list(TRANSFORM)
 cmake_minimum_required(VERSION 3.11...4.4)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
@@ -220,8 +222,6 @@ set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(BZip2 REQUIRED)
-find_package(ZLIB REQUIRED)
 
 
 ################################################################################
@@ -623,13 +623,11 @@ set(BUILD_CONFIG_DIR "${PROJECT_BINARY_DIR}/cmake")
 set(INSTALL_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 set(TARGET_NAMESPACE retroshare)
 set(INSTALL_COMPONENT COMPONENT libretroshare)
-if(CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_DEPENDENCIES)
-	set(EXPORT_PACKAGE_DEPENDENCIES EXPORT_PACKAGE_DEPENDENCIES)
-endif()
 
 file(GLOB INSTALL_MODULES LIST_DIRECTORIES FALSE
 	"${PROJECT_SOURCE_DIR}/mk/cmake/*"
 	"${PROJECT_SOURCE_DIR}/mk/cmake/fetch_provider_packages/*"
+	"${PROJECT_SOURCE_DIR}/mk/cmake/FixRnpDeps.Modules/*"
 )
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
@@ -676,6 +674,30 @@ install(TARGETS ${PROJECT_NAME}
 # If dependencies are fetched via FetchContent, then their targets might not
 # have export sets, and this prevents us from using our own export set.
 if(NOT FETCH_DEPENDENCY_PROVIDER)
+
+	if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
+		set(CMAKE_EXPERIMENTAL_EXPORT_PACKAGE_DEPENDENCIES
+			1942b4fa-b2c5-4546-9385-83f254070067
+			CACHE STRING ""
+		)
+		set(EXPORT_PACKAGE_DEPENDENCIES EXPORT_PACKAGE_DEPENDENCIES)
+		set(PACKAGE_DEPENDENCIES "")
+	else()
+		set(PACKAGE_DEPENDENCIES
+			"Threads" "OpenSSL" "Xapian" "sam3" "rnp" "openpgpsdk" "BitDHT"
+			"RapidJSON 1.1.0" "SQLite3" "MiniUPnPc" "udp-discovery-cpp" "cpptrace"
+			"jni.hpp" "restbed"
+		)
+		list(TRANSFORM PACKAGE_DEPENDENCIES REPLACE ".*" "find_dependency(\\0)")
+		if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+			list(PREPEND PACKAGE_DEPENDENCIES "include(CMakeFindDependencyMacro)")
+		else()
+			list(APPEND PACKAGE_DEPENDENCIES "include(CMakeFindDependencyMacro)")
+			list(REVERSE PACKAGE_DEPENDENCIES)
+		endif()
+		list(JOIN PACKAGE_DEPENDENCIES "\n" PACKAGE_DEPENDENCIES)
+	endif()
+
 	## config for install tree
 	install(EXPORT ${PROJECT_NAME}_export
 		DESTINATION "${INSTALL_CONFIG_DIR}"
