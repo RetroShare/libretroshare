@@ -62,7 +62,9 @@ macro(include_nrs file)
 	if(NOT include_nrs_NO_POLICY_SCOPE)
 		list(APPEND include_nrs_scopes POLICIES)
 	endif()
-	if(NOT include_nrs_NO_DIAGNOSTIC_SCOPE)
+	if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.4 AND
+		NOT include_nrs_NO_DIAGNOSTIC_SCOPE
+	)
 		list(APPEND include_nrs_scopes DIAGNOSTICS)
 	endif()
 

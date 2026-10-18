@@ -28,7 +28,7 @@ function(cdefine macro)
 	if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.4)
 		set(PARSE_ARGN PARSE_ARGN)
 	else()
-		set(PARSE_ARGN PARSE_ARGV 2)
+		set(PARSE_ARGN PARSE_ARGV 1)
 	endif()
 	cmake_parse_arguments(${PARSE_ARGN} cdefine
 		"VALID_0;STRING"

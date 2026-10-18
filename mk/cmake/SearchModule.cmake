@@ -66,7 +66,7 @@ function(search_module module result)
 		endif()
 	endif()
 
-	foreach(paths ${search_path})
+	foreach(path ${search_path})
 		if(EXISTS "${path}/${module}.cmake")
 			set(${result} "${path}/${module}.cmake")
 			return()
