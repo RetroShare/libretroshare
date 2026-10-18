@@ -159,3 +159,16 @@ jobs:
 
     - name: CMake build
       run: cmake --build Build-cmake -j$(nproc)
+
+    - name: CMake install
+      run: sudo cmake --install Build-cmake
+
+    - name: Test downstream consumer
+      run: |
+        sudo ldconfig
+        cmake -G Ninja -B Build-consumer -S tests/consumer \
+          -DBITDHT_ROOT=$(realpath deps/BitDHT/build) \
+          -DSAM3_ROOT=$(realpath deps/libsam3) \
+          -DUDP-DISCOVERY-CPP_ROOT="$(realpath deps/udp-discovery-cpp{,/build} | tr '\n' ';')"
+        cmake --build Build-consumer
+        ./Build-consumer/rs-consumer
