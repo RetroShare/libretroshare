@@ -56,7 +56,7 @@ struct DispatchEntry: public RsGxsDispatchInfo
     // Routing information
 
     std::map<RsGxsDispatchDataId,rstime_t> msg_cache ;	// dispatch data ids with time. Used in the bouncing algorithm.
-    std::map<RsGxsTunnelId,RsGxsId> tunnelled_ids ;		// list ids directly connected by tunnels. Used to broadcast sent messages.
+    std::map<RsGxsTunnelId,RsGxsId> tunnel_ids ;		// list ids directly connected by tunnels. Used to broadcast sent messages.
 };
 
 
@@ -69,7 +69,9 @@ class p3GxsDispatch: public p3Service, public RsGxsTunnelService::RsGxsTunnelCli
 
         bool createGxsDispatch(const RsGxsId& own_id,const std::list<RsGxsId>& participants,uint32_t service_id,RsGxsDispatchId& dispatch_id) override;
         bool leaveGxsDispatch(RsGxsDispatchId dispatch_id) override;
-        bool sendData(RsGxsDispatchId dispatch_id,void *data,uint32_t size) override;
+
+        // Send data to the dispatch. Memory ownership is not transferred. The client is respondible for deleting it afterwards.
+        bool sendData(RsGxsDispatchId dispatch_id, uint32_t service_id, const uint8_t *data, uint32_t size) override;
 
         bool registerClientService(uint32_t service_id,RsGxsDispatchClient *client) const override;
         bool getDispatchInfo(RsGxsDispatchId id,RsGxsDispatchInfo& info) const override;
@@ -89,13 +91,19 @@ class p3GxsDispatch: public p3Service, public RsGxsTunnelService::RsGxsTunnelCli
         virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTunnelId& tunnel_id,bool am_I_client_side);
 
     private:
-        void handleIncomingItem(RsGxsDispatchItem *item);
+        void handleIncomingItem(const RsGxsDispatchItem *item);
+        void handleIncomingDispatchData(const RsGxsDispatchId& dispatch_id, uint32_t service_id, uint8_t *data, uint32_t data_size);
+
+        // Bounces the item to other participants, first checking that the item has not been received before.
+        bool bounceDispatchItem(const RsGxsTunnelId &incoming_tunnel_id, const RsGxsDispatchItem *item);
 
         std::map<RsGxsDispatchId,DispatchEntry> _dispatches;
         std::map<uint32_t,RsGxsDispatchClient *> _clients;		// in the future think about using multiple clients for the same ID?
 
         bool managePeers(); // peer management for each dispatch: requests new tunnels, close inactive ones etc.
         void debug_dump();
+
+        static constexpr uint32_t GXS_DISPATCH_SERVICE_ID = (uint32_t)RsServiceType::GXS_DISPATCH;
 
         RsMutex mDispatchMtx;
 };

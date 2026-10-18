@@ -53,11 +53,11 @@ enum class RsGenericIdType
     GXS_CIRCLE        = 0x0008,
     GROUTER           = 0x0009,
     GXS_TUNNEL        = 0x000a,
-    GXS_DISPATCH      = 0x000b,
-    DISTANT_CHAT      = 0x000c,
-    NODE_GROUP        = 0x000d,
-    SHA256            = 0x000e,
-    BIAS_20_BYTES     = 0x000f
+    DISTANT_CHAT      = 0x000b,
+    NODE_GROUP        = 0x000c,
+    SHA256            = 0x000d,
+    BIAS_20_BYTES     = 0x000e,
+    GXS_DISPATCH      = 0x000f,
 };
 
 /**

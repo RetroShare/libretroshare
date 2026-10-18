@@ -1,4 +1,5 @@
 #include "retroshare/rsidentity.h"
+#include "util/stacktrace.h"
 #include "p3gxsdispatch.h"
 #include "rsgxsdispatchitems.h"
 
@@ -48,7 +49,7 @@ bool p3GxsDispatch::createGxsDispatch(const RsGxsId& own_id,const std::list<RsGx
     // perform a few checks
     if(!rsIdentity->isOwnId(own_id))
     {
-        RS_ERR("Trying to create a GxsDispatch with an identity (id=",own_id,"(that is not your own.") ;
+        RS_ERR("Trying to create a GxsDispatch with an identity (id=",own_id," that is not your own).") ;
         return false;
     }
 
@@ -56,16 +57,16 @@ bool p3GxsDispatch::createGxsDispatch(const RsGxsId& own_id,const std::list<RsGx
 
     // 1 - generate a non existing random dispatch id.
 
-    do { dispatch_id.random(); } while(_dispatches.find(dispatch_id) != _dispatches.end());
+    do { dispatch_id = RsGxsDispatchId::random(); } while(_dispatches.find(dispatch_id) != _dispatches.end());
 
     // 2 - store the dispatch info
 
     DispatchEntry& de(_dispatches[dispatch_id]);		// creates the entry
 
-    de.dispatch_id = dispatch_id;		// unique id of the lobby
+    de.dispatch_id = dispatch_id;		// unique id of the dispatch
     de.own_gxs_id  = own_id;			// ID used to participate in the dispatch
     de.last_activity = time(nullptr);
-    de.client_service = service_id;
+    de.client_services = { service_id };
 
     for(const auto& id:participants)
         de.gxs_ids[id] = 0;            	// No activity yet.
@@ -73,9 +74,100 @@ bool p3GxsDispatch::createGxsDispatch(const RsGxsId& own_id,const std::list<RsGx
     return true;
 }
 
-void p3GxsDispatch::handleIncomingItem(RsGxsDispatchItem *item)
+bool p3GxsDispatch::sendData(RsGxsDispatchId dispatch_id,uint32_t service_id,const uint8_t *data,uint32_t size)
 {
-    NOT_IMPLEMENTED;
+    RsGxsId own_id;
+    {
+        RS_STACK_MUTEX(mDispatchMtx);
+
+        // 1 - look for the dispatch. Do some checks.
+
+        auto dit = _dispatches.find(dispatch_id);
+
+        if(dit == _dispatches.end())
+        {
+            RS_ERR("Cannot find dispatch id ",dispatch_id," to send the locally supplied data. See callstack.");
+            print_stacktrace();
+            return false;
+        }
+        DispatchEntry& de(dit->second);
+
+        if(de.client_services.find(service_id) == de.client_services.end())
+        {
+            RS_ERR("trying to send data to dispatch id ",dispatch_id," for service id ",service_id," but this service is not registered in this dispatch.");
+            print_stacktrace();
+            return false;
+        }
+
+        own_id = de.own_gxs_id;
+    }
+
+    // 2 - create the data item
+
+    RsGxsDispatchDataItem *item = new RsGxsDispatchDataItem();
+
+    item->data_size   = size;
+    item->data        = const_cast<uint8_t*>(data); // the data member is not const, but will not be modified by bounceDispatchItem()
+    item->orig_id     = own_id;
+    item->dispatch_id = dispatch_id;
+    item->service_id  = service_id;
+
+    item->unique_item_counter = RSRandom::random_u64();	// this of course may cause a collision, but the probability is small enough so that we can neglect this possibility
+
+    // 3 - bounce it (which also registers this item as already seen). The source tunnel is zero so that all destination tunnels will be used.
+
+    return bounceDispatchItem(RsGxsTunnelId(),item);
+}
+
+void p3GxsDispatch::handleIncomingItem(const RsGxsDispatchItem *item)
+{
+    switch(item->PacketSubType())
+    {
+    case RS_PKT_SUBTYPE_GXS_DISPATCH_DATA:
+    {
+        auto itm = dynamic_cast<const RsGxsDispatchDataItem*>(item);
+        handleIncomingDispatchData(itm->dispatch_id,itm->service_id,itm->data,itm->data_size);
+    }
+        break;
+
+    default:
+    case RS_PKT_SUBTYPE_GXS_DISPATCH_STATUS:
+    case RS_PKT_SUBTYPE_GXS_DISPATCH_DATA_ACK:
+                                                    NOT_IMPLEMENTED;
+                                                    break;
+    }
+}
+
+void p3GxsDispatch::handleIncomingDispatchData(const RsGxsDispatchId& dispatch_id,uint32_t service_id,uint8_t *data,uint32_t data_size)
+{
+    RsGxsDispatchClient *client = nullptr;
+
+    {
+        RS_STACK_MUTEX(mDispatchMtx); /********** STACK LOCKED MTX ******/
+
+        // 1 - find the client services
+
+        auto it = _dispatches.find(dispatch_id);
+
+        if(it == _dispatches.end())
+        {
+            RsErr() << "Received an incoming data for a dispatch that doesn't exist." << std::endl;
+            return;
+        }
+
+        // Check that the client service id is registered
+
+        auto clit = _clients.find(service_id);
+
+        if(clit == _clients.end())
+        {
+            RsErr() << "Received an incoming data for service id " << service_id << " but this service id is not registered." ;
+            return;
+        }
+        client = clit->second;
+    }
+
+    client->receiveData(dispatch_id,data,data_size);
 }
 
 //=====================================================================================================================//
@@ -86,81 +178,55 @@ void p3GxsDispatch::handleIncomingItem(RsGxsDispatchItem *item)
 // 	true: the object is not a duplicate and should be used
 // 	false: the object is a duplicate or there is an error, and it should be destroyed.
 //
-#ifdef TODO
-bool p3GxsDispatch::bounceDispatchObject(RsChatLobbyBouncingObject *item,const RsPeerId& peer_id)
+bool p3GxsDispatch::bounceDispatchItem(const RsGxsTunnelId& incoming_tunnel_id,const RsGxsDispatchItem *item)
 {
-    rstime_t now = time(NULL) ;
-    RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
-#ifdef DEBUG_CHAT_LOBBIES
-    locked_printDebugInfo() ; // debug
+    time_t now = time(nullptr);
+    RS_STACK_MUTEX(mDispatchMtx); /********** STACK LOCKED MTX ******/
 
-    std::cerr << "Handling ChatLobbyMsg " << std::hex << item->msg_id << ", lobby id " << item->lobby_id << ", from peer id " << peer_id << std::endl;
-#endif
+    // 1 - Look in existing dispatches. If found, bounce it.
 
-    // send upward for display
+    auto it = _dispatches.find(item->dispatch_id);
 
-    std::map<ChatLobbyId,ChatLobbyEntry>::iterator it(_chat_lobbys.find(item->lobby_id)) ;
-
-    if(it == _chat_lobbys.end())
+    if(it == _dispatches.end())
     {
-#ifdef DEBUG_CHAT_LOBBIES
-        std::cerr << "Chatlobby for id " << std::hex << item->lobby_id << " has no record. Dropping the msg." << std::dec << std::endl;
-#endif
+        RS_ERR("asked to bounce a dispatch item in dispatch " , item->dispatch_id , " that does not exist.");
         return false ;
     }
 
-    ChatLobbyEntry& lobby(it->second) ;
+    DispatchEntry& de(it->second);
 
-    // Adds the peer id to the list of friend participants, even if it's not original msg source
+    // 2 - check if the item was received before
 
-    if(peer_id != mServControl->getOwnId())
-        lobby.participating_friends.insert(peer_id) ;
+    if(de.msg_cache.find(item->unique_item_counter) != de.msg_cache.end())
+        return false;
 
-    lobby.gxs_ids[item->signature.keyId] = now ;
+    de.msg_cache[item->unique_item_counter] = now; // received now.
 
-    // Checks wether the msg is already recorded or not
+    // Adds the peer to the list of participants
 
-    std::map<ChatLobbyMsgId,rstime_t>::iterator it2(lobby.msg_cache.find(item->msg_id)) ;
+    de.gxs_ids[item->orig_id] = now; // update last activity time for this id.
+    de.last_activity = now;
 
-    if(it2 != lobby.msg_cache.end()) // found!
-    {
-#ifdef DEBUG_CHAT_LOBBIES
-        std::cerr << "  Msg already received at time " << it2->second << ". Dropping!" << std::endl ;
-#endif
-        it2->second = now ;	// update last msg seen time, to prevent echos.
-        return false ;
-    }
-#ifdef DEBUG_CHAT_LOBBIES
-    std::cerr << "  Msg not received already. Adding in cache, and forwarding!" << std::endl ;
-#endif
-
-    lobby.msg_cache[item->msg_id] = now ;
-    lobby.last_activity = now ;
-
+#ifdef TODO
     // Check that if we have a lobby bouncing object, it's not flooding the lobby
     if(!locked_bouncingObjectCheck(item,peer_id,lobby.participating_friends.size()))
         return false;
+#endif
 
     // Forward to allparticipating friends, except this peer.
 
-    for(std::set<RsPeerId>::const_iterator it(lobby.participating_friends.begin());it!=lobby.participating_friends.end();++it)
-        if((*it)!=peer_id && mServControl->isPeerConnected(mServType, *it))
-        {
-            RsChatLobbyBouncingObject *obj2 = item->duplicate() ; // makes a copy
-            RsChatItem *item2 = dynamic_cast<RsChatItem*>(obj2) ;
+    RsGxsDispatchSerialiser ser;
+    uint32_t size = ser.size(const_cast<RsGxsDispatchItem*>(item));
+    RsTemporaryMemory mem(size);
 
-            assert(item2 != NULL) ;
+    ser.serialise(const_cast<RsGxsDispatchItem*>(item),mem,&size);
 
-            item2->PeerId(*it) ;	// replaces the virtual peer id with the actual destination.
-
-            checkSizeAndSendLobbyMessage(item2) ;
-        }
-
-    ++lobby.connexion_challenge_count ;
+    for(const auto& it:de.tunnel_ids)
+        if(it.first != incoming_tunnel_id)
+            rsGxsTunnel->sendData(it.first,GXS_DISPATCH_SERVICE_ID,mem,size);
 
     return true ;
 }
-#endif
 
 //=====================================================================================================================//
 //                              Implementation of RsGxsTunnelClient methods                                            //
@@ -177,14 +243,6 @@ void p3GxsDispatch::notifyTunnelStatus(const RsGxsTunnelId& tunnel_id,uint32_t t
 
 void p3GxsDispatch::receiveData(const RsGxsTunnelId& tunnel_id,unsigned char *data,uint32_t data_size)
 {
-    NOT_IMPLEMENTED;
-
-    // 1 - deserialize the data and check which dispatch the data goes to
-
-    // 2 - bounce the data to other peers in the dispatch
-
-    // 3 - notify that data to the disptach client.
-
     // We cannot look in existing tunnel ids which dispatches this item id to, because a single tunnel may be used for multiple
     // dispatches. Only the content of the item will tell.
 
@@ -208,11 +266,18 @@ void p3GxsDispatch::receiveData(const RsGxsTunnelId& tunnel_id,unsigned char *da
     }
 #endif
 
+    // 1 - deserialize the data and check which dispatch the data goes to
+
     auto *item = dynamic_cast<RsGxsDispatchItem*>(RsGxsDispatchSerialiser().deserialise(data,&data_size)) ;
     free(data) ;	// the tunnel service handed the buffer over to us
 
     if(item != NULL)
-        handleIncomingItem(item) ;
+    {
+        if(bounceDispatchItem(tunnel_id,item)) 	// 2 - bounce the data to other peers in the dispatch
+            handleIncomingItem(item); 			// 3 - handle it locally
+
+        delete item;							// 4 - delete the item.
+    }
     else
         RS_ERR("  (EE) item could not be deserialised!");
 }

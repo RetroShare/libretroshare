@@ -44,23 +44,32 @@ RsItem *RsGxsDispatchSerialiser::create_item(uint16_t service,uint8_t item_subty
     }
 }
 
+void RsGxsDispatchItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
+{
+    RsTypeSerializer::serial_process          (j,ctx,orig_id            ,"orig_id") ;
+    RsTypeSerializer::serial_process          (j,ctx,dispatch_id        ,"dispatch_id") ;
+    RsTypeSerializer::serial_process<uint32_t>(j,ctx,service_id         ,"service_id") ;
+    RsTypeSerializer::serial_process<uint64_t>(j,ctx,unique_item_counter,"unique_item_counter") ;
+}
+
 void RsGxsDispatchStatusItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
+    RsGxsDispatchItem::serial_process(j,ctx);
+
     RsTypeSerializer::serial_process<uint32_t>(j,ctx,status,"status") ;
 }
 
 void RsGxsDispatchDataItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
-    RsTypeSerializer::serial_process<uint64_t>(j,ctx,unique_item_counter,"unique_item_counter") ;
-    RsTypeSerializer::serial_process<uint32_t>(j,ctx,flags              ,"flags") ;
-    RsTypeSerializer::serial_process<uint32_t>(j,ctx,service_id         ,"service_id") ;
+    RsGxsDispatchItem::serial_process(j,ctx);
 
+    RsTypeSerializer::serial_process<uint32_t>(j,ctx,flags              ,"flags") ;
     RsTypeSerializer::TlvMemBlock_proxy mem(data,data_size) ;
     RsTypeSerializer::serial_process(j,ctx,mem,"data") ;
 }
 void RsGxsDispatchDataAckItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
-    RsTypeSerializer::serial_process<uint64_t>(j,ctx,unique_item_counter,"unique_item_counter") ;
+    RsGxsDispatchItem::serial_process(j,ctx);
 }
 
 

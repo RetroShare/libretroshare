@@ -46,12 +46,20 @@ class RsGxsDispatchItem: public RsItem
     public:
         // The item PeerId() is the dispatch id it is made for
 
-        explicit RsGxsDispatchItem(uint8_t item_subtype) : RsItem(RS_PKT_VERSION_SERVICE,RsServiceType::GXS_DISPATCH,item_subtype,QOS_PRIORITY_RS_CHAT_ITEM)
+        explicit RsGxsDispatchItem(uint8_t item_subtype) : RsItem(RS_PKT_VERSION_SERVICE,RsServiceType::GXS_DISPATCH,item_subtype,QOS_PRIORITY_RS_CHAT_ITEM),
+          unique_item_counter(0),service_id(0)
         {
         }
 
         virtual ~RsGxsDispatchItem() {}
         virtual void clear() {}
+
+        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
+
+        RsGxsId orig_id;
+        RsGxsDispatchId dispatch_id;
+        uint64_t unique_item_counter;		// this allows to make the item unique. The counter is dispatch-related.
+        uint32_t service_id ;				// service id to forward that data to
 };
 
 /*!
@@ -62,9 +70,8 @@ class RsGxsDispatchDataItem: public RsGxsDispatchItem
 public:
     RsGxsDispatchDataItem()
         : RsGxsDispatchItem(RS_PKT_SUBTYPE_GXS_DISPATCH_DATA),
-          unique_item_counter(0),
           flags(0),
-          service_id(0), data_size(0), data(NULL) {}
+           data_size(0), data(NULL) {}
 
     // data is rs_malloc()'ed by the tunnel service (send side) or by the
     // deserialiser (receive side); the receive path nulls it before handing
@@ -73,11 +80,9 @@ public:
     virtual ~RsGxsDispatchDataItem() { free(data); }
     virtual void clear() { free(data); data = NULL; data_size = 0; }
 
-    virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+    virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
 
-    uint64_t unique_item_counter;		// this allows to make the item unique. The counter is dispatch-related.
     uint32_t flags;						// mainly NEEDS_HACK?
-    uint32_t service_id ;				// service id to forward that data to
     uint32_t data_size ;				// data size
     unsigned char *data ;				// data bytes
 };
@@ -93,7 +98,7 @@ class RsGxsDispatchStatusItem: public RsGxsDispatchItem
 
         virtual ~RsGxsDispatchStatusItem() {}
 
-        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
 
         uint32_t status ;
 };
@@ -108,7 +113,7 @@ class RsGxsDispatchDataAckItem: public RsGxsDispatchItem
 
         virtual ~RsGxsDispatchDataAckItem() {}
 
-        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override;
 
         uint64_t unique_item_counter ;					// unique identifier for that item
 };
