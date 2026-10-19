@@ -253,6 +253,8 @@ win32-g++|win32-clang-g++ {
         # restbed exports functions with dllexport and disables default behaviour so we need to enable '--export-all-symbols'
         LIBS *= -Wl,--export-all-symbols
 
+        RC_FILE = libretroshare_win.rc
+
         # Exclude exported symbols from libraries to avoid linker error "export ordinal too large"
         QMAKE_LFLAGS *= -Wl,--exclude-libs,libops.a
         QMAKE_LFLAGS *= -Wl,--exclude-libs,libbitdht.a
@@ -1376,6 +1378,8 @@ LIB_GIT_HASH ~= s/^v//
 
 !isEmpty(LIB_GIT_HASH) {
     DEFINES += RS_LIB_VERSION_HASH=\\\"$$LIB_GIT_HASH\\\"
+    DEFINES += RS_LIB_GIT_HASH=\\\"$$replace(LIB_GIT_HASH, "^.*-(g[a-f0-9]+.*)$", "\\1")\\\"
 } else {
     DEFINES += RS_LIB_VERSION_HASH=\\\"[version not available]\\\"
+    DEFINES += RS_LIB_GIT_HASH=\\\"[unknown]\\\"
 }
