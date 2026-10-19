@@ -278,6 +278,9 @@ public:
 
     void debug_printCacheSize() ;
 
+    //! Creates the covering index used by the meta reads if it is missing (one-time cost on upgrade).
+    void ensureMsgMetaIndex();
+
 private:
 
     /*!
