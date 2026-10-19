@@ -631,6 +631,14 @@ void RsTypeSerializer::RawMemoryWrapper::serial_process(
 		}
 
 		first = reinterpret_cast<uint8_t*>(malloc(second));
+		if(!first) /* allocation failure: do not memcpy() into a NULL pointer */
+		{
+			RsErr() << __PRETTY_FUNCTION__ << std::errc::not_enough_memory
+			        << std::endl;
+			ctx.mOk = false;
+			clear();
+			break;
+		}
 		memcpy(first, ctx.mData + ctx.mOffset, second);
 		ctx.mOffset += second;
 		break;
@@ -686,6 +694,7 @@ void RsTypeSerializer::RawMemoryWrapper::serial_process(
 		}
 
 		first = reinterpret_cast<uint8_t*>(malloc(decodedSize));
+		if(!first) return failure(); /* do not memcpy() into a NULL pointer */
 		second = static_cast<uint32_t>(decodedSize);
 
 		memcpy(first, decoded.data(), second);
