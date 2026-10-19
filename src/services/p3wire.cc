@@ -397,6 +397,10 @@ bool p3Wire::getGroupData(const uint32_t &token, std::vector<RsWireGroup> &group
 					group.mGroupFollowing = followingCount;
 				}
 
+				// Followers: GXS keeps no subscriber list, so use the popularity
+				// reported by the net service (= number of friends subscribed).
+				group.mGroupFollowers = item->meta.mPop;
+
 				uint32_t pulses, replies, republishes, likes;
 				if (getGroupStats(group.mMeta.mGroupId, pulses, replies, republishes, likes))
 				{
@@ -451,6 +455,10 @@ bool p3Wire::getGroupPtrData(const uint32_t &token, std::map<RsGxsGroupId, RsWir
 				{
 					pGroup->mGroupFollowing = followingCount;
 				}
+
+				// Followers: GXS keeps no subscriber list, so use the popularity
+				// reported by the net service (= number of friends subscribed).
+				pGroup->mGroupFollowers = item->meta.mPop;
 
 				uint32_t pulses, replies, republishes, likes;
 				if (getGroupStats(pGroup->mMeta.mGroupId, pulses, replies, republishes, likes))
