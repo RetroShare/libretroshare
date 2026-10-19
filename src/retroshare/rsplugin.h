@@ -38,6 +38,7 @@ extern RsPluginHandler *rsPlugins ;
 class p3Service ;
 class RsServiceControl ;
 class RsReputations ;
+class RsJsonApi;
 class RsTurtle ;
 class RsGxsTunnelService ;
 class RsDht ;
@@ -87,10 +88,10 @@ namespace resource_api
     class StateTokenServer;
 }
 
-// Plugin API version. Not used yet, but will be in the future the
-// main value that decides for compatibility.
+// Plugin API version. RsPluginManager rejects plugins built against a
+// different version before calling into their ABI.
 //
-#define RS_PLUGIN_API_VERSION        0x000101
+#define RS_PLUGIN_API_VERSION        0x000103
 
 // Used for the status of plugins.
 //
@@ -141,6 +142,9 @@ public:
 #ifdef RS_USE_WIRE
     RsUtil::inited_ptr<RsWire>          mWire;
 #endif
+
+    // Keep new members appended so offsets used by older plugins do not move.
+    RsUtil::inited_ptr<RsJsonApi> mJsonApi;
 };
 
 class RsPlugin
