@@ -570,6 +570,7 @@ list(APPEND RS_SOURCES
 )
 
 list(APPEND RS_IMPLEMENTATION_HEADERS
+	services/autoproxy/rsautoproxymonitor.h
 	services/p3banlist.h
 	services/p3bwctrl.h
 	services/p3gxschannels.h

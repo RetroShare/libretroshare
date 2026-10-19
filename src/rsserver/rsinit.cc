@@ -127,7 +127,7 @@ RsAccounts* rsAccounts = nullptr;
 const RsInitErrorCategory RsInitErrorCategory::instance;
 
 RsConfigOptions::RsConfigOptions()
-        :
+	:
           autoLogin(false),
           udpListenerOnly(false),
           forcedInetAddress("127.0.0.1"), 	 /* inet address to use.*/
@@ -1905,6 +1905,7 @@ int RsServer::StartupRetroShare()
 	{
 		std::cout << "RsServer::StartupRetroShare setting up hidden locations" << std::endl;
 
+		#ifdef RS_USE_I2P_SAM3
 		if (rsInitConfig->hiddenNodeI2P) {
 			std::cout << "RsServer::StartupRetroShare setting up SAMv3" << std::endl;
 
@@ -1918,9 +1919,7 @@ int RsServer::StartupRetroShare()
 
 			std::string addr; // will be set by auto proxy service
 			uint16_t port; // unused by SAM
-
 			bool r = autoProxy->initialSetup(autoProxyType::I2PSAM3, addr, port);
-
 			if (r && !addr.empty()) {
 				mPeerMgr->setupHiddenNode(addr, port);
 
@@ -1933,7 +1932,10 @@ int RsServer::StartupRetroShare()
 				std::cerr << "RsServer::StartupRetroShare failed to receive keys" << std::endl;
 				/// TODO add notify for failed i2p setup
 			}
-		} else {
+		}
+		else
+		#endif
+		{
 			mPeerMgr->setupHiddenNode(rsInitConfig->hiddenNodeAddress, rsInitConfig->hiddenNodePort);
 		}
 
