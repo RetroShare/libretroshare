@@ -72,6 +72,13 @@ InternalFileHierarchyStorage::InternalFileHierarchyStorage() : mRoot(0)
     mTotalFiles = 0 ;
 }
 
+InternalFileHierarchyStorage::~InternalFileHierarchyStorage()
+{
+    // The nodes are owned here (load() already deletes them before re-filling the vector).
+    for(auto *n : mNodes)
+        delete n ;
+}
+
 bool InternalFileHierarchyStorage::getDirHashFromIndex(
         const DirectoryStorage::EntryIndex& index, RsFileHash& hash ) const
 {
