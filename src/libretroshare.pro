@@ -21,6 +21,10 @@ DESTDIR = lib
 
 QMAKE_CXXFLAGS += -fPIC
 
+# OpenMP support for parallel deserialization in GXS (rsgenexchange.cc)
+QMAKE_CXXFLAGS += -fopenmp
+LIBS += -fopenmp
+
 ## Uncomment to enable Unfinished Services.
 #CONFIG += wikipoos
 #CONFIG += gxsthewire
