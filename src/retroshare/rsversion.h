@@ -20,8 +20,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 \* ------------------------------------------------------------------------- */
 
-#ifdef CMAKE
+#ifdef RS_CMAKE
 #include "retroshare/rsversion-cmake.h"
-#else
+#elif defined(RS_QMAKE)
 #include "retroshare/rsversion-qmake.h"
+#else
+#error "no rsversion header"
 #endif

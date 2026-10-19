@@ -1,5 +1,5 @@
 /*******************************************************************************
- * libretroshare/src/retroshare: rsversion.h                                   *
+ * libretroshare/src/retroshare: rsversion-qmake.h                             *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *

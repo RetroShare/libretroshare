@@ -354,7 +354,7 @@ target_link_libraries(${PROJECT_NAME}
 
 target_compile_definitions(${PROJECT_NAME}
 	PUBLIC
-	CMAKE
+	RS_CMAKE
 	PRIVATE
 	SQLITE_HAS_CODEC
 	RS_ENABLE_GXS

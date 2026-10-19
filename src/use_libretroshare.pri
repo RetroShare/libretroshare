@@ -7,6 +7,8 @@ RS_BUILD_PATH=$$clean_path($${OUT_PWD}/../../)
 DEPENDPATH *= $$clean_path($${RS_SRC_PATH}/libretroshare/src/)
 INCLUDEPATH  *= $$clean_path($${RS_SRC_PATH}/libretroshare/src)
 
+DEFINES += RS_QMAKE
+
 equals(TARGET, retroshare):equals(TEMPLATE, lib){
 } else {
 	LIBS *= -L$$clean_path($${RS_BUILD_PATH}/libretroshare/src/lib/) -lretroshare
