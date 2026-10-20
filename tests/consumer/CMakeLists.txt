@@ -20,12 +20,7 @@
  # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ## ------------------------------------------------------------------------- ##
 
-# Downstream consumer of an installed libretroshare: the packager's second
-# stage. Anything missing from the package config, the exported targets or the
-# installed headers fails here instead of in a distribution's build.
-
-# 3.27: CMP0144 (upper-case <PACKAGENAME>_ROOT, as the CI job passes them)
-cmake_minimum_required(VERSION 3.11...4.4)
+cmake_minimum_required(VERSION 3.0...4.4)
 
 project(libretroshare-consumer-test LANGUAGES CXX)
 
