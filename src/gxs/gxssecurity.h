@@ -95,6 +95,13 @@ class GxsSecurity
 		 */
         static bool validateNxsMsg(const RsNxsMsg& msg, const RsTlvKeySignature& sign, const RsTlvPublicRSAKey &key);
 
+        static constexpr uint32_t ADMIN_SIGNATURE_INDEX = 0x00000040;
+        static bool getAdminSignature(const char* data, uint32_t size,
+                                     const RsTlvSecurityKeySet& keys,
+                                     RsTlvKeySignature& signature);
+        static bool validateAdminSignature(const RsNxsMsg& msg,
+                                          const RsTlvSecurityKeySet& keys);
+
 
 		/*!
 		 * @param data data to be signed
