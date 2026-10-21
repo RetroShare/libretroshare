@@ -30,11 +30,9 @@
 class autoProxyCallback;
 
 namespace autoProxyType {
-    enum autoProxyType_enum {
-//		I2PBOB,
-#ifdef RS_USE_I2P_SAM3
+	enum autoProxyType_enum {
+    // I2PBOB,
 		I2PSAM3
-#endif
 	};
 }
 

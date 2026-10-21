@@ -40,4 +40,6 @@ include_nrs(
 
 include(FixRnpDeps)
 
+set(${PACKAGE_FIND_NAME}_SAM3_FOUND @RS_USE_I2P_SAM3@)
+
 check_required_components("${PACKAGE_FIND_NAME}")

@@ -28,7 +28,8 @@
 # 3.11: configure_package_config_file(COMPATIBILITY SameMinorVersion)
 # 3.12: list(JOIN)
 # 3.12: list(TRANSFORM)
-cmake_minimum_required(VERSION 3.11...4.4)
+# 3.13: CMP0077
+cmake_minimum_required(VERSION 3.13...4.4)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
 	list(PREPEND CMAKE_PROJECT_TOP_LEVEL_INCLUDES
@@ -156,6 +157,11 @@ option(
 	RS_V07_BREAKING_CHANGES
 	"Enable retro-compatibility breaking changes planned for RetroShare 0.7.0"
 	OFF )
+
+option(RS_USE_I2P_SAM3
+	"Enable I2P SAMv3 support"
+	ON
+)
 
 option(
 	RS_GXSWIKIPOS
@@ -445,15 +451,8 @@ endif(RS_EXPORT_JNI_ONLOAD)
 
 if(RS_USE_I2P_SAM3)
 	find_package(sam3 REQUIRED)
-	target_link_libraries(${PROJECT_NAME}
-		PRIVATE
-		sam3::libsam3
-	)
-	target_compile_definitions(${PROJECT_NAME}
-		PRIVATE
-		RS_USE_I2P_SAM3
-		RS_USE_I2P_SAM3_LIBSAM3
-	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE sam3::libsam3)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_USE_I2P_SAM3)
 endif()
 
 ################################################################################
