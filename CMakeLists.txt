@@ -29,6 +29,7 @@
 # 3.12: list(JOIN)
 # 3.12: list(TRANSFORM)
 # 3.13: CMP0077
+# 3.13: target_link_options()
 cmake_minimum_required(VERSION 3.13...4.4)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
@@ -371,6 +372,8 @@ target_compile_definitions(${PROJECT_NAME}
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_002
 	V07_NON_BACKWARD_COMPATIBLE_CHANGE_003
 )
+
+target_link_options(${PROJECT_NAME} PRIVATE LINKER:--no-undefined)
 
 if(RS_SPLIT_DEBUG)
 	target_compile_options(${PROJECT_NAME} PRIVATE "-g")
