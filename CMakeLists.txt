@@ -131,17 +131,15 @@ cmake_dependent_option(
 	"NOT RS_MINIUPNPC"
 	OFF )
 
-option(
-	RS_LIBRETROSHARE_STATIC
-	"Build RetroShare static library"
-	ON )
-
-cmake_dependent_option(
-	RS_LIBRETROSHARE_SHARED
+option(RS_LIBRETROSHARE_SHARED
 	"Build RetroShare shared library"
-	ON
-	"NOT RS_LIBRETROSHARE_STATIC"
-	OFF )
+	OFF
+)
+
+option(RS_LIBRETROSHARE_STATIC
+	"Build RetroShare static library"
+	OFF
+)
 
 option(
 	RS_WARN_DEPRECATED
@@ -320,13 +318,13 @@ message(STATUS "${PROJECT_NAME_PRETTY} version: ${PROJECT_VERSION_FULL}")
 ### general compilation options
 
 if(RS_LIBRETROSHARE_STATIC AND RS_LIBRETROSHARE_SHARED)
-	message(FATAL_ERROR "building both static and shared library is not supported")
+	message(FATAL_ERROR
+		"building both static and shared library is not supported"
+	)
 elseif(RS_LIBRETROSHARE_STATIC)
 	set(BUILD_SHARED_LIBS NO)
 elseif(RS_LIBRETROSHARE_SHARED)
 	set(BUILD_SHARED_LIBS YES)
-else()
-	message(FATAL_ERROR "must specify either RS_LIBRETROSHARE_STATIC or RS_LIBRETROSHARE_SHARED")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)

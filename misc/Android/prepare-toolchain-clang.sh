@@ -282,7 +282,7 @@ function git_source_get()
 
 	[ -d $sourceDir ] || git clone "$sourceRepo" "$sourceDir"
 	pushd $sourceDir
-	
+
 	git fetch --all || return $?
 	git reset --hard ${sourceVersion} || return $?
 
@@ -443,7 +443,7 @@ build_openssl()
 
 	# Avoid documentation build which is unneded and time consuming
 	echo "exit 0; " > util/process_docs.pl
-	
+
 	make -j${HOST_NUM_CPU} || return $?
 	make install || return $?
 	rm -f ${PREFIX}/lib/libssl.so*
@@ -671,7 +671,7 @@ build_libpng()
 	# libm is part of bionic on android
 	sed -i -e 's/find_library(M_LIBRARY m)/set(M_LIBRARY "")/' \
 		$S_dir/CMakeLists.txt || return $?
-	
+
 	# Disable hardware acceleration as they are problematic for Android
 	# compilation and are not supported by all phones, it is necessary to fiddle
 	# with CMakeLists.txt as libpng 1.6.37 passing it as cmake options seems not
@@ -736,12 +736,12 @@ build_tiff()
 	# Disable tests building, not needed for retroshare, and causing linker
 	# errors
 	echo "" > $S_dir/test/CMakeLists.txt
-	
+
 	# Disable extra tools building, not needed for retroshare, and causing
 	# linker errors
 	echo "" > $S_dir/contrib/CMakeLists.txt
-	
-	# Disable more unneded stuff 
+
+	# Disable more unneded stuff
 	echo "" > $S_dir/build/CMakeLists.txt
 	echo "" > $S_dir/html/CMakeLists.txt
 	echo "" > $S_dir/man/CMakeLists.txt
@@ -959,7 +959,7 @@ build_libretroshare()
 	pushd $B_dir || return $?
 	andro_cmake -B. -H${S_dir} \
 		-D RS_ANDROID=ON -D RS_WARN_DEPRECATED=OFF -D RS_WARN_LESS=ON \
-		-D RS_LIBRETROSHARE_STATIC=OFF -D RS_LIBRETROSHARE_SHARED=ON \
+		-D RS_LIBRETROSHARE_SHARED=ON \
 		-D RS_BRODCAST_DISCOVERY=ON -D RS_EXPORT_JNI_ONLOAD=ON \
 		-D RS_SQLCIPHER=OFF -D RS_DH_PRIME_INIT_CHECK=OFF \
 		-D RS_FORUM_DEEP_INDEX=ON -D RS_JSON_API=ON \
