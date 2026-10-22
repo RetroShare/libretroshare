@@ -310,9 +310,6 @@ else()
 	)
 endif()
 
-#./plugins/rscacheservice.h
-#./plugins/rspqiservice.h
-
 if(WIN32)
 	list(APPEND RS_SOURCES
 		plugins/dlfcn_win32.cc
@@ -328,6 +325,8 @@ list(APPEND RS_SOURCES
 
 list(APPEND RS_IMPLEMENTATION_HEADERS
 	plugins/pluginmanager.h
+	plugins/rscacheservice.h
+	plugins/rspqiservice.h
 )
 
 list(APPEND RS_SOURCES
