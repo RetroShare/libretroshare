@@ -364,6 +364,32 @@ void RsGenExchange::tick()
 	}
 }
 
+void RsGenExchange::onStopRequested()
+{
+	/* Runs on the thread that asked this service to stop (the shutdown
+	 * sequence). Forward the request to the integrity check right away so that
+	 * run() below does not have to wait for a whole pass to complete. */
+	RS_STACK_MUTEX(mGenMtx);
+	if(mIntegrityCheck) mIntegrityCheck->askForStop();
+}
+
+void RsGenExchange::run()
+{
+	while(!shouldStop()) threadTick();
+
+	/* The tick loop is over, so nobody creates or deletes mIntegrityCheck any
+	 * more. Do not return -- i.e. do not report this service as stopped --
+	 * while its integrity check thread may still be reading the data store:
+	 * RsServer::rsGlobalShutDown() deletes the stores as soon as the services
+	 * have stopped. */
+	RsGxsIntegrityCheck* check = nullptr;
+	{
+		RS_STACK_MUTEX(mGenMtx);
+		check = mIntegrityCheck;
+	}
+	if(check) check->fullstop();
+}
+
 bool RsGenExchange::messagePublicationTest(const RsGxsMsgMetaData& meta)
 {
 	if(!mNetService)
