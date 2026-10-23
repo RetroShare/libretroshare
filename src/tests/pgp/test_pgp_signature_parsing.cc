@@ -1,4 +1,4 @@
-// COMPILE_LINE: g++ -o test_pgp_signature_parsing test_pgp_signature_parsing.cc -g -I../../../openpgpsdk/include  -I../ -L../lib -lretroshare ../../../libbitdht/src/lib/libbitdht.a ../../../openpgpsdk/lib/libops.a -lgnome-keyring -lupnp -lssl -lcrypto -lbz2
+// COMPILE_LINE: g++ -o test_pgp_signature_parsing test_pgp_signature_parsing.cc -g -I../../../supportlibs/openpgpsdk/include  -I../ -L../lib -lretroshare ../../../supportlibs/libbitdht/src/lib/libbitdht.a ../../../supportlibs/openpgpsdk/lib/libops.a -lgnome-keyring -lupnp -lssl -lcrypto -lbz2
 //
 #include <stdlib.h>
 #include <string.h>
@@ -54,4 +54,3 @@ int main(int argc,char *argv[])
 
 	return TESTRESULT() ;
 }
-

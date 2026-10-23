@@ -4,12 +4,12 @@ CONFIG = debug
 #SOURCES = main.cpp
 SOURCES = main_extended.cpp
 
-LIBS +=  ../../lib/libretroshare.a ../../../../libbitdht/src/lib/libbitdht.a ../../../../openpgpsdk/src/lib/libops.a
+LIBS +=  ../../lib/libretroshare.a ../../../../supportlibs/libbitdht/src/lib/libbitdht.a ../../../../supportlibs/openpgpsdk/src/lib/libops.a
 LIBS += -lssl -lcrypto -lupnp -lgnome-keyring -lixml -lbz2
 
 INCLUDEPATH *= ../.. ..
 linux {
-	#LIBS = -lstdc++ -lm 
+	#LIBS = -lstdc++ -lm
 }
 macx {
     # ENABLE THIS OPTION FOR Univeral Binary BUILD.
@@ -20,7 +20,7 @@ macx {
         LIBS += ../../lib/libretroshare.a
         LIBS += -lssl -lcrypto -lz -lgpgme -lgpg-error -lassuan
         LIBS += ../../../../../miniupnpc-1.0/libminiupnpc.a
-        LIBS += ../../../../libbitdht/src/lib/libbitdht.a
+        LIBS += ../../../../supportlibs/libbitdht/src/lib/libbitdht.a
         LIBS += -framework CoreFoundation
         LIBS += -framework Security
 
@@ -28,4 +28,3 @@ macx {
 
 
 }
-

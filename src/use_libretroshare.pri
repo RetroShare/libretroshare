@@ -7,6 +7,8 @@ RS_BUILD_PATH=$$clean_path($${OUT_PWD}/../../)
 DEPENDPATH *= $$clean_path($${RS_SRC_PATH}/libretroshare/src/)
 INCLUDEPATH  *= $$clean_path($${RS_SRC_PATH}/libretroshare/src)
 
+DEFINES += RS_QMAKE
+
 equals(TARGET, retroshare):equals(TEMPLATE, lib){
 } else {
 	LIBS *= -L$$clean_path($${RS_BUILD_PATH}/libretroshare/src/lib/) -lretroshare
@@ -20,7 +22,7 @@ equals(TARGET, retroshare):equals(TEMPLATE, lib){
 }
 
 bitdht {
-    !include("../../libbitdht/src/use_libbitdht.pri"):error("Including")
+    !include("../../supportlibs/libbitdht/src/use_libbitdht.pri"):error("Including")
 }
 
 # when rapidjson is mainstream on all distribs, we will not need the sources
@@ -35,7 +37,7 @@ isEmpty(RAPIDJSON_AVAILABLE) {
 }
 
 rs_openpgpsdk {
-        !include("../../openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
+        !include("../../supportlibs/openpgpsdk/src/use_openpgpsdk.pri"):error("Including")
         DEFINES *= USE_OPENPGPSDK
 }
 
