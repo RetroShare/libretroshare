@@ -240,16 +240,19 @@ void ftServer::StopThreads()
 	 * anyway -- deleting them here would only turn a clean stop into a
 	 * use-after-free somewhere else. */
 
-	/* stop Dataplex */
+	/* Signal every thread first, then wait for them. Each tick starts with
+	 * an uninterruptible sleep of up to 1 s, so joining them one at a time
+	 * costs the sum of those sleeps instead of the longest one. */
+	mFtDataplex->askForStop();
+	mFtController->askForStop();
+	mFtExtra->askForStop();
+	if(mFileDatabase) mFileDatabase->askThreadsToStop();
+
 	mFtDataplex->fullstop();
-
-	/* stop Controller thread */
 	mFtController->fullstop();
-
-	/* stop ExtraList Thread */
 	mFtExtra->fullstop();
 
-	/* stop hash cache and directory watcher threads */
+	/* hash cache and directory watcher threads */
 	if(mFileDatabase) mFileDatabase->stopThreads();
 }
 
