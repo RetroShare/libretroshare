@@ -53,6 +53,8 @@ target_include_directories(udp-discovery PUBLIC
 	"${udp-discovery-cpp_SOURCE_DIR}"
 )
 
+target_compile_definitions(udp-discovery PRIVATE UNICODE _UNICODE)
+
 
 if(WIN32)
 	# Legacy C submodules trip strict GCC >= 15 diagnostics that are now errors by
