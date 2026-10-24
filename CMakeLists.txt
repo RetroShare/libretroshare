@@ -44,6 +44,7 @@ project(retroshare
 	VERSION 0.6.7
 	LANGUAGES CXX C
 )
+set(retroshare_SOVERSION 0)
 
 set(PROJECT_NAME_PRETTY "libRetroShare")
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
@@ -341,6 +342,13 @@ endif()
 ### targets
 
 add_library(${PROJECT_NAME})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  OUTPUT_NAME retroshare
+  EXPORT_NAME ${PROJECT_NAME}
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${retroshare_SOVERSION}
+)
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
