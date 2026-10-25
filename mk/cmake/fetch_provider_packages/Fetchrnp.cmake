@@ -25,8 +25,6 @@
 cmake_minimum_required(VERSION 3.14...4.4)
 
 include(FetchContent)
-find_package(Git REQUIRED)
-find_package(Patch REQUIRED)
 
 set(FETCH_rnp_GIT_TAG "" CACHE STRING
 	"git tag to use for fetching rnp"
@@ -41,9 +39,6 @@ FetchContent_Declare(rnp
 	GIT_TAG ${FETCH_rnp_GIT_TAG}
 	GIT_PROGRESS TRUE
 	EXCLUDE_FROM_ALL
-	PATCH_COMMAND ${GIT_EXECUTABLE} reset --hard
-	COMMAND ${Patch_EXECUTABLE} -tNp1 -i
-		"${CMAKE_CURRENT_LIST_DIR}/rnp.patch"
 )
 FetchContent_MakeAvailable(rnp)
 set(rnp_FOUND TRUE)
