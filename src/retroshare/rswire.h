@@ -1,5 +1,5 @@
 /*******************************************************************************
- * libretroshare/src/retroshare: rsturtle.h                                    *
+ * libretroshare/src/retroshare: rswire.h                                    *
  *                                                                             *
  * libretroshare: retroshare core library                                      *
  *                                                                             *
@@ -31,9 +31,12 @@
 #include "retroshare/rsgxscommon.h"
 
 
-/* The Main Interface Class - for information about your Peers */
 class RsWire;
-/** Global Wire service. @jsonapi{development} */
+
+/**
+ * Pointer to global instance of RsWire service implementation
+ * @jsonapi{development}
+ */
 extern RsWire *rsWire;
 
 class RsWireGroup;
@@ -300,144 +303,146 @@ class RsWire: public RsGxsIfaceHelper
 	virtual RsTokenService* getTokenService() = 0;
 
 	/* Specific Service Data */
-virtual bool getGroupData(const uint32_t &token, std::vector<RsWireGroup> &groups) = 0;
-virtual bool getPulseData(const uint32_t &token, std::vector<RsWirePulse> &pulses) = 0;
+    virtual bool getGroupData(const uint32_t &token, std::vector<RsWireGroup> &groups) = 0;
+    virtual bool getPulseData(const uint32_t &token, std::vector<RsWirePulse> &pulses) = 0;
 
-virtual bool createGroup(uint32_t &token, RsWireGroup &group) = 0;
-virtual bool createPulse(uint32_t &token, RsWirePulse &pulse) = 0;
-/** Update an owned Wire profile.
- * @jsonapi{development}
- * @param[in,out] wire Profile including its group ID; receives updated metadata.
- * @return true on success, false on failure.
- */
-virtual bool editWire(RsWireGroup& wire) = 0;
+    virtual bool createGroup(uint32_t &token, RsWireGroup &group) = 0;
+    virtual bool createPulse(uint32_t &token, RsWirePulse &pulse) = 0;
 
-/** Create a pulse using the same validation as the Qt GUI.
- * @jsonapi{development}
- * @param[in] grpId Publishing Wire ID.
- * @param[in] pulse Text, sentiment and up to four images.
- * @return true on success, false on failure.
- */
-bool createOriginalPulse(const RsGxsGroupId& grpId, const RsWirePulse& pulse);
+    /** Update an owned Wire profile.
+     * @jsonapi{development}
+     * @param[in,out] wire Profile including its group ID; receives updated metadata.
+     * @return true on success, false on failure.
+     */
+    virtual bool editWire(RsWireGroup& wire) = 0;
 
-/** Reply, republish or like a pulse.
- * @jsonapi{development}
- * @param[in] grpId Target Wire ID.
- * @param[in] msgId Target message ID.
- * @param[in] replyWith Owned publishing Wire ID.
- * @param[in] reply_type 256 reply, 512 republish, 1024 like.
- * @param[in] pulse Text, sentiment and images.
- * @return true on success, false on failure.
- */
-bool createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGroupId replyWith, uint32_t reply_type, const RsWirePulse& pulse);
+    /** Create a pulse using the same validation as the Qt GUI.
+     * @jsonapi{development}
+     * @param[in] grpId Publishing Wire ID.
+     * @param[in] pulse Text, sentiment and up to four images.
+     * @return true on success, false on failure.
+     */
+    bool createOriginalPulse(const RsGxsGroupId& grpId, const RsWirePulse& pulse);
 
-/** Get a Wire profile.
- * @jsonapi{development}
- * @param[in] groupId Wire ID.
- * @param[out] group Profile.
- * @return true on success, false on failure.
- */
-bool getWireGroup(const RsGxsGroupId& groupId, RsWireGroup& group);
+    /** Reply, republish or like a pulse.
+     * @jsonapi{development}
+     * @param[in] grpId Target Wire ID.
+     * @param[in] msgId Target message ID.
+     * @param[in] replyWith Owned publishing Wire ID.
+     * @param[in] reply_type 256 reply, 512 republish, 1024 like.
+     * @param[in] pulse Text, sentiment and images.
+     * @return true on success, false on failure.
+     */
+    bool createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId, RsGxsGroupId replyWith, uint32_t reply_type, const RsWirePulse& pulse);
 
-/** Get a pulse.
- * @jsonapi{development}
- * @param[in] groupId Wire ID.
- * @param[in] msgId Message ID.
- * @param[out] pulse Pulse and available relationships.
- * @return true on success, false on failure.
- */
-bool getWirePulse(const RsGxsGroupId& groupId, const RsGxsMessageId& msgId, RsWirePulseData& pulse);
+    /** Get a Wire profile.
+     * @jsonapi{development}
+     * @param[in] groupId Wire ID.
+     * @param[out] group Profile.
+     * @return true on success, false on failure.
+     */
+    bool getWireGroup(const RsGxsGroupId& groupId, RsWireGroup& group);
 
-/** Get the feed for selected Wires.
- * @jsonapi{development}
- * @param[in] groupIds Wire IDs, as selected by the client.
- * @param[out] pulses Feed pulse graphs.
- * @return true on success, false on failure.
- */
-bool getPulsesForGroups(const std::list<RsGxsGroupId>& groupIds, std::vector<RsWirePulseData>& pulses);
+    /** Get a pulse.
+     * @jsonapi{development}
+     * @param[in] groupId Wire ID.
+     * @param[in] msgId Message ID.
+     * @param[out] pulse Pulse and available relationships.
+     * @return true on success, false on failure.
+     */
+    bool getWirePulse(const RsGxsGroupId& groupId, const RsGxsMessageId& msgId, RsWirePulseData& pulse);
 
-/** Get a focused thread with replies, likes and republishes.
- * @jsonapi{development}
- * @param[in] groupId Wire ID.
- * @param[in] msgId Message ID.
- * @param[in] type Qt focus type; currently ignored by the service.
- * @param[out] pulse Expanded pulse graph.
- * @return true on success, false on failure.
- */
-bool getPulseFocus(const RsGxsGroupId& groupId, const RsGxsMessageId& msgId, int type, RsWirePulseData& pulse);
+    /** Get the feed for selected Wires.
+     * @jsonapi{development}
+     * @param[in] groupIds Wire IDs, as selected by the client.
+     * @param[out] pulses Feed pulse graphs.
+     * @return true on success, false on failure.
+     */
+    bool getPulsesForGroups(const std::list<RsGxsGroupId>& groupIds, std::vector<RsWirePulseData>& pulses);
 
-	// Blocking Interfaces.
-/** Create a Wire profile.
- * @jsonapi{development}
- * @param[in,out] group Profile data; receives the created metadata.
- * @return true on success, false on failure.
- */
-virtual bool createGroup(RsWireGroup &group) = 0;
-virtual bool updateGroup(uint32_t &token, RsWireGroup& group) = 0;
-/** List Wire profiles; empty IDs requests all known profiles.
- * @jsonapi{development}
- * @param[in] grpIds Requested group IDs.
- * @param[out] groups Profiles.
- * @return true on success, false on failure.
- */
-virtual bool getGroups(const std::list<RsGxsGroupId> grpIds,
-				std::vector<RsWireGroup> &groups) = 0;
+    /** Get a focused thread with replies, likes and republishes.
+     * @jsonapi{development}
+     * @param[in] groupId Wire ID.
+     * @param[in] msgId Message ID.
+     * @param[in] type Qt focus type; currently ignored by the service.
+     * @param[out] pulse Expanded pulse graph.
+     * @return true on success, false on failure.
+     */
+    bool getPulseFocus(const RsGxsGroupId& groupId, const RsGxsMessageId& msgId, int type, RsWirePulseData& pulse);
 
-	// New Blocking Interfaces.
-	// Plan to migrate all GUI calls to these, and remove old interfaces above.
-	// These are not single requests, but return data graphs for display.
-virtual bool createOriginalPulse(const RsGxsGroupId &grpId, RsWirePulseSPtr pPulse) = 0;
-virtual bool createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId,
-				RsGxsGroupId replyWith, uint32_t reply_type,
-				RsWirePulseSPtr pPulse) = 0;
+    /** Create a Wire profile.
+     * @jsonapi{development}
+     * @param[in,out] group Profile data; receives the created metadata.
+     * @return true on success, false on failure.
+     */
+    virtual bool createGroup(RsWireGroup &group) = 0;
+    virtual bool updateGroup(uint32_t &token, RsWireGroup& group) = 0;
+
+    /** List Wire profiles; empty IDs requests all known profiles.
+     * @jsonapi{development}
+     * @param[in] grpIds Requested group IDs.
+     * @param[out] groups Profiles.
+     * @return true on success, false on failure.
+     */
+    virtual bool getGroups(const std::list<RsGxsGroupId> grpIds,
+                    std::vector<RsWireGroup> &groups) = 0;
+
+    // New Blocking Interfaces.
+    // Plan to migrate all GUI calls to these, and remove old interfaces above.
+    // These are not single requests, but return data graphs for display.
+    virtual bool createOriginalPulse(const RsGxsGroupId &grpId, RsWirePulseSPtr pPulse) = 0;
+    virtual bool createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId,
+                    RsGxsGroupId replyWith, uint32_t reply_type,
+                    RsWirePulseSPtr pPulse) = 0;
 
 
-	// Provide Individual Group Details for display.
-virtual bool getWireGroup(const RsGxsGroupId &groupId, RsWireGroupSPtr &grp) = 0;
-virtual bool getWirePulse(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId, RsWirePulseSPtr &pPulse) = 0;
+    // Provide Individual Group Details for display.
+    virtual bool getWireGroup(const RsGxsGroupId &groupId, RsWireGroupSPtr &grp) = 0;
+    virtual bool getWirePulse(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId, RsWirePulseSPtr &pPulse) = 0;
 
-	// Provide list of pulses associated with groups.
-virtual bool getPulsesForGroups(const std::list<RsGxsGroupId> &groupIds,
+    // Provide list of pulses associated with groups.
+    virtual bool getPulsesForGroups(const std::list<RsGxsGroupId> &groupIds,
 				std::list<RsWirePulseSPtr> &pulsePtrs) = 0;
 
-	// Provide pulse, and associated replies / like etc.
-virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId,
+    // Provide pulse, and associated replies / like etc.
+    virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &msgId,
 				int type, RsWirePulseSPtr &pPulse) = 0;
 
     // Retrieve statistics about the given wire
-/** Get pulse and unread counts.
- * @jsonapi{development}
- * @param[in] wireId Wire ID.
- * @param[out] stat Statistics.
- * @return true on success, false on failure.
- */
+    /** Get pulse and unread counts.
+     * @jsonapi{development}
+     * @param[in] wireId Wire ID.
+     * @param[out] stat Statistics.
+     * @return true on success, false on failure.
+     */
     virtual bool getWireStatistics(const RsGxsGroupId& wireId, RsWireStatistics& stat) = 0;
-/** Get network group statistics.
- * @jsonapi{development}
- * @param[in] wireId Wire ID.
- * @param[out] stat Statistics.
- * @return true on success, false on failure.
- */
+
+    /** Get network group statistics.
+     * @jsonapi{development}
+     * @param[in] wireId Wire ID.
+     * @param[out] stat Statistics.
+     * @return true on success, false on failure.
+     */
     virtual bool getWireGroupStatistics(const RsGxsGroupId& wireId,GxsGroupStatistic& stat) = 0;
 
     // Mark a single pulse as read/unread. Blocking, no token management needed.
-/** Mark a pulse read or unread.
- * @jsonapi{development}
- * @param[in] msgId Group/message ID pair.
- * @param[in] read Desired read state.
- * @return true on success, false on failure.
- */
+    /** Mark a pulse read or unread.
+     * @jsonapi{development}
+     * @param[in] msgId Group/message ID pair.
+     * @param[in] read Desired read state.
+     * @return true on success, false on failure.
+     */
     virtual bool setMessageReadStatus(const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
     RS_DEPRECATED_FOR(setMessageReadStatus)
     virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
 
-/** Get message metadata for a Wire.
- * @jsonapi{development}
- * @param[in] groupId Wire ID.
- * @param[out] summaries Message metadata.
- * @return true on success, false on failure.
- */
+    /** Get message metadata for a Wire.
+     * @jsonapi{development}
+     * @param[in] groupId Wire ID.
+     * @param[out] summaries Message metadata.
+     * @return true on success, false on failure.
+     */
     virtual bool getContentSummaries( const RsGxsGroupId& groupId,
                                       std::vector<RsMsgMetaData>& summaries ) = 0;
 
@@ -445,21 +450,22 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
 
     // Simple subscribe/unsubscribe API without token management (for UI use)
     // Tokens are handled internally by libretroshare
-/** Follow or unfollow a Wire.
- * @jsonapi{development}
- * @param[in] groupId Wire ID.
- * @param[in] subscribe True to follow, false to unfollow.
- * @return true on success, false on failure.
- */
+    /** Follow or unfollow a Wire.
+     * @jsonapi{development}
+     * @param[in] groupId Wire ID.
+     * @param[in] subscribe True to follow, false to unfollow.
+     * @return true on success, false on failure.
+     */
     virtual bool subscribe(const RsGxsGroupId& groupId, bool subscribe) = 0;
 
-/** Number of followed Wires. @jsonapi{development} */
+    /** Number of followed Wires. @jsonapi{development} */
     virtual uint32_t getFollowingCount() = 0;
-/** List followed Wires.
- * @jsonapi{development}
- * @param[out] groupIds Followed Wire IDs.
- * @return true on success, false on failure.
- */
+
+    /** List followed Wires.
+     * @jsonapi{development}
+     * @param[out] groupIds Followed Wire IDs.
+     * @return true on success, false on failure.
+     */
     virtual bool getSubscribedGroups(std::list<RsGxsGroupId>& groupIds) = 0;
 
 };
