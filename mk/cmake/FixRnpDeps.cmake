@@ -65,8 +65,8 @@ if(rnp_missing_deps)
 		"RetroShare will attempt to work around the issue by looking for packages "
 		"that might provide the missing targets.\n"
 		"If rnp is from your distribution's package repository, please file a bug "
-		"report with your distribution so the fix can backported from rnp commit "
-		"1a597a67.\n"
+		"report with your distribution so the fix can be backported from rnp "
+		"commit 1a597a67.\n"
 	)
 
 	list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/FixRnpDeps.Modules)
