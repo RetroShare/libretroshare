@@ -33,6 +33,7 @@ public:
     // from pqistreamer
     virtual bool RecvItem(RsItem *item) override;
     virtual int  tick() override;
+    virtual int  reset() override;
 
 protected:
 	void threadTick() override; /// @see RsTickingThread
