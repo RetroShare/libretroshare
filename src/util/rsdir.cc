@@ -682,22 +682,18 @@ bool RsDirUtil::getFileHash(const std::string& filepath, RsFileHash &hash, uint6
 	size = ftello64(fd);
 	fseeko64(fd, 0, SEEK_SET);
 
-	/* Bail out once the owning thread is asked to stop (shutdown). isRunning()
-	 * only turns false after the thread has exited, so from inside this loop
-	 * it never does: a multi-GB file would block the exit until fully hashed. */
+	/* Bail out as soon as the owning thread is asked to stop (shutdown).
+	 * shouldStop() is checked every iteration, i.e. every HASH_BUFFER_SIZE
+	 * bytes (10 MB) — sub-second responsiveness with negligible overhead. */
 	bool isRunning = thread ? !thread->shouldStop() : true;
-	int runningCheckCount = 0;
 
 	SHA1_Init(sha_ctx);
 	while(isRunning && (len = fread(gblBuf,1, HASH_BUFFER_SIZE, fd)) > 0)
 	{
 		SHA1_Update(sha_ctx, gblBuf, len);
 
-		if (thread && ++runningCheckCount > (10 * 1024)) {
-			/* check every 50MB whether the thread was asked to stop */
+		if (thread)
 			isRunning = !thread->shouldStop();
-			runningCheckCount = 0;
-		}
 	}
 
 	/* Thread has ended */
