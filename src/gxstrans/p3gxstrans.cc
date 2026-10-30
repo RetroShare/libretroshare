@@ -498,23 +498,12 @@ void p3GxsTrans::onStopRequested()
 {
 	RsGenExchange::onStopRequested();
 
+	/* Same reasoning as RsGenExchange::onStopRequested(): the cleanup thread
+	 * reads the data store, wait for it before this service counts as
+	 * stopped. Once its messages are loaded it tests shouldStop() for each of
+	 * them, and it never takes mPerUserStatsMutex. */
 	RS_STACK_MUTEX(mPerUserStatsMutex);
-	if(mCleanupThread) mCleanupThread->askForStop();
-}
-
-void p3GxsTrans::run()
-{
-	RsGenExchange::run();
-
-	/* Same reasoning as RsGenExchange::run(): service_tick() no longer runs,
-	 * so the pointer is stable; wait for the cleanup thread before reporting
-	 * this service as stopped, it reads the data store. */
-	GxsTransIntegrityCleanupThread* cleanup = nullptr;
-	{
-		RS_STACK_MUTEX(mPerUserStatsMutex);
-		cleanup = mCleanupThread;
-	}
-	if(cleanup) cleanup->fullstop();
+	if(mCleanupThread) mCleanupThread->fullstop();
 }
 
 void p3GxsTrans::service_tick()
@@ -532,7 +521,7 @@ void p3GxsTrans::service_tick()
 
         if(mCleanupThread->isRunning())
             std::cerr << "Cleanup thread is already running. Not running it again!" << std::endl;
-        else
+        else if(!shouldStop())	// onStopRequested() would miss a thread started now
         {
 #ifdef DEBUG_GXSTRANS
             std::cerr << "Starting GxsIntegrity cleanup thread." << std::endl;

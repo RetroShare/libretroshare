@@ -144,8 +144,7 @@ void RsServer::rsGlobalShutDown()
 	if(pqih) pqih->fullstopAllThreads();
 
 	/* Stop the file transfer / file sharing threads (data multiplexer,
-	 * controller, extra list, directory watcher, hash cache). Nothing ever
-	 * stopped them before, they ran until process exit. Everything they work
+	 * controller, extra list, directory watcher, hash cache). Everything they work
 	 * on reaches them through the RsServer tick thread (turtle, ftServer::tick)
 	 * or the per-peer streamer threads (p3Service::recv() runs on the streamer
 	 * thread), both stopped above, so by now they are idle and stop within a

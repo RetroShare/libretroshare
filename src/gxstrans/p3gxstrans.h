@@ -331,7 +331,6 @@ private:
 	/* Stop the cleanup thread together with the service, it reads the data
 	 * store which is deleted at shutdown right after the services stop. */
 	void onStopRequested() override;
-	void run() override;
 
 	GxsTransIntegrityCleanupThread *mCleanupThread ;
 

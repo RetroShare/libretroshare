@@ -321,7 +321,10 @@ void RsGenExchange::tick()
 		{
 			RS_STACK_MUTEX(mGenMtx) ;
 
-			if(!mIntegrityCheck)
+			/* Never start a check once a stop was requested: onStopRequested()
+			 * takes the same mutex, so it either sees the new check and stops
+			 * it, or runs first and this test keeps it from being created. */
+			if(!mIntegrityCheck && !shouldStop())
 			{
 				mIntegrityCheck = new RsGxsIntegrityCheck( mDataStore, this,
 				                                           *mSerialiser, mGixs);
@@ -331,7 +334,7 @@ void RsGenExchange::tick()
 			}
 		}
 
-		if(mIntegrityCheck->isDone() || !mChecking)
+		if(mIntegrityCheck && (mIntegrityCheck->isDone() || !mChecking))
 		{
             std::vector<RsGxsGroupId> grpIds;
             GxsMsgReq msgIds;
@@ -367,27 +370,12 @@ void RsGenExchange::tick()
 void RsGenExchange::onStopRequested()
 {
 	/* Runs on the thread that asked this service to stop (the shutdown
-	 * sequence). Forward the request to the integrity check right away so that
-	 * run() below does not have to wait for a whole pass to complete. */
+	 * sequence). Wait for the integrity check here: it reads mDataStore, which
+	 * RsServer::rsGlobalShutDown() deletes as soon as the services have
+	 * stopped. The check tests shouldStop() between groups, so this returns
+	 * quickly, and it never takes mGenMtx. */
 	RS_STACK_MUTEX(mGenMtx);
-	if(mIntegrityCheck) mIntegrityCheck->askForStop();
-}
-
-void RsGenExchange::run()
-{
-	while(!shouldStop()) threadTick();
-
-	/* The tick loop is over, so nobody creates or deletes mIntegrityCheck any
-	 * more. Do not return -- i.e. do not report this service as stopped --
-	 * while its integrity check thread may still be reading the data store:
-	 * RsServer::rsGlobalShutDown() deletes the stores as soon as the services
-	 * have stopped. */
-	RsGxsIntegrityCheck* check = nullptr;
-	{
-		RS_STACK_MUTEX(mGenMtx);
-		check = mIntegrityCheck;
-	}
-	if(check) check->fullstop();
+	if(mIntegrityCheck) mIntegrityCheck->fullstop();
 }
 
 bool RsGenExchange::messagePublicationTest(const RsGxsMsgMetaData& meta)
