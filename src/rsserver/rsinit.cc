@@ -1690,6 +1690,7 @@ int RsServer::StartupRetroShare()
 	interfaces.mGxsTunnels = mGxsTunnels;
     interfaces.mReputations     = mReputations;
     interfaces.mPosted          = mPosted;
+    interfaces.mGxsNetTunnel    = mGxsNetTunnel;
     
 	mPluginsManager->setInterfaces(interfaces);
 
