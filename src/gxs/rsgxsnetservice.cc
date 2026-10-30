@@ -434,9 +434,9 @@ RsGxsNetService::~RsGxsNetService()
 
 int RsGxsNetService::tick()
 {
-	// always check for new items arriving
-	// from peers
-	recvNxsItemQueue();
+	// Incoming items are handled by this service's own thread (threadTick): the sync request
+	// handlers read group and message metas from the database, which on a cold start means
+	// seconds of disk reads per request, and this tick runs on the thread shared by every service.
 
     bool should_notify = false;
 
@@ -2030,6 +2030,10 @@ void RsGxsNetService::threadTick()
 
         if(mUpdateCounter % 20 == 0)	// dump the full shit every 20 secs
             debugDump() ;
+
+        // items from peers: sync requests, lists, transactions. Their handlers hit the database;
+        // keep them off the shared service tick thread (see tick()).
+        recvNxsItemQueue();
 
         // process active transactions
         processTransactions();
