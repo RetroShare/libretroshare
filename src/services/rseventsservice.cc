@@ -101,7 +101,7 @@ RsEventType RsEventsService::getDynamicEventType(const std::string& unique_servi
     if(it == mRegisteredExtraEventTypes.end())
     {
         mRegisteredExtraEventTypes[unique_service_identifier] = static_cast<RsEventType>(mHandlerMaps.size());
-        mHandlerMaps.push_back(  std::map<RsEventsHandlerId_t,std::function<void(std::shared_ptr<const RsEvent>)> >());
+        mHandlerMaps.emplace_back();
 
         it = mRegisteredExtraEventTypes.find(unique_service_identifier);
 
@@ -159,40 +159,83 @@ std::error_condition RsEventsService::registerEventsHandler(
         }
     }
 
-	mHandlerMaps[static_cast<std::size_t>(eventType)][hId] = multiCallback;
+	auto handler = std::make_shared<Handler>();
+	handler->callback = std::move(multiCallback);
+	mHandlerMaps[static_cast<std::size_t>(eventType)][hId] = std::move(handler);
 	return std::error_condition();
+}
+
+namespace {
+/* Handlers running on the current thread, innermost first (sendEvent() can
+ * nest). Lets unregisterEventsHandler() skip waiting on itself when a callback
+ * unregisters its own handler. */
+struct RunningHandler
+{
+	explicit RunningHandler(const void* h): handler(h), prev(top) { top = this; }
+	~RunningHandler() { top = prev; }
+
+	const void* handler;
+	RunningHandler* prev;
+	static thread_local RunningHandler* top;
+};
+thread_local RunningHandler* RunningHandler::top = nullptr;
 }
 
 std::error_condition RsEventsService::unregisterEventsHandler(
         RsEventsHandlerId_t hId )
 {
-	std::error_condition retval = RsEventsErrorNum::INVALID_HANDLER_ID;
-
+	std::shared_ptr<Handler> removed;
 	{
 		RS_STACK_MUTEX(mHandlerMapMtx);
 
-		for(uint32_t i=0; i<mHandlerMaps.size(); ++i)
+		for(auto& handlerMap: mHandlerMaps)
 		{
-			auto it = mHandlerMaps[i].find(hId);
-			if(it != mHandlerMaps[i].end())
+			auto it = handlerMap.find(hId);
+			if(it != handlerMap.end())
 			{
-				mHandlerMaps[i].erase(it);
-				retval = std::error_condition();
+				removed = std::move(it->second);
+				handlerMap.erase(it);
 				break;
 			}
 		}
 	}
 
-	/* At this point no *future* dispatch can pick up this handler. But an
-	 * ongoing handleEvent() may still hold a copy of it in flight (callbacks are
-	 * run outside mHandlerMapMtx). Fence on mDispatchMtx so that, once we return,
-	 * the handler is guaranteed not to be executing either: callers that
-	 * unregister from their destructor (most GUI widgets) can then be destroyed
-	 * safely. Recursive mutex => when called from within a callback on the
-	 * dispatching thread this is a cheap no-op instead of a self-deadlock. */
-	{ std::lock_guard<std::recursive_mutex> dispatchFence(mDispatchMtx); }
+	if(!removed) return RsEventsErrorNum::INVALID_HANDLER_ID;
 
-	return retval;
+	/* No future dispatch can pick it up anymore, but one snapshotted before
+	 * the erase may still be running it: wait for that so a caller
+	 * unregistering from its destructor can then be destroyed safely. */
+	waitNotRunning(*removed);
+	return std::error_condition();
+}
+
+void RsEventsService::waitNotRunning(const Handler& h)
+{
+	unsigned onThisThread = 0;
+	for(auto* r = RunningHandler::top; r; r = r->prev)
+		if(r->handler == &h) ++onThisThread;
+
+	auto done = [&]{ return h.inFlight.load() <= onThisThread; };
+	if(done()) return;
+
+	/* Waiters counter first, so releaseHandler() either sees it or we see its
+	 * decrement (both are seq_cst) */
+	++mUnregisterWaiters;
+	{
+		std::unique_lock<std::mutex> lock(mUnregisterMtx);
+		mUnregisterCv.wait(lock, done);
+	}
+	--mUnregisterWaiters;
+}
+
+void RsEventsService::releaseHandler(Handler& h)
+{
+	--h.inFlight;
+	if(mUnregisterWaiters.load())
+	{
+		std::lock_guard<std::mutex> lock(mUnregisterMtx);
+		mUnregisterCv.notify_all();
+	}
 }
 
 void RsEventsService::threadTick()
@@ -238,32 +281,43 @@ void RsEventsService::handleEvent(std::shared_ptr<const RsEvent> event)
 		return;
 	}
 
-	/* Hold mDispatchMtx across the whole dispatch so unregisterEventsHandler()
-	 * can fence on it and guarantee a handler is not running once it returns
-	 * (see mDispatchMtx doc). Recursive: a callback re-entering on this same
-	 * thread (self-unregister or synchronous sendEvent) does not deadlock.
-	 * Safe against GUI teardown because handlers only post asynchronously (Qt
-	 * QueuedConnection) and never block waiting on the thread that unregisters,
-	 * so there is no lock-order cycle. */
-	std::lock_guard<std::recursive_mutex> dispatchLock(mDispatchMtx);
-
-	std::list<std::function<void(std::shared_ptr<const RsEvent>)> > callbacks;
+	/* Snapshot the handlers and mark them in flight under mHandlerMapMtx, so
+	 * unregisterEventsHandler() either erases a handler before it is
+	 * snapshotted or sees it in flight and waits. Callbacks run with no lock
+	 * held so they may send events or unregister themselves. */
+	std::vector<std::shared_ptr<Handler>> handlers;
 	{
 		RS_STACK_MUTEX(mHandlerMapMtx);
-		/* It is important to NOT call the callback under mHandlerMapMtx
-		 * protection to allow callbacks to send other events or unregister
-		 * themselves, which would otherwise deadlock. */
 
-		// Call all clients that registered a callback for this event type
-		for(auto& cbit: mHandlerMaps[static_cast<uint32_t>(event->mType)])
-			callbacks.push_back(cbit.second);
+		auto& typed = mHandlerMaps[static_cast<std::size_t>(event->mType)];
+		// Clients registered with __NONE expect all events
+		auto& all = mHandlerMaps[static_cast<std::size_t>(RsEventType::__NONE)];
 
-		/* Also call all clients that registered with NONE, meaning that they
-		 * expect all events */
-		for(auto& cbit: mHandlerMaps[static_cast<uint32_t>(RsEventType::__NONE)])
-			callbacks.push_back(cbit.second);
+		handlers.reserve(typed.size() + all.size());
+		for(auto* handlerMap: {&typed, &all})
+			for(auto& it: *handlerMap)
+			{
+				++it.second->inFlight;
+				handlers.push_back(it.second);
+			}
 	}
 
-	for(auto& cb: callbacks)
-		cb(event);
+	size_t next = 0;
+	try
+	{
+		for(; next < handlers.size(); ++next)
+		{
+			{
+				RunningHandler running(handlers[next].get());
+				handlers[next]->callback(event);
+			}
+			releaseHandler(*handlers[next]);
+		}
+	}
+	catch(...)
+	{
+		// Or a later unregister of one of them would wait forever
+		for(; next < handlers.size(); ++next) releaseHandler(*handlers[next]);
+		throw;
+	}
 }
