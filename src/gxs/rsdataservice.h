@@ -268,6 +268,8 @@ public:
     bool validSize(RsNxsMsg* msg) const override;
     bool validSize(RsNxsGrp* grp) const override;
 
+    std::string getEncryptionKey() const override;
+
     /*!
      * Convenience function used to only update group keys. This is used when sending
      * publish keys between peers.
