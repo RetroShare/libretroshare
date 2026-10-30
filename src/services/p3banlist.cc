@@ -928,6 +928,10 @@ bool p3BanList::addBanEntry( const RsPeerId &peerId,
 	rstime_t now = time(NULL);
 	bool updated = false;
 
+	// Would be ignored then erased by condenseBanSources_locked() anyway.
+	if (now > RSBANLIST_ENTRY_MAX_AGE + time_stamp)
+		return false;
+
 #ifdef DEBUG_BANLIST
     std::cerr << "p3BanList::addBanEntry() Addr: " << sockaddr_storage_iptostring(addr) << " Origin: " << level;
     std::cerr << " Reason: " << reason << " Age: " << now - time_stamp;
@@ -1038,17 +1042,24 @@ int p3BanList::condenseBanSources_locked()
 	std::cerr << std::endl;
 #endif
 
-	std::map<RsPeerId, BanList>::const_iterator it;
-	for(it = mBanSources.begin(); it != mBanSources.end(); ++it)
+	// Out-of-date sources and entries are ignored by the filter, so erase
+	// them: otherwise banlist.cfg grows forever and saveList() holds
+	// mBanMtx long enough to stall isAddressAccepted().
+	bool purged = false;
+
+	std::map<RsPeerId, BanList>::iterator it;
+	for(it = mBanSources.begin(); it != mBanSources.end(); )
 	{
         if (now - it->second.mLastUpdate > RSBANLIST_ENTRY_MAX_AGE)
         {
 #ifdef DEBUG_BANLIST_CONDENSE
         std::cerr << std::dec ;
             std::cerr << "p3BanList::condenseBanSources_locked()";
-            std::cerr << " Ignoring Out-Of-Date peer: " << it->first;
+            std::cerr << " Erasing Out-Of-Date peer: " << it->first;
             std::cerr << std::endl;
 #endif
+            it = mBanSources.erase(it);
+            purged = true;
             continue;
         }
 
@@ -1059,22 +1070,25 @@ int p3BanList::condenseBanSources_locked()
 		std::cerr << std::endl;
 #endif
 
-		std::map<struct sockaddr_storage, BanListPeer>::const_iterator lit;
+		std::map<struct sockaddr_storage, BanListPeer>::iterator lit;
+		for(lit = it->second.mBanPeers.begin(); lit != it->second.mBanPeers.end(); )
+			if (now > RSBANLIST_ENTRY_MAX_AGE + lit->second.mTs)
+			{
+#ifdef DEBUG_BANLIST_CONDENSE
+				std::cerr << "p3BanList::condenseBanSources_locked()";
+				std::cerr << " Erasing Out-Of-Date Entry for: ";
+				std::cerr << sockaddr_storage_iptostring(lit->second.addr);
+				std::cerr << " age=" << now - lit->second.mTs;
+				std::cerr << std::endl;
+#endif
+				lit = it->second.mBanPeers.erase(lit);
+				purged = true;
+			}
+			else
+				++lit;
+
         for(lit = it->second.mBanPeers.begin(); lit != it->second.mBanPeers.end(); ++lit)
     {
-        /* check timestamp */
-                    if (now > RSBANLIST_ENTRY_MAX_AGE + lit->second.mTs)
-                    {
-#ifdef DEBUG_BANLIST_CONDENSE
-        std::cerr << std::dec ;
-                        std::cerr << "p3BanList::condenseBanSources_locked()";
-                        std::cerr << " Ignoring Out-Of-Date Entry for: ";
-                        std::cerr << sockaddr_storage_iptostring(lit->second.addr);
-                        std::cerr << " time stamp= " << lit->second.mTs << ", age=" << now - lit->second.mTs;
-                        std::cerr << std::endl;
-#endif
-                        continue;
-                    }
 
         uint32_t lvl = lit->second.level;
         if (it->first != ownId)
@@ -1129,8 +1143,11 @@ int p3BanList::condenseBanSources_locked()
             }
         }
     }
+		++it;
 	}
 
+	if (purged)
+		IndicateConfigChanged();
 
 #ifdef DEBUG_BANLIST
 	std::cerr << "p3BanList::condenseBanSources_locked() Printing New Set:";
