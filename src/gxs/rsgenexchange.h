@@ -994,6 +994,11 @@ private:
     RsGxsGroupId mNextGroupToCheck ;
 
 protected:
+	/* RsThread override. The integrity check runs on a one-shot thread of its
+	 * own that reads mDataStore; it is stopped together with the service so
+	 * that it cannot outlive the store at shutdown. */
+	void onStopRequested() override;
+
 	enum CreateStatus { CREATE_FAIL, CREATE_SUCCESS, CREATE_FAIL_TRY_LATER };
 	const uint8_t SIGN_MAX_WAITING_TIME;
 	// TODO: cleanup this should be an enum!
