@@ -209,8 +209,8 @@ RsGxsIntegrityCheck::RsGxsIntegrityCheck(
 
 void RsGxsIntegrityCheck::run()
 {
-	std::vector<RsGxsGroupId> grps_to_delete;
-	GxsMsgReq msgs_to_delete;
+	// std::vector<RsGxsGroupId> grps_to_delete;
+	// GxsMsgReq msgs_to_delete;
 
     check();
 
@@ -272,6 +272,8 @@ bool RsGxsIntegrityCheck::check()
     // now messages. One request per group: the store serves them group by
     // group anyway, and this releases its mutex between groups and lets a stop
     // request through after one group instead of after the whole pass.
+    // retrieveGxsMsgMetaData() adds to msgMetas without clearing it, so the
+    // results of all the requests accumulate there.
     GxsMsgMetaResult msgMetas;
 
     for(auto mit=msgIds.begin(); mit != msgIds.end(); ++mit)
