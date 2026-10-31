@@ -1792,6 +1792,13 @@ int RsServer::StartupRetroShare()
     // Turtle search for GXS services
 
 	mGxsNetTunnel->registerSearchableService(gxschannels_ns);
+	mGxsNetTunnel->registerSearchableService(posted_ns);
+#ifdef RS_USE_WIKI
+	mGxsNetTunnel->registerSearchableService(wiki_ns);
+#endif
+#ifdef RS_USE_WIRE
+	mGxsNetTunnel->registerSearchableService(wire_ns);
+#endif
 #ifdef RS_USE_CALENDAR
 	mGxsNetTunnel->registerSearchableService(calendar_ns);
 #endif
