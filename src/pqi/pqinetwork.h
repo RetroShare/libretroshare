@@ -106,6 +106,10 @@ int unix_getsockopt_error(int sockfd, int *err);
 
 int rs_socket_error();
 
+/* Raw OS code of the last socket error, for socket_errorType(): WSAGetLastError()
+ * on Windows (errno stays 0 there), errno elsewhere. */
+int rs_last_socket_error();
+
 #ifdef WINDOWS_SYS // WINDOWS
 /******************* WINDOWS SPECIFIC PART ******************/
 RS_DEPRECATED_FOR("use std::error_condition instead")

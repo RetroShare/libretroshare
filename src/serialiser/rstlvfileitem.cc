@@ -264,6 +264,12 @@ bool     RsTlvFileItem::SetTlv(void *data, uint32_t size, uint32_t *offset) cons
 
 bool     RsTlvFileItem::GetTlv(void *data, uint32_t size, uint32_t *offset)
 {
+	/* validate that the full TLV header is available before dereferencing it,
+	 * otherwise GetTlvType()/GetTlvSize() read up to TLV_HEADER_SIZE bytes past
+	 * the end of the buffer. */
+	if (size < *offset + TLV_HEADER_SIZE)
+		return false;
+
 	uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
 	uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
 

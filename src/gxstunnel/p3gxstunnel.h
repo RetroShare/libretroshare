@@ -182,7 +182,7 @@ private:
     class GxsTunnelDHInfo
     {
     public:
-        GxsTunnelDHInfo() : dh(0), direction(0), status(0) {}
+        GxsTunnelDHInfo() : dh(0), direction(0), status(0), last_dh_restart(0), dropped_packets(0) {}
 
         DH *dh ;
         RsGxsId gxs_id ;
@@ -191,6 +191,8 @@ private:
         RsTurtleGenericTunnelItem::Direction direction ;
 	uint32_t status ;
 	TurtleFileHash hash ;
+        rstime_t last_dh_restart ;      // throttles DH restarts triggered by undecryptable packets
+        uint32_t dropped_packets ;      // undecryptable packets dropped since the last DH restart
     };
 
     struct GxsTunnelData
@@ -246,6 +248,8 @@ private:
     // Comunication with Turtle service
 
     bool locked_sendEncryptedTunnelData(RsGxsTunnelItem *item) ;
+    // Frees the data items of a tunnel that is being forgotten (no ACK can arrive any more).
+    void locked_dropPendingData(const RsGxsTunnelId& tunnel_id) ;
     bool locked_sendClearTunnelData(RsGxsTunnelDHPublicKeyItem *item);	// this limits the usage to DH items. Others should be encrypted!
     
 #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004

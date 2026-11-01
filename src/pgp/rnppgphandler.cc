@@ -895,7 +895,7 @@ bool RNPPGPHandler::getGPGDetailsFromBinaryBlock(const unsigned char *mem_block,
 {
     try
     {
-        rnp_input_t input; 	// no need to delete since we don't copy
+        RNP_INPUT_STRUCT(input); // do_copy=false still allocates the source and its 32 KB read buffer
         if(rnp_input_from_memory(&input,(uint8_t*)mem_block,mem_size,false) != RNP_SUCCESS)
             throw std::runtime_error("Cannot open supplied memory block. Memory access error.") ;
 
@@ -1178,7 +1178,7 @@ bool RNPPGPHandler::LoadCertificate(const unsigned char *data,uint32_t data_len,
     RsErr() << "Reading new key from string: " ;
 #endif
 
-    rnp_input_t input;
+    RNP_INPUT_STRUCT(input); // do_copy=false still allocates the source and its 32 KB read buffer
 
     if(rnp_input_from_memory(&input,(uint8_t*)data,data_len,false) != RNP_SUCCESS)
         return false;
@@ -1340,7 +1340,7 @@ bool RNPPGPHandler::encryptTextToFile(const RsPgpId& key_id,const std::string& t
 {
     try
     {
-        rnp_input_t input ;
+        RNP_INPUT_STRUCT(input); // do_copy=false still allocates the source and its 32 KB read buffer
         RNP_OUTPUT_STRUCT(output);
 
         if(rnp_input_from_memory(&input, (uint8_t*)text.c_str(),text.size(),false) != RNP_SUCCESS)
@@ -1366,7 +1366,7 @@ bool RNPPGPHandler::encryptDataBin(const RsPgpId& key_id,const void *data, const
 
     try
     {
-        rnp_input_t input ;
+        RNP_INPUT_STRUCT(input); // do_copy=false still allocates the source and its 32 KB read buffer
         RNP_OUTPUT_STRUCT(output);
 
         if(rnp_input_from_memory(&input, (uint8_t*)data,len,false) != RNP_SUCCESS)

@@ -19,6 +19,8 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.       *
  *                                                                             *
  *******************************************************************************/
+#include <algorithm>
+
 #include "util/rsdir.h"
 #include "gxstrans/p3gxstrans.h"
 #include "util/stacktrace.h"
@@ -192,10 +194,16 @@ void p3GxsTrans::handleResponse(uint32_t token, uint32_t req_type
 			const RsGroupMetaData& meta = grp->meta;
 			bool subscribed = IS_GROUP_SUBSCRIBED(meta.mSubscribeFlags);
 
-			// if mLastPost is 0, then the group is not subscribed, so it only has impact on shouldSubscribe.  In any case, a group
-			// with no information shouldn't be subscribed, so the olderThen() test is still valid in the case mLastPost=0.
+			// meta.mLastPost is the network statistic while the group is not subscribed and the local value once it is
+			// (RsGenExchange::getGroupData). Right after subscribing nothing is synced yet, so the local value is stale:
+			// the group looks old, gets unsubscribed, then re-subscribed on the network value, one DB write per flip,
+			// forever. Decide on the most recent of both so that both states see the same date.
+			rstime_t lastPost = meta.mLastPost;
+			RsGroupNetworkStats netStats;
+			if(RsGenExchange::getGroupNetworkStats(meta.mGroupId, netStats))
+				lastPost = std::max(lastPost, netStats.mLastGroupModificationTS);
 
-			bool old = olderThen( meta.mLastPost, UNUSED_GROUP_UNSUBSCRIBE_INTERVAL );
+			bool old = olderThen( lastPost, UNUSED_GROUP_UNSUBSCRIBE_INTERVAL );
 			uint32_t token;
 
 			bool shouldSubscribe   = false ;

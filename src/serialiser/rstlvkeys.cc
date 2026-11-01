@@ -209,6 +209,11 @@ uint32_t RsTlvRSAKey::getKeyTypeTlv(void *data, uint32_t size, uint32_t *constof
 
 	uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
 	uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
+
+	/* overflow-safe size check (never compute *offset + tlvsize directly) */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false; /* not enough space */
+
 	uint32_t tlvend = *offset + tlvsize;
 
 	if (size < tlvend)    /* check size */
@@ -388,6 +393,11 @@ bool  RsTlvSecurityKeySet::GetTlv(void *data, uint32_t size, uint32_t *offset)
 
 	uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
 	uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
+
+	/* overflow-safe size check (never compute *offset + tlvsize directly) */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false; /* not enough space */
+
 	uint32_t tlvend = *offset + tlvsize;
 
 	if (size < tlvend)    /* check size */
@@ -418,6 +428,7 @@ bool  RsTlvSecurityKeySet::GetTlv(void *data, uint32_t size, uint32_t *offset)
 		{
 		case TLV_TYPE_SECURITY_KEY:
 		{
+			uint32_t prevOffset = *offset;
 			RsTlvPublicRSAKey gen_key;
 			uint32_t keyType = gen_key.getKeyTypeTlv(data, tlvend, offset);
 			if(keyType == RSTLV_KEY_TYPE_PUBLIC_ONLY)
@@ -436,6 +447,14 @@ bool  RsTlvSecurityKeySet::GetTlv(void *data, uint32_t size, uint32_t *offset)
 				if(private_key.GetTlv(data, tlvend, offset))
 					private_keys[private_key.keyId] = private_key;
 			}
+
+			/* getKeyTypeTlv() never advances *offset, and on an unknown key
+			 * type (or a malformed sub-key whose GetTlv() fails early) neither
+			 * branch advances it either. Without this guard *offset stands
+			 * still, ok stays true, and the enclosing while loop spins forever
+			 * (remote DoS via GXS key distribution). */
+			if(*offset == prevOffset)
+				ok = false;
 		}
 		break ;
 
@@ -575,6 +594,11 @@ bool  RsTlvKeySignature::GetTlv(void *data, uint32_t size, uint32_t *offset)
 	
 	uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
 	uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
+
+	/* overflow-safe size check (never compute *offset + tlvsize directly) */
+	if (tlvsize > size || *offset > size - tlvsize)
+		return false; /* not enough space */
+
 	uint32_t tlvend = *offset + tlvsize;
 
 	if (size < tlvend)    /* check size */
@@ -728,6 +752,11 @@ bool RsTlvKeySignatureSet::GetTlv(void *data, uint32_t size, uint32_t *offset)
 
     uint16_t tlvtype = GetTlvType( &(((uint8_t *) data)[*offset])  );
     uint32_t tlvsize = GetTlvSize( &(((uint8_t *) data)[*offset])  );
+
+    /* overflow-safe size check (never compute *offset + tlvsize directly) */
+    if (tlvsize > size || *offset > size - tlvsize)
+            return false; /* not enough space */
+
     uint32_t tlvend = *offset + tlvsize;
 
     if (size < tlvend)    /* check size */

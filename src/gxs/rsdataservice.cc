@@ -45,6 +45,7 @@
 #define GRP_LAST_POST_UPDATE_TRIGGER std::string("LAST_POST_UPDATE")
 
 #define MSG_INDEX_GRPID std::string("INDEX_MESSAGES_GRPID")
+#define MSG_INDEX_META  std::string("INDEX_MESSAGES_META")
 
 // Maximum number of message ids packed into a single "IN (...)" clause. Keeps
 // the generated SQL and sqlite's expression tree to a sane size while making
@@ -370,7 +371,7 @@ void RsDataService::initialise(bool isNewDatabase)
                 + KEY_RECV_TS + " WHERE " + KEY_GRP_ID + "=new." + KEY_GRP_ID + ";"
                 + std::string("END;"));
 
-        mDb->execSQL("CREATE INDEX " + MSG_INDEX_GRPID + " ON " + MSG_TABLE_NAME + "(" + KEY_GRP_ID +  ");");
+        // The per-group meta index is created below, for new and existing databases alike.
 
         // Insert release, no need to upgrade
         ContentValue cv;
@@ -450,9 +451,38 @@ void RsDataService::initialise(bool isNewDatabase)
 
     if (ok) {
         std::cerr << "Database " << mDbName << " release " << currentDatabaseRelease << " successfully initialised." << std::endl;
+        ensureMsgMetaIndex();
     } else {
         std::cerr << "Database " << mDbName << " initialisation failed." << std::endl;
     }
+}
+
+void RsDataService::ensureMsgMetaIndex()
+{
+    // Covering index for the per-group meta reads (retrieveGxsMsgMetaData, msgId sets, cleanup...).
+    // In the MESSAGES record the nxsData blob (the post itself, possibly hundreds of KB) sits before
+    // msgStatus, childTs, threadId, parentId, msgName, servString, hash and recvTs, so reading the meta
+    // of a row makes SQLite walk, and SQLCipher decrypt, every overflow page of the post. Measured: 72 s
+    // for the 3388 metas of one posted group at startup, every meta of every group being read then.
+    // An index holding all the meta columns serves those queries without touching the table rows.
+    // It subsumes the old grpId-only index, which is dropped so the planner has one choice.
+    std::string cols;
+    for(const auto& c : mMsgMetaColumns)
+        if(c != KEY_GRP_ID)
+            cols += "," + c;
+
+    rstime_t t0 = time(nullptr);
+
+    if(!mDb->execSQL("CREATE INDEX IF NOT EXISTS " + MSG_INDEX_META + " ON " + MSG_TABLE_NAME + "(" + KEY_GRP_ID + cols + ");"))
+    {
+        RsErr() << "Database " << mDbName << ": could not create the message meta index.";
+        return;
+    }
+    mDb->execSQL("DROP INDEX IF EXISTS " + MSG_INDEX_GRPID + ";");
+
+    rstime_t dt = time(nullptr) - t0;
+    if(dt >= 2)
+        RsInfo() << "Database " << mDbName << ": built the message meta index in " << dt << " s (one-time).";
 }
 
 bool RsDataService::startReleaseUpdate(int release)

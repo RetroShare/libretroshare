@@ -1172,7 +1172,12 @@ RsTypeSerializer_SUPPRESS_WBC_WARNING_POP
 		 * not the case something fishy is happening. */
 		for (size_t i = 0; offset < size && i <= sizeof(T); ++i)
 		{
-			member |= (data[offset] & 127) << (7 * i);
+			/* Cast to T before shifting: "(data[offset] & 127)" is an int, and
+			 * for 64-bit members 7*i reaches 49/56, i.e. a shift >= 32 on a
+			 * 32-bit int -> undefined behaviour and silent loss of the high
+			 * bytes. Shifting in T (e.g. uint64_t) is well-defined and keeps
+			 * all bits. */
+			member |= static_cast<T>(data[offset] & 127) << (7 * i);
 			// If the next-byte flag is not set. ++ is after on purpose
 			if(!(data[offset++] & 128))
 			{

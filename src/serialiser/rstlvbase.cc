@@ -136,22 +136,33 @@ bool SkipUnknownTlv(void *data, uint32_t size, uint32_t *offset)
 	//uint16_t tlvtype = GetTlvType(tlvstart);
 	uint32_t tlvsize = GetTlvSize(tlvstart);
 
-	/* check that there is size */
-	uint32_t tlvend = *offset + tlvsize;
-	if (size < tlvend)
+	/* A TLV must be at least as large as its own header. Rejecting smaller
+	 * (including zero) sizes is mandatory: it guarantees forward progress for
+	 * the callers that loop over sub-TLVs, otherwise a crafted sub-TLV with
+	 * size 0 makes *offset stand still and the caller spins forever. */
+	if (tlvsize < TLV_HEADER_SIZE)
+	{
+#ifdef TLV_BASE_DEBUG
+		std::cerr << "SkipUnknownTlv() FAILED - tlvsize smaller than header." << std::endl;
+#endif
+		return false;
+	}
+
+	/* check that there is size - overflow safe (mirrors GetTlvUInt32 & co.),
+	 * never compute *offset + tlvsize directly as it may wrap around. */
+	if (tlvsize > size || *offset > size - tlvsize)
 	{
 #ifdef TLV_BASE_DEBUG
 		std::cerr << "SkipUnknownTlv() FAILED - not enough space." << std::endl;
 		std::cerr << "SkipUnknownTlv() size: " << size << std::endl;
 		std::cerr << "SkipUnknownTlv() tlvsize: " << tlvsize << std::endl;
-		std::cerr << "SkipUnknownTlv() tlvend: " << tlvend << std::endl;
 #endif
 		return false;
 	}
 
 	bool ok = true;
 	/* step past this tlv item */
-	*offset = tlvend;
+	*offset += tlvsize;
 	return ok;
 }
 
@@ -560,10 +571,10 @@ static bool find_decoded_string(const std::string& in,const std::string& suspici
 bool GetTlvString(const void *data, uint32_t size, uint32_t *offset,
 			uint16_t type, std::string &in) 
 {
-    if (!data)
+    if (!data || !offset)
         return false;
 
-    if (size < *offset)
+    if (*offset > size || size - *offset < TLV_HEADER_SIZE)
     {
 #ifdef TLV_BASE_DEBUG
         std::cerr << "GetTlvString() FAILED - not enough space" << std::endl;
@@ -579,7 +590,7 @@ bool GetTlvString(const void *data, uint32_t size, uint32_t *offset,
     uint32_t tlvsize = GetTlvSize(tlvstart);
 
     /* check that there is size */
-    if (tlvsize > size || *offset > size - tlvsize)
+    if (tlvsize < TLV_HEADER_SIZE || tlvsize > size - *offset)
     {
 #ifdef TLV_BASE_DEBUG
         std::cerr << "GetTlvString() FAILED - not enough space" << std::endl;

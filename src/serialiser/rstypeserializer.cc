@@ -26,6 +26,7 @@
 #include "serialiser/rstlvkeys.h"
 #include "serialiser/rsserializable.h"
 #include "util/rsbase64.h"
+#include "util/rsmemory.h"
 #include "util/rsprint.h"
 #include "util/rstime.h"
 
@@ -630,7 +631,17 @@ void RsTypeSerializer::RawMemoryWrapper::serial_process(
 			break;
 		}
 
-		first = reinterpret_cast<uint8_t*>(malloc(second));
+		{
+			std::error_condition ec;
+			first = rs_malloc<uint8_t>(second, &ec);
+			if(!first)
+			{
+				RsErr() << __PRETTY_FUNCTION__ << " " << ec << std::endl;
+				ctx.mOk = false;
+				clear();
+				break;
+			}
+		}
 		memcpy(first, ctx.mData + ctx.mOffset, second);
 		ctx.mOffset += second;
 		break;
@@ -685,7 +696,12 @@ void RsTypeSerializer::RawMemoryWrapper::serial_process(
 			break;
 		}
 
-		first = reinterpret_cast<uint8_t*>(malloc(decodedSize));
+		first = rs_malloc<uint8_t>(decodedSize, &ec);
+		if(!first)
+		{
+			RsErr() << __PRETTY_FUNCTION__ << " " << ec << std::endl;
+			return failure();
+		}
 		second = static_cast<uint32_t>(decodedSize);
 
 		memcpy(first, decoded.data(), second);

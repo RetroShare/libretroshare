@@ -21,6 +21,7 @@
  *******************************************************************************/
 #pragma once
 
+#include <cstdlib>
 #include <openssl/ssl.h>
 
 #include "rsitems/rsserviceids.h"
@@ -71,8 +72,11 @@ public:
     RsGxsTunnelDataItem() :RsGxsTunnelItem(RS_PKT_SUBTYPE_GXS_TUNNEL_DATA), unique_item_counter(0), flags(0), service_id(0), data_size(0), data(NULL) {}
     explicit RsGxsTunnelDataItem(uint8_t subtype) :RsGxsTunnelItem(subtype) , unique_item_counter(0), flags(0), service_id(0), data_size(0), data(NULL) {}
 
-    virtual ~RsGxsTunnelDataItem() {}
-    virtual void clear() {}
+    // data is rs_malloc()'ed by the tunnel service (send side) or by the
+    // deserialiser (receive side); the receive path nulls it before handing
+    // it over to the client service.
+    virtual ~RsGxsTunnelDataItem() { free(data); }
+    virtual void clear() { free(data); data = NULL; data_size = 0; }
 
 	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 

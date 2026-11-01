@@ -241,6 +241,7 @@ void DistantChatService::receiveData( const RsGxsTunnelId& tunnel_id, unsigned c
     }
 
     RsItem *item = RsChatSerialiser().deserialise(data,&data_size) ;
+    free(data) ;	// the tunnel service handed the buffer over to us
 
     if(item != NULL)
     {

@@ -241,7 +241,7 @@ X509_REQ *GenerateX509Req(
 #define SERIAL_RAND_BITS 	64
 
 #ifdef UNUSED_CODE
-X509 *SignX509Certificate(X509_NAME *issuer, EVP_PKEY *privkey, X509_REQ *req, long days)
+X509 *SignX509Certificate(const X509_NAME *issuer, EVP_PKEY *privkey, X509_REQ *req, long days)
 {
 	const EVP_MD *digest = EVP_sha1();
 	ASN1_INTEGER *serial = ASN1_INTEGER_new();
@@ -634,7 +634,7 @@ bool getX509id(X509 *x509, RsPeerId& xid)
 		if(RsPeerId::SIZE_IN_BYTES > Sha256CheckSum::SIZE_IN_BYTES)
 			return false ;
 
-		xid = RsPeerId(RsDirUtil::sha256sum(ASN1_STRING_data(const_cast<ASN1_BIT_STRING*>(signature)),ASN1_STRING_length(signature)).toByteArray()) ;
+		xid = RsPeerId(RsDirUtil::sha256sum(ASN1_STRING_get0_data(signature),ASN1_STRING_length(signature)).toByteArray()) ;
 	}
 	else
 	{
@@ -649,7 +649,7 @@ bool getX509id(X509 *x509, RsPeerId& xid)
 		}
 
 		// else copy in the first CERTSIGNLEN.
-		unsigned char *signdata = ASN1_STRING_data(const_cast<ASN1_BIT_STRING*>(signature));
+		const unsigned char *signdata = ASN1_STRING_get0_data(signature);
 
 		/* switched to the other end of the signature. for
 	 	 * more randomness
@@ -709,14 +709,14 @@ uint32_t getX509RetroshareCertificateVersion(X509 *cert)
 	}
 }
 
-std::string getX509NameString(X509_NAME *name)
+std::string getX509NameString(const X509_NAME *name)
 {
 	std::string namestr;
 	for(int i = 0; i < X509_NAME_entry_count(name); i++)
 	{
-		X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
-		ASN1_STRING *entry_data = X509_NAME_ENTRY_get_data(entry);
-		ASN1_OBJECT *entry_obj = X509_NAME_ENTRY_get_object(entry);
+		const X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
+		const ASN1_STRING *entry_data = X509_NAME_ENTRY_get_data(entry);
+		const ASN1_OBJECT *entry_obj = X509_NAME_ENTRY_get_object(entry);
 
 		namestr += "\t";
 		namestr += OBJ_nid2ln(OBJ_obj2nid(entry_obj));
@@ -729,9 +729,9 @@ std::string getX509NameString(X509_NAME *name)
 		//namestr += entry_data -> flags;
 		//entry -> set; 
 
-		if (entry_data -> data != NULL)
+		if (ASN1_STRING_get0_data(entry_data) != NULL)
 		{
-			namestr += (char *) entry_data -> data;
+			namestr += (const char *) ASN1_STRING_get0_data(entry_data);
 		}
 		else
 		{
@@ -746,21 +746,21 @@ std::string getX509NameString(X509_NAME *name)
 	return namestr;
 }
 
-std::string getX509CNString(X509_NAME *name)
+std::string getX509CNString(const X509_NAME *name)
 {
 	std::string namestr;
 	for(int i = 0; i < X509_NAME_entry_count(name); i++)
 	{
-		X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
-		ASN1_STRING *entry_data = X509_NAME_ENTRY_get_data(entry);
-		ASN1_OBJECT *entry_obj = X509_NAME_ENTRY_get_object(entry);
+		const X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
+		const ASN1_STRING *entry_data = X509_NAME_ENTRY_get_data(entry);
+		const ASN1_OBJECT *entry_obj = X509_NAME_ENTRY_get_object(entry);
 
 		if (0 == strncmp("CN", OBJ_nid2sn(OBJ_obj2nid(entry_obj)), 2))
 		{
-			if (entry_data -> data != NULL)
+			if (ASN1_STRING_get0_data(entry_data) != NULL)
 			{
 				// do we need to convert ASN1_STRING to utf8 (ASN1_STRING_to_UTF8)?
-				namestr = (char *) entry_data->data;
+				namestr = (const char *) ASN1_STRING_get0_data(entry_data);
 			}
 			else
 			{
@@ -772,21 +772,21 @@ std::string getX509CNString(X509_NAME *name)
 	return namestr;
 }
 
-std::string getX509TypeString(X509_NAME *name, const char *type, int len)
+std::string getX509TypeString(const X509_NAME *name, const char *type, int len)
 {
 	std::string namestr;
 	for(int i = 0; i < X509_NAME_entry_count(name); i++)
 	{
-		X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
-		ASN1_STRING *entry_data = X509_NAME_ENTRY_get_data(entry);
-		ASN1_OBJECT *entry_obj = X509_NAME_ENTRY_get_object(entry);
+		const X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, i);
+		const ASN1_STRING *entry_data = X509_NAME_ENTRY_get_data(entry);
+		const ASN1_OBJECT *entry_obj = X509_NAME_ENTRY_get_object(entry);
 
 		if (0 == strncmp(type, OBJ_nid2sn(OBJ_obj2nid(entry_obj)), len))
 		{
-			if (entry_data -> data != NULL)
+			if (ASN1_STRING_get0_data(entry_data) != NULL)
 			{
 				// do we need to convert ASN1_STRING to utf8 (ASN1_STRING_to_UTF8)?
-				namestr = (char *) entry_data -> data;
+				namestr = (const char *) ASN1_STRING_get0_data(entry_data);
 			}
 			else
 			{
@@ -798,17 +798,17 @@ std::string getX509TypeString(X509_NAME *name, const char *type, int len)
 	return namestr;
 }
 
-std::string getX509LocString(X509_NAME *name)
+std::string getX509LocString(const X509_NAME *name)
 {
 	return getX509TypeString(name, "L", 2);
 }
 
-std::string getX509OrgString(X509_NAME *name)
+std::string getX509OrgString(const X509_NAME *name)
 {
 	return getX509TypeString(name, "O", 2);
 }
 
-std::string getX509CountryString(X509_NAME *name)
+std::string getX509CountryString(const X509_NAME *name)
 {
 	return getX509TypeString(name, "C", 2);
 }

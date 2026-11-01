@@ -124,7 +124,7 @@ class DirectoryStorage
 
         EntryIndex root() const ;								// returns the index of the root directory entry. This is generally 0.
         const RsPeerId& peerId() const { return mPeerId ; }		// peer ID of who owns that file list.
-        int parentRow(EntryIndex e) const ;						// position of the current node, in the array of children at its parent node. Used by GUI for display.
+        int parentRow(EntryIndex e) const ;						// position of the parent of node e in the children of its own parent, i.e. the row the GUI needs to build the parent's QModelIndex. -1 for the root.
         bool getChildIndex(EntryIndex e,int row,EntryIndex& c) const;	// returns the index of the children node at position "row" in the children nodes. Used by GUI for display.
 
         // Sets the subdirectory/subfiles list of entry indx the supplied one, possible adding and removing directories (resp.files). New directories are set empty with
