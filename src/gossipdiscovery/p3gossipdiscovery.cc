@@ -566,6 +566,12 @@ void p3discovery2::sendPGPList(const RsPeerId &toId)
             }
 	}
 
+	// Always list our own profile (we only get here with discovery on): a
+	// friend relays our other nodes to us only if our list names our own
+	// profile, and the loop above names it only while another of our nodes is
+	// connected to us, which a lone or newly created node never is.
+	pkt->pgpIdSet.ids.insert(AuthPGP::getPgpOwnId());
+
 	pkt->PeerId(toId);
 
 #ifdef P3DISC_DEBUG
@@ -966,8 +972,12 @@ void p3discovery2::processContactInfo(const RsPeerId &fromId, const RsDiscContac
 
     // The peer the discovery info is about is a friend. We gather the nodes for that profile into the local structure and notify p3peerMgr.
 
-    if(!rsPeers->isGPGAccepted(item->pgpId))  // this is an additional check, because the friendship previously depends on the local cache. We need
-		return ;                              // fresh information here.
+    // Our own profile is never flagged as accepted (AuthPGP::loadList() skips
+    // it), so test it explicitly, like AuthSSL and p3PeerMgr::addFriend() do:
+    // otherwise every node of our own profile announced by a friend is dropped.
+    if( item->pgpId != AuthPGP::getPgpOwnId() &&
+        !rsPeers->isGPGAccepted(item->pgpId) ) // this is an additional check, because the friendship previously depends on the local cache. We need
+		return ;                               // fresh information here.
 
 	bool should_notify_discovery = false;
 
