@@ -83,6 +83,11 @@ const uint32_t P3CONNMGR_UDP_DEFAULT_PERIOD = 30;  // this represents how long i
 
 #define MAX_RANDOM_ATTEMPT_OFFSET	6 // seconds.
 
+/* The longest attempt (UDP: period + RS_UDP_STD_TIMEOUT_PERIOD, then the SSL
+ * handshake) ends well within this. An attempt still flagged after it has lost
+ * its result, and would otherwise swallow every later connection request. */
+#define MAX_CONNECT_ATTEMPT_DURATION 600 // seconds.
+
 void  printConnectState(std::ostream &out, peerConnectState &peer);
 
 peerConnectAddress::peerConnectAddress()
@@ -111,6 +116,7 @@ peerConnectState::peerConnectState()
       linkType(0),
       source(0),
       inConnAttempt(false),
+      connAttemptTS(0),
       wasDeniedConnection(false),
       deniedTS(0),
       deniedInConnAttempt(false)
@@ -355,6 +361,27 @@ void    p3LinkMgrIMPL::statusTick()
 			std::cerr << std::endl;
 #endif
 			it->second.state &= (~RS_PEER_S_ONLINE);
+		}
+
+		/* An attempt whose result never came back (the transport was reset
+		 * before it opened a socket, so nothing reported the failure) keeps
+		 * inConnAttempt set for ever: every later request, periodic retry,
+		 * DHT/UDP or manual, then stops at "already in connect attempt" and
+		 * the friend is never tried again until a restart. */
+		if (it->second.inConnAttempt &&
+		    it->second.connAttemptTS + MAX_CONNECT_ATTEMPT_DURATION < now)
+		{
+			RsWarn() << "p3LinkMgr: connection attempt to " << it->first
+			         << " at " << sockaddr_storage_tostring(it->second.currentConnAddrAttempt.addr)
+			         << " never reported a result in "
+			         << now - it->second.connAttemptTS
+			         << " s, dropping it" << std::endl;
+			it->second.inConnAttempt = false;
+			if (!it->second.connAddrs.empty())
+			{
+				it->second.actions |= RS_PEER_CONNECT_REQ;
+				mStatusChanged = true;
+			}
 		}
 
 		if (it->second.lastattempt < retry)
@@ -646,6 +673,7 @@ bool p3LinkMgrIMPL::connectAttempt(const RsPeerId &id, struct sockaddr_storage &
 
         it->second.lastattempt = time(NULL); 
         it->second.inConnAttempt = true;
+        it->second.connAttemptTS = time(NULL);
         it->second.currentConnAddrAttempt = it->second.connAddrs.front();
 	it->second.connAddrs.pop_front();
 
