@@ -775,3 +775,76 @@ endif()
 
 ## Alias target for super-builds (brought in via add_subdirectory)
 add_library(${TARGET_NAMESPACE}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+
+
+################################################################################
+### packaging
+
+if(PROJECT_IS_TOP_LEVEL)
+
+## generators
+set(CPACK_GENERATOR TXZ)
+if(WIN32)
+	set(CPACK_GENERATOR ZIP)
+endif()
+set(CPACK_SOURCE_GENERATOR ${CPACK_GENERATOR})
+set(CPACK_PACKAGE_CHECKSUM SHA256)
+
+## package metadata
+set(CPACK_PACKAGE_NAME ${PROJECT_NAME_PRETTY})
+set(CPACK_PACKAGE_VENDOR "RetroShare")
+# set(CPACK_PACKAGE_ICON ${PROJECT_SOURCE_DIR}/data/logos/128x128.png)
+# set(CPACK_RESOURCE_FILE_README "${PROJECT_SOURCE_DIR}/README.md")
+# set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/COPYING.txt")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_FULL})
+
+## misc packaging options
+set(CPACK_VERBATIM_VARIABLES TRUE)
+set(CPACK_COMPONENTS_ALL libretroshare)
+if(BUILD_TYPE_UPPER IN_LIST DEV_BUILD_TYPES)
+  set(CPACK_STRIP_FILES FALSE)
+else()
+  set(CPACK_STRIP_FILES TRUE)
+endif()
+set(CPACK_SOURCE_IGNORE_FILES
+  "^${PROJECT_BINARY_DIR}/"
+  "^${PROJECT_SOURCE_DIR}/\\.git(/|\$)"
+  "^${PROJECT_SOURCE_DIR}/build/"
+)
+set(CPACK_THREADS 0)
+
+## runtime dependencies
+if(WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.16)
+	set(RUNTIME_DEPENDENCY_EXECUTABLES "$<TARGET_FILE:${PROJECT_NAME}>")
+	set(RUNTIME_DEPENDENCY_LIBRARIES "")
+	set(RUNTIME_DEPENDENCY_MODULES "")
+	set(RUNTIME_DEPENDENCY_DIRECTORIES ${RUNTIME_DEPENDENCY_PATH})
+	if(CMAKE_IMPORT_LIBRARY_SUFFIX)
+		# DLL platform -- DLLs go in runtime directory
+		set(RUNTIME_DEPENDENCY_DESTINATION ${CMAKE_INSTALL_BINDIR})
+	else()
+		# non-DLL platform -- SOs go in library directory
+		set(RUNTIME_DEPENDENCY_DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	endif()
+
+	configure_file(
+		${CMAKE_CURRENT_SOURCE_DIR}/mk/cmake/install_runtime_dependencies.cmake.in
+		${CMAKE_CURRENT_BINARY_DIR}/install_runtime_dependencies.cmake.gen
+		@ONLY
+	)
+	file(GENERATE
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/install_runtime_dependencies.cmake
+		INPUT ${CMAKE_CURRENT_BINARY_DIR}/install_runtime_dependencies.cmake.gen
+	)
+	list(APPEND CPACK_INSTALL_SCRIPTS
+		${CMAKE_CURRENT_BINARY_DIR}/install_runtime_dependencies.cmake
+	)
+endif()
+
+find_package(Git QUIET)
+configure_file(mk/cmake/RSCPackConfig.cmake.in RSCPackConfig.cmake @ONLY)
+set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_BINARY_DIR}/RSCPackConfig.cmake)
+
+include(CPack)
+
+endif(PROJECT_IS_TOP_LEVEL)
