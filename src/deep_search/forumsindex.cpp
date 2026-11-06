@@ -29,8 +29,9 @@ namespace
 {
 /* Bump when the table definition changes: the table is then dropped,
  * re-created and filled again from the GXS database.
- * 1: FTS4, unicode61 tokenizer, newest first. */
-constexpr int FORUM_INDEX_SCHEMA_VERSION = 1;
+ * 1: FTS4, unicode61 tokenizer, newest first.
+ * 2: whole posts extracted from their HTML, whatever their number of tags. */
+constexpr int FORUM_INDEX_SCHEMA_VERSION = 2;
 
 /* Columns, in this order:
  *  0 group_id   forum id

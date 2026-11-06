@@ -18,6 +18,8 @@
  *******************************************************************************/
 
 #include <algorithm>
+#include <cctype>
+#include <cstring>
 #include <thread>
 
 #include "deep_search/commonutils.hpp"
@@ -36,45 +38,96 @@ std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc)
 	        rsHtmlDoc[0] != '<' || rsHtmlDoc[rsHtmlDoc.size() - 1] != '>';
 	if(isPlainMsg) return rsHtmlDoc;
 
-	auto oSize = rsHtmlDoc.size();
-	auto bodyTagBegin(rsHtmlDoc.find("<body"));
-	if(bodyTagBegin >= oSize) return rsHtmlDoc;
+	/* One linear pass, no limit on the number of tags: big posts made of
+	 * thousands of tags are extracted whole. A tag becomes a space, so words
+	 * on both sides of <br> or </p> are not glued together. The content of
+	 * <style>, <script> and <head> is dropped. The common entities are
+	 * decoded. Nothing is logged: this is private content. */
+	const std::string& in = rsHtmlDoc;
+	const size_t n = in.size();
 
-	auto bodyTagEnd(rsHtmlDoc.find(">", bodyTagBegin));
-	if(bodyTagEnd >= oSize) return rsHtmlDoc;
-
-	std::string retVal(rsHtmlDoc.substr(bodyTagEnd+1));
-
-	// strip also CSS inside <style></style>
-	oSize = retVal.size();
-	auto styleTagBegin(retVal.find("<style"));
-	if(styleTagBegin < oSize)
+	auto startsWithNoCase = [&](size_t pos, const char* what)
 	{
-		auto styleEnd(retVal.find("</style>", styleTagBegin));
-		if(styleEnd < oSize)
-			retVal.erase(styleTagBegin, 8+styleEnd-styleTagBegin);
-	}
+		for(size_t k = 0; what[k]; ++k)
+			if( pos + k >= n ||
+			        std::tolower(static_cast<unsigned char>(in[pos + k])) != what[k] )
+				return false;
+		return true;
+	};
 
-	std::string::size_type oPos;
-	std::string::size_type cPos;
-	int itCount = 0;
-	while((oPos = retVal.find("<")) < retVal.size())
+	// "<style" must not match "<styles", nor "<head" match "<header"
+	auto isTag = [&](size_t pos, const char* name)
 	{
-		if((cPos = retVal.find(">")) <= retVal.size())
-			retVal.erase(oPos, 1+cPos-oPos);
-		else break;
+		if(!startsWithNoCase(pos, name)) return false;
+		const size_t after = pos + strlen(name);
+		return after >= n || std::strchr(" \t\r\n/>", in[after]) != nullptr;
+	};
 
-		// Avoid infinite loop with crafty input
-		if(itCount > 1000)
+	// Skip to after the closing tag of an element whose content is dropped
+	auto skipElement = [&](size_t pos, const char* closing)
+	{
+		for(size_t p = pos; p < n; ++p)
+			if(in[p] == '<' && isTag(p, closing))
+			{
+				const size_t end = in.find('>', p);
+				return end == std::string::npos ? n : end + 1;
+			}
+		return n;
+	};
+
+	static const struct { const char* name; char value; } entities[] =
+	{
+		{ "&nbsp;", ' ' }, { "&amp;", '&' }, { "&lt;", '<' }, { "&gt;", '>' },
+		{ "&quot;", '"' }, { "&apos;", '\'' }, { "&#39;", '\'' }
+	};
+
+	std::string out;
+	out.reserve(n);
+	auto addSpace = [&]() { if(!out.empty() && out.back() != ' ') out += ' '; };
+
+	size_t i = 0;
+	while(i < n)
+	{
+		const char c = in[i];
+		if(c == '<')
 		{
-			RS_WARN( "Breaking stripping loop due to max allowed iterations ",
-			         "rsHtmlDoc: ", rsHtmlDoc, " retVal: ", retVal );
-			break;
+			if(isTag(i, "<style")) i = skipElement(i, "</style");
+			else if(isTag(i, "<script")) i = skipElement(i, "</script");
+			else if(isTag(i, "<head")) i = skipElement(i, "</head");
+			else
+			{
+				const size_t end = in.find('>', i);
+				i = end == std::string::npos ? n : end + 1;
+			}
+			addSpace();
 		}
-		++itCount;
+		else if(c == '&')
+		{
+			bool decoded = false;
+			for(const auto& e : entities)
+				if(startsWithNoCase(i, e.name))
+				{
+					if(e.value == ' ') addSpace(); else out += e.value;
+					i += strlen(e.name);
+					decoded = true;
+					break;
+				}
+			if(!decoded) { out += c; ++i; }
+		}
+		else if(c == '\n' || c == '\r' || c == '\t' || c == ' ')
+		{
+			addSpace();
+			++i;
+		}
+		else
+		{
+			out += c;
+			++i;
+		}
 	}
 
-	return retVal;
+	while(!out.empty() && out.back() == ' ') out.pop_back();
+	return out;
 }
 
 }
