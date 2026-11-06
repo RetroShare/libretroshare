@@ -60,7 +60,8 @@ p3GxsForums::p3GxsForums( RsGeneralDataService *gds,
     mGenActive(false), mGenCount(0),
     mKnownForumsMutex("GXS forums known forums timestamp cache")
 #ifdef RS_DEEP_FORUMS_INDEX
-    , mDeepIndex(DeepForumsIndex::dbDefaultPath())
+    , mDeepIndex(DeepForumsIndex::dbDefaultPath(), gds->getEncryptionKey()),
+    mReindexRunning(false), mReindexNotBefore(time(nullptr) + 30)
 #endif
 {
 	// Test Data disabled in Repo.
@@ -466,6 +467,27 @@ void	p3GxsForums::service_tick()
 {
 	dummy_tick();
 	RsTickEvent::tick_events();
+
+#ifdef RS_DEEP_FORUMS_INDEX
+	/* A new or upgraded index is filled once from the GXS database. Off this
+	 * thread: the blocking forum API used to read the posts waits for it.
+	 * Not right at startup, to stay out of the way of the initial loading,
+	 * and not more than every 10 minutes if it fails. */
+	const rstime_t now = time(nullptr);
+	if(now >= mReindexNotBefore && mDeepIndex.needsFullReindex())
+	{
+		bool expected = false;
+		if(mReindexRunning.compare_exchange_strong(expected, true))
+		{
+			mReindexNotBefore = now + 600;
+			RsThread::async([this]()
+			{
+				fullReindex();
+				mReindexRunning = false;
+			});
+		}
+	}
+#endif
 	return;
 }
 
@@ -978,6 +1000,89 @@ bool p3GxsForums::subscribeToForum(const RsGxsGroupId& groupId, bool subscribe )
 
 	return true;
 }
+
+bool p3GxsForums::reindexAll()
+{
+#ifdef RS_DEEP_FORUMS_INDEX
+	bool expected = false;
+	if(!mReindexRunning.compare_exchange_strong(expected, true))
+	{
+		RsInfo() << "Forum index: a full re-index is already running";
+		return false;
+	}
+	const bool done = fullReindex();
+	mReindexRunning = false;
+	return done;
+#else
+	return false;
+#endif
+}
+
+#ifdef RS_DEEP_FORUMS_INDEX
+bool p3GxsForums::fullReindex()
+{
+	RsInfo() << "Forum index: full re-index started";
+
+	if(mDeepIndex.clearIndex()) return false;
+
+	std::vector<RsGxsForumGroup> forums;
+	if(!getForumsInfo(std::list<RsGxsGroupId>(), forums))
+	{
+		RsErr() << "Forum index: cannot list the forums, re-index aborted";
+		return false;
+	}
+
+	/* One transaction for the whole run: committing every insert one by one
+	 * would make the re-index of a big profile take ages. */
+	mDeepIndex.beginTransaction();
+
+	bool complete = true;
+	size_t postCount = 0;
+	for(const auto& forum : forums)
+	{
+		mDeepIndex.indexForumGroup(forum);
+
+		std::vector<RsMsgMetaData> metas;
+		if(!getForumMsgMetaData(forum.mMeta.mGroupId, metas))
+		{
+			RsErr() << "Forum index: cannot list the posts of forum "
+			        << forum.mMeta.mGroupId;
+			complete = false;
+			continue;
+		}
+
+		// Load the post bodies by small batches to bound the memory used
+		constexpr size_t BATCH_SIZE = 50;
+		std::set<RsGxsMessageId> batch;
+		auto flush = [&]()
+		{
+			std::vector<RsGxsForumMsg> posts;
+			if(getForumContent(forum.mMeta.mGroupId, batch, posts))
+			{
+				for(const auto& post : posts)
+					if(!mDeepIndex.indexForumPost(post)) ++postCount;
+			}
+			else complete = false;
+			batch.clear();
+		};
+
+		for(const auto& meta : metas)
+		{
+			batch.insert(meta.mMsgId);
+			if(batch.size() >= BATCH_SIZE) flush();
+		}
+		if(!batch.empty()) flush();
+	}
+
+	mDeepIndex.commitTransaction();
+
+	if(complete) mDeepIndex.markFullReindexDone();
+
+	RsInfo() << "Forum index: full re-index " << (complete ? "done" : "incomplete")
+	         << ", " << forums.size() << " forums, " << postCount << " posts";
+	return complete;
+}
+#endif // def RS_DEEP_FORUMS_INDEX
 
 bool p3GxsForums::exportForumLink(
         std::string& link, const RsGxsGroupId& forumId, bool includeGxsData,
@@ -2056,96 +2161,127 @@ std::error_condition p3GxsForums::localSearch(
         std::vector<RsGxsSearchResult>& searchResults )
 { return prepareSearchResults(matchString, false, searchResults); }
 
+std::error_condition p3GxsForums::localForumSearch(
+        const RsGxsGroupId& forumId, const std::string& matchString,
+        std::vector<RsGxsSearchResult>& searchResults, uint32_t maxResults )
+{
+	if(forumId.isNull()) return std::errc::invalid_argument;
+	return prepareSearchResults(
+	            matchString, false, searchResults, forumId, maxResults );
+}
+
 std::error_condition p3GxsForums::prepareSearchResults(
         const std::string& matchString, bool publicOnly,
-        std::vector<RsGxsSearchResult>& searchResults )
+        std::vector<RsGxsSearchResult>& searchResults,
+        const RsGxsGroupId& onlyForumId, uint32_t maxResults )
 {
-	std::vector<DeepForumsSearchResult> results;
-	auto mErr = mDeepIndex.search(matchString, results);
-	if(mErr) return mErr;
+    std::vector<DeepForumsSearchResult> results;
+    auto mErr = mDeepIndex.search(matchString, results, maxResults, onlyForumId);
+    if(mErr) return mErr;
 
-	searchResults.clear();
-	for(auto uRes: results)
-	{
-		RsUrl resUrl(uRes.mUrl);
-		const auto forumIdStr = resUrl.getQueryV(RsGxsForums::FORUM_URL_ID_FIELD);
-		if(!forumIdStr)
-		{
-			RS_ERR( "Forum URL retrieved from deep index miss ID. ",
-			        "Should never happen! ", uRes.mUrl );
-			print_stacktrace();
-			return std::errc::address_not_available;
-		}
+    searchResults.clear();
 
-		std::vector<RsGxsForumGroup> forumsInfo;
-		RsGxsGroupId forumId(*forumIdStr);
-		if(forumId.isNull())
-		{
-			RS_ERR( "Forum ID retrieved from deep index is invalid. ",
-			        "Should never happen! ", uRes.mUrl );
-			print_stacktrace();
-			return std::errc::bad_address;
-		}
+    // 1. Group results by ForumId to batch requests
+    std::map<RsGxsGroupId, std::set<RsGxsMessageId>> forumToMsgs;
+    std::vector<std::pair<RsGxsGroupId, RsGxsMessageId>> orderedResults;
+    std::map<std::pair<RsGxsGroupId, RsGxsMessageId>, std::string> contextMap;
 
-		if( !getForumsInfo(std::list<RsGxsGroupId>{forumId}, forumsInfo) ||
-		        forumsInfo.empty() )
-		{
-			RS_ERR( "Forum just parsed from deep index link not found. "
-			        "Should never happen! ", forumId, " ", uRes.mUrl );
-			print_stacktrace();
-			return std::errc::identifier_removed;
-		}
+    for(const auto& uRes : results)
+    {
+        RsUrl resUrl(uRes.mUrl);
+        const auto forumIdStr = resUrl.getQueryV(RsGxsForums::FORUM_URL_ID_FIELD);
+        if(!forumIdStr) continue;
 
-		RsGroupMetaData& fMeta(forumsInfo[0].mMeta);
+        RsGxsGroupId forumId(*forumIdStr);
+        if(forumId.isNull()) continue;
 
-		// Avoid leaking sensitive information to unkown peers
-		if( publicOnly &&
-		        ( static_cast<RsGxsCircleType>(fMeta.mCircleType) !=
-		          RsGxsCircleType::PUBLIC ) ) continue;
+        RsGxsMessageId msgId;
+        const auto postIdStr = resUrl.getQueryV(RsGxsForums::FORUM_URL_MSG_ID_FIELD);
+        if(postIdStr)
+        {
+            msgId = RsGxsMessageId(*postIdStr);
+            if(!msgId.isNull())
+            {
+                forumToMsgs[forumId].insert(msgId);
+            }
+        }
 
-		RsGxsSearchResult res;
-		res.mGroupId = forumId;
-		res.mGroupName = fMeta.mGroupName;
-		res.mAuthorId = fMeta.mAuthorId;
-		res.mPublishTs = fMeta.mPublishTs;
-		res.mSearchContext = uRes.mSnippet;
+        orderedResults.push_back({forumId, msgId});
+        contextMap[{forumId, msgId}] = uRes.mSnippet;
+    }
 
-		auto postIdStr =
-		        resUrl.getQueryV(RsGxsForums::FORUM_URL_MSG_ID_FIELD);
-		if(postIdStr)
-		{
-			RsGxsMessageId msgId(*postIdStr);
-			if(msgId.isNull())
-			{
-				RS_ERR( "Post just parsed from deep index link is invalid. "
-				        "Should never happen! ", postIdStr, " ", uRes.mUrl );
-				print_stacktrace();
-				return std::errc::bad_address;
-			}
+    // 2. Batch fetch ALL needed forum metadata in one go
+    std::list<RsGxsGroupId> forumIdList;
+    for(auto const& [gid, msgs] : forumToMsgs) {
+        forumIdList.push_back(gid);
+    }
+    // Also include forums that don't have messages but were in orderedResults
+    for(auto const& resPair : orderedResults) {
+        if (forumToMsgs.find(resPair.first) == forumToMsgs.end()) {
+             forumIdList.push_back(resPair.first);
+        }
+    }
+    forumIdList.sort();
+    forumIdList.unique();
 
-			std::vector<RsMsgMetaData> msgSummaries;
-			auto errc = getContentSummaries(
-			            forumId, std::set<RsGxsMessageId>{msgId}, msgSummaries);
-			if(errc) return errc;
+    std::vector<RsGxsForumGroup> forumsInfo;
+    if(!forumIdList.empty()) {
+        getForumsInfo(forumIdList, forumsInfo);
+    }
 
-			if(msgSummaries.size() != 1)
-			{
-				RS_ERR( "getContentSummaries returned: ", msgSummaries.size(),
-				        "should never happen!" );
-				return std::errc::result_out_of_range;
-			}
+    std::map<RsGxsGroupId, RsGxsForumGroup> forumDataMap;
+    for(const auto& f : forumsInfo) {
+        forumDataMap[f.mMeta.mGroupId] = f;
+    }
 
-			RsMsgMetaData& msgMeta(msgSummaries[0]);
-			res.mMsgId = msgMeta.mMsgId;
-			res.mMsgName = msgMeta.mMsgName;
-			res.mAuthorId = msgMeta.mAuthorId;
-		}
+    // 3. Batch fetch message summaries PER forum
+    std::map<RsGxsGroupId, std::map<RsGxsMessageId, RsMsgMetaData>> msgDataMap;
+    for(auto const& [gid, msgIds] : forumToMsgs)
+    {
+        std::vector<RsMsgMetaData> msgSummaries;
+        getContentSummaries(gid, msgIds, msgSummaries);
+        for(const auto& m : msgSummaries) {
+            msgDataMap[gid][m.mMsgId] = m;
+        }
+    }
 
-		RS_DBG4(res);
-		searchResults.push_back(res);
-	}
 
-	return std::error_condition();
+    // 4. Assemble final results maintaining search order
+    for(const auto& resPair : orderedResults)
+    {
+        const RsGxsGroupId& forumId = resPair.first;
+        const RsGxsMessageId& msgId = resPair.second;
+
+        // Forum or post deleted since it was indexed
+        if (forumDataMap.find(forumId) == forumDataMap.end()) continue;
+        const RsGxsForumGroup& forum = forumDataMap[forumId];
+
+        // Avoid leaking sensitive information to unknown peers
+        if( publicOnly && ( static_cast<RsGxsCircleType>(forum.mMeta.mCircleType) != RsGxsCircleType::PUBLIC ) ) 
+            continue;
+
+        RsGxsSearchResult finalRes;
+        finalRes.mGroupId = forumId;
+        finalRes.mGroupName = forum.mMeta.mGroupName;
+        finalRes.mAuthorId = forum.mMeta.mAuthorId;
+        finalRes.mPublishTs = forum.mMeta.mPublishTs;
+        finalRes.mSearchContext = contextMap[resPair];
+
+        if(!msgId.isNull())
+        {
+            if (msgDataMap[forumId].find(msgId) == msgDataMap[forumId].end())
+                continue;
+            const RsMsgMetaData& msgMeta = msgDataMap[forumId][msgId];
+            finalRes.mMsgId = msgMeta.mMsgId;
+            finalRes.mMsgName = msgMeta.mMsgName;
+            finalRes.mAuthorId = msgMeta.mAuthorId;
+        }
+
+        RS_DBG4(finalRes);
+        searchResults.push_back(finalRes);
+    }
+
+    return std::error_condition();
 }
 
 std::error_condition p3GxsForums::receiveDistantSearchResult(
@@ -2185,6 +2321,11 @@ std::error_condition p3GxsForums::distantSearchRequest(
 std::error_condition p3GxsForums::localSearch(
         const std::string&,
         std::vector<RsGxsSearchResult>& )
+{ return std::errc::function_not_supported; }
+
+std::error_condition p3GxsForums::localForumSearch(
+        const RsGxsGroupId&, const std::string&,
+        std::vector<RsGxsSearchResult>&, uint32_t )
 { return std::errc::function_not_supported; }
 
 #endif // def RS_DEEP_FORUMS_INDEX

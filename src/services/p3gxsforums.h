@@ -32,6 +32,8 @@
 #include "util/rsdebug.h"
 
 #ifdef RS_DEEP_FORUMS_INDEX
+#include <atomic>
+
 #include "deep_search/forumsindex.hpp"
 #endif
 
@@ -136,6 +138,9 @@ public:
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
                                    bool subscribe ) override;
 
+	/// @see RsGxsForums::reindexAll
+	bool reindexAll() override;
+
 	/// @see RsGxsForums
 	bool exportForumLink(
 	        std::string& link, const RsGxsGroupId& forumId,
@@ -176,6 +181,12 @@ public:
 	        const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults ) override;
 
+	/// @see RsGxsForums
+	std::error_condition localForumSearch(
+	        const RsGxsGroupId& forumId, const std::string& matchString,
+	        std::vector<RsGxsSearchResult>& searchResults,
+	        uint32_t maxResults ) override;
+
 #ifdef RS_DEEP_FORUMS_INDEX
 	/// @see RsNxsObserver
 	std::error_condition handleDistantSearchRequest(
@@ -209,7 +220,13 @@ protected:
 	 */
 	std::error_condition prepareSearchResults(
 	        const std::string& matchString, bool publicOnly,
-	        std::vector<RsGxsSearchResult>& searchResults );
+	        std::vector<RsGxsSearchResult>& searchResults,
+	        const RsGxsGroupId& onlyForumId = RsGxsGroupId(),
+	        uint32_t maxResults = 100 );
+
+	/** Fill the index from the GXS database, blocking.
+	 * @return false if some forum or post could not be read */
+	bool fullReindex();
 #endif //def RS_DEEP_FORUMS_INDEX
 
 private:
@@ -255,5 +272,7 @@ private:
 
 #ifdef RS_DEEP_FORUMS_INDEX
 	DeepForumsIndex mDeepIndex;
+	std::atomic<bool> mReindexRunning;
+	rstime_t mReindexNotBefore; // only touched by the GXS thread
 #endif
 };

@@ -434,6 +434,16 @@ public:
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
 	                               bool subscribe ) = 0;
 
+	/**
+	 * @brief Rebuild the forums full text index from the stored forums and
+	 *	posts. Blocking, it can take minutes on a big profile, call it from a
+	 *	worker thread.
+	 * @jsonapi{development}
+	 * @return false if a re-index was already running, or if some forum or
+	 *	post could not be read
+	 */
+	virtual bool reindexAll() = 0;
+
 	/// default base URL used for forums links @see exportForumLink
 	static const std::string DEFAULT_FORUM_BASE_URL;
 
@@ -554,6 +564,21 @@ public:
 	virtual std::error_condition localSearch(
 	        const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults ) = 0;
+
+	/**
+	 * @brief Search the content of the posts of one forum in the local index
+	 * @jsonapi{development}
+	 * @param[in] forumId forum to search into
+	 * @param[in] matchString words to look for, all of them must be present
+	 *	in the post body, each one is matched as a word prefix
+	 * @param[out] searchResults matching posts, newest first
+	 * @param[in] maxResults maximum number of results, 0 for no limit
+	 * @return success or error details
+	 */
+	virtual std::error_condition localForumSearch(
+	        const RsGxsGroupId& forumId, const std::string& matchString,
+	        std::vector<RsGxsSearchResult>& searchResults,
+	        uint32_t maxResults ) = 0;
 
 	/**
 	 * @brief Request Synchronization with available peers

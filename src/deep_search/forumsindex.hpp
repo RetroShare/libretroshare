@@ -1,7 +1,8 @@
 /*******************************************************************************
- * RetroShare full text indexing and search implementation based on Xapian     *
+ * RetroShare full text indexing and search implementation based on SQLite FTS *
  *                                                                             *
- * Copyright (C) 2021  Gioacchino Mazzurco <gio@retroshare.cc>                  *
+ * Copyright (C) 2018-2021  Gioacchino Mazzurco <gio@retroshare.cc>            *
+ * Copyright (C) 2026  jolavillette                                            *
  *                                                                             *
  * This program is free software: you can redistribute it and/or modify        *
  * it under the terms of the GNU Affero General Public License version 3 as    *
@@ -18,14 +19,17 @@
  *******************************************************************************/
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <string>
 #include <system_error>
 #include <vector>
-#include <xapian.h>
 
-#include "util/rstime.h"
 #include "retroshare/rsgxsforums.h"
-#include "retroshare/rsevents.h"
-#include "deep_search/commonutils.hpp"
+#include "util/rsthreads.h"
+#include "util/rstime.h"
+
+class RetroDb;
 
 struct DeepForumsSearchResult
 {
@@ -34,47 +38,89 @@ struct DeepForumsSearchResult
 	std::string mSnippet;
 };
 
+/**
+ * Full text index of the forums and their posts.
+ *
+ * The index lives in its own SQLite database, encrypted with the GXS key like
+ * the other GXS databases, and uses an FTS4 virtual table: FTS4 is available
+ * in every SQLCipher build RetroShare links against, FTS5 is not (the Debian
+ * and Ubuntu libsqlcipher packages are built without it).
+ *
+ * All the methods are thread safe: the index is fed from the GXS thread and
+ * searched from the GUI, the JSON API and the turtle search threads.
+ */
 struct DeepForumsIndex
 {
-	explicit DeepForumsIndex(const std::string& dbPath) :
-	    mDbPath(dbPath), mWriteQueue(dbPath) {}
+	DeepForumsIndex(const std::string& dbPath, const std::string& dbKey);
+	~DeepForumsIndex();
 
 	/**
-	 * @brief Search indexed GXS groups and messages
-	 * @param[in] maxResults maximum number of acceptable search results, 0 for
-	 * no limits
-	 * @return search results count
+	 * @brief Search indexed forums and posts, newest first
+	 * @param[in] queryStr words to look for, each one matched as a prefix,
+	 *	all of them must be present
+	 * @param[out] results matching documents
+	 * @param[in] maxResults maximum number of results, 0 for no limit
+	 * @param[in] forumId if not null only the posts of this forum are searched,
+	 *	and only their content, not their title (replies inherit the thread
+	 *	title, matching it would return every reply of the thread)
+	 * @return error details, function_not_supported if the index is unusable
 	 */
-	std::error_condition search( const std::string& queryStr,
-	                             std::vector<DeepForumsSearchResult>& results,
-	                             uint32_t maxResults = 100 );
+	std::error_condition search(
+	        const std::string& queryStr,
+	        std::vector<DeepForumsSearchResult>& results,
+	        uint32_t maxResults = 100,
+	        const RsGxsGroupId& forumId = RsGxsGroupId() );
 
-	std::error_condition indexForumGroup(const RsGxsForumGroup& chan);
+	std::error_condition indexForumGroup(const RsGxsForumGroup& forum);
 
 	std::error_condition removeForumFromIndex(const RsGxsGroupId& grpId);
 
 	std::error_condition indexForumPost(const RsGxsForumMsg& post);
 
 	std::error_condition removeForumPostFromIndex(
-	        RsGxsGroupId grpId, RsGxsMessageId msgId );
+	        const RsGxsGroupId& grpId, const RsGxsMessageId& msgId );
+
+	/// Remove every document, used before a full re-index
+	std::error_condition clearIndex();
+
+	/// Group many writes in one transaction, used by the full re-index
+	void beginTransaction();
+	void commitTransaction();
+
+	/**
+	 * @return true if the index has just been created or its schema has been
+	 *	upgraded, so it must be filled from the GXS database
+	 */
+	bool needsFullReindex() const;
+
+	/// Record that a full re-index completed, see needsFullReindex()
+	void markFullReindexDone();
 
 	static std::string dbDefaultPath();
 
+	/// Build the FTS query from the user input
+	static std::string buildMatchExpression(
+	        const std::string& queryStr, bool contentOnly );
+
 private:
+	std::error_condition openDatabase();
+	std::error_condition indexDocument(
+	        const RsGxsGroupId& grpId, const RsGxsMessageId& msgId,
+	        const std::string& title, const std::string& content,
+	        rstime_t publishTs );
+	bool exec(const char* sql);
+
+	static int64_t docId(
+	        const RsGxsGroupId& grpId, const RsGxsMessageId& msgId );
 	static std::string forumIndexId(const RsGxsGroupId& grpId);
 	static std::string postIndexId(
 	        const RsGxsGroupId& grpId, const RsGxsMessageId& msgId );
 
-	enum : Xapian::valueno
-	{
-		/// Used to store retroshare url of indexed documents
-		URL_VALUENO,
-
-		/// @see Xapian::BAD_VALUENO
-		BAD_VALUENO = Xapian::BAD_VALUENO
-	};
-
 	const std::string mDbPath;
+	const std::string mDbKey;
 
-	DeepSearch::StubbornWriteOpQueue mWriteQueue;
+	mutable RsMutex mIndexMtx;
+	std::unique_ptr<RetroDb> mDb;
+	bool mUsable;
+	bool mNeedsFullReindex;
 };
