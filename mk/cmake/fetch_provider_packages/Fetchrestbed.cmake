@@ -42,6 +42,8 @@ endif()
 
 set(BUILD_TESTS OFF CACHE BOOL "build restbed tests")
 set(BUILD_SSL OFF CACHE BOOL "enable restbed SSL support")
+set(BUILD_DEVEL_PACKAGE OFF CACHE BOOL "install restbed headers")
+
 FetchContent_Declare(restbed
 	GIT_REPOSITORY "https://github.com/Corvusoft/restbed.git"
 	GIT_TAG ${FETCH_restbed_GIT_TAG}
