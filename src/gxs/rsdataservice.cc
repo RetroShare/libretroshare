@@ -1301,6 +1301,22 @@ void RsDataService::locked_retrieveMessages(RetroCursor *c, std::vector<RsNxsMsg
     return;
 }
 
+// Bytes the calling thread actually read from storage (page cache hits are not
+// counted), from /proc/thread-self/io. 0 where not available.
+static uint64_t threadStorageReadBytes()
+{
+#ifdef __linux__
+    std::ifstream f("/proc/thread-self/io");
+    std::string key;
+    uint64_t value;
+
+    while(f >> key >> value)
+        if(key == "read_bytes:")
+            return value;
+#endif
+    return 0;
+}
+
 void RsDataService::msgMetaWarmupThreadBody()
 {
     // Read the meta of every message of the database in a single sequential
@@ -1320,9 +1336,9 @@ void RsDataService::msgMetaWarmupThreadBody()
     // expensive as groups are added.
     //
     // Cold, that same scan was measured at up to 57 s on a real forums db, so
-    // it cannot run under mDbMutex in one go: it proceeds in slices of
-    // WARMUP_SLICE_ROWS rows by increasing rowid, taking the mutex only for
-    // the duration of one slice so that readers interleave between slices.
+    // it cannot run under mDbMutex in one go: it proceeds in slices by
+    // increasing rowid, taking the mutex only for the duration of one slice
+    // so that readers interleave between slices.
     // Messages stored while the scan runs are put into the caches by
     // storeMessage() itself, so rows the slices could miss (rowid reuse after
     // a deletion) are covered; until the scan completes, cold groups keep
@@ -1346,8 +1362,110 @@ void RsDataService::msgMetaWarmupThreadBody()
     uint64_t total_rows = 0;
     uint32_t n_slices = 0;
     auto t0 = std::chrono::steady_clock::now();
+    const uint64_t io0 = threadStorageReadBytes();
 
-    while(!done && !mMsgMetaWarmupStop)
+    // Once the covering index INDEX_MESSAGES_META exists (grpId + every meta
+    // column), the rowid scan below is the expensive way: the meta columns sit
+    // after the nxsData blob in each row, so the scan reads and decrypts every
+    // post, i.e. the whole database file (measured cold on 2026-11-07: 89 s for
+    // the forums db, 50 s for the boards db, competing on the disk with the
+    // per-group reads the GUI waits for). The index holds the metas alone, a
+    // few percent of the file: read it group by group instead, in index order.
+    // One group per mDbMutex hold, so that readers interleave between groups.
+
+    bool by_index = false;
+    {
+        RsStackMutex stack(mDbMutex);
+
+        if(mMsgMetaDataCache_ContainsAllDatabase)
+            return;
+
+        RetroCursor* c = mDb->sqlQuery("sqlite_master", std::list<std::string>{ "name" },
+                                       "type='index' AND name='INDEX_MESSAGES_META'", "");
+        if(c)
+        {
+            by_index = c->moveToFirst();
+            delete c;
+        }
+    }
+
+    std::string last_grp;
+
+    while(by_index && !done && !mMsgMetaWarmupStop)
+    {
+        {
+            RsStackMutex stack(mDbMutex);
+
+            if(mMsgMetaDataCache_ContainsAllDatabase)
+                return;
+
+            // Next group holding messages, one index lookup.
+            RetroCursor* c = mDb->sqlQuery(MSG_TABLE_NAME, std::list<std::string>{ KEY_GRP_ID },
+                                           KEY_GRP_ID + " > '" + last_grp + "'", KEY_GRP_ID + " LIMIT 1");
+            if(!c)
+            {
+                RsErr() << __PRETTY_FUNCTION__ << ": failed to query message groups. Giving up cache warm-up." << std::endl;
+                return;
+            }
+
+            bool found = c->moveToFirst();
+            std::string grp;
+
+            if(found)
+                c->getString(0, grp);
+
+            delete c;
+
+            if(!found)
+            {
+                // Every group holding messages has been read. Mark the others
+                // too, so that they are not re-queried forever.
+                for(auto& it: mMsgMetaDataCache)
+                    it.second.setCacheUpToDate(true);
+
+                mMsgMetaDataCache_ContainsAllDatabase = true;
+                done = true;
+            }
+            else
+            {
+                last_grp = grp;
+
+                auto& cache(mMsgMetaDataCache[RsGxsGroupId(grp)]);
+
+                // A per-group read may have filled it already.
+                if(!cache.isCacheUpToDate())
+                {
+                    RetroCursor* gc = mDb->sqlQuery(MSG_TABLE_NAME, mMsgMetaColumns, KEY_GRP_ID + "='" + grp + "'", "");
+
+                    if(gc)
+                    {
+                        bool valid = gc->moveToFirst();
+
+                        while(valid)
+                        {
+                            auto m = locked_getMsgMeta(*gc, 0);
+
+                            if(m != nullptr)
+                                cache.updateMeta(m->mMsgId, m);
+
+                            ++total_rows;
+                            valid = gc->moveToNext();
+                        }
+
+                        delete gc;
+                        cache.setCacheUpToDate(true);
+                    }
+                }
+
+                ++n_slices;
+            }
+        }
+
+        if(!done)
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));	// let waiting readers in
+    }
+
+    while(!by_index && !done && !mMsgMetaWarmupStop)
     {
         auto slice_t0 = std::chrono::steady_clock::now();
 
@@ -1423,10 +1541,10 @@ void RsDataService::msgMetaWarmupThreadBody()
 
     if(done)
         RsInfo() << mDbName << ": message meta cache warm-up completed: "
-                 << total_rows << " metas in " << n_slices << " slices, "
+                 << total_rows << " metas in " << n_slices << (by_index? " groups (covering index), ":" slices (rowid scan), ")
                  << std::chrono::duration_cast<std::chrono::milliseconds>(
                         std::chrono::steady_clock::now() - t0).count()
-                 << " ms" << std::endl;
+                 << " ms, " << (threadStorageReadBytes() - io0)/(1024*1024) << " MB read from disk" << std::endl;
 }
 
 int RsDataService::retrieveGxsMsgMetaData(const GxsMsgReq& reqIds, GxsMsgMetaResult& msgMeta)

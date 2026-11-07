@@ -319,10 +319,11 @@ private:
      * single scan reads the file in physical order and warms up all the groups
      * at once. Started when more than one group still needs a cold full read.
      *
-     * Runs on its own thread, in slices of a few thousand rows by increasing
-     * rowid, taking mDbMutex only for the duration of one slice: a cold scan
-     * of a large database takes tens of seconds, and doing it synchronously
-     * under the lock froze every reader of the service for that long.
+     * Runs on its own thread and takes mDbMutex for one group at a time when
+     * the covering index INDEX_MESSAGES_META exists, or else for one slice of
+     * a rowid scan sized to about 250 ms: a cold scan of a large database
+     * takes tens of seconds, and doing it synchronously under the lock froze
+     * every reader of the service for that long.
      */
     void msgMetaWarmupThreadBody();
 
