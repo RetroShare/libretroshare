@@ -31,7 +31,7 @@ mark_as_advanced(FETCH_BitDHT_GIT_TAG)
 if(NOT FETCH_BitDHT_GIT_TAG)
 	# TODO: track official BitDHT master once #3 is merged
 	set(FETCH_BitDHT_GIT_TAG
-		52df60f390d4cd4c1a2d5e25563396255aae6399
+		71bbec9635d7a0daad422f27332e13ecba0366aa
 	)
 endif()
 
