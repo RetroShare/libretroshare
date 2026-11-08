@@ -640,8 +640,10 @@ int	pqistreamer::handleoutgoing_locked()
 			{
 				if(slice_size > 0xffff || !mAcceptsPacketSlicing)
 				{
-					std::cerr << "(EE) protocol error in pqistreamer: slice size is too large and cannot be encoded." ;
+					RsErr() << "pqistreamer: slice size is too large and cannot be encoded (peer " << PeerId() << ", " << slice_size << " bytes, slicing " << (mAcceptsPacketSlicing ? "on" : "off") << ")." ;
+					free(dta) ;
 					free(mPkt_wpending) ;
+					mPkt_wpending = NULL ;
 					mPkt_wpending_size = 0;
 //					RsDbg() << "PQISTREAMER pqistreamer::handleoutgoing_locked() stopped error slice size is too large";
 					return sentbytes ;
