@@ -58,7 +58,9 @@ public:
 	virtual int	connect(const struct sockaddr_storage &raddr) { return ni->connect(raddr); }
 	virtual int	listen() { return ni->listen(); }
 	virtual int	stoplistening() { return ni->stoplistening(); }
-    	virtual int 	reset() { pqistreamer::reset(); return ni->reset(); }
+	// Close the socket first: the streamer's read loop then stops at once, so
+	// pqithreadstreamer::reset() does not wait long before freeing the buffers.
+	virtual int 	reset() { int ret = ni->reset(); pqithreadstreamer::reset(); return ret; }
 	virtual int 	disconnect() { return reset() ; }
 	virtual bool connect_parameter(uint32_t type, uint32_t value) { return ni->connect_parameter(type, value);}
 	virtual bool connect_parameter(uint32_t type, const std::string &value) { return ni->connect_parameter(type, value);}
