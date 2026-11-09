@@ -663,7 +663,9 @@ bool p3Wire::createPulse(uint32_t &token, RsWirePulse &pulse)
 bool p3Wire::createGroup(RsWireGroup &group)
 {
 	uint32_t token;
-	return createGroup(token, group) && waitToken(token) == RsTokenService::COMPLETE;
+	return createGroup(token, group)
+            && waitToken(token) == RsTokenService::COMPLETE
+            && RsGenExchange::getPublishedGroupMeta(token, group.mMeta);
 }
 
 // Function which will update the edited information in the wire group
@@ -2081,3 +2083,72 @@ bool p3Wire::getGroupStats(const RsGxsGroupId& groupId,
 
 /********************************************************************************************/
 /********************************************************************************************/
+// Value adapters for JSON API clients. Keep Qt and Web UI service semantics equal.
+RsWirePulseData::RsWirePulseData(const RsWirePulse& source) : pulse(source)
+{
+    if(source.mGroupPtr) group.push_back(*source.mGroupPtr);
+    if(source.mRefGroupPtr) refGroup.push_back(*source.mRefGroupPtr);
+    for(const auto& child : source.mReplies)
+        if(child) replies.emplace_back(*child);
+    for(const auto& child : source.mLikes)
+        if(child) likes.emplace_back(*child);
+    for(const auto& child : source.mRepublishes)
+        if(child) republishes.emplace_back(*child);
+    pulse.mGroupPtr.reset();
+    pulse.mRefGroupPtr.reset();
+    pulse.mReplies.clear();
+    pulse.mLikes.clear();
+    pulse.mRepublishes.clear();
+}
+
+bool RsWire::createOriginalPulse(const RsGxsGroupId& grpId, const RsWirePulse& pulse)
+{
+    return createOriginalPulse(grpId, std::make_shared<RsWirePulse>(pulse));
+}
+
+bool RsWire::createReplyPulse(RsGxsGroupId grpId, RsGxsMessageId msgId,
+        RsGxsGroupId replyWith, uint32_t reply_type, const RsWirePulse& pulse)
+{
+    return createReplyPulse(grpId, msgId, replyWith, reply_type,
+            std::make_shared<RsWirePulse>(pulse));
+}
+
+bool RsWire::getWireGroup(const RsGxsGroupId& groupId, RsWireGroup& group)
+{
+    group = RsWireGroup();
+    RsWireGroupSPtr result;
+    if(!getWireGroup(groupId, result) || !result) return false;
+    group = *result;
+    return true;
+}
+
+bool RsWire::getWirePulse(const RsGxsGroupId& groupId,
+        const RsGxsMessageId& msgId, RsWirePulseData& pulse)
+{
+    pulse = RsWirePulseData();
+    RsWirePulseSPtr result;
+    if(!getWirePulse(groupId, msgId, result) || !result) return false;
+    pulse = RsWirePulseData(*result);
+    return true;
+}
+
+bool RsWire::getPulsesForGroups(const std::list<RsGxsGroupId>& groupIds,
+        std::vector<RsWirePulseData>& pulses)
+{
+    pulses.clear();
+    std::list<RsWirePulseSPtr> results;
+    if(!getPulsesForGroups(groupIds, results)) return false;
+    for(const auto& result : results)
+        if(result) pulses.emplace_back(*result);
+    return true;
+}
+
+bool RsWire::getPulseFocus(const RsGxsGroupId& groupId,
+        const RsGxsMessageId& msgId, int type, RsWirePulseData& pulse)
+{
+    pulse = RsWirePulseData();
+    RsWirePulseSPtr result;
+    if(!getPulseFocus(groupId, msgId, type, result) || !result) return false;
+    pulse = RsWirePulseData(*result);
+    return true;
+}
