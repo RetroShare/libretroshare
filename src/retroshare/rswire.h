@@ -286,6 +286,56 @@ virtual bool getPulseFocus(const RsGxsGroupId &groupId, const RsGxsMessageId &ms
     virtual uint32_t getFollowingCount() = 0;
     virtual bool getSubscribedGroups(std::list<RsGxsGroupId>& groupIds) = 0;
 
+	/* Distant (turtle) search */
+
+	/**
+	 * @brief Search the turtle reachable network for matching wires.
+	 * A search result event is emitted when matching groups arrive from the
+	 * network.
+	 * @param[in] matchString string to search for
+	 * @return search id
+	 */
+	virtual TurtleRequestId turtleSearchRequest(const std::string& matchString) = 0;
+
+	/**
+	 * @brief Retrieve available search results
+	 * @param[in] searchId search id
+	 * @param[out] results storage for search results
+	 * @return false on error, true otherwise
+	 */
+	virtual bool retrieveDistantSearchResults(
+	        TurtleRequestId searchId,
+	        std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results ) = 0;
+
+	/**
+	 * @brief Request distant wire details from the network
+	 * @param[in] groupId id of the group to request
+	 * @return search id
+	 */
+	virtual TurtleRequestId turtleGroupRequest(const RsGxsGroupId& groupId) = 0;
+
+	/**
+	 * @brief Retrieve previously requested distant group
+	 * @param[in] groupId id of the group
+	 * @param[out] distantGroup storage for group data
+	 * @return false on error, true otherwise
+	 */
+	virtual bool getDistantSearchResultGroupData(
+	        const RsGxsGroupId& groupId, RsWireGroup& distantGroup ) = 0;
+
+	/**
+	 * @brief Get the status of a distant search for the given group: unknown,
+	 * known as a search result, data request ongoing, or data available
+	 */
+	virtual DistantSearchGroupStatus getDistantSearchStatus(
+	        const RsGxsGroupId& groupId ) = 0;
+
+	/**
+	 * @brief Clear accumulated search results
+	 * @param[in] reqId search id
+	 * @return false on error, true otherwise
+	 */
+	virtual bool clearDistantSearchResults(TurtleRequestId reqId) = 0;
 };
 
 
@@ -301,7 +351,8 @@ enum class RsWireEventCode: uint8_t
     NEW_REPUBLISH                   = 0x07, // this event happens when there is a new republish of a post
     WIRE_UPDATED                    = 0x08, // this event happens when there is any change to the wire account
     READ_STATUS_CHANGED             = 0x09, // existing message has been read or set to unread
-    STATISTICS_CHANGED              = 0x10  // statistics changed
+    STATISTICS_CHANGED              = 0x10, // statistics changed
+    RECEIVED_DISTANT_SEARCH_RESULT  = 0x11  // distant search results available, see RsWireSearchResultEvent
 };
 
 struct RsWireEvent: RsEvent
@@ -332,6 +383,30 @@ struct RsWireEvent: RsEvent
     }
 
     virtual ~RsWireEvent() {}
+};
+
+/** Factors multiple distant search results notifications in a single event.
+ * @see RsWire::turtleSearchRequest */
+struct RsWireSearchResultEvent: RsEvent
+{
+    RsWireSearchResultEvent()
+        : RsEvent(RsEventType::WIRE),
+          mWireEventCode(RsWireEventCode::RECEIVED_DISTANT_SEARCH_RESULT) {}
+
+    RsWireEventCode mWireEventCode;
+    std::map<TurtleRequestId, std::set<RsGxsGroupId> > mSearchResultsMap;
+
+    ///* @see RsEvent @see RsSerializable
+    void serial_process(
+            RsGenericSerializer::SerializeJob j,
+            RsGenericSerializer::SerializeContext& ctx ) override
+    {
+        RsEvent::serial_process(j, ctx);
+        RS_SERIAL_PROCESS(mWireEventCode);
+        RS_SERIAL_PROCESS(mSearchResultsMap);
+    }
+
+    virtual ~RsWireSearchResultEvent() {}
 };
 
 #endif

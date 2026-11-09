@@ -20,6 +20,7 @@
  *                                                                             *
  *******************************************************************************/
 #include "services/p3wiki.h"
+#include "retroshare/rsgxscircles.h"
 #include "retroshare/rsgxsflags.h"
 #include "rsitems/rswikiitems.h"
 #include "util/rsrandom.h"
@@ -33,7 +34,9 @@ RsWiki *rsWiki = NULL;
 p3Wiki::p3Wiki(RsGeneralDataService* gds, RsNetworkExchangeService* nes, RsGixs *gixs)
 	:RsGenExchange(gds, nes, new RsGxsWikiSerialiser(), RS_SERVICE_GXS_TYPE_WIKI, gixs, wikiAuthenPolicy()), 
 	RsWiki(static_cast<RsGxsIface&>(*this)),
-	mKnownWikisMutex("GXS wiki known collections timestamp cache")
+	mKnownWikisMutex("GXS wiki known collections timestamp cache"),
+	mLastDistantSearchNotificationTS(0),
+	mSearchResultsMtx("p3Wiki distant search results")
 {
 }
 
@@ -58,6 +61,7 @@ uint32_t p3Wiki::wikiAuthenPolicy()
 void p3Wiki::service_tick()
 {
     /* Service tick required by RsGenExchange */
+    flushDistantSearchResults();
 }
 
 void p3Wiki::notifyChanges(std::vector<RsGxsNotify*>& changes)
@@ -665,4 +669,93 @@ std::ostream &operator<<(std::ostream &out, const RsWikiComment &comment)
 {
     out << "RsWikiComment [ Title: " << comment.mMeta.mMsgName << "]";
     return out;
+}
+
+/********************************************************************************************/
+/*                               Distant search (turtle)                                    */
+/********************************************************************************************/
+
+void p3Wiki::flushDistantSearchResults()
+{
+	// Notify distant search results at most every 2 seconds, factoring all
+	// pending results in a single event.
+	rstime_t now = time(nullptr);
+	std::map<TurtleRequestId, std::set<RsGxsGroupId> > toNotify;
+	{
+		RS_STACK_MUTEX(mSearchResultsMtx);
+		if(mSearchResultsToNotify.empty() || now <= mLastDistantSearchNotificationTS + 2)
+			return;
+
+		toNotify.swap(mSearchResultsToNotify);
+		mLastDistantSearchNotificationTS = now;
+	}
+
+	if(!rsEvents) return;
+	auto ev = std::make_shared<RsGxsWikiSearchResultEvent>(
+	            static_cast<RsEventType>(rsEvents->getDynamicEventType("GXS_WIKI")) );
+	ev->mSearchResultsMap = toNotify;
+	rsEvents->postEvent(ev);
+}
+
+void p3Wiki::receiveDistantSearchResults(TurtleRequestId id, const RsGxsGroupId& grpId)
+{
+	if(!rsEvents) return;
+
+	// We temporise here, in order to avoid notifying clients with many events.
+	// Results are sent in a single event from service_tick().
+	RS_STACK_MUTEX(mSearchResultsMtx);
+	mSearchResultsToNotify[id].insert(grpId);
+}
+
+TurtleRequestId p3Wiki::turtleSearchRequest(const std::string& matchString)
+{
+	return netService()->turtleSearchRequest(matchString);
+}
+
+TurtleRequestId p3Wiki::turtleGroupRequest(const RsGxsGroupId& groupId)
+{
+	return netService()->turtleGroupRequest(groupId);
+}
+
+bool p3Wiki::clearDistantSearchResults(TurtleRequestId reqId)
+{
+	return netService()->clearDistantSearchResults(reqId);
+}
+
+bool p3Wiki::retrieveDistantSearchResults(
+        TurtleRequestId searchId,
+        std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results )
+{
+	return netService()->retrieveDistantSearchResults(searchId, results);
+}
+
+DistantSearchGroupStatus p3Wiki::getDistantSearchStatus(const RsGxsGroupId& groupId)
+{
+	return netService()->getDistantSearchStatus(groupId);
+}
+
+bool p3Wiki::getDistantSearchResultGroupData(
+        const RsGxsGroupId& groupId, RsWikiCollection& distantGroup )
+{
+	RsGxsGroupSearchResults gs;
+
+	if(!netService()->retrieveDistantGroupSummary(groupId, gs))
+		return false;
+
+	// This is placeholder information until we receive the full group meta
+	// data and check the signature.
+	distantGroup.mMeta.mGroupId         = gs.mGroupId;
+	distantGroup.mMeta.mGroupName       = gs.mGroupName;
+	distantGroup.mMeta.mGroupFlags      = GXS_SERV::FLAG_PRIVACY_PUBLIC;
+	distantGroup.mMeta.mSignFlags       = gs.mSignFlags;
+	distantGroup.mMeta.mPublishTs       = gs.mPublishTs;
+	distantGroup.mMeta.mAuthorId        = gs.mAuthorId;
+	distantGroup.mMeta.mCircleType      = GXS_CIRCLE_TYPE_PUBLIC; // guessed, otherwise the group would not be searchable
+	distantGroup.mMeta.mAuthenFlags     = 0;
+	distantGroup.mMeta.mSubscribeFlags  = GXS_SERV::GROUP_SUBSCRIBE_NOT_SUBSCRIBED;
+	distantGroup.mMeta.mPop             = gs.mPopularity;       // number of friend subscribers
+	distantGroup.mMeta.mVisibleMsgCount = gs.mNumberOfMessages; // max messages reported by friends
+	distantGroup.mMeta.mLastPost        = gs.mLastMessageTs;
+
+	return true;
 }

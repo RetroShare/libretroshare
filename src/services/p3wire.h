@@ -102,6 +102,17 @@ public:
     uint32_t getFollowingCount() override;
     bool getSubscribedGroups(std::list<RsGxsGroupId>& groupIds) override;
 
+	/* Distant search API (turtle) */
+	TurtleRequestId turtleSearchRequest(const std::string& matchString) override;
+	bool retrieveDistantSearchResults(TurtleRequestId searchId, std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results) override;
+	TurtleRequestId turtleGroupRequest(const RsGxsGroupId& groupId) override;
+	bool getDistantSearchResultGroupData(const RsGxsGroupId& groupId, RsWireGroup& distantGroup) override;
+	DistantSearchGroupStatus getDistantSearchStatus(const RsGxsGroupId& groupId) override;
+	bool clearDistantSearchResults(TurtleRequestId reqId) override;
+
+	/// @see RsNxsObserver::receiveDistantSearchResults
+	void receiveDistantSearchResults(TurtleRequestId id, const RsGxsGroupId& grpId) override;
+
 private:
 	// Internal Service Data.
 	// They should eventually all be here.
@@ -146,6 +157,13 @@ private:
     RsMutex mSubscribedGroupsMutex;
     std::map<RsGxsGroupId, RsGroupMetaData> mSubscribedGroups;
     bool mSubscribedGroupsLoaded;
+
+	void flushDistantSearchResults();
+
+	/// Distant search results waiting to be notified, see service_tick()
+	std::map<TurtleRequestId, std::set<RsGxsGroupId> > mSearchResultsToNotify;
+	rstime_t mLastDistantSearchNotificationTS;
+	RsMutex mSearchResultsMtx;
 };
 
 #endif 
