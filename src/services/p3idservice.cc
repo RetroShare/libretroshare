@@ -4058,6 +4058,21 @@ bool p3IdService::checkId(const RsGxsIdGroup &grp, RsPgpId &pgpId,bool& error)
                 std::cerr << "fails" << std::endl;
 #endif
         }
+
+        // No known PGP key reproduces mPgpIdHash: the signing profile key is
+        // simply not in our keyring. This is the same situation as an issuer id
+        // that is not in mPgpFingerprintMap above, so treat it the same way:
+        // keep the identity as not verified and retry later. Going on would
+        // call VerifySignBin() with a null fingerprint and the hash of the last
+        // key tried, which always fails and deletes a valid identity.
+        if(pgp_fingerprint.isNull())
+        {
+#ifdef DEBUG_IDS
+            std::cerr << "No known PGP key matches. Key will be marked as non verified." << std::endl;
+#endif
+            error = false;
+            return false;
+        }
     }
 
     // Look for the PGP id given by the signature
