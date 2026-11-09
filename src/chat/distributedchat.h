@@ -174,6 +174,18 @@ class DistributedChatService
 		rstime_t last_visible_lobby_info_request_time ;	// allows to ask for updates
 		bool _should_reset_lobby_counts ;
 		bool _allow_history_sharing ;
+
+		// Lobby history retrieval: only DATA items answering a request we sent
+		// to that peer for that lobby are accepted, within a deadline and up to
+		// the number of messages we asked for.
+		struct PendingLobbyHistoryRequest
+		{
+			rstime_t deadline ;
+			uint32_t remaining_msgs ;
+		};
+		std::map<std::pair<ChatLobbyId,RsPeerId>,PendingLobbyHistoryRequest> mPendingLobbyHistoryRequests ;
+
+		bool isLobbyParticipatingFriend_locked(const ChatLobbyId& lobby_id, const RsPeerId& peer_id) const ;
 		RsGxsId _default_identity;
 		std::map<ChatLobbyId,RsGxsId> _lobby_default_identity;
 
