@@ -1090,11 +1090,14 @@ int RsServer::StartupRetroShare()
 		bootstrapfile += "/";
 	bootstrapfile += BITDHT_BOOTSTRAP_FILENAME;
 
+	uint64_t tmp_size;
 	std::string installfile = "";
 #ifndef __ANDROID__
 	installfile = RsAccounts::systemDataDirectory();
 	installfile += "/";
 	installfile += BITDHT_BOOTSTRAP_FILENAME;
+	if(!RsDirUtil::checkFile(installfile,tmp_size))
+		installfile = "";
 #endif
 
     std::string filteredipfile = RsAccounts::AccountDirectory();
@@ -1104,11 +1107,7 @@ int RsServer::StartupRetroShare()
 
     std::cerr << "Checking for DHT bootstrap file: " << bootstrapfile << std::endl;
 
-	/* check if bootstrap file exists...
-	 * if not... copy from dataDirectory
-	 */
-
-	uint64_t tmp_size ;
+	// All this can probably be removed and use the BitDHT bdboot embed feature.
 	if (!RsDirUtil::checkFile(bootstrapfile,tmp_size,true))
 	{
 		RS_INFO("DHT bootstrap file not in ConfigDir: ", bootstrapfile);
@@ -1135,25 +1134,6 @@ int RsServer::StartupRetroShare()
 		            jni::Make<jni::String>(env, bootstrapfile) );
 
 		if(!result) RS_ERR("Failure installing ", bootstrapfile);
-
-#else // def __ANDROID__
-		std::cerr << "Checking for Installation DHT bootstrap file " << installfile << std::endl;
-		if ((installfile != "") && (RsDirUtil::checkFile(installfile,tmp_size)))
-		{
-			std::cerr << "Copying Installation DHT bootstrap file..." << std::endl;
-			if (RsDirUtil::copyFile(installfile, bootstrapfile))
-			{
-				std::cerr << "Installed DHT bootstrap file in configDir" << std::endl;
-			}
-			else
-			{
-				std::cerr << "Failed Installation DHT bootstrap file..." << std::endl;
-			}
-		}
-		else
-		{
-			std::cerr << "No Installation DHT bootstrap file to copy" << std::endl;
-		}
 #endif // def __ANDROID__
 	}
 
