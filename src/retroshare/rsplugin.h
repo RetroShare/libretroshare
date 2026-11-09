@@ -40,6 +40,7 @@ class RsServiceControl ;
 class RsReputations ;
 class RsTurtle ;
 class RsGxsTunnelService ;
+class RsGxsNetTunnelService ;
 class RsDht ;
 class RsMail ;
 class RsChats ;
@@ -92,6 +93,9 @@ namespace resource_api
 //
 #define RS_PLUGIN_API_VERSION        0x000101
 
+// RsPlugInInterfaces::mGxsNetTunnel is available (distant GXS sync for plugins).
+#define RS_PLUGIN_HAS_GXS_NET_TUNNEL 1
+
 // Used for the status of plugins.
 //
 #define PLUGIN_STATUS_NO_STATUS      0x0000
@@ -141,6 +145,9 @@ public:
 #ifdef RS_USE_WIRE
     RsUtil::inited_ptr<RsWire>          mWire;
 #endif
+    // Shared GXS distant sync service (NULL when built without
+    // RS_USE_GXS_DISTANT_SYNC). Kept last so older plugins keep their layout.
+    RsUtil::inited_ptr<RsGxsNetTunnelService> mGxsNetTunnel;
 };
 
 class RsPlugin
