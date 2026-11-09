@@ -261,6 +261,9 @@ private:
 
 	/// Send custom state info to peer
 	void sendCustomState(const RsPeerId& peer_id);
+	void sendContactsStatus(const DistantChatPeerId& peerId);
+	bool sendContactsStatusBackground(
+	        const RsContactStatus& status, const RsGxsId& contactId );
 
 	/// Receive the avatar in a chat item, with RS_CHAT_RECEIVE_AVATAR flag.
 	void receiveAvatarJpegData(RsChatAvatarItem *ci) ;	// new method
@@ -311,6 +314,9 @@ private:
 	struct DistantEndpoints { RsGxsId from; RsGxsId to; };
 	typedef std::map<DistantChatPeerId, DistantEndpoints> DIDEMap;
 	DIDEMap mDistantGxsMap;
+	std::map<DistantChatPeerId, rstime_t> mContactsStatusSentAt;
+	std::map<std::pair<RsGxsId, RsGxsId>, rstime_t>
+	        mContactsStatusBackgroundSentAt;
 	RsMutex mDGMutex;
 
 	p3GxsTrans& mGxsTransport;

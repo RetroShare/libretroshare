@@ -279,6 +279,16 @@ public:
 
 	virtual bool setAsRegularContact(const RsGxsId& id,bool is_a_contact) override;
 	virtual bool isARegularContact(const RsGxsId& id) override;
+	bool getContactsStatusList(std::list<RsContactStatus>& statuses) override;
+	bool getContactsStatus(const RsGxsId& id, RsContactStatus& status) override;
+	bool getContactsStatusOwn(const RsGxsId& id, RsContactStatus& status) override;
+	bool setContactsStatusOwn(const RsGxsId& id, RsStatusValue status,
+	                         const std::string& customState) override;
+	bool getContactsStatusCustomStateString(
+	        const RsGxsId& id, std::string& customState) override;
+	bool setContactsStatusCustomStateStringOwn(
+	        const RsGxsId& id, const std::string& customState) override;
+	bool updateContactsStatus(const RsContactStatus& status) override;
 	virtual void setAutoAddFriendIdsAsContact(bool b) override;
 	virtual bool autoAddFriendIdsAsContact() override;
 
@@ -618,6 +628,8 @@ private:
 
 	// keep a list of regular contacts. This is useful to sort IDs, and allow some services to priviledged ids only.
 	std::set<RsGxsId> mContacts;
+	std::map<RsGxsId, RsContactStatus> mContactsStatus;
+	std::map<RsGxsId, RsContactStatus> mOwnContactsStatus;
 
     // temporary list of identities which authentication failed, so that we do not ask for them again in the same session.
     std::set<RsGxsId> mRejectedIdentities;
