@@ -108,6 +108,8 @@ public:
 	        const RsGxsId& id, const RsPgpId& ownerNode, RsReputationInfo& info,
 	        bool stamp = true );
     virtual bool isIdentityBanned(const RsGxsId& id) ;
+	virtual bool getLocallyBannedIdentities(
+	        std::vector<RsBannedIdentityInfo>& identities ) override;
 
     virtual bool isNodeBanned(const RsPgpId& id);
     virtual void banNode(const RsPgpId& id,bool b) ;
