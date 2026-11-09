@@ -171,7 +171,8 @@ public:
     /*!
      * Retrieves meta data of all groups stored (most current versions only)
      * @param grpIds grpIds for which to retrieve meta data
-     * @param msgMeta meta data result as map of grpIds to array of metadata for that grpId
+     * @param msgMeta meta data result as map of grpIds to array of metadata for that grpId.
+     *        It is not cleared: results are added to what it already holds.
      * @return error code
      */
     virtual int retrieveGxsMsgMetaData(const GxsMsgReq& msgIds, GxsMsgMetaResult& msgMeta) = 0;

@@ -166,7 +166,11 @@ public:
 	                     RsGenExchange* genex, RsSerialType&,
 	                     RsGixs* gixs );
 
-    static bool check(uint16_t service_type, RsGixs *mgixs, RsGeneralDataService *mds);
+	/**
+	 * Gives up (returning false) as soon as shouldStop() is set, so that the
+	 * check can be interrupted at shutdown instead of outliving the data store.
+	 */
+	bool check();
     bool isDone();
 
     void run();

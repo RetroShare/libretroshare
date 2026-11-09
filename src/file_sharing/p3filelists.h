@@ -133,6 +133,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
 		//
 
         void stopThreads() ;
+        void askThreadsToStop() ; // non-blocking; lets stopThreads() join both threads at once
         void startThreads() ;
 
         bool findChildPointer(void *ref, int row, void *& result, FileSearchFlags flags) const;

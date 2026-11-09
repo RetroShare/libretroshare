@@ -102,14 +102,14 @@ void LocalDirectoryUpdater::threadTick()
         mLastTSUpdateTime = now ;
     }
 
-	for(uint32_t i=0;i<10;++i)
+	/* 1 s slices so that a stop request (shutdown) or a forced update is
+	 * honoured within a second, not after the full 10 s. */
+	for(uint32_t i=0;i<10 && !shouldStop();++i)
 	{
 		rstime::rs_usleep(1*1000*1000);
 
-		{
 		if(mForceUpdate)
 			break ;
-		}
 	}
 }
 
