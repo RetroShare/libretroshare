@@ -535,16 +535,28 @@ void TorControl::shutdown()
 
 void TorControl::shutdownSync()
 {
+
     if (!hasOwnership()) {
         RsWarn() << "torctrl: Ignoring shutdown command for a tor instance I don't own";
         return;
     }
-
     shutdown();
-    while (mSocket->moretowrite(0))
+    
+    // Add timeout to prevent infinite wait
+    int timeout_cnt = 0;
+    const int MAX_WAIT_ITERATIONS = 50; // 5 seconds max (50 * 100ms)
+    
+    while (mSocket->moretowrite(0) && timeout_cnt < MAX_WAIT_ITERATIONS) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
+        timeout_cnt++;
+    }
+    
+    if (timeout_cnt >= MAX_WAIT_ITERATIONS) {
+        RsWarn() << "torctrl: Timeout waiting for socket to flush during shutdown, forcing close";
+    }
+    
     mSocket->close();
+
 }
 
 void TorControl::statusEvent(int /* code */, const ByteArray &data)
