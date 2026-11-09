@@ -324,10 +324,17 @@ bool RsDirUtil::moveFile(const std::string& source,const std::string& dest)
 
 	if(!checkDirectory(dest_dir))
 	{
-		if(!std::filesystem::create_directories(dest_dir))
+		// Use the non-throwing overload: this runs on the file transfer
+		// thread with nothing above it to catch an exception, and a
+		// destination name that's merely invalid on this filesystem (e.g.
+		// a character disallowed on Windows) would otherwise abort the
+		// whole process here, and again on every subsequent restart.
+		std::error_code ec;
+		std::filesystem::create_directories(dest_dir, ec);
+		if(ec)
 		{
 			RsErr() << __PRETTY_FUNCTION__ << " failure creating directory: "
-			        << dest_dir << std::endl;
+			        << dest_dir << " : " << ec.message() << std::endl;
 			return false;
 		}
 	}
