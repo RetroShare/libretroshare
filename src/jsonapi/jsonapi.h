@@ -64,8 +64,8 @@ public:
 
 	std::vector<std::shared_ptr<rb::Resource>> getResources() const;
 
-    /// @see RsJsonApi
-    const std::set<std::reference_wrapper<const JsonApiResourceProvider>,std::less<const JsonApiResourceProvider> >& getResourceProviders() const override;
+	/// @see RsJsonApi
+	ResourceProviderSet getResourceProviders() const override;
 
     /// @see RsJsonApi
 	void fullstop() override { RsThread::fullstop(); }
@@ -180,6 +180,7 @@ private:
 	/// Encrypted persistent storage for authorized JSON API tokens
 	JsonApiServerAuthTokenStorage mAuthTokenStorage;
 	RsMutex configMutex;
+	mutable RsMutex mResourceProvidersMutex;
 
 	static const std::multimap<std::string, std::string> corsHeaders;
 	static const std::multimap<std::string, std::string> corsOptionsHeaders;
