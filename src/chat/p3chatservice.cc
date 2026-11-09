@@ -554,9 +554,9 @@ ChatLobbyId p3ChatService::createChatLobby(const std::string& lobby_name,const R
     return DistributedChatService::createChatLobby(lobby_name,lobby_identity,lobby_topic,invited_friends,privacy_type) ;
 }
 
-bool p3ChatService::requestLobbyHistory(const ChatLobbyId& lobby_id)
+bool p3ChatService::requestLobbyHistory(const ChatLobbyId& lobby_id, const std::set<RsPeerId>& peer_ids)
 {
-    return DistributedChatService::requestLobbyHistory(lobby_id) ;
+    return DistributedChatService::requestLobbyHistory(lobby_id, peer_ids) ;
 }
 
 bool p3ChatService::requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts)

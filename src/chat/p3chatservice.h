@@ -138,7 +138,7 @@ public:
     virtual void getDefaultIdentityForChatLobby(RsGxsId& nick_name) override;
     virtual void setLobbyAutoSubscribe(const ChatLobbyId& lobby_id, const bool autoSubscribe) override;
     virtual bool getLobbyAutoSubscribe(const ChatLobbyId& lobby_id) override;
-    virtual bool requestLobbyHistory(const ChatLobbyId& lobby_id) override;
+    virtual bool requestLobbyHistory(const ChatLobbyId& lobby_id, const std::set<RsPeerId>& peer_ids) override;
     virtual bool requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts) override;
 
     virtual bool allowHistorySharing(bool allow) override;

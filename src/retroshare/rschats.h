@@ -617,12 +617,13 @@ public:
     virtual bool getLobbyAutoSubscribe(const ChatLobbyId &lobby_id) = 0 ;
 
     /**
-     * @brief requestLobbyHistory send a probe to all participating friends of a lobby to check available chat history
+     * @brief requestLobbyHistory send a probe to the given friends of a lobby to check available chat history
      * @jsonapi{development}
      * @param[in] lobby_id lobby to check
-     * @return true if probe was sent
+     * @param[in] peer_ids friends to probe; only those currently participating in the lobby are probed
+     * @return true if at least one probe was sent
      */
-    virtual bool requestLobbyHistory(const ChatLobbyId& lobby_id) = 0 ;
+    virtual bool requestLobbyHistory(const ChatLobbyId& lobby_id, const std::set<RsPeerId>& peer_ids) = 0 ;
 
     /**
      * @brief requestLobbyHistoryFromPeer request chat history from a specific peer in a lobby

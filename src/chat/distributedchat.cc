@@ -2353,7 +2353,7 @@ bool DistributedChatService::processLoadListItem(const RsItem *item)
 #include "chat/rschatitems.h"
 #include "pqi/p3historymgr.h"
 
-bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id)
+bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id, const std::set<RsPeerId>& peer_ids)
 {
 	RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
 
@@ -2365,12 +2365,16 @@ bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id)
 		return false ;
 	}
 
-	// Send a probe to every direct friend participating in this lobby
+	// Send a probe only to the selected friends that participate in this lobby
 
-	for(std::set<RsPeerId>::const_iterator fit(it->second.participating_friends.begin()); fit != it->second.participating_friends.end(); ++fit)
+	bool sent = false ;
+
+	for(std::set<RsPeerId>::const_iterator fit(peer_ids.begin()); fit != peer_ids.end(); ++fit)
 	{
-		if(mServControl->isPeerConnected(mServType, *fit))
+		if(it->second.participating_friends.find(*fit) != it->second.participating_friends.end() && mServControl->isPeerConnected(mServType, *fit))
 		{
+			sent = true ;
+
 			RsChatLobbyHistoryProbeItem *item = new RsChatLobbyHistoryProbeItem ;
 			item->lobby_id = lobby_id ;
 			item->PeerId(*fit) ;
@@ -2381,7 +2385,7 @@ bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id)
 		}
 	}
 
-	return true ;
+	return sent ;
 }
 
 void DistributedChatService::handleRecvLobbyHistoryProbe(RsChatLobbyHistoryProbeItem *item)
@@ -2607,8 +2611,17 @@ void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataIt
 
 	// The sender's own messages are flagged outgoing from its point of view:
 	// a relayed line must never be displayed as written by us.
+	// Record which friend relayed each line, so that the origin of the
+	// information stays visible in our history, also after a restart.
+	std::string relay_name = rsPeers->getPeerName(item->PeerId()) ;
+	if(relay_name.empty())
+		relay_name = item->PeerId().toStdString() ;
+
 	for(auto& m : accepted_msgs)
+	{
 		m.incoming = true ;
+		m.nick += " (via " + relay_name + ")" ;
+	}
 
 	// Deduplicate and save to local history database
 	std::list<HistoryMsg> existingMsgs;

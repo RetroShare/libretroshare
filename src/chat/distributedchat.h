@@ -85,7 +85,7 @@ class DistributedChatService
 		bool joinVisibleChatLobby(const ChatLobbyId& id, const RsGxsId &gxs_id) ;
 
 		// Lobby history retrieval protocol
-		bool requestLobbyHistory(const ChatLobbyId& lobby_id) ;
+		bool requestLobbyHistory(const ChatLobbyId& lobby_id, const std::set<RsPeerId>& peer_ids) ;
 		bool requestLobbyHistoryFromPeer(const ChatLobbyId& lobby_id, const RsPeerId& peer_id, uint32_t max_count, uint32_t oldest_ts) ;
 		void allowHistorySharing(bool allow) { _allow_history_sharing = allow; triggerConfigSave(); }
 		bool isHistorySharingAllowed() const { return _allow_history_sharing; }
