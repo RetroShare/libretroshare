@@ -316,19 +316,28 @@ void p3FileDatabase::startThreads()
 }
 void p3FileDatabase::stopThreads()
 {
-    RS_STACK_MUTEX(mFLSMtx) ;
+    // Checked by the loader between two directory lists: the one being read finishes, then it exits.
+    mRemoteDirLoaderStop = true ;
+
+    {
+        RS_STACK_MUTEX(mFLSMtx) ;
 #ifdef DEBUG_P3FILELISTS
-    P3FILELISTS_DEBUG() << "Stopping hash cache thread..." ; std::cerr.flush() ;
+        P3FILELISTS_DEBUG() << "Stopping hash cache thread..." ; std::cerr.flush() ;
 #endif
-    mHashCache->fullstop();
+        mHashCache->fullstop();
 #ifdef DEBUG_P3FILELISTS
-    P3FILELISTS_DEBUG() << "Done." << std::endl;
-    P3FILELISTS_DEBUG() << "Stopping directory watcher thread..." ; std::cerr.flush() ;
+        P3FILELISTS_DEBUG() << "Done." << std::endl;
+        P3FILELISTS_DEBUG() << "Stopping directory watcher thread..." ; std::cerr.flush() ;
 #endif
-    mLocalDirWatcher->fullstop();
+        mLocalDirWatcher->fullstop();
 #ifdef DEBUG_P3FILELISTS
-    P3FILELISTS_DEBUG() << "Done." << std::endl;
+        P3FILELISTS_DEBUG() << "Done." << std::endl;
 #endif
+    }
+
+    // Outside mFLSMtx: the loader takes it to pick the next list and once more when it ends.
+    if(mRemoteDirLoader.joinable())
+        mRemoteDirLoader.join() ;
 }
 
 bool p3FileDatabase::saveList(bool &cleanup, std::list<RsItem *>& sList)
@@ -848,7 +857,7 @@ void p3FileDatabase::startRemoteDirLoaderIfNeeded()
 {
     RS_STACK_MUTEX(mFLSMtx) ;
 
-    if(!mRemoteDirLoadPending || mRemoteDirLoaderRunning)
+    if(mRemoteDirLoaderStop || !mRemoteDirLoadPending || mRemoteDirLoaderRunning)
         return ;
 
     if(mRemoteDirLoader.joinable())	// a previous pass has finished
