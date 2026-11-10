@@ -585,7 +585,7 @@ list(
 	services/p3posted.cc
 	rsitems/rsposteditems.cc )
 
-if(RS_BRODCAST_DISCOVERY)
+if(RS_BROADCAST_DISCOVERY)
 	list(
 		APPEND RS_PUBLIC_HEADERS
 		retroshare/rsbroadcastdiscovery.h )
@@ -597,7 +597,7 @@ if(RS_BRODCAST_DISCOVERY)
 	list(
 		APPEND RS_IMPLEMENTATION_HEADERS
 		services/broadcastdiscoveryservice.h )
-endif(RS_BRODCAST_DISCOVERY)
+endif(RS_BROADCAST_DISCOVERY)
 
 list(
 	APPEND RS_SOURCES

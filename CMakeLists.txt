@@ -97,7 +97,7 @@ option(
 	OFF )
 
 option(
-	RS_BRODCAST_DISCOVERY
+	RS_BROADCAST_DISCOVERY
 	"Local area network peer discovery via udp-discovery-cpp"
 	ON )
 
@@ -822,7 +822,7 @@ if(RS_GXSTHEWIRE)
 		${PROJECT_NAME} PUBLIC RS_USE_WIRE )
 endif(RS_GXSTHEWIRE)
 
-if(RS_BRODCAST_DISCOVERY)
+if(RS_BROADCAST_DISCOVERY)
 	## TODO: upstream option to disable tests building
 	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
 	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
@@ -860,7 +860,7 @@ if(RS_BRODCAST_DISCOVERY)
 	target_link_libraries(${PROJECT_NAME} PRIVATE udp-discovery)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
-endif(RS_BRODCAST_DISCOVERY)
+endif(RS_BROADCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
