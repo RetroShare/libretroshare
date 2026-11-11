@@ -10,9 +10,8 @@ Files: src/*
 Copyright: 2004-2022, Retroshare Team <contact@retroshare.cc>
 License: LGPL-3.0-or-later
 
-Files: src/content_search/*
+Files: src/deep_search/*
 Copyright: 2018-2022, Gioacchino Mazzurco <gio@retroshare.cc>
-           2026, jolavillette
 License: AGPL-3.0-only
 
 Files: src/jsonapi/*
