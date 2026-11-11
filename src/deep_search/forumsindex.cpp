@@ -214,12 +214,27 @@ void DeepForumsIndex::markFullReindexDone()
 	}
 	flush();
 
+	/* A one letter word of one or two bytes is matched exactly, not as a
+	 * prefix. The prefix indexes cover 2 and 3 bytes of the token after
+	 * diacritics removal, so "a*" and "é*" (stored as "e") scan every term of
+	 * the index: 0.7 s on 100000 posts with a warm cache, against 0 ms exact,
+	 * with the index mutex held, and any distant peer can send such a query.
+	 * A single CJK character (3 bytes) is served by the index and keeps its
+	 * prefix, which is how it finds the longer words that start with it. */
+	auto shortSingleLetter = [](const std::string& w)
+	{
+		size_t letters = 0;
+		for(unsigned char c : w) if((c & 0xC0) != 0x80) ++letters;
+		return letters == 1 && w.size() <= 2;
+	};
+
 	std::string expr;
 	for(const auto& w : words)
 	{
+		const char* star = shortSingleLetter(w) ? "" : "*";
 		if(!expr.empty()) expr += ' ';
-		if(contentOnly) expr += "content:" + w + '*';
-		else expr += '"' + w + "*\"";
+		if(contentOnly) expr += "content:" + w + star;
+		else expr += '"' + w + star + '"';
 	}
 	return expr;
 }
