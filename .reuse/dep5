@@ -3,22 +3,90 @@ Upstream-Name: RetroShare
 Upstream-Contact: RetroShare Team <contact@retroshare.cc>
 
 Files: *
-Copyright: 2004-2022, Retroshare Team <contact@retroshare.cc>
+Copyright: 2004-2026, Retroshare Team <contact@retroshare.cc>
 License: AGPL-3.0-only
 
 Files: src/*
-Copyright: 2004-2022, Retroshare Team <contact@retroshare.cc>
+Copyright: 2004-2026, Retroshare Team <contact@retroshare.cc>
 License: LGPL-3.0-or-later
 
 Files: src/deep_search/*
-Copyright: 2018-2022, Gioacchino Mazzurco <gio@retroshare.cc>
+       src/jsonapi/*
+       misc/Android/*
+Copyright: 2018-2023, Gioacchino Mazzurco <gio@retroshare.cc>
 License: AGPL-3.0-only
 
-Files: src/jsonapi/*
-Copyright: 2018-2022, Gioacchino Mazzurco <gio@retroshare.cc>
+Files: src/content_search/*
+Copyright: 2018-2023, Gioacchino Mazzurco <gio@retroshare.cc>
+           2026, jolavillette
+License: AGPL-3.0-only
+
+Files: src/retroshare/rsgxstrans.h
+Copyright: 2016-2019, Gioacchino Mazzurco <gio@retroshare.cc>
+License: LGPL-3.0-only
+
+Files: src/util/rsurl.*
+       src/rs_android/retroshareserviceandroid.*
+       src/rs_android/org/retroshare/service/*
+       tests/*
+Copyright: 2004-2026, Retroshare Team <contact@retroshare.cc>
+           2016-2023, Gioacchino Mazzurco <gio@retroshare.cc>
 License: AGPL-3.0-or-later
+
+Files: tests/test_JSON_API_DirDetails_handle_correct_64bit_integer_type.sh
+Copyright: Retroshare Team <contact@retroshare.cc>
+License: AGPL-3.0-only
+
+Files: src/rs_android/ScopedFd.h
+       src/rs_android/LocalArray.h
+       src/rs_android/ifaddrs-android.h
+Copyright: 2009, The Android Open Source Project
+License: Apache-2.0
+
+Files: src/tests/*
+       src/unfinished/*
+       tests/unittests/libretroshare/dbase/*
+       tests/unittests/libretroshare/serialiser/rsconfigitem_test.cc
+       tests/unittests/libretroshare/serialiser/rsgrouteritem_test.cc
+       tests/unittests/libretroshare/serialiser/rsphotoitem_test.cc
+Copyright: 2004-2014, Robert Fernie
+License: LGPL-2.0-only
+
+Files: src/tests/network_simulator/gui/*
+Copyright: 2011, Retroshare Team <contact@retroshare.cc>
+License: GPL-2.0-or-later
 
 Files: src/tor/*
 Copyright: 2014, John Brooks <john.brooks@dereferenced.net>
-           2017-2022, Retroshare Team <contact@retroshare.cc>
 License: BSD-3-Clause
+
+Files: src/tor/TorTypes.h
+       src/tor/bytearray.h
+Copyright: 2004-2026, Retroshare Team <contact@retroshare.cc>
+License: LGPL-3.0-or-later
+
+Files: gradle/wrapper/*
+Copyright: Gradle, Inc.
+License: Apache-2.0
+
+Files: CMakeLists.txt
+       build.gradle
+       src/CMakeLists.txt
+       src/Doxyfile
+       src/jsonapi/README.adoc
+       src/libretroshare.pro
+       src/use_libretroshare.pri
+Copyright: 2004-2024, Retroshare Team <contact@retroshare.cc>
+           2021-2026, Gioacchino Mazzurco <gio@retroshare.cc>
+License: CC0-1.0
+Comment: build files and notes that carry their own SPDX tag.
+
+Files: .github/workflows/*
+Copyright: Retroshare Team <contact@retroshare.cc>
+License: AGPL-3.0-or-later
+
+Files: README.asciidoc
+       misc/Android/README.asciidoc
+Copyright: 2018-2026, Gioacchino Mazzurco <gio@retroshare.cc>
+           2022, Retroshare Team <contact@retroshare.cc>
+License: CC-BY-SA-4.0
