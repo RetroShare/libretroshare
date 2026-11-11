@@ -22,8 +22,8 @@
 
 #include "util/rstime.h"
 
-namespace DeepSearch
+namespace ContentSearch
 {
-// Common utilities (always available, used by FTS5)
+// Plain text of a RetroShare HTML document, as indexed by ForumContentIndex
 std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc);
 }

@@ -31,7 +31,7 @@
 
 class RetroDb;
 
-struct DeepForumsSearchResult
+struct ForumContentSearchResult
 {
 	std::string mUrl;
 	double mWeight;
@@ -49,10 +49,10 @@ struct DeepForumsSearchResult
  * All the methods are thread safe: the index is fed from the GXS thread and
  * searched from the GUI, the JSON API and the turtle search threads.
  */
-struct DeepForumsIndex
+struct ForumContentIndex
 {
-	DeepForumsIndex(const std::string& dbPath, const std::string& dbKey);
-	~DeepForumsIndex();
+	ForumContentIndex(const std::string& dbPath, const std::string& dbKey);
+	~ForumContentIndex();
 
 	/**
 	 * @brief Search indexed forums and posts, newest first
@@ -67,7 +67,7 @@ struct DeepForumsIndex
 	 */
 	std::error_condition search(
 	        const std::string& queryStr,
-	        std::vector<DeepForumsSearchResult>& results,
+	        std::vector<ForumContentSearchResult>& results,
 	        uint32_t maxResults = 100,
 	        const RsGxsGroupId& forumId = RsGxsGroupId() );
 
@@ -104,6 +104,7 @@ struct DeepForumsIndex
 
 private:
 	std::error_condition openDatabase();
+	void removeOldIndexes();
 	std::error_condition indexDocument(
 	        const RsGxsGroupId& grpId, const RsGxsMessageId& msgId,
 	        const std::string& title, const std::string& content,

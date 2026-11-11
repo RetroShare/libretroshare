@@ -1061,12 +1061,12 @@ rs_jsonapi {
     SOURCES += jsonapi/jsonapi.cpp
 }
 
-rs_deep_forums_index {
-    HEADERS *= deep_search/commonutils.hpp
-    SOURCES *= deep_search/commonutils.cpp
+rs_forum_content_search {
+    HEADERS += content_search/htmltext.hpp
+    SOURCES += content_search/htmltext.cpp
 
-    HEADERS += deep_search/forumsindex.hpp
-    SOURCES += deep_search/forumsindex.cpp
+    HEADERS += content_search/forumcontentindex.hpp
+    SOURCES += content_search/forumcontentindex.cpp
 }
 
 rs_broadcast_discovery {

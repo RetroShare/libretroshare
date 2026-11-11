@@ -90,7 +90,6 @@ jobs:
             -DRS_RNPLIB=ON -DRS_JSON_API=ON -DRS_WEBUI=OFF \
             -DRS_SQLCIPHER=ON -DRS_BITDHT=ON \
             -DRS_BRODCAST_DISCOVERY=OFF -DRS_MINIUPNPC=ON \
-            -DRS_FORUM_DEEP_INDEX=OFF \
             -DCMAKE_C_FLAGS="-include string.h -include stdint.h" \
             -DCMAKE_CXX_FLAGS="-include cstring -include cstdint -Wno-template-body"
 

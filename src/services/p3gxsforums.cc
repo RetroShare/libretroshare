@@ -59,8 +59,8 @@ p3GxsForums::p3GxsForums( RsGeneralDataService *gds,
     RsGxsForums(static_cast<RsGxsIface&>(*this)), mGenToken(0),
     mGenActive(false), mGenCount(0),
     mKnownForumsMutex("GXS forums known forums timestamp cache")
-#ifdef RS_DEEP_FORUMS_INDEX
-    , mDeepIndex(DeepForumsIndex::dbDefaultPath(), gds->getEncryptionKey()),
+#ifdef RS_FORUM_CONTENT_SEARCH
+    , mContentIndex(ForumContentIndex::dbDefaultPath(), gds->getEncryptionKey()),
     mReindexRunning(false), mReindexNotBefore(time(nullptr) + 30)
 #endif
 {
@@ -228,10 +228,10 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 						return;
 					}
 
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 					RsGxsForumMsg tmpPost = newForumMessageItem->mMsg;
 					tmpPost.mMeta = newForumMessageItem->meta;
-					mDeepIndex.indexForumPost(tmpPost);
+					mContentIndex.indexForumPost(tmpPost);
 #endif
 					auto ev = std::make_shared<RsGxsForumEvent>();
 					ev->mForumMsgId = msgChange->mMsgId;
@@ -266,7 +266,7 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 					rsEvents->postEvent(ev);
 				}
 
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 				uint8_t itemType = groupChange->mNewGroupItem->PacketSubType();
 				switch(static_cast<RsGxsForumsItems>(itemType))
 				{
@@ -275,14 +275,14 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 					auto newForumGroupItem =
 					        static_cast<RsGxsForumGroupItem*>(
 					            groupChange->mNewGroupItem );
-					mDeepIndex.indexForumGroup(newForumGroupItem->mGroup);
+					mContentIndex.indexForumGroup(newForumGroupItem->mGroup);
 					break;
 				}
 				default:
 					RS_WARN("Got unknown gxs group subtype: ", itemType);
 					break;
 				}
-#endif // def RS_DEEP_FORUMS_INDEX
+#endif // def RS_FORUM_CONTENT_SEARCH
 
 			}
 			break;
@@ -333,8 +333,8 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 				break;
 			}
 
-#ifdef RS_DEEP_FORUMS_INDEX
-			mDeepIndex.removeForumPostFromIndex(
+#ifdef RS_FORUM_CONTENT_SEARCH
+			mContentIndex.removeForumPostFromIndex(
 			            delChange->mGroupId, delChange->messageId);
 #endif
 
@@ -346,8 +346,8 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 		}
 		case RsGxsNotify::TYPE_GROUP_DELETED:
 		{
-#ifdef RS_DEEP_FORUMS_INDEX
-			mDeepIndex.removeForumFromIndex(gxsChange->mGroupId);
+#ifdef RS_FORUM_CONTENT_SEARCH
+			mContentIndex.removeForumFromIndex(gxsChange->mGroupId);
 #endif
 			auto ev = std::make_shared<RsGxsForumEvent>();
 			ev->mForumGroupId = gxsChange->mGroupId;
@@ -389,8 +389,8 @@ void p3GxsForums::notifyChanges(std::vector<RsGxsNotify*>& changes)
 				break;
 			}
 
-#ifdef RS_DEEP_FORUMS_INDEX
-			mDeepIndex.indexForumGroup(new_forum_grp_item->mGroup);
+#ifdef RS_FORUM_CONTENT_SEARCH
+			mContentIndex.indexForumGroup(new_forum_grp_item->mGroup);
 #endif
 
 			/* First of all, we check if there is a difference between the old
@@ -468,13 +468,13 @@ void	p3GxsForums::service_tick()
 	dummy_tick();
 	RsTickEvent::tick_events();
 
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 	/* A new or upgraded index is filled once from the GXS database. Off this
 	 * thread: the blocking forum API used to read the posts waits for it.
 	 * Not right at startup, to stay out of the way of the initial loading,
 	 * and not more than every 10 minutes if it fails. */
 	const rstime_t now = time(nullptr);
-	if(now >= mReindexNotBefore && mDeepIndex.needsFullReindex())
+	if(now >= mReindexNotBefore && mContentIndex.needsFullReindex())
 	{
 		bool expected = false;
 		if(mReindexRunning.compare_exchange_strong(expected, true))
@@ -1003,7 +1003,7 @@ bool p3GxsForums::subscribeToForum(const RsGxsGroupId& groupId, bool subscribe )
 
 bool p3GxsForums::reindexAll()
 {
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 	bool expected = false;
 	if(!mReindexRunning.compare_exchange_strong(expected, true))
 	{
@@ -1018,12 +1018,12 @@ bool p3GxsForums::reindexAll()
 #endif
 }
 
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 bool p3GxsForums::fullReindex()
 {
 	RsInfo() << "Forum index: full re-index started";
 
-	if(mDeepIndex.clearIndex()) return false;
+	if(mContentIndex.clearIndex()) return false;
 
 	std::vector<RsGxsForumGroup> forums;
 	if(!getForumsInfo(std::list<RsGxsGroupId>(), forums))
@@ -1034,13 +1034,13 @@ bool p3GxsForums::fullReindex()
 
 	/* One transaction for the whole run: committing every insert one by one
 	 * would make the re-index of a big profile take ages. */
-	mDeepIndex.beginTransaction();
+	mContentIndex.beginTransaction();
 
 	bool complete = true;
 	size_t postCount = 0;
 	for(const auto& forum : forums)
 	{
-		mDeepIndex.indexForumGroup(forum);
+		mContentIndex.indexForumGroup(forum);
 
 		std::vector<RsMsgMetaData> metas;
 		if(!getForumMsgMetaData(forum.mMeta.mGroupId, metas))
@@ -1060,7 +1060,7 @@ bool p3GxsForums::fullReindex()
 			if(getForumContent(forum.mMeta.mGroupId, batch, posts))
 			{
 				for(const auto& post : posts)
-					if(!mDeepIndex.indexForumPost(post)) ++postCount;
+					if(!mContentIndex.indexForumPost(post)) ++postCount;
 			}
 			else complete = false;
 			batch.clear();
@@ -1074,15 +1074,15 @@ bool p3GxsForums::fullReindex()
 		if(!batch.empty()) flush();
 	}
 
-	mDeepIndex.commitTransaction();
+	mContentIndex.commitTransaction();
 
-	if(complete) mDeepIndex.markFullReindexDone();
+	if(complete) mContentIndex.markFullReindexDone();
 
 	RsInfo() << "Forum index: full re-index " << (complete ? "done" : "incomplete")
 	         << ", " << forums.size() << " forums, " << postCount << " posts";
 	return complete;
 }
-#endif // def RS_DEEP_FORUMS_INDEX
+#endif // def RS_FORUM_CONTENT_SEARCH
 
 bool p3GxsForums::exportForumLink(
         std::string& link, const RsGxsGroupId& forumId, bool includeGxsData,
@@ -2082,7 +2082,7 @@ std::error_condition p3GxsForums::getContentSummaries(
 	}
 }
 
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 std::error_condition p3GxsForums::localSearch(
         const std::string& matchString,
         std::vector<RsGxsSearchResult>& searchResults )
@@ -2102,8 +2102,8 @@ std::error_condition p3GxsForums::prepareSearchResults(
         std::vector<RsGxsSearchResult>& searchResults,
         const RsGxsGroupId& onlyForumId, uint32_t maxResults )
 {
-    std::vector<DeepForumsSearchResult> results;
-    auto mErr = mDeepIndex.search(matchString, results, maxResults, onlyForumId);
+    std::vector<ForumContentSearchResult> results;
+    auto mErr = mContentIndex.search(matchString, results, maxResults, onlyForumId);
     if(mErr) return mErr;
 
     searchResults.clear();
@@ -2207,7 +2207,7 @@ std::error_condition p3GxsForums::prepareSearchResults(
     return std::error_condition();
 }
 
-#else  // def RS_DEEP_FORUMS_INDEX
+#else  // def RS_FORUM_CONTENT_SEARCH
 
 std::error_condition p3GxsForums::localSearch(
         const std::string&,
@@ -2219,7 +2219,7 @@ std::error_condition p3GxsForums::localForumSearch(
         std::vector<RsGxsSearchResult>&, uint32_t )
 { return std::errc::function_not_supported; }
 
-#endif // def RS_DEEP_FORUMS_INDEX
+#endif // def RS_FORUM_CONTENT_SEARCH
 
 /*static*/ const std::string RsGxsForums::DEFAULT_FORUM_BASE_URL =
         "retroshare:///forums";

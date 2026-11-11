@@ -31,10 +31,10 @@
 #include "util/rstickevent.h"
 #include "util/rsdebug.h"
 
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 #include <atomic>
 
-#include "deep_search/forumsindex.hpp"
+#include "content_search/forumcontentindex.hpp"
 #endif
 
 
@@ -197,7 +197,7 @@ public:
 	bool getMsgMetaData(const uint32_t &token, GxsMsgMetaMap& msg_metas) ;
 
 protected:
-#ifdef RS_DEEP_FORUMS_INDEX
+#ifdef RS_FORUM_CONTENT_SEARCH
 	/// Internal usage: search the index and fill the results
 	std::error_condition prepareSearchResults(
 	        const std::string& matchString,
@@ -208,7 +208,7 @@ protected:
 	/** Fill the index from the GXS database, blocking.
 	 * @return false if some forum or post could not be read */
 	bool fullReindex();
-#endif //def RS_DEEP_FORUMS_INDEX
+#endif //def RS_FORUM_CONTENT_SEARCH
 
 private:
 
@@ -251,8 +251,8 @@ private:
 	
 	RsMutex mKnownForumsMutex;
 
-#ifdef RS_DEEP_FORUMS_INDEX
-	DeepForumsIndex mDeepIndex;
+#ifdef RS_FORUM_CONTENT_SEARCH
+	ForumContentIndex mContentIndex;
 	std::atomic<bool> mReindexRunning;
 	rstime_t mReindexNotBefore; // only touched by the GXS thread
 #endif

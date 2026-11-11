@@ -18,12 +18,14 @@
  *                                                                             *
  *******************************************************************************/
 
-#include "deep_search/forumsindex.hpp"
-#include "deep_search/commonutils.hpp"
+#include "content_search/forumcontentindex.hpp"
+#include "content_search/htmltext.hpp"
 #include "retroshare/rsinit.h"
 #include "util/retrodb.h"
 #include "util/rsdebug.h"
 #include "util/rsurl.h"
+
+#include <filesystem>
 
 namespace
 {
@@ -62,7 +64,7 @@ struct Statement
 		if(sqlite3_prepare_v2(db, sql.c_str(), -1, &mStmt, nullptr)
 		        != SQLITE_OK)
 		{
-			RsErr() << "DeepForumsIndex: cannot prepare \"" << sql << "\": "
+			RsErr() << "ForumContentIndex: cannot prepare \"" << sql << "\": "
 			        << sqlite3_errmsg(db);
 			mStmt = nullptr;
 		}
@@ -84,7 +86,7 @@ struct Statement
 	{
 		int rc = sqlite3_step(mStmt);
 		if(rc != SQLITE_ROW && rc != SQLITE_DONE)
-			RsErr() << "DeepForumsIndex: query failed: " << rc << " "
+			RsErr() << "ForumContentIndex: query failed: " << rc << " "
 			        << sqlite3_errmsg(mDb);
 		return rc;
 	}
@@ -102,41 +104,56 @@ private:
 };
 }
 
-DeepForumsIndex::DeepForumsIndex(
+ForumContentIndex::ForumContentIndex(
         const std::string& dbPath, const std::string& dbKey ) :
-    mDbPath(dbPath), mDbKey(dbKey), mIndexMtx("DeepForumsIndex"),
+    mDbPath(dbPath), mDbKey(dbKey), mIndexMtx("ForumContentIndex"),
     mUsable(false), mNeedsFullReindex(false)
 {
 	RS_STACK_MUTEX(mIndexMtx);
+	removeOldIndexes();
 	openDatabase();
 }
 
-DeepForumsIndex::~DeepForumsIndex()
+void ForumContentIndex::removeOldIndexes()
+{
+	/* Indexes of former versions, next to this one: the SQLite file of the
+	 * "deep" index and the Xapian database before it. Nothing to migrate, the
+	 * new index is filled from the GXS database. */
+	namespace fs = std::filesystem;
+	std::error_code ec;
+	const fs::path dir = fs::u8path(mDbPath).parent_path();
+
+	for(const char* old : { "deep_forum_index.db", "deep_forum_index_xapian_db" })
+		if(fs::exists(dir / old, ec) && fs::remove_all(dir / old, ec) > 0)
+			RsInfo() << "ForumContentIndex: removed the old index " << old;
+}
+
+ForumContentIndex::~ForumContentIndex()
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	if(mDb) mDb->closeDb();
 }
 
-bool DeepForumsIndex::exec(const char* sql)
+bool ForumContentIndex::exec(const char* sql)
 {
 	char* err = nullptr;
 	if(sqlite3_exec(mDb->getSqlHandle(), sql, nullptr, nullptr, &err)
 	        == SQLITE_OK)
 		return true;
 
-	RsErr() << "DeepForumsIndex: \"" << sql << "\" failed: "
+	RsErr() << "ForumContentIndex: \"" << sql << "\" failed: "
 	        << (err ? err : "unknown error");
 	sqlite3_free(err);
 	return false;
 }
 
-std::error_condition DeepForumsIndex::openDatabase()
+std::error_condition ForumContentIndex::openDatabase()
 {
 	mDb = std::make_unique<RetroDb>(
 	            mDbPath, RetroDb::OPEN_READWRITE_CREATE, mDbKey );
 	if(!mDb->isOpen())
 	{
-		RsErr() << "DeepForumsIndex: cannot open " << mDbPath
+		RsErr() << "ForumContentIndex: cannot open " << mDbPath
 		        << ", forum content search disabled";
 		mDb.reset();
 		return std::errc::io_error;
@@ -153,13 +170,13 @@ std::error_condition DeepForumsIndex::openDatabase()
 	 * interrupted re-index is started again from scratch at next startup. */
 	if(version != FORUM_INDEX_SCHEMA_VERSION)
 	{
-		RsInfo() << "DeepForumsIndex: creating the forum index (schema "
+		RsInfo() << "ForumContentIndex: creating the forum index (schema "
 		         << version << " -> " << FORUM_INDEX_SCHEMA_VERSION << ")";
 
 		if( !exec("DROP TABLE IF EXISTS forum_index;") ||
 		        !exec(CREATE_TABLE_SQL) )
 		{
-			RsErr() << "DeepForumsIndex: the SQLite library has no usable "
+			RsErr() << "ForumContentIndex: the SQLite library has no usable "
 			        << "FTS4 support, forum content search disabled";
 			return std::errc::function_not_supported;
 		}
@@ -170,13 +187,13 @@ std::error_condition DeepForumsIndex::openDatabase()
 	return std::error_condition();
 }
 
-bool DeepForumsIndex::needsFullReindex() const
+bool ForumContentIndex::needsFullReindex() const
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	return mUsable && mNeedsFullReindex;
 }
 
-void DeepForumsIndex::markFullReindexDone()
+void ForumContentIndex::markFullReindexDone()
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	if(!mUsable) return;
@@ -186,7 +203,7 @@ void DeepForumsIndex::markFullReindexDone()
 	if(exec(sql.c_str())) mNeedsFullReindex = false;
 }
 
-/*static*/ std::string DeepForumsIndex::buildMatchExpression(
+/*static*/ std::string ForumContentIndex::buildMatchExpression(
         const std::string& queryStr, bool contentOnly )
 {
 	/* A word is a run of ASCII letters and digits or of non ASCII bytes, so
@@ -239,9 +256,9 @@ void DeepForumsIndex::markFullReindexDone()
 	return expr;
 }
 
-std::error_condition DeepForumsIndex::search(
+std::error_condition ForumContentIndex::search(
         const std::string& queryStr,
-        std::vector<DeepForumsSearchResult>& results, uint32_t maxResults,
+        std::vector<ForumContentSearchResult>& results, uint32_t maxResults,
         const RsGxsGroupId& forumId )
 {
 	results.clear();
@@ -273,7 +290,7 @@ std::error_condition DeepForumsIndex::search(
 		const RsGxsGroupId grpId(st.columnText(0));
 		const std::string msgIdStr = st.columnText(1);
 
-		DeepForumsSearchResult res;
+		ForumContentSearchResult res;
 		res.mUrl = msgIdStr.empty() ? forumIndexId(grpId) :
 		                              postIndexId(grpId, RsGxsMessageId(msgIdStr));
 		res.mWeight = 1.0;
@@ -285,7 +302,7 @@ std::error_condition DeepForumsIndex::search(
 	return std::error_condition();
 }
 
-std::error_condition DeepForumsIndex::indexDocument(
+std::error_condition ForumContentIndex::indexDocument(
         const RsGxsGroupId& grpId, const RsGxsMessageId& msgId,
         const std::string& title, const std::string& content,
         rstime_t publishTs )
@@ -318,29 +335,29 @@ std::error_condition DeepForumsIndex::indexDocument(
 	return std::error_condition();
 }
 
-std::error_condition DeepForumsIndex::indexForumGroup(
+std::error_condition ForumContentIndex::indexForumGroup(
         const RsGxsForumGroup& forum )
 {
 	if(forum.mMeta.mGroupId.isNull()) return std::errc::invalid_argument;
 
 	return indexDocument(
 	            forum.mMeta.mGroupId, RsGxsMessageId(), forum.mMeta.mGroupName,
-	            DeepSearch::simpleTextHtmlExtract(forum.mDescription),
+	            ContentSearch::simpleTextHtmlExtract(forum.mDescription),
 	            forum.mMeta.mPublishTs );
 }
 
-std::error_condition DeepForumsIndex::indexForumPost(const RsGxsForumMsg& post)
+std::error_condition ForumContentIndex::indexForumPost(const RsGxsForumMsg& post)
 {
 	if(post.mMeta.mGroupId.isNull() || post.mMeta.mMsgId.isNull())
 		return std::errc::invalid_argument;
 
 	return indexDocument(
 	            post.mMeta.mGroupId, post.mMeta.mMsgId, post.mMeta.mMsgName,
-	            DeepSearch::simpleTextHtmlExtract(post.mMsg),
+	            ContentSearch::simpleTextHtmlExtract(post.mMsg),
 	            post.mMeta.mPublishTs );
 }
 
-std::error_condition DeepForumsIndex::removeForumFromIndex(
+std::error_condition ForumContentIndex::removeForumFromIndex(
         const RsGxsGroupId& grpId )
 {
 	if(grpId.isNull()) return std::errc::invalid_argument;
@@ -357,7 +374,7 @@ std::error_condition DeepForumsIndex::removeForumFromIndex(
 	return std::error_condition();
 }
 
-std::error_condition DeepForumsIndex::removeForumPostFromIndex(
+std::error_condition ForumContentIndex::removeForumPostFromIndex(
         const RsGxsGroupId& grpId, const RsGxsMessageId& msgId )
 {
 	if(grpId.isNull() || msgId.isNull()) return std::errc::invalid_argument;
@@ -374,7 +391,7 @@ std::error_condition DeepForumsIndex::removeForumPostFromIndex(
 	return std::error_condition();
 }
 
-std::error_condition DeepForumsIndex::clearIndex()
+std::error_condition ForumContentIndex::clearIndex()
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	if(!mUsable) return std::errc::function_not_supported;
@@ -386,19 +403,19 @@ std::error_condition DeepForumsIndex::clearIndex()
 	return std::error_condition();
 }
 
-void DeepForumsIndex::beginTransaction()
+void ForumContentIndex::beginTransaction()
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	if(mUsable) exec("BEGIN;");
 }
 
-void DeepForumsIndex::commitTransaction()
+void ForumContentIndex::commitTransaction()
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	if(mUsable) exec("COMMIT;");
 }
 
-/*static*/ int64_t DeepForumsIndex::docId(
+/*static*/ int64_t ForumContentIndex::docId(
         const RsGxsGroupId& grpId, const RsGxsMessageId& msgId )
 {
 	/* 64 bit FNV-1a: stable across platforms and compilers, which matters as
@@ -415,7 +432,7 @@ void DeepForumsIndex::commitTransaction()
 	return h ? static_cast<int64_t>(h) : 1;
 }
 
-/*static*/ std::string DeepForumsIndex::forumIndexId(const RsGxsGroupId& grpId)
+/*static*/ std::string ForumContentIndex::forumIndexId(const RsGxsGroupId& grpId)
 {
 	RsUrl forumIndexId(RsGxsForums::DEFAULT_FORUM_BASE_URL);
 	forumIndexId.setQueryKV(
@@ -423,7 +440,7 @@ void DeepForumsIndex::commitTransaction()
 	return forumIndexId.toString();
 }
 
-/*static*/ std::string DeepForumsIndex::postIndexId(
+/*static*/ std::string ForumContentIndex::postIndexId(
         const RsGxsGroupId& grpId, const RsGxsMessageId& msgId )
 {
 	RsUrl postIndexId(RsGxsForums::DEFAULT_FORUM_BASE_URL);
@@ -432,5 +449,5 @@ void DeepForumsIndex::commitTransaction()
 	return postIndexId.toString();
 }
 
-/*static*/ std::string DeepForumsIndex::dbDefaultPath()
-{ return RsAccounts::AccountDirectory() + "/deep_forum_index.db"; }
+/*static*/ std::string ForumContentIndex::dbDefaultPath()
+{ return RsAccounts::AccountDirectory() + "/forum_content_index.db"; }

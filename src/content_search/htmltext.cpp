@@ -22,12 +22,12 @@
 #include <cstring>
 #include <thread>
 
-#include "deep_search/commonutils.hpp"
+#include "content_search/htmltext.hpp"
 #include "util/stacktrace.h"
 #include "util/rsthreads.h"
 #include "util/rsdebuglevel0.h"
 
-namespace DeepSearch
+namespace ContentSearch
 {
 
 std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc)
