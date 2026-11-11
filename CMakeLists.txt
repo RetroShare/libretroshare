@@ -613,14 +613,28 @@ if(RS_JSON_API)
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
 
 	file(READ "src/jsonapi/jsonapi-generator-doxygen.conf" DOXYFILE_CONTENT)
-	string(APPEND DOXYFILE_CONTENT
-		"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
-		"EXCLUDE="
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
-	)
+	if(RS_BROADCAST_DISCOVERY)
+		string(APPEND DOXYFILE_CONTENT
+			"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
+			"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
+			"EXCLUDE="
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
+		)
+	else()
+		string(APPEND DOXYFILE_CONTENT
+			"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
+			"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
+			"EXCLUDE="
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/retroshare/rsbroadcastdiscovery.h"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/services/broadcastdiscoveryservice.cc"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/services/broadcastdiscoveryservice.h\n"
+		)
+	endif(RS_BROADCAST_DISCOVERY)
 	file(WRITE "${JSON_API_GENERATOR_DOXYFILE}" "${DOXYFILE_CONTENT}")
 
 	# Doxygen never purges its output directory, and the generator emits one
