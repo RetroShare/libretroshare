@@ -57,9 +57,6 @@
 #include "util/rsprint.h"
 #include "util/rstime.h"
 
-#ifdef RS_DEEP_FILES_INDEX
-#	include "deep_search/filesindex.hpp"
-#endif // def RS_DEEP_FILES_INDEX
 
 /***
  * #define SERVER_DEBUG       1
@@ -84,18 +81,6 @@
 static const rstime_t FILE_TRANSFER_LOW_PRIORITY_TASKS_PERIOD = 5 ;           // low priority tasks handling every 5 seconds
 static const rstime_t FILE_TRANSFER_MAX_DELAY_BEFORE_DROP_USAGE_RECORD = 10 ; // keep usage records for 10 secs at most.
 
-#ifdef RS_DEEP_FILES_INDEX
-TurtleFileInfoV2::TurtleFileInfoV2(const DeepFilesSearchResult& dRes) :
-    fHash(dRes.mFileHash), fWeight(static_cast<float>(dRes.mWeight)),
-    fSnippet(dRes.mSnippet)
-{
-	FileInfo fInfo;
-	rsFiles->FileDetails(fHash, RS_FILE_HINTS_LOCAL, fInfo);
-
-	fSize = fInfo.size;
-	fName = fInfo.fname;
-}
-#endif // def  RS_DEEP_FILES_INDEX
 
 /* Setup */
 ftServer::ftServer(p3PeerMgr *pm, p3ServiceControl *sc):
@@ -1975,49 +1960,9 @@ bool ftServer::receiveSearchRequest(
         unsigned char*& searchResultData, uint32_t& searchResultDataLen,
         uint32_t& maxAllowsHits )
 {
-#ifdef RS_DEEP_FILES_INDEX
-	std::unique_ptr<RsItem> recvItem(
-	            RsServiceSerializer::deserialise(
-	                searchRequestData, &searchRequestDataLen ) );
-
-	if(!recvItem)
-	{
-		RsWarn() << __PRETTY_FUNCTION__ << " Search request deserialization "
-		         << "failed" << std::endl;
-		return false;
-	}
-
-	std::unique_ptr<RsFileSearchRequestItem> sReqItPtr(
-	            dynamic_cast<RsFileSearchRequestItem*>(recvItem.get()) );
-	if(!sReqItPtr)
-	{
-		RsWarn() << __PRETTY_FUNCTION__ << " Received an invalid search request"
-		         << " " << *recvItem << std::endl;
-		return false;
-	}
-	recvItem.release();
-
-	RsFileSearchRequestItem& searchReq(*sReqItPtr);
-
-	std::vector<DeepFilesSearchResult> dRes;
-	DeepFilesIndex dfi(DeepFilesIndex::dbDefaultPath());
-	if(!dfi.search(searchReq.queryString, dRes, maxAllowsHits))
-	{
-		RsFileSearchResultItem resIt;
-
-		for(const auto& dMatch : dRes)
-			resIt.mResults.push_back(TurtleFileInfoV2(dMatch));
-
-		searchResultDataLen = RsServiceSerializer::size(&resIt);
-		searchResultData = static_cast<uint8_t*>(malloc(searchResultDataLen));
-		return RsServiceSerializer::serialise(
-		            &resIt, searchResultData, &searchResultDataLen );
-	}
-#else
 	(void) searchRequestData;
 	(void) searchRequestDataLen;
 	(void) maxAllowsHits;
-#endif // def RS_DEEP_FILES_INDEX
 
 	searchResultData = nullptr;
 	searchResultDataLen = 0;
@@ -2079,13 +2024,6 @@ bool    ftServer::addConfiguration(p3ConfigMgr *cfgmgr)
 	return true;
 }
 
-#ifdef RS_DEEP_FILES_INDEX
-static std::vector<std::string> xapianQueryKeywords =
-{
-    " AND ", " OR ", " NOT ", " XOR ", " +", " -", " ( ", " ) ", " NEAR ",
-    " ADJ ", " \"", "\" "
-};
-#endif
 
 bool ftServer::turtleSearchRequest(
         const std::string& matchString,
@@ -2099,44 +2037,7 @@ bool ftServer::turtleSearchRequest(
 		return false;
 	}
 
-#ifdef RS_DEEP_FILES_INDEX
-	RsFileSearchRequestItem sItem;
-	sItem.queryString = matchString;
-
-	uint32_t iSize = RsServiceSerializer::size(&sItem);
-	uint8_t* iBuf = static_cast<uint8_t*>(malloc(iSize));
-	RsServiceSerializer::serialise(&sItem, iBuf, &iSize);
-
-	Dbg3() << __PRETTY_FUNCTION__ << " sending search request:" << sItem
-	       << std::endl;
-
-	TurtleRequestId xsId = mTurtleRouter->turtleSearch(iBuf, iSize, this);
-
-	{ RS_STACK_MUTEX(mSearchCallbacksMapMutex);
-		mSearchCallbacksMap.emplace(
-		            xsId,
-		            std::make_pair(
-		                multiCallback,
-		                std::chrono::system_clock::now() +
-		                std::chrono::seconds(maxWait) ) );
-	} // RS_STACK_MUTEX(mSearchCallbacksMapMutex);
-
-	/* Trick to keep receiving more or less usable results from old peers */
-	std::string strippedQuery = matchString;
-	for(const std::string& xKeyword : xapianQueryKeywords)
-	{
-		std::string::size_type pos = std::string::npos;
-		while( (pos  = strippedQuery.find(xKeyword)) != std::string::npos )
-			strippedQuery.replace(pos, xKeyword.length(), " ");
-	}
-
-	Dbg3() << __PRETTY_FUNCTION__ << " sending stripped query for "
-	       << "retro-compatibility: " << strippedQuery << std::endl;
-
-	TurtleRequestId sId = mTurtleRouter->turtleSearch(strippedQuery);
-#else  // def RS_DEEP_FILES_INDEX
 	TurtleRequestId sId = mTurtleRouter->turtleSearch(matchString);
-#endif // def RS_DEEP_FILES_INDEX
 
 	{
 		RS_STACK_MUTEX(mSearchCallbacksMapMutex);

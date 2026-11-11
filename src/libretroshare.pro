@@ -1069,34 +1069,6 @@ rs_deep_forums_index {
     SOURCES += deep_search/forumsindex.cpp
 }
 
-rs_deep_channels_index {
-    HEADERS *= deep_search/commonutils.hpp
-    SOURCES *= deep_search/commonutils.cpp
-
-    HEADERS += deep_search/channelsindex.hpp
-    SOURCES += deep_search/channelsindex.cpp
-}
-
-rs_deep_files_index {
-    HEADERS *= deep_search/commonutils.hpp
-    SOURCES *= deep_search/commonutils.cpp
-
-    HEADERS += deep_search/filesindex.hpp
-    SOURCES += deep_search/filesindex.cpp
-}
-
-rs_deep_files_index_ogg {
-    HEADERS += deep_search/filesoggindexer.hpp
-}
-
-rs_deep_files_index_flac {
-    HEADERS += deep_search/filesflacindexer.hpp
-}
-
-rs_deep_files_index_taglib {
-    HEADERS += deep_search/filestaglibindexer.hpp
-}
-
 rs_broadcast_discovery {
     HEADERS += retroshare/rsbroadcastdiscovery.h \
         services/broadcastdiscoveryservice.h

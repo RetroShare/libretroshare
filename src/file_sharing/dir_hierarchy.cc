@@ -32,9 +32,6 @@
 #include "file_sharing_defaults.h"
 #include "util/cxx17retrocompat.h"
 
-#ifdef RS_DEEP_FILES_INDEX
-#	include "deep_search/filesindex.hpp"
-#endif // def RS_DEEP_FILES_INDEX
 
 //#define DEBUG_DIRECTORY_STORAGE 1
 
@@ -440,10 +437,6 @@ void InternalFileHierarchyStorage::deleteFileNode(uint32_t index)
 	{
 		FileEntry& fe(*static_cast<FileEntry*>(mNodes[index])) ;
 
-#ifdef RS_DEEP_FILES_INDEX
-		DeepFilesIndex tfi(DeepFilesIndex::dbDefaultPath());
-		tfi.removeFileFromIndex(fe.file_hash);
-#endif
 
         if(mTotalSize >= fe.file_size)
 			mTotalSize -= fe.file_size ;

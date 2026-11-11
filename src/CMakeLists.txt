@@ -736,14 +736,6 @@ if(RS_FORUM_DEEP_INDEX)
 endif(RS_FORUM_DEEP_INDEX)
 
 
-#./deep_search/filesflacindexer.hpp
-#./deep_search/filesoggindexer.hpp
-#./deep_search/filestaglibindexer.hpp
-#./deep_search/filesindex.cpp
-#./deep_search/filesindex.hpp
-#./deep_search/channelsindex.cpp
-#./deep_search/channelsindex.hpp
-
 list(
 	APPEND RS_SOURCES
 	gossipdiscovery/gossipdiscoveryitems.cc

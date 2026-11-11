@@ -117,23 +117,6 @@ linux-* {
     mLibs += dl
 }
 
-rs_deep_channels_index | rs_deep_files_index {
-    mLibs += xapian
-    win32-g++|win32-clang-g++:mLibs += rpcrt4
-}
-
-rs_deep_files_index_ogg {
-    mLibs += vorbisfile
-}
-
-rs_deep_files_index_flac {
-    mLibs += FLAC++
-}
-
-rs_deep_files_index_taglib {
-    mLibs += tag
-}
-
 rs_broadcast_discovery {
     no_rs_cross_compiling {
         UDP_DISCOVERY_SRC_PATH=$$clean_path($${RS_SRC_PATH}/supportlibs/udp-discovery-cpp/)

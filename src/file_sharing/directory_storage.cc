@@ -33,9 +33,6 @@
 #include "filelist_io.h"
 #include "util/cxx17retrocompat.h"
 
-#ifdef RS_DEEP_FILES_INDEX
-#	include "deep_search/filesindex.hpp"
-#endif // def RS_DEEP_FILES_INDEX
 
 //#define DEBUG_REMOTE_DIRECTORY_STORAGE 1
 
@@ -558,15 +555,6 @@ bool LocalDirectoryStorage::updateHash(
 		        mFileHierarchy->updateHash(index, hash);
 	} // RS_STACK_MUTEX(mDirStorageMtx);
 
-#ifdef RS_DEEP_FILES_INDEX
-	FileInfo fInfo;
-	if( ret && getFileInfo(index, fInfo) &&
-	        fInfo.storage_permission_flags & DIR_FLAGS_ANONYMOUS_SEARCH )
-	{
-		DeepFilesIndex dfi(DeepFilesIndex::dbDefaultPath());
-		ret &= !dfi.indexFile(fInfo.path, fInfo.fname, hash);
-	}
-#endif // def RS_DEEP_FILES_INDEX
 
 	return ret;
 }
