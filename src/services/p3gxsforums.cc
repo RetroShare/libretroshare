@@ -2083,83 +2083,10 @@ std::error_condition p3GxsForums::getContentSummaries(
 }
 
 #ifdef RS_DEEP_FORUMS_INDEX
-std::error_condition p3GxsForums::handleDistantSearchRequest(
-        rs_view_ptr<uint8_t> requestData, uint32_t requestSize,
-        rs_owner_ptr<uint8_t>& resultData, uint32_t& resultSize )
-{
-	RS_DBG1("");
-
-	RsGxsForumsSearchRequest request;
-	{
-		RsGenericSerializer::SerializeContext ctx(requestData, requestSize);
-		RsGenericSerializer::SerializeJob j =
-		        RsGenericSerializer::SerializeJob::DESERIALIZE;
-		RS_SERIAL_PROCESS(request);
-	}
-
-	if(request.mType != RsGxsForumsItems::SEARCH_REQUEST)
-	{
-		// If more types are implemented we would put a switch on mType instead
-		RS_WARN( "Got search request with unkown type: ",
-		         static_cast<uint32_t>(request.mType) );
-		return std::errc::bad_message;
-	}
-
-	RsGxsForumsSearchReply reply;
-	auto mErr = prepareSearchResults(request.mQuery, true, reply.mResults);
-	if(mErr || reply.mResults.empty()) return mErr;
-
-	{
-		RsGenericSerializer::SerializeContext ctx;
-		RsGenericSerializer::SerializeJob j =
-		        RsGenericSerializer::SerializeJob::SIZE_ESTIMATE;
-		RS_SERIAL_PROCESS(reply);
-		resultSize = ctx.mOffset;
-	}
-
-	resultData = rs_malloc<uint8_t>(resultSize);
-	RsGenericSerializer::SerializeContext ctx(resultData, resultSize);
-	RsGenericSerializer::SerializeJob j =
-	        RsGenericSerializer::SerializeJob::SERIALIZE;
-	RS_SERIAL_PROCESS(reply);
-
-	return std::error_condition();
-}
-
-std::error_condition p3GxsForums::distantSearchRequest(
-        const std::string& matchString, TurtleRequestId& searchId )
-{
-	RsGxsForumsSearchRequest request;
-	request.mQuery = matchString;
-
-	uint32_t requestSize;
-	{
-		RsGenericSerializer::SerializeContext ctx;
-		RsGenericSerializer::SerializeJob j =
-		        RsGenericSerializer::SerializeJob::SIZE_ESTIMATE;
-		RS_SERIAL_PROCESS(request);
-		requestSize = ctx.mOffset;
-	}
-
-	std::error_condition ec;
-	auto requestData = rs_malloc<uint8_t>(requestSize, &ec);
-	if(!requestData) return ec;
-	{
-		RsGenericSerializer::SerializeContext ctx(requestData, requestSize);
-		RsGenericSerializer::SerializeJob j =
-		        RsGenericSerializer::SerializeJob::SERIALIZE;
-		RS_SERIAL_PROCESS(request);
-	}
-
-	return netService()->distantSearchRequest(
-	            requestData, requestSize,
-	            static_cast<RsServiceType>(serviceType()), searchId );
-}
-
 std::error_condition p3GxsForums::localSearch(
         const std::string& matchString,
         std::vector<RsGxsSearchResult>& searchResults )
-{ return prepareSearchResults(matchString, false, searchResults); }
+{ return prepareSearchResults(matchString, searchResults); }
 
 std::error_condition p3GxsForums::localForumSearch(
         const RsGxsGroupId& forumId, const std::string& matchString,
@@ -2167,11 +2094,11 @@ std::error_condition p3GxsForums::localForumSearch(
 {
 	if(forumId.isNull()) return std::errc::invalid_argument;
 	return prepareSearchResults(
-	            matchString, false, searchResults, forumId, maxResults );
+	            matchString, searchResults, forumId, maxResults );
 }
 
 std::error_condition p3GxsForums::prepareSearchResults(
-        const std::string& matchString, bool publicOnly,
+        const std::string& matchString,
         std::vector<RsGxsSearchResult>& searchResults,
         const RsGxsGroupId& onlyForumId, uint32_t maxResults )
 {
@@ -2256,10 +2183,6 @@ std::error_condition p3GxsForums::prepareSearchResults(
         if (forumDataMap.find(forumId) == forumDataMap.end()) continue;
         const RsGxsForumGroup& forum = forumDataMap[forumId];
 
-        // Avoid leaking sensitive information to unknown peers
-        if( publicOnly && ( static_cast<RsGxsCircleType>(forum.mMeta.mCircleType) != RsGxsCircleType::PUBLIC ) ) 
-            continue;
-
         RsGxsSearchResult finalRes;
         finalRes.mGroupId = forumId;
         finalRes.mGroupName = forum.mMeta.mGroupName;
@@ -2284,39 +2207,7 @@ std::error_condition p3GxsForums::prepareSearchResults(
     return std::error_condition();
 }
 
-std::error_condition p3GxsForums::receiveDistantSearchResult(
-        const TurtleRequestId requestId,
-        rs_owner_ptr<uint8_t>& resultData, uint32_t& resultSize )
-{
-	RsGxsForumsSearchReply reply;
-	{
-		RsGenericSerializer::SerializeContext ctx(resultData, resultSize);
-		RsGenericSerializer::SerializeJob j =
-		        RsGenericSerializer::SerializeJob::DESERIALIZE;
-		RS_SERIAL_PROCESS(reply);
-	}
-	free(resultData);
-
-	if(reply.mType != RsGxsForumsItems::SEARCH_REPLY)
-	{
-		// If more types are implemented we would put a switch on mType instead
-		RS_WARN( "Got search request with unkown type: ",
-		         static_cast<uint32_t>(reply.mType) );
-		return std::errc::bad_message;
-	}
-
-	auto event = std::make_shared<RsGxsForumsDistantSearchEvent>();
-	event->mSearchId = requestId;
-	event->mSearchResults = reply.mResults;
-	rsEvents->postEvent(event);
-	return std::error_condition();
-}
-
 #else  // def RS_DEEP_FORUMS_INDEX
-
-std::error_condition p3GxsForums::distantSearchRequest(
-        const std::string&, TurtleRequestId& )
-{ return std::errc::function_not_supported; }
 
 std::error_condition p3GxsForums::localSearch(
         const std::string&,

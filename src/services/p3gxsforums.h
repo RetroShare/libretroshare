@@ -173,10 +173,6 @@ public:
 	        std::vector<RsMsgMetaData>& summaries ) override;
 
 	/// @see RsGxsForums
-	std::error_condition distantSearchRequest(
-	        const std::string& matchString, TurtleRequestId& searchId ) override;
-
-	/// @see RsGxsForums
 	std::error_condition localSearch(
 	        const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults ) override;
@@ -186,18 +182,6 @@ public:
 	        const RsGxsGroupId& forumId, const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults,
 	        uint32_t maxResults ) override;
-
-#ifdef RS_DEEP_FORUMS_INDEX
-	/// @see RsNxsObserver
-	std::error_condition handleDistantSearchRequest(
-	        rs_view_ptr<uint8_t> requestData, uint32_t requestSize,
-	        rs_owner_ptr<uint8_t>& resultData, uint32_t& resultSize ) override;
-
-	/// @see RsNxsObserver
-	std::error_condition receiveDistantSearchResult(
-	        const TurtleRequestId requestId,
-	        rs_owner_ptr<uint8_t>& resultData, uint32_t& resultSize ) override;
-#endif
 
 	std::error_condition requestSynchronization() override;
 
@@ -214,12 +198,9 @@ public:
 
 protected:
 #ifdef RS_DEEP_FORUMS_INDEX
-	/** Internal usage
-	 * @param[in] publicOnly if true is passed only results pertaining to
-	 * publicly shared forums are returned
-	 */
+	/// Internal usage: search the index and fill the results
 	std::error_condition prepareSearchResults(
-	        const std::string& matchString, bool publicOnly,
+	        const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults,
 	        const RsGxsGroupId& onlyForumId = RsGxsGroupId(),
 	        uint32_t maxResults = 100 );

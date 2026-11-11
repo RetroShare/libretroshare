@@ -182,9 +182,6 @@ enum class RsForumEventCode: uint8_t
 	PINNED_POSTS_CHANGED     = 0x0b, /// some posts where pinned or un-pinned
 	DELETED_FORUM            = 0x0c, /// forum was deleted by cleaning
 	DELETED_POST             = 0x0d,  /// Post deleted (usually by cleaning)
-
-	/// Distant search result received
-	DISTANT_SEARCH_RESULT    = 0x0e
 };
 
 struct RsGxsForumEvent: RsEvent
@@ -213,29 +210,6 @@ struct RsGxsForumEvent: RsEvent
 	}
 
 	~RsGxsForumEvent() override;
-};
-
-/** This event is fired once distant search results are received */
-struct RsGxsForumsDistantSearchEvent: RsEvent
-{
-	RsGxsForumsDistantSearchEvent():
-	    RsEvent(RsEventType::GXS_FORUMS),
-	    mForumEventCode(RsForumEventCode::DISTANT_SEARCH_RESULT) {}
-
-	RsForumEventCode mForumEventCode;
-	TurtleRequestId mSearchId;
-	std::vector<RsGxsSearchResult> mSearchResults;
-
-	///* @see RsEvent @see RsSerializable
-	void serial_process( RsGenericSerializer::SerializeJob j,
-	                     RsGenericSerializer::SerializeContext& ctx ) override
-	{
-		RsEvent::serial_process(j, ctx);
-
-		RS_SERIAL_PROCESS(mForumEventCode);
-		RS_SERIAL_PROCESS(mSearchId);
-		RS_SERIAL_PROCESS(mSearchResults);
-	}
 };
 
 class RsGxsForums: public RsGxsIfaceHelper
@@ -539,20 +513,6 @@ public:
 	        const RsGxsGroupId& forumId,
 	        const std::set<RsGxsMessageId>& contentIds,
 	        std::vector<RsMsgMetaData>& summaries ) = 0;
-
-	/**
-	 * @brief Search the whole reachable network for matching forums and
-	 *	posts
-	 * @jsonapi{development}
-	 * An @see RsGxsForumsDistantSearchEvent is emitted when matching results
-	 *	arrives from the network
-	 * @param[in] matchString string to search into the forum and posts
-	 * @param[out] searchId storage for search id, useful to track search events
-	 *	and retrieve search results
-	 * @return success or error details
-	 */
-	virtual std::error_condition distantSearchRequest(
-	        const std::string& matchString, TurtleRequestId& searchId ) = 0;
 
 	/**
 	 * @brief Search the local index for matching forums and posts
