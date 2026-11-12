@@ -192,7 +192,7 @@ enum class RsSharedDirectoriesEventCode: uint8_t {
     FRIEND_DIR_LIST_UPDATED  = 0x0b, // NOTIFY_LIST_DIRLIST_FRIENDS, friend dir list has been updated
     OWN_DIR_LIST_UPDATED     = 0x0c, // NOTIFY_LIST_DIRLIST_LOCAL  , own    dir list has been updated
     OWN_DIR_LIST_PROCESSING  = 0x0d, // NOTIFY_LIST_DIRLIST_LOCAL prechange
-    EXTRA_LIST_FILE_HASH_FAILED = 0x0e, // mFilePath: file that could not be hashed, mFileHash null
+    FILE_HASH_FAILED         = 0x0e, // mFilePath: shared or extra file that could not be hashed (unreadable, vanished, I/O error)
 };
 
 enum class RsFileTransferEventCode: uint8_t {

@@ -127,7 +127,8 @@ void ftExtraList::hashAFile()
 		/* hashExtraFile() has already refused the paths that do not exist and
 		 * the directories, so reaching here means the file was there and could
 		 * still not be read: permissions, a share unmounted or a file renamed
-		 * between the two, an I/O error, or this thread being stopped.
+		 * between the two, or an I/O error. (hashFile() takes no thread, so a
+		 * stop request does not interrupt it.)
 		 *
 		 * Failing silently leaves every caller waiting for a hash that will
 		 * never come -- the file never enters mHashedList, so ExtraFileStatus()
@@ -139,8 +140,7 @@ void ftExtraList::hashAFile()
 		if(rsEvents)
 		{
 			auto ev = std::make_shared<RsSharedDirectoriesEvent>();
-			ev->mEventCode =
-			        RsSharedDirectoriesEventCode::EXTRA_LIST_FILE_HASH_FAILED;
+			ev->mEventCode = RsSharedDirectoriesEventCode::FILE_HASH_FAILED;
 			ev->mFilePath = details.info.path;
 			rsEvents->postEvent(ev);
 		}
