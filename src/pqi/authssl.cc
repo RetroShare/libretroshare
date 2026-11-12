@@ -1311,14 +1311,6 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
             return std::string();
     };
 
-    auto isStringDenied = [&](const std::string& s) -> bool {
-        RsStackMutex stack(sslMtx);
-        for(const auto& pair : mDenyList) {
-            if(pair.first.toStdString() == s) return true;
-        }
-        return false;
-    };
-
 	using Evt_t = RsAuthSslConnectionAutenticationEvent;
 	std::unique_ptr<Evt_t> ev = std::unique_ptr<Evt_t>(new Evt_t);
 
@@ -1346,16 +1338,14 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 		if(!pgpFpr.isNull())
 			pgpId = PGPHandler::pgpIdFromFingerprint(pgpFpr);	// in the future, we drop PGP ids and keep the fingerprint all along
 	}
-    
+
 	if(sslId.isNull())
 	{
 		std::string errMsg = "x509Cert has invalid sslId!";
 
 		RsInfo() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-
-
-		if(rsEvents && !isNotifyDenied(pgpId) && !isStringDenied(pgpId.toStdString()))
+		if(rsEvents && !isNotifyDenied(pgpId))
 		{
 			ev->mSslCn = sslCn;
 			ev->mSslId = sslId;
@@ -1377,9 +1367,7 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 
 		RsInfo() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-
-
-		if(rsEvents && !isNotifyDenied(pgpId) && !isStringDenied(pgpId.toStdString()))
+		if(rsEvents && !isNotifyDenied(pgpId))
 		{
 			ev->mSslId = sslId;
 			ev->mSslCn = sslCn;
@@ -1437,8 +1425,6 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 
 		RsInfo() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
 
-
-
 		if(rsEvents && !isNotifyDenied(pgpId))
 		{
 			ev->mSslId = sslId;
@@ -1479,8 +1465,6 @@ int AuthSSLimpl::VerifyX509Callback(int /*preverify_ok*/, X509_STORE_CTX* ctx)
 		                              " a friend.";
 
 		Dbg1() << __PRETTY_FUNCTION__ << " " << errMsg << std::endl;
-
-
 
 		if(rsEvents && !isNotifyDenied(pgpId))
 		{
@@ -1950,8 +1934,6 @@ bool AuthSSLimpl::loadList(std::list<RsItem*>& load)
         return true;
 }
 
-
-
 const EVP_PKEY*RsX509Cert::getPubKey(const X509& x509)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
@@ -1978,15 +1960,7 @@ void AuthSSLimpl::removeNotifyDeny(const RsPgpId& pgpId)
 bool AuthSSLimpl::isNotifyDenied(const RsPgpId& pgpId)
 {
 	RsStackMutex stack(sslMtx);
-	if(mDenyList.find(pgpId) != mDenyList.end()) return true;
-
-    if(pgpId.isNull()) {
-        std::string s = pgpId.toStdString();
-        for(const auto& pair : mDenyList) {
-            if(pair.first.toStdString() == s) return true;
-        }
-    }
-	return false;
+	return mDenyList.find(pgpId) != mDenyList.end();
 }
 
 void AuthSSLimpl::getNotifyDenyList(std::map<RsPgpId, std::string>& ids)
