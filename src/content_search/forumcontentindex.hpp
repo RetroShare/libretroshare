@@ -80,21 +80,27 @@ struct ForumContentIndex
 	std::error_condition removeForumPostFromIndex(
 	        const RsGxsGroupId& grpId, const RsGxsMessageId& msgId );
 
-	/// Remove every document, used before a full re-index
-	std::error_condition clearIndex();
-
-	/// Group many writes in one transaction, used by the full re-index
-	void beginTransaction();
-	void commitTransaction();
+	/**
+	 * @brief Start a full re-index: open the transaction that holds the whole
+	 *	run, empty the index and clear its "filled" mark. If RetroShare stops
+	 *	before endFullReindex(), SQLite rolls the transaction back at next open:
+	 *	the previous index and its mark are back, nothing is lost.
+	 */
+	std::error_condition beginFullReindex();
 
 	/**
-	 * @return true if the index has just been created or its schema has been
-	 *	upgraded, so it must be filled from the GXS database
+	 * @brief Commit the full re-index started by beginFullReindex()
+	 * @param[in] complete false if some forum or post could not be read: the
+	 *	index is kept but left unmarked, so needsFullReindex() runs it again
+	 */
+	std::error_condition endFullReindex(bool complete);
+
+	/**
+	 * @return true if the index has just been created, its schema has been
+	 *	upgraded or its last full re-index was incomplete, so it must be filled
+	 *	from the GXS database
 	 */
 	bool needsFullReindex() const;
-
-	/// Record that a full re-index completed, see needsFullReindex()
-	void markFullReindexDone();
 
 	static std::string dbDefaultPath();
 

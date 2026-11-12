@@ -193,16 +193,6 @@ bool ForumContentIndex::needsFullReindex() const
 	return mUsable && mNeedsFullReindex;
 }
 
-void ForumContentIndex::markFullReindexDone()
-{
-	RS_STACK_MUTEX(mIndexMtx);
-	if(!mUsable) return;
-
-	const std::string sql = "PRAGMA user_version = " +
-	        std::to_string(FORUM_INDEX_SCHEMA_VERSION) + ";";
-	if(exec(sql.c_str())) mNeedsFullReindex = false;
-}
-
 /*static*/ std::string ForumContentIndex::buildMatchExpression(
         const std::string& queryStr, bool contentOnly )
 {
@@ -391,28 +381,39 @@ std::error_condition ForumContentIndex::removeForumPostFromIndex(
 	return std::error_condition();
 }
 
-std::error_condition ForumContentIndex::clearIndex()
+std::error_condition ForumContentIndex::beginFullReindex()
 {
 	RS_STACK_MUTEX(mIndexMtx);
 	if(!mUsable) return std::errc::function_not_supported;
 
-	if(!exec("DELETE FROM forum_index;")) return std::errc::io_error;
-
-	// DELETE keeps the freed pages, VACUUM gives them back to the file system
-	exec("VACUUM;");
+	/* The DELETE and the mark (user_version, stored in the database header)
+	 * belong to the transaction: committed only with the new content. One
+	 * transaction also keeps the run fast, committing each insert would take
+	 * ages on a big profile. The pages freed by the DELETE are reused by the
+	 * refill, no VACUUM needed. */
+	if(!exec("BEGIN;")) return std::errc::io_error;
+	if(!exec("PRAGMA user_version = 0;") || !exec("DELETE FROM forum_index;"))
+	{
+		exec("ROLLBACK;");
+		return std::errc::io_error;
+	}
 	return std::error_condition();
 }
 
-void ForumContentIndex::beginTransaction()
+std::error_condition ForumContentIndex::endFullReindex(bool complete)
 {
 	RS_STACK_MUTEX(mIndexMtx);
-	if(mUsable) exec("BEGIN;");
-}
+	if(!mUsable) return std::errc::function_not_supported;
 
-void ForumContentIndex::commitTransaction()
-{
-	RS_STACK_MUTEX(mIndexMtx);
-	if(mUsable) exec("COMMIT;");
+	const std::string mark = "PRAGMA user_version = " +
+	        std::to_string(complete ? FORUM_INDEX_SCHEMA_VERSION : 0) + ";";
+	if(!exec(mark.c_str()) || !exec("COMMIT;"))
+	{
+		exec("ROLLBACK;");
+		return std::errc::io_error;
+	}
+	mNeedsFullReindex = !complete;
+	return std::error_condition();
 }
 
 /*static*/ int64_t ForumContentIndex::docId(

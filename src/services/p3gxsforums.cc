@@ -1023,8 +1023,7 @@ bool p3GxsForums::fullReindex()
 {
 	RsInfo() << "Forum index: full re-index started";
 
-	if(mContentIndex.clearIndex()) return false;
-
+	// Before touching the index: on failure the current one stays as it is
 	std::vector<RsGxsForumGroup> forums;
 	if(!getForumsInfo(std::list<RsGxsGroupId>(), forums))
 	{
@@ -1032,9 +1031,13 @@ bool p3GxsForums::fullReindex()
 		return false;
 	}
 
-	/* One transaction for the whole run: committing every insert one by one
-	 * would make the re-index of a big profile take ages. */
-	mContentIndex.beginTransaction();
+	/* One transaction for the whole run, see beginFullReindex(): if RetroShare
+	 * stops meanwhile, the previous index is back at next startup. */
+	if(mContentIndex.beginFullReindex())
+	{
+		RsErr() << "Forum index: cannot start the re-index";
+		return false;
+	}
 
 	bool complete = true;
 	size_t postCount = 0;
@@ -1074,9 +1077,13 @@ bool p3GxsForums::fullReindex()
 		if(!batch.empty()) flush();
 	}
 
-	mContentIndex.commitTransaction();
-
-	if(complete) mContentIndex.markFullReindexDone();
+	/* An incomplete run is committed, better than an empty index, but left
+	 * unmarked so service_tick() runs it again. */
+	if(mContentIndex.endFullReindex(complete))
+	{
+		RsErr() << "Forum index: cannot commit the re-index";
+		return false;
+	}
 
 	RsInfo() << "Forum index: full re-index " << (complete ? "done" : "incomplete")
 	         << ", " << forums.size() << " forums, " << postCount << " posts";
