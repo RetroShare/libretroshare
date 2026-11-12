@@ -341,6 +341,17 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
 find_package(Threads REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
 
+# The GXS message deserialisation in RsGenExchange::getMsgData() is an OpenMP
+# loop. Without the compiler flag the pragma is ignored and the loop runs
+# serially, so link OpenMP when the toolchain provides it. Not on Android: the
+# NDK's libomp would have to be shipped in the APK.
+if(NOT ANDROID)
+	find_package(OpenMP)
+	if(OpenMP_CXX_FOUND)
+		target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)
+	endif(OpenMP_CXX_FOUND)
+endif(NOT ANDROID)
+
 find_package(OpenSSL REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
