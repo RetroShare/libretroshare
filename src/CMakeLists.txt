@@ -723,26 +723,18 @@ list(
 	util/smallobject.h
 	util/stacktrace.h )
 
-if(RS_FORUM_DEEP_INDEX)
+if(RS_FORUM_CONTENT_SEARCH)
 	list(
 		APPEND RS_SOURCES
-		deep_search/commonutils.cpp
-		deep_search/forumsindex.cpp )
+		content_search/forumcontentindex.cpp
+		content_search/htmltext.cpp )
 
 	list(
 		APPEND RS_IMPLEMENTATION_HEADERS
-		deep_search/commonutils.hpp
-		deep_search/forumsindex.hpp )
-endif(RS_FORUM_DEEP_INDEX)
+		content_search/forumcontentindex.hpp
+		content_search/htmltext.hpp )
+endif(RS_FORUM_CONTENT_SEARCH)
 
-
-#./deep_search/filesflacindexer.hpp
-#./deep_search/filesoggindexer.hpp
-#./deep_search/filestaglibindexer.hpp
-#./deep_search/filesindex.cpp
-#./deep_search/filesindex.hpp
-#./deep_search/channelsindex.cpp
-#./deep_search/channelsindex.hpp
 
 list(
 	APPEND RS_SOURCES

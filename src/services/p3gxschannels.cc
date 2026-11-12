@@ -43,9 +43,6 @@
 #include "util/rsrandom.h"
 #include "util/rsstring.h"
 
-#ifdef RS_DEEP_CHANNEL_INDEX
-#	include "deep_search/channelsindex.hpp"
-#endif //  RS_DEEP_CHANNEL_INDEX
 
 
 /****
@@ -1857,9 +1854,6 @@ bool p3GxsChannels::createChannelV2(
 
 	channelId = channel.mMeta.mGroupId;
 
-#ifdef RS_DEEP_CHANNEL_INDEX
-	DeepChannelsIndex::indexChannelGroup(channel);
-#endif //  RS_DEEP_CHANNEL_INDEX
 
 	return true;
 }
@@ -1888,9 +1882,6 @@ bool p3GxsChannels::createChannel(RsGxsChannelGroup& channel)
 		return false;
 	}
 
-#ifdef RS_DEEP_CHANNEL_INDEX
-	DeepChannelsIndex::indexChannelGroup(channel);
-#endif //  RS_DEEP_CHANNEL_INDEX
 
 	return true;
 }
@@ -1957,9 +1948,6 @@ bool p3GxsChannels::editChannel(RsGxsChannelGroup& channel)
 		return false;
 	}
 
-#ifdef RS_DEEP_CHANNEL_INDEX
-	DeepChannelsIndex::indexChannelGroup(channel);
-#endif //  RS_DEEP_CHANNEL_INDEX
 
 	return true;
 }
@@ -2039,9 +2027,6 @@ bool p3GxsChannels::createPostV2(
 
 	if(RsGenExchange::getPublishedMsgMeta(token,post.mMeta))
 	{
-#ifdef RS_DEEP_CHANNEL_INDEX
-		DeepChannelsIndex::indexChannelPost(post);
-#endif //  RS_DEEP_CHANNEL_INDEX
 
 		postId = post.mMeta.mMsgId;
 		return true;
@@ -2486,9 +2471,6 @@ bool p3GxsChannels::createPost(RsGxsChannelPost& post)
 
 	if(RsGenExchange::getPublishedMsgMeta(token,post.mMeta))
 	{
-#ifdef RS_DEEP_CHANNEL_INDEX
-		DeepChannelsIndex::indexChannelPost(post);
-#endif //  RS_DEEP_CHANNEL_INDEX
 
 		return true;
 	}

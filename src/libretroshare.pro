@@ -1061,40 +1061,12 @@ rs_jsonapi {
     SOURCES += jsonapi/jsonapi.cpp
 }
 
-rs_deep_forums_index {
-    HEADERS *= deep_search/commonutils.hpp
-    SOURCES *= deep_search/commonutils.cpp
+rs_forum_content_search {
+    HEADERS += content_search/htmltext.hpp
+    SOURCES += content_search/htmltext.cpp
 
-    HEADERS += deep_search/forumsindex.hpp
-    SOURCES += deep_search/forumsindex.cpp
-}
-
-rs_deep_channels_index {
-    HEADERS *= deep_search/commonutils.hpp
-    SOURCES *= deep_search/commonutils.cpp
-
-    HEADERS += deep_search/channelsindex.hpp
-    SOURCES += deep_search/channelsindex.cpp
-}
-
-rs_deep_files_index {
-    HEADERS *= deep_search/commonutils.hpp
-    SOURCES *= deep_search/commonutils.cpp
-
-    HEADERS += deep_search/filesindex.hpp
-    SOURCES += deep_search/filesindex.cpp
-}
-
-rs_deep_files_index_ogg {
-    HEADERS += deep_search/filesoggindexer.hpp
-}
-
-rs_deep_files_index_flac {
-    HEADERS += deep_search/filesflacindexer.hpp
-}
-
-rs_deep_files_index_taglib {
-    HEADERS += deep_search/filestaglibindexer.hpp
+    HEADERS += content_search/forumcontentindex.hpp
+    SOURCES += content_search/forumcontentindex.cpp
 }
 
 rs_broadcast_discovery {

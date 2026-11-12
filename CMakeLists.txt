@@ -92,11 +92,6 @@ option(
 	OFF )
 
 option(
-	RS_FORUM_DEEP_INDEX
-	"Xapian based full text index and search of GXS forums"
-	OFF )
-
-option(
 	RS_BRODCAST_DISCOVERY
 	"Local area network peer discovery via udp-discovery-cpp"
 	ON )
@@ -195,6 +190,13 @@ option(
 option(
 	RS_ANDROID
 	"Enable when compiling libretroshare for Android"
+	OFF )
+
+cmake_dependent_option(
+	RS_FORUM_CONTENT_SEARCH
+	"Full text search of the content of the forum posts (SQLite FTS4 index)"
+	ON
+	"NOT RS_ANDROID"
 	OFF )
 
 cmake_dependent_option(
@@ -735,12 +737,9 @@ endif(RS_JSON_API)
 
 ################################################################################
 
-if(RS_FORUM_DEEP_INDEX)
-	find_package(Xapian REQUIRED)
-	target_link_libraries(${PROJECT_NAME} PRIVATE ${XAPIAN_LIBRARIES})
-
-	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_DEEP_FORUMS_INDEX)
-endif(RS_FORUM_DEEP_INDEX)
+if(RS_FORUM_CONTENT_SEARCH)
+	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_FORUM_CONTENT_SEARCH)
+endif(RS_FORUM_CONTENT_SEARCH)
 
 ################################################################################
 

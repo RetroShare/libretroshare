@@ -182,9 +182,6 @@ enum class RsForumEventCode: uint8_t
 	PINNED_POSTS_CHANGED     = 0x0b, /// some posts where pinned or un-pinned
 	DELETED_FORUM            = 0x0c, /// forum was deleted by cleaning
 	DELETED_POST             = 0x0d,  /// Post deleted (usually by cleaning)
-
-	/// Distant search result received
-	DISTANT_SEARCH_RESULT    = 0x0e
 };
 
 struct RsGxsForumEvent: RsEvent
@@ -213,29 +210,6 @@ struct RsGxsForumEvent: RsEvent
 	}
 
 	~RsGxsForumEvent() override;
-};
-
-/** This event is fired once distant search results are received */
-struct RsGxsForumsDistantSearchEvent: RsEvent
-{
-	RsGxsForumsDistantSearchEvent():
-	    RsEvent(RsEventType::GXS_FORUMS),
-	    mForumEventCode(RsForumEventCode::DISTANT_SEARCH_RESULT) {}
-
-	RsForumEventCode mForumEventCode;
-	TurtleRequestId mSearchId;
-	std::vector<RsGxsSearchResult> mSearchResults;
-
-	///* @see RsEvent @see RsSerializable
-	void serial_process( RsGenericSerializer::SerializeJob j,
-	                     RsGenericSerializer::SerializeContext& ctx ) override
-	{
-		RsEvent::serial_process(j, ctx);
-
-		RS_SERIAL_PROCESS(mForumEventCode);
-		RS_SERIAL_PROCESS(mSearchId);
-		RS_SERIAL_PROCESS(mSearchResults);
-	}
 };
 
 class RsGxsForums: public RsGxsIfaceHelper
@@ -434,6 +408,16 @@ public:
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
 	                               bool subscribe ) = 0;
 
+	/**
+	 * @brief Rebuild the forums full text index from the stored forums and
+	 *	posts. Blocking, it can take minutes on a big profile, call it from a
+	 *	worker thread.
+	 * @jsonapi{development}
+	 * @return false if a re-index was already running, or if some forum or
+	 *	post could not be read
+	 */
+	virtual bool reindexAll() = 0;
+
 	/// default base URL used for forums links @see exportForumLink
 	static const std::string DEFAULT_FORUM_BASE_URL;
 
@@ -531,20 +515,6 @@ public:
 	        std::vector<RsMsgMetaData>& summaries ) = 0;
 
 	/**
-	 * @brief Search the whole reachable network for matching forums and
-	 *	posts
-	 * @jsonapi{development}
-	 * An @see RsGxsForumsDistantSearchEvent is emitted when matching results
-	 *	arrives from the network
-	 * @param[in] matchString string to search into the forum and posts
-	 * @param[out] searchId storage for search id, useful to track search events
-	 *	and retrieve search results
-	 * @return success or error details
-	 */
-	virtual std::error_condition distantSearchRequest(
-	        const std::string& matchString, TurtleRequestId& searchId ) = 0;
-
-	/**
 	 * @brief Search the local index for matching forums and posts
 	 * @jsonapi{development}
 	 * @param[in] matchString string to search into the index
@@ -554,6 +524,21 @@ public:
 	virtual std::error_condition localSearch(
 	        const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults ) = 0;
+
+	/**
+	 * @brief Search the content of the posts of one forum in the local index
+	 * @jsonapi{development}
+	 * @param[in] forumId forum to search into
+	 * @param[in] matchString words to look for, all of them must be present
+	 *	in the post body, each one is matched as a word prefix
+	 * @param[out] searchResults matching posts, newest first
+	 * @param[in] maxResults maximum number of results, 0 for no limit
+	 * @return success or error details
+	 */
+	virtual std::error_condition localForumSearch(
+	        const RsGxsGroupId& forumId, const std::string& matchString,
+	        std::vector<RsGxsSearchResult>& searchResults,
+	        uint32_t maxResults ) = 0;
 
 	/**
 	 * @brief Request Synchronization with available peers

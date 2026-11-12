@@ -18,51 +18,12 @@
  *******************************************************************************/
 #pragma once
 
-#include <xapian.h>
-#include <memory>
-#include <functional>
-#include <queue>
-#include <mutex>
+#include <string>
 
 #include "util/rstime.h"
 
-#ifndef XAPIAN_AT_LEAST
-#define XAPIAN_AT_LEAST(A,B,C) (XAPIAN_MAJOR_VERSION > (A) || \
-	(XAPIAN_MAJOR_VERSION == (A) && \
-	(XAPIAN_MINOR_VERSION > (B) || \
-	(XAPIAN_MINOR_VERSION == (B) && XAPIAN_REVISION >= (C)))))
-#endif // ndef XAPIAN_AT_LEAST
-
-namespace DeepSearch
+namespace ContentSearch
 {
-typedef std::function<void(Xapian::WritableDatabase&)> write_op;
-
-std::unique_ptr<Xapian::Database> openReadOnlyDatabase(
-        const std::string& path, int flags = 0 );
-
-std::string timetToXapianDate(const rstime_t& time);
-
+// Plain text of a RetroShare HTML document, as indexed by ForumContentIndex
 std::string simpleTextHtmlExtract(const std::string& rsHtmlDoc);
-
-struct StubbornWriteOpQueue
-{
-	explicit StubbornWriteOpQueue(const std::string& dbPath):
-	    mDbPath(dbPath) {}
-
-	~StubbornWriteOpQueue();
-
-	void push(write_op op);
-
-	std::error_condition flush(
-	        rstime_t acceptDelay = 20, rstime_t callTS = time(nullptr) );
-
-private:
-	std::queue<write_op> mOpStore;
-	rstime_t mLastFlush;
-
-	std::mutex mQueueMutex;
-
-	const std::string mDbPath;
-};
-
 }

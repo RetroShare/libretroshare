@@ -31,8 +31,10 @@
 #include "util/rstickevent.h"
 #include "util/rsdebug.h"
 
-#ifdef RS_DEEP_FORUMS_INDEX
-#include "deep_search/forumsindex.hpp"
+#ifdef RS_FORUM_CONTENT_SEARCH
+#include <atomic>
+
+#include "content_search/forumcontentindex.hpp"
 #endif
 
 
@@ -136,6 +138,9 @@ public:
 	virtual bool subscribeToForum( const RsGxsGroupId& forumId,
                                    bool subscribe ) override;
 
+	/// @see RsGxsForums::reindexAll
+	bool reindexAll() override;
+
 	/// @see RsGxsForums
 	bool exportForumLink(
 	        std::string& link, const RsGxsGroupId& forumId,
@@ -168,25 +173,15 @@ public:
 	        std::vector<RsMsgMetaData>& summaries ) override;
 
 	/// @see RsGxsForums
-	std::error_condition distantSearchRequest(
-	        const std::string& matchString, TurtleRequestId& searchId ) override;
-
-	/// @see RsGxsForums
 	std::error_condition localSearch(
 	        const std::string& matchString,
 	        std::vector<RsGxsSearchResult>& searchResults ) override;
 
-#ifdef RS_DEEP_FORUMS_INDEX
-	/// @see RsNxsObserver
-	std::error_condition handleDistantSearchRequest(
-	        rs_view_ptr<uint8_t> requestData, uint32_t requestSize,
-	        rs_owner_ptr<uint8_t>& resultData, uint32_t& resultSize ) override;
-
-	/// @see RsNxsObserver
-	std::error_condition receiveDistantSearchResult(
-	        const TurtleRequestId requestId,
-	        rs_owner_ptr<uint8_t>& resultData, uint32_t& resultSize ) override;
-#endif
+	/// @see RsGxsForums
+	std::error_condition localForumSearch(
+	        const RsGxsGroupId& forumId, const std::string& matchString,
+	        std::vector<RsGxsSearchResult>& searchResults,
+	        uint32_t maxResults ) override;
 
 	std::error_condition requestSynchronization() override;
 
@@ -202,15 +197,18 @@ public:
 	bool getMsgMetaData(const uint32_t &token, GxsMsgMetaMap& msg_metas) ;
 
 protected:
-#ifdef RS_DEEP_FORUMS_INDEX
-	/** Internal usage
-	 * @param[in] publicOnly if true is passed only results pertaining to
-	 * publicly shared forums are returned
-	 */
+#ifdef RS_FORUM_CONTENT_SEARCH
+	/// Internal usage: search the index and fill the results
 	std::error_condition prepareSearchResults(
-	        const std::string& matchString, bool publicOnly,
-	        std::vector<RsGxsSearchResult>& searchResults );
-#endif //def RS_DEEP_FORUMS_INDEX
+	        const std::string& matchString,
+	        std::vector<RsGxsSearchResult>& searchResults,
+	        const RsGxsGroupId& onlyForumId = RsGxsGroupId(),
+	        uint32_t maxResults = 100 );
+
+	/** Fill the index from the GXS database, blocking.
+	 * @return false if some forum or post could not be read */
+	bool fullReindex();
+#endif //def RS_FORUM_CONTENT_SEARCH
 
 private:
 
@@ -253,7 +251,9 @@ private:
 	
 	RsMutex mKnownForumsMutex;
 
-#ifdef RS_DEEP_FORUMS_INDEX
-	DeepForumsIndex mDeepIndex;
+#ifdef RS_FORUM_CONTENT_SEARCH
+	ForumContentIndex mContentIndex;
+	std::atomic<bool> mReindexRunning;
+	rstime_t mReindexNotBefore; // only touched by the GXS thread
 #endif
 };

@@ -1470,15 +1470,10 @@ int RsServer::StartupRetroShare()
 
     p3GxsForums* mGxsForums = new p3GxsForums( gxsforums_ds, nullptr, mGxsIdService );
 
-	RsGxsNetTunnelService* gxsForumsTunnelService = nullptr;
-#ifdef RS_DEEP_FORUMS_INDEX
-	gxsForumsTunnelService = mGxsNetTunnel;
-#endif
-
 	RsGxsNetService* gxsforums_ns = new RsGxsNetService(
 	            RS_SERVICE_GXS_TYPE_FORUMS, gxsforums_ds, nxsMgr, mGxsForums,
 	            mGxsForums->getServiceInfo(), mReputations, mGxsCircles,
-	            mGxsIdService, pgpAuxUtils, gxsForumsTunnelService );
+	            mGxsIdService, pgpAuxUtils, nullptr );
 	mGxsForums->setNetworkExchangeService(gxsforums_ns);
 
 
@@ -1788,9 +1783,6 @@ int RsServer::StartupRetroShare()
 	mGxsNetTunnel->registerSearchableService(gxschannels_ns);
 #ifdef RS_USE_CALENDAR
 	mGxsNetTunnel->registerSearchableService(calendar_ns);
-#endif
-#ifdef RS_DEEP_FORUMS_INDEX
-	mGxsNetTunnel->registerSearchableService(gxsforums_ns);
 #endif
 
 	/**************************************************************************/
