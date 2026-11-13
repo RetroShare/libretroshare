@@ -315,6 +315,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
         std::map<RsFileHash, TimeBasedUploadStat> mCumulativeUploaded;
         uint64_t mCumulativeUploadedAll;
         int mUploadStatsRetentionDays;
+        bool mUploadStatsChanged;	// upload stats changed since the directory totals were last computed
 
         void locked_sendBanInfo(const RsPeerId& pid);
         void handleBannedFilesInfo(RsFileListsBannedHashesItem *item);

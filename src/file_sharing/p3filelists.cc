@@ -81,6 +81,7 @@ p3FileDatabase::p3FileDatabase(p3ServiceControl *mpeers)
 	mLastPrimaryBanListChangeTimeStamp = 0;
     mUploadStatsRetentionDays = 0;
     mCumulativeUploadedAll = 0;
+    mUploadStatsChanged = true;	// so that the first tick computes the directory totals
 
     // This is for the transmission of data
 
@@ -276,6 +277,15 @@ int p3FileDatabase::tick()
 
         mLastRemoteDirSweepTS = now;
 		mLocalSharedDirs->checkSave([this](const RsFileHash& h){ return this->locked_getCumulativeUpload(h); }) ;
+
+		// checkSave() only recomputes the directory totals when the file list
+		// changed, and recording an upload does not change it: refresh the
+		// uploads of the local directories here, without saving anything.
+		if(mUploadStatsChanged)
+		{
+			mLocalSharedDirs->updateCumulatedTotals([this](const RsFileHash& h){ return this->locked_getCumulativeUpload(h); }) ;
+			mUploadStatsChanged = false;
+		}
 
         // This is a hack to make loaded directories show up in the GUI, because the GUI generally isn't ready at the time they are actually loaded up,
         // so the first notify is ignored, and no other notify will happen next. We only do it if no data was received in the last 5 secs, in order to
@@ -1129,6 +1139,7 @@ void p3FileDatabase::addUploadStats(const RsFileHash& hash, uint64_t size)
     stat.total_bytes += size;
     stat.last_upload_ts = time(NULL);
     mCumulativeUploadedAll += size;
+    mUploadStatsChanged = true;
 
     // RsDbg() << "UPLOADSTATS add stats: " << hash << " + " << size << " bytes. Total: " << stat.total_bytes << " ts: " << stat.last_upload_ts;
 	IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
@@ -1140,11 +1151,13 @@ void p3FileDatabase::clearUploadStats()
     RsDbg() << "UPLOADSTATS clearing all stats";
 	mCumulativeUploaded.clear();
     mCumulativeUploadedAll = 0;
+    mUploadStatsChanged = true;
 }
 
 void p3FileDatabase::cleanupUploadStats(int days)
 {
     RS_STACK_MUTEX(mFLSMtx);
+    mUploadStatsChanged = true;
     rstime_t now = time(NULL);
     rstime_t cutoff = now - (rstime_t)days * 24 * 3600;
     uint32_t removed_count = 0;
@@ -1450,13 +1463,9 @@ int p3FileDatabase::RequestDirDetails(
     }
 
     d.id = storage->peerId();
- 
-    if (d.type == DIR_TYPE_FILE)
-    {
-        d.uploads = locked_getCumulativeUpload(d.hash);
-    }
- 
 
+    if (d.type == DIR_TYPE_FILE)
+        d.uploads = locked_getCumulativeUpload(d.hash);
 
 #ifdef DEBUG_FILE_HIERARCHY
     P3FILELISTS_DEBUG() << "ExtractData: ref=" << ref << ", flags=" << flags << " : returning this: " << std::endl;

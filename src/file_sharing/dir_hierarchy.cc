@@ -698,8 +698,6 @@ uint64_t InternalFileHierarchyStorage::recursUpdateCumulatedSize(const Directory
     d.dir_cumulated_files = local_cumulative_files;
     d.dir_cumulated_uploads = local_cumulative_uploads;
 
-
-
     return local_cumulative_size;
 }
 // Do a complete recursive sweep over sub-directories and files, and update the lst modf TS. This could be also performed by a cleanup method.

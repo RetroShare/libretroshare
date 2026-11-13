@@ -271,8 +271,6 @@ bool DirectoryStorage::extractData(const EntryIndex& indx,DirDetails& d)
             d.type = DIR_TYPE_PERSON ;
             d.name = mPeerId.toStdString();
         }
-
-
     }
     else if(type == InternalFileHierarchyStorage::FileStorageNode::TYPE_FILE)
     {
@@ -310,6 +308,12 @@ bool DirectoryStorage::getIndexFromDirHash(const RsFileHash& hash,EntryIndex& in
 {
     RS_STACK_MUTEX(mDirStorageMtx) ;
     return mFileHierarchy->getIndexFromDirHash(hash,index) ;
+}
+
+void DirectoryStorage::updateCumulatedTotals(std::function<uint64_t(const RsFileHash&)> get_uploads)
+{
+    RS_STACK_MUTEX(mDirStorageMtx) ;
+    mFileHierarchy->recursUpdateCumulatedSize(mFileHierarchy->mRoot, get_uploads);
 }
 
 void DirectoryStorage::checkSave(std::function<uint64_t(const RsFileHash&)> get_uploads)

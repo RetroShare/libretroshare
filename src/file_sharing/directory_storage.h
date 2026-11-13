@@ -154,6 +154,12 @@ class DirectoryStorage
 		 */
 		void checkSave(std::function<uint64_t(const RsFileHash&)> get_uploads = nullptr) ;
 
+		/*!
+		 * \brief updateCumulatedTotals
+		 * 			Recomputes the cumulated size, file count and uploads of every directory, without saving.
+		 */
+		void updateCumulatedTotals(std::function<uint64_t(const RsFileHash&)> get_uploads) ;
+
 		const std::string& filename() const { return mFileName ; }
 
     protected:
