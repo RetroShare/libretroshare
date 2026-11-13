@@ -1311,7 +1311,8 @@ int RsServer::StartupRetroShare()
 
 	// Next to the running binary, so that a relocatable install (an AppImage,
 	// or several versions side by side) loads its own plugins. A plugin found
-	// twice is loaded once: the plugin manager skips an already loaded hash.
+	// twice, as the same file or as another build of it, is loaded once: the
+	// plugin manager skips a file whose hash or name is already loaded.
 	const std::string exe_path = RsInit::executablePath();
 	const std::string exe_dir = exe_path.empty() ? std::string() :
 	        RsDirUtil::getDirectory(RsDirUtil::removeSymLinks(exe_path));
