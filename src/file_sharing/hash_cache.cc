@@ -230,7 +230,22 @@ void HashStorage::threadTick()
 				mChanged = true ;
 				mTotalHashedSize += size ;
 			}
-			else RS_ERR("Failure hashing file: ", job.full_path);
+			else
+			{
+				RS_ERR("Failure hashing file: ", job.full_path);
+
+				// Same event as a failed extra file: the file is in a shared
+				// directory but cannot be read, so it is silently not shared.
+				// A stop request (shutdown) also makes getFileHash() fail: not
+				// a failure of the file, so not reported.
+				if(rsEvents && !shouldStop())
+				{
+					auto ev = std::make_shared<RsSharedDirectoriesEvent>();
+					ev->mEventCode = RsSharedDirectoriesEventCode::FILE_HASH_FAILED;
+					ev->mFilePath = job.full_path;
+					rsEvents->postEvent(ev);
+				}
+			}
 
 			mHashingTime += rstime::RsScopeTimer::currentTime() - seconds_origin ;
 			mHashedBytes += size ;
