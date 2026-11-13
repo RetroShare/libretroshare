@@ -304,6 +304,18 @@ bool RsPluginManager::loadPlugin(const std::string& plugin_name,bool first_time)
 		return false;
 	}
 
+	// The same plugin can be reachable from two search directories, as the same
+	// file or as another build of it (a stale copy in the user directory): keep
+	// the first one loaded, the bundled directories are searched first.
+	const std::string base_name = RsDirUtil::getFileName(plugin_name);
+	for(const PluginInfo& other: _plugins)
+		if(other.status == PLUGIN_STATUS_LOADED &&
+		   (other.file_hash == pf.file_hash || RsDirUtil::getFileName(other.file_name) == base_name))
+		{
+			std::cerr << "    -> already loaded from " << other.file_name << ". Skipped." << std::endl;
+			return false;
+		}
+
 	_plugins.push_back(pf) ;
 	PluginInfo& pinfo(_plugins.back()) ;
 

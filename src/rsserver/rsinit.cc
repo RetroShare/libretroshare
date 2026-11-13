@@ -1308,6 +1308,20 @@ int RsServer::StartupRetroShare()
 #ifdef __APPLE__
 	plugins_directories.push_back(RsAccounts::systemDataDirectory()) ;
 #endif
+
+	// Next to the running binary, so that a relocatable install (an AppImage,
+	// or several versions side by side) loads its own plugins. A plugin found
+	// twice, as the same file or as another build of it, is loaded once: the
+	// plugin manager skips a file whose hash or name is already loaded.
+	const std::string exe_path = RsInit::executablePath();
+	const std::string exe_dir = exe_path.empty() ? std::string() :
+	        RsDirUtil::getDirectory(RsDirUtil::removeSymLinks(exe_path));
+	if(!exe_dir.empty())
+	{
+		plugins_directories.push_back(exe_dir + "/../lib/retroshare/extensions6/");
+		plugins_directories.push_back(exe_dir + "/lib/retroshare/extensions6/");
+	}
+
 #if !defined(WINDOWS_SYS) && defined(PLUGIN_DIR)
 	plugins_directories.push_back(std::string(PLUGIN_DIR)) ;
 #endif
