@@ -1856,22 +1856,9 @@ bool AuthSSLimpl::saveList(bool& cleanup, std::list<RsItem*>& lst)
 
         cleanup = true ;
 
-        // Now save config for network digging strategies
-        RsConfigKeyValueSet *vitem = new RsConfigKeyValueSet ;
-		std::map<RsPeerId, X509*>::iterator mapIt;
-        for (mapIt = mCerts.begin(); mapIt != mCerts.end(); ++mapIt) {
-            if (mapIt->first == mOwnId) {
-                continue;
-            }
-            RsTlvKeyValue kv;
-            kv.key = mapIt->first.toStdString();
-            #ifdef AUTHSSL_DEBUG
-            std::cerr << "AuthSSLimpl::saveList() called (mapIt->first) : " << (mapIt->first) << std::endl ;
-            #endif
-			kv.value = saveX509ToPEM(mapIt->second);
-            vitem->tlvkvs.pairs.push_back(kv) ;
-        }
-        lst.push_back(vitem);
+        // This config (authssl.cfg) only holds the deny list. The certificates
+        // in mCerts are not saved: this config was not registered before the
+        // deny list, and mCerts is refilled at each successful handshake.
 
         /* Save Deny List */
         if (!mDenyList.empty()) {
