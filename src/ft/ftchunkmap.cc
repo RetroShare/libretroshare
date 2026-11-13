@@ -607,7 +607,6 @@ uint32_t ChunkMap::getAvailableChunk(const RsPeerId& peer_id,bool& map_is_too_ol
         // Check high priority chunks first (regardless of strategy)
         if (!_high_priority_chunks.empty())
         {
-            uint32_t j = 0;
             for(uint32_t i=0; i<_map.size(); ++i)
             {
                 if(_map[i] == FileChunksInfo::CHUNK_OUTSTANDING && (peer_chunks->is_full || peer_chunks->cmap[i]))
@@ -619,8 +618,6 @@ uint32_t ChunkMap::getAvailableChunk(const RsPeerId& peer_id,bool& map_is_too_ol
 #endif
                         return i;
                     }
-                    else
-                        j++;
                 }
             }
         }

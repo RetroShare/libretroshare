@@ -540,7 +540,7 @@ void ftFileCreator::setChunkStrategy(FileChunksInfo::ChunkStrategy s)
 	// Let's check, for safety.
 	if(s != FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL && s != FileChunksInfo::CHUNK_STRATEGY_RANDOM && s != FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE && s != FileChunksInfo::CHUNK_STRATEGY_STREAMING)
 	{
-		std::cerr << "ftFileCreator::ERROR: invalid chunk strategy " << s << "!" << " setting default value " << FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL << std::endl ;
+		std::cerr << "ftFileCreator::ERROR: invalid chunk strategy " << s << "!" << " setting default value " << FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE << std::endl ;
 		s = FileChunksInfo::CHUNK_STRATEGY_PROGRESSIVE ;
 	}
 
