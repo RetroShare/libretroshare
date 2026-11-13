@@ -1851,3 +1851,19 @@ RsPeerStateChangedEvent::RsPeerStateChangedEvent(RsPeerId sslId) :
 
 RsPeers::~RsPeers() = default;
 RsAuthSslConnectionAutenticationEvent::~RsAuthSslConnectionAutenticationEvent() = default;
+
+void p3Peers::addToIgnoreList(const RsPgpId& pgpId, const std::string& name)
+{
+	// A null id would silence every notification that carries no PGP id.
+	if(!pgpId.isNull())
+		AuthSSL::instance().addNotifyDeny(pgpId, name);
+}
+
+void p3Peers::removeFromIgnoreList(const RsPgpId& pgpId)
+{ AuthSSL::instance().removeNotifyDeny(pgpId); }
+
+bool p3Peers::isIgnored(const RsPgpId& pgpId)
+{ return AuthSSL::instance().isNotifyDenied(pgpId); }
+
+void p3Peers::getIgnoreList(std::map<RsPgpId, std::string>& ids)
+{ AuthSSL::instance().getNotifyDenyList(ids); }

@@ -25,6 +25,7 @@
 #include <inttypes.h>
 #include <string>
 #include <list>
+#include <map>
 
 #include "retroshare/rstypes.h"
 #include "retroshare/rsfiles.h"
@@ -704,6 +705,33 @@ public:
 	 * @return false if error occurred, true otherwise
 	 */
 	virtual bool removeFriend(const RsPgpId& pgpId) = 0;
+
+	/**
+	 * @brief Ignore a profile: connection attempts signed by this PGP key no
+	 *	longer raise security notifications. The list is kept across restarts.
+	 * @param[in] pgpId PGP id of the profile
+	 * @param[in] name name shown in the ignore list
+	 */
+	virtual void addToIgnoreList(const RsPgpId& pgpId, const std::string& name) = 0;
+
+	/**
+	 * @brief Take a profile out of the ignore list
+	 * @param[in] pgpId PGP id of the profile
+	 */
+	virtual void removeFromIgnoreList(const RsPgpId& pgpId) = 0;
+
+	/**
+	 * @brief Tell whether a profile is in the ignore list
+	 * @param[in] pgpId PGP id of the profile
+	 * @return true if it is
+	 */
+	virtual bool isIgnored(const RsPgpId& pgpId) = 0;
+
+	/**
+	 * @brief Get the ignore list
+	 * @param[out] ids PGP ids of the ignored profiles, with their names
+	 */
+	virtual void getIgnoreList(std::map<RsPgpId, std::string>& ids) = 0;
 
 	/**
 	 * @brief Remove location of a trusted node, useful to prune old unused
