@@ -259,6 +259,7 @@ bool DirectoryStorage::extractData(const EntryIndex& indx,DirDetails& d)
         d.hash.clear() ;
         d.size   = dir_entry->dir_cumulated_size;//dir_entry->subdirs.size() + dir_entry->subfiles.size();
         d.count  = dir_entry->dir_cumulated_files;
+        d.uploads = dir_entry->dir_cumulated_uploads;
         d.max_mtime = dir_entry->dir_most_recent_time ;
         d.mtime     = dir_entry->dir_modtime ;
         d.name    = dir_entry->dir_name;
@@ -309,13 +310,19 @@ bool DirectoryStorage::getIndexFromDirHash(const RsFileHash& hash,EntryIndex& in
     return mFileHierarchy->getIndexFromDirHash(hash,index) ;
 }
 
-void DirectoryStorage::checkSave()
+void DirectoryStorage::updateCumulatedTotals(std::function<uint64_t(const RsFileHash&)> get_uploads)
+{
+    RS_STACK_MUTEX(mDirStorageMtx) ;
+    mFileHierarchy->recursUpdateCumulatedSize(mFileHierarchy->mRoot, get_uploads);
+}
+
+void DirectoryStorage::checkSave(std::function<uint64_t(const RsFileHash&)> get_uploads)
 {
     rstime_t now = time(NULL);
 
     if(mChanged && mLastSavedTime + MIN_INTERVAL_BETWEEN_REMOTE_DIRECTORY_SAVE < now)
 	{
-        mFileHierarchy->recursUpdateCumulatedSize(mFileHierarchy->mRoot);
+        mFileHierarchy->recursUpdateCumulatedSize(mFileHierarchy->mRoot, get_uploads);
 
 	   {
 		  RS_STACK_MUTEX(mDirStorageMtx) ;

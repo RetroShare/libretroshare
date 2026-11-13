@@ -24,6 +24,7 @@
 #include <string>
 #include <stdint.h>
 #include <list>
+#include <functional>
 
 #include "retroshare/rsids.h"
 #include "retroshare/rsfiles.h"
@@ -151,7 +152,13 @@ class DirectoryStorage
 		 * \brief checkSave
 		 * 			Checks the time of last saving, last modification time, and saves if needed.
 		 */
-		void checkSave() ;
+		void checkSave(std::function<uint64_t(const RsFileHash&)> get_uploads = nullptr) ;
+
+		/*!
+		 * \brief updateCumulatedTotals
+		 * 			Recomputes the cumulated size, file count and uploads of every directory, without saving.
+		 */
+		void updateCumulatedTotals(std::function<uint64_t(const RsFileHash&)> get_uploads) ;
 
 		const std::string& filename() const { return mFileName ; }
 

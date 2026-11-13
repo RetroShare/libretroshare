@@ -203,6 +203,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
 		bool hashingProcessPaused();
 
     protected:
+        uint64_t locked_getCumulativeUpload(const RsFileHash& hash) const;
         void getExtraFilesDirDetails_locked(void *ref,DirectoryStorage::EntryIndex e,DirDetails& d) const;
 
         int filterResults(const std::list<void*>& firesults,std::list<DirDetails>& results,FileSearchFlags flags,const RsPeerId& peer_id) const;
@@ -314,6 +315,7 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
         std::map<RsFileHash, TimeBasedUploadStat> mCumulativeUploaded;
         uint64_t mCumulativeUploadedAll;
         int mUploadStatsRetentionDays;
+        bool mUploadStatsChanged;	// upload stats changed since the directory totals were last computed
 
         void locked_sendBanInfo(const RsPeerId& pid);
         void handleBannedFilesInfo(RsFileListsBannedHashesItem *item);
