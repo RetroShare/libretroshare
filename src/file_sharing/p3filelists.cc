@@ -773,7 +773,10 @@ void p3FileDatabase::cleanup()
                         			|| ( dir_is_empty && last_contact + DELAY_BEFORE_DELETE_EMPTY_REMOTE_DIR     < now )
                         			|| (!dir_is_empty && last_contact + DELAY_BEFORE_DELETE_NON_EMPTY_REMOTE_DIR < now );
 
-                if(!should_remove || mRemoteDirectories[i]->isLoading())	// the loader thread holds a pointer to it
+                // Not read from disk yet: its file count is 0 whatever the file holds, so it would be judged
+                // empty and a friend offline for 5 to 60 days would lose a non-empty list. isLoading() is still
+                // needed: loadInBackground() sets the loaded flag before it stops touching the storage.
+                if(!should_remove || !mRemoteDirectories[i]->isLoaded() || mRemoteDirectories[i]->isLoading())
                     continue ;
 
 #ifdef DEBUG_P3FILELISTS
