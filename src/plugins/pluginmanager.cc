@@ -304,6 +304,14 @@ bool RsPluginManager::loadPlugin(const std::string& plugin_name,bool first_time)
 		return false;
 	}
 
+	// The same file can be reachable from two search directories: load it once.
+	for(const PluginInfo& other: _plugins)
+		if(other.file_hash == pf.file_hash && other.status == PLUGIN_STATUS_LOADED)
+		{
+			std::cerr << "    -> already loaded from " << other.file_name << ". Skipped." << std::endl;
+			return false;
+		}
+
 	_plugins.push_back(pf) ;
 	PluginInfo& pinfo(_plugins.back()) ;
 
