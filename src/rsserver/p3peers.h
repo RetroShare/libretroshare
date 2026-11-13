@@ -110,6 +110,11 @@ public:
     virtual	bool removeFriend(const RsPgpId& gpgid) override;
     virtual bool removeFriendLocation(const RsPeerId& sslId) override;
 
+	void addToIgnoreList(const RsPgpId& pgpId, const std::string& name) override;
+	void removeFromIgnoreList(const RsPgpId& pgpId) override;
+	bool isIgnored(const RsPgpId& pgpId) override;
+	void getIgnoreList(std::map<RsPgpId, std::string>& ids) override;
+
 	/* keyring management */
     virtual bool removeKeysFromPGPKeyring(const std::set<RsPgpId> &pgp_ids,std::string& backup_file,uint32_t& error_code) override;
 

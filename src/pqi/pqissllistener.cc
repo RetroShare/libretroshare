@@ -493,10 +493,23 @@ int	pqissllistenbase::continueSSL(IncomingSSLInfo& incoming_connexion_info, bool
 
 		if(vres == X509_V_OK && nullptr != rsEvents)
 		{
+			// Case 2 above: report it, unless the issuer of the certificate (when
+			// there is one) is on the deny list.
 			auto ev = std::make_shared<RsAuthSslConnectionAutenticationEvent>();
 			ev->mLocator = RsUrl(incoming_connexion_info.addr);
 			ev->mErrorCode = RsAuthSslError::MISSING_AUTHENTICATION_INFO;
-			rsEvents->postEvent(ev);
+
+			X509 *x509 = SSL_get_peer_certificate(incoming_connexion_info.ssl);
+			if(x509)
+			{
+				ev->mPgpId = RsX509Cert::getCertIssuer(*x509);
+				ev->mSslId = RsX509Cert::getCertSslId(*x509);
+				ev->mSslCn = RsX509Cert::getCertName(*x509);
+				X509_free(x509);
+			}
+
+			if(!AuthSSL::instance().isNotifyDenied(ev->mPgpId))
+				rsEvents->postEvent(ev);
 		}
 		closeConnection(fd, incoming_connexion_info.ssl);
 
