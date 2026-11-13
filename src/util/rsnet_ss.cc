@@ -29,7 +29,7 @@
 #include <cstdlib>
 
 #ifdef WINDOWS_SYS
-#	include <Winsock2.h>
+#	include <winsock2.h>
 /** Provides Linux like accessor for in6_addr.s6_addr16 for Windows.
  * Yet Windows doesn't provide 32 bits accessors so there is no way to use
  * in6_addr.s6_addr32 crossplatform.
@@ -1033,7 +1033,7 @@ bool sockaddr_storage_ipv4_lessthan(const struct sockaddr_storage &addr, const s
 	const struct sockaddr_in *ptr1 = to_const_ipv4_ptr(addr);
 	const struct sockaddr_in *ptr2 = to_const_ipv4_ptr(addr2);
 
-	if (ptr1->sin_addr.s_addr == ptr2->sin_addr.s_addr) 
+	if (ptr1->sin_addr.s_addr == ptr2->sin_addr.s_addr)
 	{
 		return	ptr1->sin_port < ptr2->sin_port;
 	}

@@ -62,8 +62,8 @@ putSeparator
 
 echo -n "directory " >> $GDB_CONFIGS_FILE
 scanDir ${RS_SOURCE_DIR}/jsonapi-generator/src
-scanDir ${RS_SOURCE_DIR}/libbitdht/src
-scanDir ${RS_SOURCE_DIR}/openpgpsdk/src
+scanDir ${RS_SOURCE_DIR}/supportlibs/libbitdht/src
+scanDir ${RS_SOURCE_DIR}/supportlibs/openpgpsdk/src
 scanDir ${RS_SOURCE_DIR}/libretroshare/src
 scanDir ${RS_SOURCE_DIR}/retroshare-service/src
 scanDir ${RS_SOURCE_DIR}/supportlibs/rapidjson/include/

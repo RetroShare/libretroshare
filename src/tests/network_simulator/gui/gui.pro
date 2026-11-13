@@ -19,7 +19,7 @@ HEADERS = NetworkViewer.h NetworkSimulatorGUI.h \
 FORMS = NetworkSimulatorGUI.ui TurtleRouterStatistics.ui GlobalRouterStatistics.ui
 
 LIBS *= ../../../lib/libretroshare.a \
-        ../../../../../libbitdht/src/lib/libbitdht.a \
-		  ../../../../../openpgpsdk/src/lib/libops.a \
+        ../../../../../supportlibs/libbitdht/src/lib/libbitdht.a \
+		  ../../../../../supportlibs/openpgpsdk/src/lib/libops.a \
 		  ../lib/libnscore.a \
 		  -lsqlcipher -lgnome-keyring -lupnp -lssl -lcrypto -lbz2 -lixml

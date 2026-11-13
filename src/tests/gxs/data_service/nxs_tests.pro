@@ -4,9 +4,9 @@
 #
 #-------------------------------------------------
 
- 
-#  
-QT       += core network 
+
+#
+QT       += core network
 
 QT       -= gui
 
@@ -47,11 +47,11 @@ debug {
 #	DEFINES *= DEBUG
 #	DEFINES *= OPENDHT_DEBUG DHT_DEBUG CONN_DEBUG DEBUG_UDP_SORTER P3DISC_DEBUG DEBUG_UDP_LAYER FT_DEBUG EXTADDRSEARCH_DEBUG
 #	DEFINES *= CONTROL_DEBUG FT_DEBUG DEBUG_FTCHUNK P3TURTLE_DEBUG
-#	DEFINES *= P3TURTLE_DEBUG 
+#	DEFINES *= P3TURTLE_DEBUG
 #	DEFINES *= NET_DEBUG
 #	DEFINES *= DISTRIB_DEBUG
 #	DEFINES *= P3TURTLE_DEBUG FT_DEBUG DEBUG_FTCHUNK MPLEX_DEBUG
-#	DEFINES *= STATUS_DEBUG SERV_DEBUG RSSERIAL_DEBUG #CONN_DEBUG 
+#	DEFINES *= STATUS_DEBUG SERV_DEBUG RSSERIAL_DEBUG #CONN_DEBUG
 
         QMAKE_CXXFLAGS -= -O2 -fomit-frame-pointer
         QMAKE_CXXFLAGS *= -g -fno-omit-frame-pointer
@@ -71,8 +71,8 @@ linux-* {
 	PRE_TARGETDEPS *= ../../lib/libretroshare.a
 
 	LIBS += ../../lib/libretroshare.a
-	LIBS += ../../../../libbitdht/src/lib/libbitdht.a	
-	LIBS += ../../../../openpgpsdk/src/lib/libops.a	
+	LIBS += ../../../../supportlibs/libbitdht/src/lib/libbitdht.a
+	LIBS += ../../../../supportlibs/openpgpsdk/src/lib/libops.a
 	LIBS += -lssl -lgpgme -lupnp -lixml  -lgnome-keyring -lsqlite3 -lbz2
 	LIBS *= -rdynamic -frtti
 	DEFINES *= HAVE_XSS # for idle time, libx screensaver extensions
@@ -113,7 +113,7 @@ win32 {
     PRE_TARGETDEPS += ../../../../libretroshare/libretroshare-build-desktop/lib/libretroshare.a
 
     LIBS += ../../../../libretroshare/libretroshare-build-desktop/lib/libretroshare.a
-    LIBS += C:\Development\Rs\v0.5-gxs-b1\openpgpsdk\openpgpsdk-build-desktop\lib\libops.a
+    LIBS += C:\Development\Rs\v0.5-gxs-b1\supportlibs\openpgpsdk\openpgpsdk-build-desktop\lib\libops.a
     LIBS += C:\Development\Libraries\sqlite\sqlite-autoconf-3070900\lib\libsqlite3.a
     LIBS += -L"../../../../../lib"
     LIBS += -lssl -lcrypto -lgpgme -lpthreadGC2d -lminiupnpc -lz -lbz2
@@ -130,7 +130,7 @@ win32 {
     GPG_ERROR_DIR = ../../../../lib/libgpg-error-1.7
     GPGME_DIR  = ../../../../lib/gpgme-1.1.8
     SSL_DIR = ../../../../../OpenSSL
-    OPENPGPSDK_DIR = ../../../../openpgpsdk/src
+    OPENPGPSDK_DIR = ../../../../supportlibs/openpgpsdk/src
     INCLUDEPATH += . $${SSL_DIR}/include $${GPGME_DIR}/src $${GPG_ERROR_DIR}/src \
                 $${OPENPGPSDK_DIR}
 
@@ -146,8 +146,8 @@ win32 {
 bitdht {
 
         # Chris version.
-        #LIBS += ../../libbitdht/libbitdht-build-desktop/lib/libbitdht.a
-        #PRE_TARGETDEPS *= ../../libbitdht/libbitdht-build-desktop/lib/libbitdht.a
+        #LIBS += ../../supportlibs/libbitdht/libbitdht-build-desktop/lib/libbitdht.a
+        #PRE_TARGETDEPS *= ../../supportlibs/libbitdht/libbitdht-build-desktop/lib/libbitdht.a
 }
 
 win32 {

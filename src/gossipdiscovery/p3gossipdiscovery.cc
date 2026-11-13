@@ -321,7 +321,7 @@ void p3discovery2::sendOwnContactInfo(const RsPeerId &sslid)
 		 *   difficult for average user, that moreover whould have no way to
 		 *   revert an hardcoded policy. */
 
-		pkt->version = RS_SHARED_VERSION;
+    pkt->version = RS_VERSION_PUBLIC;
 		pkt->PeerId(sslid);
 
 #ifdef P3DISC_DEBUG

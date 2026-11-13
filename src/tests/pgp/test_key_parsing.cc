@@ -1,4 +1,4 @@
-// COMPILE_LINE: g++ -o test_key_parsing test_key_parsing.cc -g -I../../../openpgpsdk/include  -I../ -L../lib ../../../openpgpsdk/src/lib/libops.a -lssl -lcrypto -lbz2
+// COMPILE_LINE: g++ -o test_key_parsing test_key_parsing.cc -g -I../../../supportlibs/openpgpsdk/include  -I../ -L../lib ../../../supportlibs/openpgpsdk/src/lib/libops.a -lssl -lcrypto -lbz2
 //
 #include <stdlib.h>
 #include <iostream>
@@ -60,5 +60,3 @@ int main(int argc,char *argv[])
 		return 1 ;
 	}
 }
-
-
