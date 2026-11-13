@@ -21,6 +21,13 @@ DESTDIR = lib
 
 QMAKE_CXXFLAGS += -fPIC
 
+# OpenMP support for parallel deserialization in GXS (rsgenexchange.cc).
+# Not with Apple clang, which has no -fopenmp: the loop then runs serially.
+!macx {
+	QMAKE_CXXFLAGS += -fopenmp
+	LIBS += -fopenmp
+}
+
 ## Uncomment to enable Unfinished Services.
 #CONFIG += wikipoos
 #CONFIG += gxsthewire
