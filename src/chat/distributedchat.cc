@@ -49,6 +49,7 @@ static const rstime_t		MAX_KEEP_MSG_RECORD                 = 1200 ; // keep msg 
 static const rstime_t	 	MAX_KEEP_INACTIVE_NICKNAME          =  180 ; // keep inactive nicknames for 3 mn max.
 static const rstime_t		LOBBY_HISTORY_REQUEST_TIMEOUT       =  120 ; // accept history DATA for 2 mn after the request
 static const uint32_t		LOBBY_HISTORY_MAX_MSGS              = 5000 ; // max messages served / accepted per request
+static const rstime_t		LOBBY_HISTORY_MIN_SERVE_INTERVAL    =   30 ; // answer a friend's probe / request once per 30 secs and lobby
 static const rstime_t  		MAX_DELAY_BETWEEN_LOBBY_KEEP_ALIVE  =  120 ; // send keep alive packet every 2 minutes.
 static const rstime_t 		MAX_KEEP_PUBLIC_LOBBY_RECORD        =   60 ; // keep inactive lobbies records for 60 secs max.
 static const rstime_t 		MIN_DELAY_BETWEEN_PUBLIC_LOBBY_REQ  =   20 ; // don't ask for lobby list more than once every 30 secs.
@@ -2361,7 +2362,7 @@ bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id, co
 
 	if(it == _chat_lobbys.end())
 	{
-		std::cerr << "(EE) requestLobbyHistory(): lobby " << std::hex << lobby_id << std::dec << " not found." << std::endl;
+		RsErr() << "requestLobbyHistory(): lobby " << std::hex << lobby_id << std::dec << " not found." ;
 		return false ;
 	}
 
@@ -2381,7 +2382,9 @@ bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id, co
 
 			sendChatItem(item) ;
 
+#ifdef DEBUG_CHAT_LOBBIES
 			std::cerr << "requestLobbyHistory(): sent probe to peer " << *fit << " for lobby " << std::hex << lobby_id << std::dec << std::endl;
+#endif
 		}
 	}
 
@@ -2392,22 +2395,23 @@ void DistributedChatService::handleRecvLobbyHistoryProbe(RsChatLobbyHistoryProbe
 {
 	if(!item) return ;
 
-	// Only answer friends currently participating in a lobby we are subscribed to
+	// Check if we allow sharing history
+	if(!_allow_history_sharing)
+		return ;
+
+	// Only answer friends currently participating in a lobby we are subscribed
+	// to, and not more than once per LOBBY_HISTORY_MIN_SERVE_INTERVAL.
 	{
 		RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
 
 		if(!isLobbyParticipatingFriend_locked(item->lobby_id, item->PeerId()))
 		{
-			std::cerr << "(WW) handleRecvLobbyHistoryProbe(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." << std::endl;
+			RsWarn() << "handleRecvLobbyHistoryProbe(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." ;
 			return ;
 		}
-	}
 
-	// Check if we allow sharing history
-	if(!_allow_history_sharing)
-	{
-		std::cerr << "handleRecvLobbyHistoryProbe(): history sharing is disabled. Ignoring." << std::endl;
-		return ;
+		if(!locked_lobbyHistoryServeAllowed(mLastLobbyHistoryProbeServed, item->lobby_id, item->PeerId()))
+			return ;
 	}
 
 	// Retrieve our local history for this lobby
@@ -2429,16 +2433,20 @@ void DistributedChatService::handleRecvLobbyHistoryProbe(RsChatLobbyHistoryProbe
 
 	sendChatItem(response) ;
 
+#ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "handleRecvLobbyHistoryProbe(): responded to " << item->PeerId() << " — " << available_count << " msgs available, oldest TS=" << oldest_ts << std::endl;
+#endif
 }
 
 void DistributedChatService::handleRecvLobbyHistoryProbeResponse(RsChatLobbyHistoryProbeResponseItem *item)
 {
 	if(!item) return ;
 
+#ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "handleRecvLobbyHistoryProbeResponse(): peer " << item->PeerId()
 	          << " has " << item->available_count << " messages for lobby " << std::hex << item->lobby_id << std::dec
 	          << ", oldest TS=" << item->oldest_timestamp << std::endl;
+#endif
 
 	auto ev = std::make_shared<RsChatLobbyEvent>();
 	ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_HISTORY_PROBE_RESPONSE;
@@ -2457,13 +2465,13 @@ bool DistributedChatService::requestLobbyHistoryFromPeer(const ChatLobbyId& lobb
 
 	if(it == _chat_lobbys.end())
 	{
-		std::cerr << "(EE) requestLobbyHistoryFromPeer(): lobby " << std::hex << lobby_id << std::dec << " not found." << std::endl;
+		RsErr() << "requestLobbyHistoryFromPeer(): lobby " << std::hex << lobby_id << std::dec << " not found." ;
 		return false ;
 	}
 
 	if(!mServControl->isPeerConnected(mServType, peer_id))
 	{
-		std::cerr << "(EE) requestLobbyHistoryFromPeer(): peer " << peer_id << " is not connected." << std::endl;
+		RsErr() << "requestLobbyHistoryFromPeer(): peer " << peer_id << " is not connected." ;
 		return false ;
 	}
 
@@ -2482,7 +2490,9 @@ bool DistributedChatService::requestLobbyHistoryFromPeer(const ChatLobbyId& lobb
 
 	sendChatItem(request) ;
 
+#ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "requestLobbyHistoryFromPeer(): sent request to peer " << peer_id << " for lobby " << std::hex << lobby_id << std::dec << " (max " << max_count << " msgs, oldest TS=" << oldest_ts << ")" << std::endl;
+#endif
 	return true ;
 }
 
@@ -2490,22 +2500,23 @@ void DistributedChatService::handleRecvLobbyHistoryRequest(RsChatLobbyHistoryReq
 {
 	if(!item) return ;
 
-	// Only answer friends currently participating in a lobby we are subscribed to
+	// Check if we allow sharing history
+	if(!_allow_history_sharing)
+		return ;
+
+	// Only answer friends currently participating in a lobby we are subscribed
+	// to, and not more than once per LOBBY_HISTORY_MIN_SERVE_INTERVAL.
 	{
 		RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
 
 		if(!isLobbyParticipatingFriend_locked(item->lobby_id, item->PeerId()))
 		{
-			std::cerr << "(WW) handleRecvLobbyHistoryRequest(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." << std::endl;
+			RsWarn() << "handleRecvLobbyHistoryRequest(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." ;
 			return ;
 		}
-	}
 
-	// Check if we allow sharing history
-	if(!_allow_history_sharing)
-	{
-		std::cerr << "handleRecvLobbyHistoryRequest(): history sharing is disabled. Ignoring." << std::endl;
-		return ;
+		if(!locked_lobbyHistoryServeAllowed(mLastLobbyHistoryRequestServed, item->lobby_id, item->PeerId()))
+			return ;
 	}
 
 	// Retrieve local history
@@ -2541,7 +2552,9 @@ void DistributedChatService::handleRecvLobbyHistoryRequest(RsChatLobbyHistoryReq
 
 			// If adding this message exceeds the chunk size (and the chunk isn't empty), send the current chunk first
 			if (current_chunk_size + entry_size > MAX_CHUNK_SIZE && !data_item->msgs.empty()) {
+#ifdef DEBUG_CHAT_LOBBIES
 				std::cerr << "handleRecvLobbyHistoryRequest(): sending chunk of " << data_item->msgs.size() << " msgs (" << current_chunk_size << " bytes) to " << item->PeerId() << std::endl;
+#endif
 				sendChatItem(data_item) ;
 				
 				// Create a new data item for the next chunk
@@ -2558,22 +2571,28 @@ void DistributedChatService::handleRecvLobbyHistoryRequest(RsChatLobbyHistoryReq
 	}
 
 	if (!data_item->msgs.empty()) {
+#ifdef DEBUG_CHAT_LOBBIES
 		std::cerr << "handleRecvLobbyHistoryRequest(): sending final chunk of " << data_item->msgs.size() << " msgs to " << item->PeerId() << std::endl;
+#endif
 		sendChatItem(data_item) ;
 	} else {
 		// Clean up the unused item if we sent everything cleanly in batches, or if there were 0 messages.
 		delete data_item;
 	}
 
+#ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "handleRecvLobbyHistoryRequest(): finished. Sent a total of " << count << " messages." << std::endl;
+#endif
 }
 
 void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataItem *item)
 {
 	if(!item) return ;
 
+#ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "handleRecvLobbyHistoryData(): received " << item->msgs.size() << " messages from peer " << item->PeerId()
 	          << " for lobby " << std::hex << item->lobby_id << std::dec << std::endl;
+#endif
 
 	// Only accept DATA answering a pending request we sent to this very peer
 	// for this lobby, and never more messages than we asked for.
@@ -2593,14 +2612,14 @@ void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataIt
 
 		if(pit == mPendingLobbyHistoryRequests.end() || _chat_lobbys.find(item->lobby_id) == _chat_lobbys.end())
 		{
-			std::cerr << "(WW) handleRecvLobbyHistoryData(): unsolicited history from peer " << item->PeerId() << " for lobby " << std::hex << item->lobby_id << std::dec << ". Dropping." << std::endl;
+			RsWarn() << "handleRecvLobbyHistoryData(): unsolicited history from peer " << item->PeerId() << " for lobby " << std::hex << item->lobby_id << std::dec << ". Dropping." ;
 			return ;
 		}
 
 		uint32_t n = std::min<uint32_t>(pit->second.remaining_msgs, item->msgs.size()) ;
 
 		if(n < item->msgs.size())
-			std::cerr << "(WW) handleRecvLobbyHistoryData(): peer " << item->PeerId() << " sent more messages than requested. Dropping " << item->msgs.size() - n << " of them." << std::endl;
+			RsWarn() << "handleRecvLobbyHistoryData(): peer " << item->PeerId() << " sent more messages than requested. Dropping " << item->msgs.size() - n << " of them." ;
 
 		accepted_msgs.assign(item->msgs.begin(), item->msgs.begin() + n) ;
 		pit->second.remaining_msgs -= n ;
@@ -2655,7 +2674,9 @@ void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataIt
 		}
 	}
 
+#ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "handleRecvLobbyHistoryData(): merged " << addedCount << " new messages into local history." << std::endl;
+#endif
 
 	auto ev = std::make_shared<RsChatLobbyEvent>();
 	ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_HISTORY_DATA;
@@ -2673,4 +2694,23 @@ bool DistributedChatService::isLobbyParticipatingFriend_locked(const ChatLobbyId
 		return false ;
 
 	return it->second.participating_friends.find(peer_id) != it->second.participating_friends.end() ;
+}
+
+bool DistributedChatService::locked_lobbyHistoryServeAllowed(std::map<std::pair<ChatLobbyId,RsPeerId>,rstime_t>& last_served, const ChatLobbyId& lobby_id, const RsPeerId& peer_id)
+{
+	rstime_t now = time(NULL) ;
+
+	for(auto it = last_served.begin(); it != last_served.end();)
+		if(it->second + LOBBY_HISTORY_MIN_SERVE_INTERVAL <= now)
+			it = last_served.erase(it) ;
+		else
+			++it ;
+
+	auto key = std::make_pair(lobby_id, peer_id) ;
+
+	if(last_served.find(key) != last_served.end())
+		return false ;
+
+	last_served[key] = now ;
+	return true ;
 }

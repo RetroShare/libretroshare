@@ -21,6 +21,8 @@
  *******************************************************************************/
 #pragma once
 
+#include <atomic>
+
 #include <retroshare/rstypes.h>
 #include <retroshare/rschats.h>
 #include <retroshare/rsservicecontrol.h>
@@ -173,7 +175,7 @@ class DistributedChatService
 		rstime_t last_lobby_challenge_time ; 					// prevents bruteforce attack
 		rstime_t last_visible_lobby_info_request_time ;	// allows to ask for updates
 		bool _should_reset_lobby_counts ;
-		bool _allow_history_sharing ;
+		std::atomic<bool> _allow_history_sharing ;	// set from the GUI thread, read by the service
 
 		// Lobby history retrieval: only DATA items answering a request we sent
 		// to that peer for that lobby are accepted, within a deadline and up to
@@ -186,6 +188,13 @@ class DistributedChatService
 		std::map<std::pair<ChatLobbyId,RsPeerId>,PendingLobbyHistoryRequest> mPendingLobbyHistoryRequests ;
 
 		bool isLobbyParticipatingFriend_locked(const ChatLobbyId& lobby_id, const RsPeerId& peer_id) const ;
+
+		// Each probe reads the whole lobby history and each request sends up
+		// to LOBBY_HISTORY_MAX_MSGS lines: a friend gets one answer of each
+		// kind per lobby within LOBBY_HISTORY_MIN_SERVE_INTERVAL.
+		std::map<std::pair<ChatLobbyId,RsPeerId>,rstime_t> mLastLobbyHistoryProbeServed ;
+		std::map<std::pair<ChatLobbyId,RsPeerId>,rstime_t> mLastLobbyHistoryRequestServed ;
+		bool locked_lobbyHistoryServeAllowed(std::map<std::pair<ChatLobbyId,RsPeerId>,rstime_t>& last_served, const ChatLobbyId& lobby_id, const RsPeerId& peer_id) ;
 		RsGxsId _default_identity;
 		std::map<ChatLobbyId,RsGxsId> _lobby_default_identity;
 
