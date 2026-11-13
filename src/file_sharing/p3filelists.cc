@@ -1157,7 +1157,6 @@ void p3FileDatabase::clearUploadStats()
 void p3FileDatabase::cleanupUploadStats(int days)
 {
     RS_STACK_MUTEX(mFLSMtx);
-    mUploadStatsChanged = true;
     rstime_t now = time(NULL);
     rstime_t cutoff = now - (rstime_t)days * 24 * 3600;
     uint32_t removed_count = 0;
@@ -1201,6 +1200,7 @@ void p3FileDatabase::cleanupUploadStats(int days)
     if (removed_count > 0)
     {
         RsDbg() << "UPLOADSTATS cleanup removed " << removed_count << " entries.";
+        mUploadStatsChanged = true;
         IndicateConfigChanged(RsConfigMgr::CheckPriority::SAVE_OFTEN);
     }
 }
