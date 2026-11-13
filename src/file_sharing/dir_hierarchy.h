@@ -85,6 +85,7 @@ public:
 
     // class stuff
     InternalFileHierarchyStorage() ;
+    ~InternalFileHierarchyStorage() ;
 
     bool load(const std::string& fname) ;
     bool save(const std::string& fname) ;

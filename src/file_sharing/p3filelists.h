@@ -65,6 +65,8 @@
 #include "file_sharing/rsfilelistitems.h"
 #include "services/p3service.h"
 #include "util/rstime.h"
+#include <thread>
+#include <atomic>
 #include "file_sharing/hash_cache.h"
 #include "file_sharing/directory_storage.h"
 
@@ -253,6 +255,16 @@ class p3FileDatabase: public p3Service, public p3Config, public ftSearch //, pub
         //     RemoteDirectories[ getFriendIndex(pid) - 1] = RemoteDirectoryStorage(pid)
 
         std::vector<RemoteDirectoryStorage *> mRemoteDirectories ;
+
+        // Friends' directory lists are read from disk by a background thread, not by the service tick:
+        // on a node with many friends that is hundreds of MB of cold reads and seconds of parsing, during
+        // which every other service would otherwise wait (they all tick on the same thread).
+        std::thread mRemoteDirLoader ;
+        std::atomic<bool> mRemoteDirLoaderStop ;
+        bool mRemoteDirLoaderRunning ;		// protected by mFLSMtx
+        bool mRemoteDirLoadPending ;		// protected by mFLSMtx: a storage was created with load deferred
+        void startRemoteDirLoaderIfNeeded() ;
+        void remoteDirLoaderThreadBody() ;
         LocalDirectoryStorage *mLocalSharedDirs ;
         LocalDirectoryUpdater *mLocalDirWatcher ;
 		ftExtraList *mExtraFiles;
