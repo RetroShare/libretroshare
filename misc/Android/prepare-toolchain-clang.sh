@@ -245,6 +245,12 @@ function andro_cmake()
 		;;
 	esac
 
+	# FindPkgConfig adds the sysroot to PKG_CONFIG_PATH (from CMAKE_PREFIX_PATH),
+	# but pkg-config still falls back on the host's default directories, and a
+	# PKG_CONFIG_PATH set on the host is searched before the sysroot: either way
+	# pkg_check_modules could hand a host library to a cross build.
+	PKG_CONFIG_PATH="" \
+	PKG_CONFIG_LIBDIR="${PREFIX}/lib/pkgconfig" \
 	cmake \
 		$cmakeBuildType $cmakeCompileOptions $cmakeDebugOptions \
 		-DCMAKE_C_COMPILER_AR=$AR \
