@@ -1877,9 +1877,11 @@ bool ftController::saveList(bool &cleanup, std::list<RsItem *>& saveData)
 
 	switch(mDefaultChunkStrategy)
 	{
-		case FileChunksInfo::CHUNK_STRATEGY_STREAMING: 	configMap[default_chunk_strategy_ss] =  "STREAMING" ;
+		case FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL: 	configMap[default_chunk_strategy_ss] =  "SEQUENTIAL" ;
 																	  	break ;
 		case FileChunksInfo::CHUNK_STRATEGY_RANDOM:		configMap[default_chunk_strategy_ss] =  "RANDOM" ;
+																		break ;
+		case FileChunksInfo::CHUNK_STRATEGY_STREAMING: 	configMap[default_chunk_strategy_ss] =  "STREAMING_MP4" ;
 																		break ;
 
 		default:
@@ -2160,10 +2162,17 @@ bool  ftController::loadConfigMap(std::map<std::string, std::string> &configMap)
 
     if (configMap.end() != (mit = configMap.find(default_chunk_strategy_ss)))
 	{
-		if(mit->second == "STREAMING")
+		// Before the MP4-aware Streaming mode, "STREAMING" was the in-order
+		// strategy, now called Sequential: keep that meaning for saved configs.
+		if(mit->second == "STREAMING_MP4")
 		{
 			setDefaultChunkStrategy(FileChunksInfo::CHUNK_STRATEGY_STREAMING) ;
 			std::cerr << "Note: loading default value for chunk strategy: streaming" << std::endl;
+		}
+		else if(mit->second == "SEQUENTIAL" || mit->second == "STREAMING")
+		{
+			setDefaultChunkStrategy(FileChunksInfo::CHUNK_STRATEGY_SEQUENTIAL) ;
+			std::cerr << "Note: loading default value for chunk strategy: sequential" << std::endl;
 		}
 		else if(mit->second == "RANDOM")
 		{
