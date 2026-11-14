@@ -1897,13 +1897,16 @@ bool AuthSSLimpl::loadList(std::list<RsItem*>& load)
                         std::list<RsTlvKeyValue>::iterator kit;
                         for(kit = vitem->tlvkvs.pairs.begin(); kit != vitem->tlvkvs.pairs.end(); ++kit)
                         {
-                                if (RsPeerId(kit->key) == mOwnId) {
-                                        continue;
-                                }
-
+                                // Deny entries are keyed by a PGP id (16 hex chars): test them before
+                                // building an SSL id (32), which logs an error and a stack trace on
+                                // any other length.
                                 if (kit->value.compare(0, 5, "DENY:") == 0) {
                                     mDenyList[RsPgpId(kit->key)] = kit->value.substr(5);
                                     continue;
+                                }
+
+                                if (RsPeerId(kit->key) == mOwnId) {
+                                        continue;
                                 }
 
                                 X509 *peer = loadX509FromPEM(kit->value);
