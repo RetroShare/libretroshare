@@ -61,6 +61,7 @@
 #include <list>
 #include <string>
 
+#include <climits>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1313,7 +1314,19 @@ int RsServer::StartupRetroShare()
 	// or several versions side by side) loads its own plugins. A plugin found
 	// twice, as the same file or as another build of it, is loaded once: the
 	// plugin manager skips a file whose hash or name is already loaded.
-	const std::string exe_path = RsInit::executablePath();
+	//
+	// On Linux the binary is found through /proc/self/exe, not argv[0]: the
+	// AppImage runtime starts the binary with the .AppImage file as argv[0],
+	// which would point next to that file instead of inside the image.
+	std::string exe_path;
+#if defined(__linux__) && !defined(__ANDROID__)
+	{
+		char self_exe[PATH_MAX];
+		const ssize_t len = readlink("/proc/self/exe", self_exe, sizeof(self_exe) - 1);
+		if(len > 0) exe_path.assign(self_exe, static_cast<size_t>(len));
+	}
+#endif
+	if(exe_path.empty()) exe_path = RsInit::executablePath();
 	const std::string exe_dir = exe_path.empty() ? std::string() :
 	        RsDirUtil::getDirectory(RsDirUtil::removeSymLinks(exe_path));
 	if(!exe_dir.empty())
