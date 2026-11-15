@@ -1699,11 +1699,14 @@ void p3GxsTunnelService::startClientGxsTunnelConnection(const RsGxsId& to_gxs_id
     {
         RsStackMutex stack(mGxsTunnelMtx); /********** STACK LOCKED MTX ******/
 
-        if(_gxs_tunnel_contacts.find(tunnel_id) != _gxs_tunnel_contacts.end())
+        auto tunnel_it = _gxs_tunnel_contacts.find(tunnel_id);
+
+        if(tunnel_it  != _gxs_tunnel_contacts.end())
         {
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "GxsTunnelService:: asking GXS tunnel for a configuration that already exits.Ignoring." << std::endl;
 #endif
+            tunnel_it->second.client_services.insert(service_id) ;
             return ;
         }
     }
