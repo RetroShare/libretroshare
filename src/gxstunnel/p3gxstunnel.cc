@@ -1559,10 +1559,17 @@ void p3GxsTunnelService::startClientGxsTunnelConnection(const RsGxsId& to_gxs_id
     {
         RsStackMutex stack(mGxsTunnelMtx); /********** STACK LOCKED MTX ******/
 
-        if(_gxs_tunnel_contacts.find(tunnel_id) != _gxs_tunnel_contacts.end())
+        std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::iterator it = _gxs_tunnel_contacts.find(tunnel_id) ;
+
+        if(it != _gxs_tunnel_contacts.end())
         {
-#ifdef DEBUG_GXS_TUNNEL    
-            std::cerr << "GxsTunnelService:: asking GXS tunnel for a configuration that already exits.Ignoring." << std::endl;
+            // The tunnel id only depends on the two GXS ids, so all the client services talking between
+            // the same two identities share this tunnel. Register this service as a user of it, otherwise
+            // closeExistingTunnel() closes the tunnel as soon as the service that opened it is done with it.
+
+            it->second.client_services.insert(service_id) ;
+#ifdef DEBUG_GXS_TUNNEL
+            std::cerr << "GxsTunnelService:: asking GXS tunnel for a configuration that already exits. Adding service " << std::hex << service_id << std::dec << " to its users." << std::endl;
 #endif
             return ;
         }
