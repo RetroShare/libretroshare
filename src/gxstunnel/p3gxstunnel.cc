@@ -40,7 +40,9 @@
 
 #include "p3gxstunnel.h"
 
-#define DEBUG_GXS_TUNNEL
+#define DEBUG_GXS_TUNNEL_MANAGEMENT
+//#define DEBUG_GXS_TUNNEL_TRAFFIC
+//#define DEBUG_GXS_TUNNEL_VPID
 
 static const uint32_t GXS_TUNNEL_KEEP_ALIVE_TIMEOUT = 6 ; // send keep alive packet so as to avoid tunnel breaks.
 
@@ -51,7 +53,7 @@ static const uint32_t RS_GXS_TUNNEL_DATA_PRINT_STORAGE_DELAY = 600 ; // store ol
 static const uint32_t GXS_TUNNEL_ENCRYPTION_HMAC_SIZE    = SHA_DIGEST_LENGTH ;
 static const uint32_t GXS_TUNNEL_ENCRYPTION_IV_SIZE      = 8 ;
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 static const uint32_t INTERVAL_BETWEEN_DEBUG_DUMP        = 4 ;
 #endif
 
@@ -87,7 +89,7 @@ bool p3GxsTunnelService::registerClientService(uint32_t service_id,RsGxsTunnelSe
         std::cerr << "(EE) p3GxsTunnelService::registerClientService(): trying to register client " << std::hex << service_id << std::dec << ", which is already registered!" << std::endl;
         return false;
     }
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     std::cerr << "p3GxsTunnelService::registerClientService(): registering client service " << std::hex << service_id << std::dec << std::endl;
 #endif
     
@@ -98,7 +100,7 @@ bool p3GxsTunnelService::registerClientService(uint32_t service_id,RsGxsTunnelSe
 int p3GxsTunnelService::tick()
 {
     
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     rstime_t now = time(NULL);
 	static rstime_t last_dump = 0;
     
@@ -156,7 +158,7 @@ RsServiceInfo p3GxsTunnelService::getServiceInfo()
 
 void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<uint32_t>>& tunnels_dn)
 {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     std::cerr << "Updating tunnels..." << std::endl;
 #endif
 
@@ -164,7 +166,7 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
     for(auto it =_gxs_tunnel_contacts.begin();it!= _gxs_tunnel_contacts.end();++it)
     {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
         std::cerr << "  Tunnel ID " << it->first << ": " ;
 #endif
         auto it2 = _gxs_tunnel_virtual_peer_ids.find(it->second.preferred_virtual_peer_id);
@@ -173,13 +175,13 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
         if(it2 == _gxs_tunnel_virtual_peer_ids.end() || it2->second.status != GxsTunnelVirtualPeerIdStatus::DH_DONE) // the vpid doesn't exist anymore
         {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << " vpid " << it->second.preferred_virtual_peer_id << " is removed or inactive. Resetting." << std::endl;
 #endif
             it->second.preferred_virtual_peer_id.clear();
             tunnels_dn[it->first] = it->second.client_services;
         }
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
         else
             std::cerr << " vpid " << it->second.preferred_virtual_peer_id << " is active." << std::endl;
 #endif
@@ -202,7 +204,7 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
         if(it->second.last_contact+20+GXS_TUNNEL_KEEP_ALIVE_TIMEOUT < now && it->second.status == GxsTunnelStatus::CAN_TALK)
         {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "(II) GxsTunnelService:: connection interrupted with peer." << std::endl;
 #endif
 
@@ -216,7 +218,7 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
             if(it->second.direction == RsTurtleGenericTunnelItem::DIRECTION_SERVER)
             {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
                 std::cerr << "(II) GxsTunnelService:: forcing new tunnel campain." << std::endl;
 #endif
 
@@ -229,7 +231,7 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
     for(auto vpid_it:_gxs_tunnel_virtual_peer_ids)
     {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
         std::cerr << "  Virtual Peer ID " << vpid_it.first << ": " ;
 #endif
         const TurtleVirtualPeerId& vpid = vpid_it.first;
@@ -237,12 +239,12 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
         if(dhinfo.status != GxsTunnelVirtualPeerIdStatus::DH_DONE)
         {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << " not ready. Status is " << static_cast<int>(dhinfo.status) << std::endl;
 #endif
             continue;
         }
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
         else
             std::cerr << " ready. Status is " << static_cast<int>(dhinfo.status) << std::endl;
 #endif
@@ -251,7 +253,7 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
 
         if(tunnel_it == _gxs_tunnel_contacts.end())
         {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "   No tunnel for this VPID. Creating one." << std::endl;
 #endif
             GxsTunnelPeerInfo& pinfo(_gxs_tunnel_contacts[dhinfo.tunnel_id]);
@@ -268,17 +270,17 @@ void p3GxsTunnelService::locked_updateTunnels(std::map<RsGxsTunnelId,std::set<ui
         }
         else
         {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "   Existing tunnel with preferred vpid " << tunnel_it->second.preferred_virtual_peer_id << std::endl;
 #endif
             if(tunnel_it->second.preferred_virtual_peer_id < vpid)
             {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
                 std::cerr << "   (Heuristic)-Replacing with active vpid " << vpid << std::endl;
 #endif
                 tunnel_it->second.preferred_virtual_peer_id = vpid;
             }
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             else
                 std::cerr << "   Keeping it." << std::endl;
 #endif
@@ -296,8 +298,9 @@ void p3GxsTunnelService::flush()
 
     // Flush pending DH items. This is a higher priority, so we deal with them first.
     
-#ifdef DEBUG_GXS_TUNNEL    
-    std::cerr << "p3GxsTunnelService::flush() flushing pending items." << std::endl;
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
+    if(!pendingDHItems.empty() || !pendingGxsTunnelItems.empty() || !pendingGxsTunnelDataItems.empty())
+        std::cerr << "p3GxsTunnelService::flush() flushing pending items." << std::endl;
 #endif
     {
 	    RS_STACK_MUTEX(mGxsTunnelMtx); /********** STACK LOCKED MTX ******/
@@ -325,11 +328,11 @@ void p3GxsTunnelService::flush()
 			}
 		    else
 		    {
-			    ++it ;
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
 			    std::cerr << "Cannot send encrypted data item to tunnel " << (*it)->PeerId() << std::endl;
 #endif
-		    }
+                ++it ;
+            }
     }
     
     // Look at pending data item, and re-send them if necessary.
@@ -344,14 +347,14 @@ void p3GxsTunnelService::flush()
 		    {
 			    if(locked_sendEncryptedTunnelData(it->second.data_item))
 			    {                    		
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
 				    std::cerr << "  sending data item #" << std::hex << it->first << std::dec << std::endl;
 #endif
 				    it->second.last_sending_attempt = now ;
 
                     // the item is kept until a ACK is received.
 			    }
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
 			    else
 				    std::cerr << "  Cannot send item " << std::hex << it->first << std::dec << std::endl;
 #endif
@@ -376,7 +379,7 @@ void p3GxsTunnelService::flush()
             pendingGxsTunnelItems.push_back(cs) ;
 
             it->second.last_keep_alive_sent = now ;
-        #ifdef DEBUG_GXS_TUNNEL
+        #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "(II) GxsTunnelService:: Sending keep alive packet to gxs id " << it->first << std::endl;
         #endif
        }
@@ -386,7 +389,7 @@ void p3GxsTunnelService::flush()
         for(std::map<uint64_t,rstime_t>::iterator it2=it->second.received_data_prints.begin();it2!=it->second.received_data_prints.end();)
             if(now > it2->second + RS_GXS_TUNNEL_DATA_PRINT_STORAGE_DELAY)
             {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
                 std::cerr << "(II) erasing old data print for message #" << it2->first << " in tunnel " << it->first << std::endl;
 #endif
                 std::map<uint64_t,rstime_t>::iterator tmp(it2) ;
@@ -435,7 +438,7 @@ void p3GxsTunnelService::handleRecvTunnelDataAckItem(const RsGxsTunnelId &/*id*/
 {
     RS_STACK_MUTEX(mGxsTunnelMtx); /********** STACK LOCKED MTX ******/
     
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "p3GxsTunnelService::handling RecvTunnelDataAckItem()" << std::endl;
     std::cerr << "  item counter = " << std::hex << item->unique_item_counter << std::dec << std::endl;
 #endif
@@ -470,7 +473,7 @@ void p3GxsTunnelService::handleRecvTunnelDataItem(const RsGxsTunnelId& tunnel_id
     
     // notify the client for the received data
     
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "p3GxsTunnelService::handleRecvTunnelDataItem()" << std::endl;
     std::cerr << "    data size  = " << item->data_size << std::endl;
     std::cerr << "    service id = " << std::hex << item->service_id << std::dec << std::endl;
@@ -524,7 +527,7 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
     std::vector<GxsTunnelStatus> notifications ;
     std::set<RsGxsTunnelClientService*> clients ;
 
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     std::cerr << "p3GxsTunnelService::handleRecvStatusItem(): tunnel_id=" << tunnel_id << " status=" << cs->status << std::endl;
 #endif
 
@@ -542,20 +545,20 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 		    return ;
 	    }
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 	    std::cerr << "  Marking distant chat as remotely closed for tunnel id " << tunnel_id << std::endl;
 #endif
 	    if(it->second.direction == RsTurtleGenericDataItem::DIRECTION_CLIENT)
             {
             it->second.status = GxsTunnelStatus::REMOTELY_CLOSED ;
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             	std::cerr << "  This is server side. The tunnel cannot be re-openned, so we give it up." << std::endl;
 #endif
             }
 	    else
             {
             it->second.status = GxsTunnelStatus::TUNNEL_DN ;
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             	std::cerr << "  This is client side. The tunnel will be re-openned automatically." << std::endl;
 #endif
             }
@@ -565,14 +568,14 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 	    break ;
 
     case RS_GXS_TUNNEL_FLAG_KEEP_ALIVE:
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 	    std::cerr << "GxsTunnelService::handleRecvGxsTunnelStatusItem(): received keep alive packet for inactive tunnel! peerId=" << cs->PeerId() << " tunnel=" << tunnel_id << std::endl;
 #endif
 	    break ;
 
     case RS_GXS_TUNNEL_FLAG_ACK_DISTANT_CONNECTION:
     {
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 	    std::cerr << "Received ACK item from the distant peer!" << std::endl;
 #endif
 
@@ -589,7 +592,7 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 
     // notify all clients
 
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     std::cerr << "  notifying clients. Prending notifications: " << notifications.size() << std::endl;
 #endif
 
@@ -599,7 +602,7 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 
 	    std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::iterator it = _gxs_tunnel_contacts.find(tunnel_id) ;
 
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 	    std::cerr << "    " << it->second.client_services.size() << " client services for tunnel id " << tunnel_id << std::endl;
 #endif
 
@@ -612,7 +615,7 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 	    }
     }
 
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     std::cerr << "  notifying " << clients.size() << " clients." << std::endl;
 #endif
 
@@ -620,7 +623,7 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 	    for(uint32_t i=0;i<notifications.size();++i)
 	    {
 		    (*it)->notifyTunnelStatus(tunnel_id,notifications[i]) ;
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "  notifying client " << (void*)(*it) << " of status " << static_cast<int>(notifications[i]) << std::endl;
 #endif
 	    }
@@ -644,7 +647,7 @@ bool p3GxsTunnelService::handleTunnelRequest(const RsFileHash& hash,const RsPeer
 	for(std::list<RsGxsId>::const_iterator it(own_id_list.begin());it!=own_id_list.end();++it)
 		if(*it == destination_id)
 		{
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 			std::cerr << "GxsTunnelService::handleTunnelRequest: received tunnel request for hash " << hash << std::endl;
 			std::cerr << "  answering true!" << std::endl;
 #endif
@@ -656,7 +659,7 @@ bool p3GxsTunnelService::handleTunnelRequest(const RsFileHash& hash,const RsPeer
 
 void p3GxsTunnelService::addVirtualPeer(const TurtleFileHash& hash,const TurtleVirtualPeerId& virtual_peer_id,RsTurtleGenericTunnelItem::Direction dir)
 {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
 	std::cerr << "GxsTunnelService:: received new virtual peer " << virtual_peer_id << " for hash " << hash << ", dir=" << dir << std::endl;
 #endif
 	RsGxsId own_gxs_id ;
@@ -707,13 +710,13 @@ void p3GxsTunnelService::addVirtualPeer(const TurtleFileHash& hash,const TurtleV
 			own_gxs_id = it->second.own_gxs_id ;
 		}
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
 		std::cerr << "  Creating new virtual peer ID entry and empty DH session key." << std::endl;
 #endif
 
 	}
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
 	std::cerr << "  Adding virtual peer " << virtual_peer_id << " for chat hash " << hash << std::endl;
 #endif
 
@@ -725,7 +728,7 @@ void p3GxsTunnelService::addVirtualPeer(const TurtleFileHash& hash,const TurtleV
 
 void p3GxsTunnelService::locked_restartDHSession(const RsPeerId& virtual_peer_id,const RsGxsId& own_gxs_id)
 {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "Starting new DH session." << std::endl;
 #endif
     GxsTunnelDHInfo& dhinfo = _gxs_tunnel_virtual_peer_ids[virtual_peer_id] ;	// creates it, if necessary
@@ -754,7 +757,7 @@ void p3GxsTunnelService::removeVirtualPeer(const TurtleFileHash& hash,const Turt
     std::set<RsGxsTunnelClientService*> client_services ;
     RsGxsTunnelId tunnel_id ;
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "GxsTunnelService: Removing virtual peer " << virtual_peer_id << " for hash " << hash << std::endl;
 #else
     /* remove unused parameter warnings */
@@ -779,6 +782,7 @@ void p3GxsTunnelService::removeVirtualPeer(const TurtleFileHash& hash,const Turt
             DH_free(it->second.dh) ;
         
         _gxs_tunnel_virtual_peer_ids.erase(it) ;
+        mVpidsChanged = true;
 
 #ifdef TO_REMOVE
         std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::iterator it2 = _gxs_tunnel_contacts.find(tunnel_id) ;
@@ -818,7 +822,7 @@ void p3GxsTunnelService::removeVirtualPeer(const TurtleFileHash& hash,const Turt
 
 void p3GxsTunnelService::receiveTurtleData(const RsTurtleGenericTunnelItem *gitem, const RsFileHash& hash, const RsPeerId& virtual_peer_id, RsTurtleGenericTunnelItem::Direction direction)
 {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "GxsTunnelService::receiveTurtleData(): Received turtle data. " << std::endl;
     std::cerr << "         hash = " << hash << std::endl;
     std::cerr << "         vpid = " << virtual_peer_id << std::endl;
@@ -863,7 +867,7 @@ void p3GxsTunnelService::receiveTurtleData(const RsTurtleGenericTunnelItem *gite
     }
     if(*((uint64_t*)data_bytes) != 0)	// WTF?? we should use flags
     {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
         std::cerr << "  Item is encrypted." << std::endl;
 #endif
 
@@ -873,7 +877,7 @@ void p3GxsTunnelService::receiveTurtleData(const RsTurtleGenericTunnelItem *gite
     }
     else
     {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
         std::cerr << "  Item is not encrypted." << std::endl;
 #endif
 
@@ -909,7 +913,7 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
 bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t data_size,const TurtleFileHash& hash,const RsPeerId& virtual_peer_id)
 #endif
 {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "p3GxsTunnelService::handleEncryptedDataItem()" << std::endl;
     std::cerr << "   size = " << data_size << std::endl;
     std::cerr << "   data = " << (void*)data_bytes << std::endl;
@@ -989,7 +993,7 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
 
         memcpy(aes_key,it->second.aes_key,GXS_TUNNEL_AES_KEY_SIZE) ;
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
         std::cerr << "   Using IV: " << std::hex << *(uint64_t*)data_bytes << std::dec << std::endl;
         std::cerr << "   Decrypted buffer size: " << decrypted_size << std::endl;
         std::cerr << "   key  : " << RsUtil::BinToHex((unsigned char*)aes_key,GXS_TUNNEL_AES_KEY_SIZE) << std::endl;
@@ -1014,7 +1018,7 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
         it2->second.status = GxsTunnelStatus::CAN_TALK ;
         it2->second.last_contact = time(NULL) ;
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
         std::cerr << "(II) Decrypted data: size=" << decrypted_size << std::endl;
 #endif
 
@@ -1036,7 +1040,7 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
         citem->PeerId(virtual_peer_id) ;
     }
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "(II) Setting peer id to " << citem->PeerId() << std::endl;
 #endif
     handleIncomingItem(tunnel_id,citem) ; // Treats the item, and deletes it
@@ -1052,7 +1056,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
         return;
     }
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "GxsTunnelService:  Received DH public key." << std::endl;
     item->print(std::cerr, 0) ;
 #endif
@@ -1071,7 +1075,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
 
     // Now check the signature of the DH public key item.
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "  Checking signature. " << std::endl;
 #endif
 
@@ -1093,7 +1097,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     for(int i=0;i<6;++i)
         if(!mGixs->getKey(senders_id,signature_key) || signature_key.keyData.bin_data == NULL)
         {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
             std::cerr << "  Cannot get key. Waiting for caching. try " << i << "/6" << std::endl;
 #endif
             usleep(500 * 1000) ;	// sleep for 500 msec.
@@ -1128,7 +1132,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     }
     mGixs->timeStampKey(item->signature.keyId,RsIdentityUsage(RsServiceType::GXS_TUNNEL,RsIdentityUsage::GXS_TUNNEL_DH_SIGNATURE_CHECK));
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "  Signature checks! Sender's ID = " << senders_id << std::endl;
     std::cerr << "  Computing AES key" << std::endl;
 #endif
@@ -1157,6 +1161,8 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     
     it->second.tunnel_id = tunnel_id ;
     it->second.to_gxs_id = senders_id ;
+
+    mVpidsChanged = true;
 
 #ifdef TO_REMOVE
     // When both ends request a tunnel to each other, turtle brings up one tunnel per direction for the same pair of
@@ -1189,7 +1195,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     }
     it->second.status = GxsTunnelVirtualPeerIdStatus::DH_DONE ;
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "  DH key computation successed. New key in place." << std::endl;
 #endif
     // Now hash the key buffer into a 16 bytes key.
@@ -1213,7 +1219,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     // note: the hash might still be nn initialised on server side.
 #endif
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "  DH key computed. Tunnel is now secured!" << std::endl;
     std::cerr << "  Key computed: " << RsUtil::BinToHex((char*)it->second.aes_key,16) << std::endl;
     std::cerr << "  Sending a ACK packet." << std::endl;
@@ -1322,7 +1328,7 @@ bool p3GxsTunnelService::locked_sendDHPublicKey(const DH *dh,const RsGxsId& own_
 	dhitem->gxs_key = signature_key_public ;
 	dhitem->PeerId(virtual_peer_id) ;	
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
 	std::cerr << "  Pushing DH session key item to pending distant messages..." << std::endl;
 	dhitem->print(std::cerr, 2) ;
 	std::cerr << std::endl;
@@ -1386,7 +1392,7 @@ bool p3GxsTunnelService::locked_initDHSessionKey(DH *& dh)
         std::cerr << "  (EE) DH generate_key() failed! Error code = " << ERR_get_error() << std::endl;
         return false ;
     }
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_VPID
     std::cerr << "  (II) DH Session key inited." << std::endl;
 #endif
     return true ;
@@ -1398,7 +1404,7 @@ bool p3GxsTunnelService::locked_initDHSessionKey(DH *& dh)
 
 bool p3GxsTunnelService::locked_sendClearTunnelData(RsGxsTunnelDHPublicKeyItem *item)
 {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "GxsTunnelService::sendClearTunnelData(): try sending item " << (void*)item << " to peer " << item->PeerId() << std::endl;
 #endif
 
@@ -1431,7 +1437,7 @@ bool p3GxsTunnelService::locked_sendClearTunnelData(RsGxsTunnelDHPublicKeyItem *
 	    return false;
     }
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "   GxsTunnelService::sendClearTunnelData(): Sending clear data to virtual peer: " << item->PeerId() << std::endl;
     std::cerr << "     gitem->data_size = " << gitem->data_size << std::endl;
     std::cerr << "     data = " << RsUtil::BinToHex((unsigned char*)gitem->data_bytes,gitem->data_size,100) ;
@@ -1460,7 +1466,7 @@ bool p3GxsTunnelService::locked_sendEncryptedTunnelData(RsGxsTunnelItem *item)
     uint8_t aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
     uint64_t IV = 0;
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "Sending encrypted data to tunnel with vpid " << item->PeerId() << std::endl;
 #endif
        
@@ -1470,7 +1476,7 @@ bool p3GxsTunnelService::locked_sendEncryptedTunnelData(RsGxsTunnelItem *item)
 
 	if(it == _gxs_tunnel_contacts.end())
 	{
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
 		std::cerr << "  Cannot find contact key info for tunnel id "
 		          << tunnel_id << ". Cannot send message!" << std::endl;
 #endif
@@ -1478,7 +1484,7 @@ bool p3GxsTunnelService::locked_sendEncryptedTunnelData(RsGxsTunnelItem *item)
 	}
     if(it->second.status != GxsTunnelStatus::CAN_TALK)
 	{
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
         std::cerr << "(EE) Cannot talk to tunnel id " << tunnel_id << ". Tunnel status is: " << static_cast<int>(it->second.status) << std::endl;
 #endif
 		return false;
@@ -1492,7 +1498,7 @@ bool p3GxsTunnelService::locked_sendEncryptedTunnelData(RsGxsTunnelItem *item)
 
     while(IV == 0) IV = RSRandom::random_u64() ; // make a random 8 bytes IV, that is not 0
 
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "GxsTunnelService::sendEncryptedTunnelData(): tunnel found. Encrypting data." << std::endl;
 #endif
 
@@ -1523,12 +1529,10 @@ bool p3GxsTunnelService::locked_sendEncryptedTunnelData(RsGxsTunnelItem *item)
     
     memcpy(& (((uint8_t*)data_bytes)[GXS_TUNNEL_ENCRYPTION_HMAC_SIZE+GXS_TUNNEL_ENCRYPTION_IV_SIZE]),encrypted_data,encrypted_size) ;
     
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "   Using  IV: " << std::hex << IV << std::dec << std::endl;
     std::cerr << "   Using Key: " << RsUtil::BinToHex((char*)aes_key,GXS_TUNNEL_AES_KEY_SIZE) ; std::cerr << std::endl;
     std::cerr << "        hmac: " << RsUtil::BinToHex((char*)data_bytes,GXS_TUNNEL_ENCRYPTION_HMAC_SIZE) << std::endl;
-#endif
-#ifdef DEBUG_GXS_TUNNEL
     std::cerr << "GxsTunnelService::sendEncryptedTunnelData(): Sending encrypted data to virtual peer: " << virtual_peer_id << std::endl;
     std::cerr << "   data_size = " << data_size << std::endl;
     std::cerr << "    serialised data = " << RsUtil::BinToHex((unsigned char*)data_bytes,data_size,100) ;
@@ -1628,7 +1632,7 @@ bool p3GxsTunnelService::sendData(const RsGxsTunnelId &tunnel_id, uint32_t servi
 {
     // make sure that the tunnel ID is registered.
     
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "p3GxsTunnelService::sendData()" << std::endl;
     std::cerr << "  tunnel id : " << tunnel_id << std::endl;
     std::cerr << "  data size : " << size << std::endl;
@@ -1653,7 +1657,7 @@ bool p3GxsTunnelService::sendData(const RsGxsTunnelId &tunnel_id, uint32_t servi
         return false ;
     }
     
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "  verifications fine! Storing in out queue with:" << std::endl;
 #endif
     
@@ -1676,7 +1680,7 @@ bool p3GxsTunnelService::sendData(const RsGxsTunnelId &tunnel_id, uint32_t servi
     tdata.data_item = item ;
     tdata.last_sending_attempt = 0 ;	// never sent until now
     
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "  counter id : " << std::hex << item->unique_item_counter << std::dec << std::endl;
 #endif
     
@@ -1697,7 +1701,7 @@ void p3GxsTunnelService::startClientGxsTunnelConnection(const RsGxsId& to_gxs_id
 
         if(_gxs_tunnel_contacts.find(tunnel_id) != _gxs_tunnel_contacts.end())
         {
-#ifdef DEBUG_GXS_TUNNEL    
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             std::cerr << "GxsTunnelService:: asking GXS tunnel for a configuration that already exits.Ignoring." << std::endl;
 #endif
             return ;
@@ -1727,8 +1731,8 @@ void p3GxsTunnelService::startClientGxsTunnelConnection(const RsGxsId& to_gxs_id
         _gxs_tunnel_contacts[tunnel_id] = info ;
     }
 
-#ifdef DEBUG_GXS_TUNNEL
-    std::cerr << "Starting distant chat to " << to_gxs_id << ", hash = " << hash << ", from " << from_gxs_id << std::endl;
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
+    std::cerr << "Starting tunnel management to " << to_gxs_id << ", hash = " << hash << ", from " << from_gxs_id << std::endl;
     std::cerr << "Asking turtle router to monitor tunnels for hash " << hash << std::endl;
 #endif
 
@@ -1872,7 +1876,7 @@ bool p3GxsTunnelService::closeExistingTunnel(const RsGxsTunnelId& tunnel_id, uin
     if(close_tunnel)
     {
 	    // send a status item saying that we're closing the connection
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 	    std::cerr << "  Sending a ACK to close the tunnel since we're managing it and it's not used by any service. tunnel id=." << tunnel_id << std::endl;
 #endif
 
@@ -1886,7 +1890,7 @@ bool p3GxsTunnelService::closeExistingTunnel(const RsGxsTunnelId& tunnel_id, uin
 
 	    if(direction == RsTurtleGenericTunnelItem::DIRECTION_SERVER) 	// nothing more to do for server side.
 	    {
-#ifdef DEBUG_GXS_TUNNEL
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 		    std::cerr << "  This is client side. Stopping tunnel manageement for tunnel_id " << tunnel_id << std::endl;
 #endif
 		    mTurtle->stopMonitoringTunnels( hash ) ;	// still valid if the hash is null
