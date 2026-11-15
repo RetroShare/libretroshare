@@ -1190,8 +1190,8 @@ bool p3PeerMgrIMPL::addSslOnlyFriend( const RsPeerId& sslId, const RsPgpId& pgp_
 		 * exist yet. This is essential: addSslOnlyFriend() is the entry point
 		 * used by short invites (webui, mobile, QR code...) and, unlike
 		 * addFriend(), it would otherwise leave mFriendsPermissionFlags without
-		 * an entry for this friend. Later on, gossip discovery and loadList call
-		 * addFriend() with the RS_NODE_PERM_ALL "keep the existing flags" mask,
+		 * an entry for this friend. Later on, loadList calls addFriend() with
+		 * the RS_NODE_PERM_ALL "keep the existing flags" mask,
 		 * relying on the per-friend entry to reduce it (service_flags &= entry).
 		 * With no entry that mask is written verbatim, silently granting the peer
 		 * DIRECT_DL | ALLOW_PUSH | REQUIRE_WL. Registering RS_NODE_PERM_NONE here
