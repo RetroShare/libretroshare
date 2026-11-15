@@ -191,7 +191,7 @@ private:
     class GxsTunnelDHInfo
     {
     public:
-        GxsTunnelDHInfo() : dh(0), direction(0), status(GxsTunnelVirtualPeerIdStatus::DH_TODO), last_dh_restart(0), dropped_packets(0) {}
+        GxsTunnelDHInfo() : dh(0), direction(0), status(GxsTunnelVirtualPeerIdStatus::DH_TODO), last_dh_restart(0), last_data_TS(0), dropped_packets(0) {}
 
         DH *dh ;
         RsGxsId to_gxs_id ;			// normally the tunnel_id should be enough, but when acting as server, the id is only known after the DH exchange.
@@ -201,6 +201,7 @@ private:
         GxsTunnelVirtualPeerIdStatus status ;
         TurtleFileHash hash ;
         rstime_t last_dh_restart ;  // throttles DH restarts triggered by undecryptable packets
+        rstime_t last_data_TS ;     // last data packet seen
         uint32_t dropped_packets ;  // undecryptable packets dropped since the last DH restart
 
         unsigned char aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
@@ -249,7 +250,7 @@ private:
     bool locked_sendDHPublicKey(const DH *dh, const RsGxsId& own_gxs_id, const RsPeerId& virtual_peer_id) ;
     bool locked_initDHSessionKey(DH *&dh);
 	uint64_t locked_getPacketCounter();
-    void locked_updateTunnels(std::map<RsGxsTunnelId, std::set<uint32_t> > &tunnels_dn);
+    void locked_updateTunnels();
 
     TurtleVirtualPeerId virtualPeerIdFromHash(const TurtleFileHash& hash) ;	// ... and to a hash for p3turtle
 
