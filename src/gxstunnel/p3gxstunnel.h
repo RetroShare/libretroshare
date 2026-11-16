@@ -205,6 +205,9 @@ private:
         uint32_t dropped_packets ;  // undecryptable packets dropped since the last DH restart
 
         unsigned char aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
+    private:
+        GxsTunnelDHInfo& operator=(const GxsTunnelDHInfo&) { return *this; }	// make the object non-copyiable
+        GxsTunnelDHInfo(const GxsTunnelDHInfo&) {}								// make the object non-copyiable
     };
 
     struct GxsTunnelData
