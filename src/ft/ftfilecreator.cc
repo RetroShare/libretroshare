@@ -49,12 +49,14 @@
 #define CHUNK_MAX_AGE           120
 #define MAX_FTCHUNKS_PER_PEER    40
 
-// MP4 Smart Preview. checkForMp4Index() is called from addFileData(), i.e. once per received
-// data block, and each call re-opens and re-walks the partial file. These two constants keep
-// that cost bounded: a file whose atom chain cannot be resolved is given up on for good.
+// MP4 Smart Preview. checkForMp4Index() is called at each received data block and at each
+// verified chunk. It walks the top-level boxes of the file, one header at a time, and only reads a
+// header once the chunk that holds it has been received and verified. So a call costs a look
+// at the chunk map, plus one small read each time the walk can move forward.
 
-static const uint32_t MP4_ATOM_HEADER_SIZE     =  8 ;	//! size, then 4CC type
-static const uint32_t MP4_MAX_SCAN_ATTEMPTS    = 64 ;	//! fruitless walks before giving up
+static const uint32_t MP4_ATOM_HEADER_SIZE       =  8 ;	//! size, then 4CC type
+static const uint32_t MP4_ATOM_LARGE_HEADER_SIZE = 16 ;	//! same, followed by a 64 bits size
+static const uint32_t MP4_MAX_ATOMS              = 64 ;	//! top-level boxes walked before giving up
 
 //! Every ISO base media file starts with one of these boxes. Anything else is not an MP4,
 //! and no amount of additional data will turn it into one.
@@ -77,8 +79,8 @@ static bool mp4LooksLikeIsoBmff(const char type[4])
 ***********************************************************/
 
 ftFileCreator::ftFileCreator(const std::string& path, uint64_t size, const RsFileHash& hash,bool assume_availability)
-	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability), _mp4_index_found(false), _mp4_index_offset(0),
-	  _mp4_scan_abandoned(false), _mp4_scan_attempts(0)
+	: ftFileProvider(path,size,hash), chunkMap(size,assume_availability), _mp4_index_found(false), _mp4_scan_abandoned(false),
+	  _mp4_scan_pos(0), _mp4_atoms_walked(0)
 {
 #ifdef STREAMING_DEBUG
     RsDbg() << "STREAMING: ftFileCreator CONSTRUCTOR for " << path;
@@ -276,10 +278,7 @@ bool ftFileCreator::addFileData(uint64_t offset, uint32_t chunk_size, void *data
 #ifdef STREAMING_DEBUG
         RsDbg() << "STREAMING: addFileData offset=" << offset << " strat=" << chunkMap.getStrategy();
 #endif
-        if (!_mp4_index_found && !_mp4_scan_abandoned)
-        {
-             checkForMp4Index();
-        }
+        checkForMp4Index();
 
 		complete = chunkMap.isComplete();
 	}
@@ -785,7 +784,10 @@ bool ftFileCreator::verifyChunk(uint32_t chunk_number,const Sha1CheckSum& sum)
 		Sha1CheckSum comp = RsDirUtil::sha1sum(buff,len) ;
 
 		if(sum == comp)
+		{
 			chunkMap.setChunkCheckingResult(chunk_number,true) ;
+			checkForMp4Index() ;	// a chunk is done: the walk of the MP4 boxes may move on
+		}
 		else
 		{
 			std::cerr << "Sum mismatch for chunk " << chunk_number << std::endl;
@@ -805,141 +807,134 @@ bool ftFileCreator::verifyChunk(uint32_t chunk_number,const Sha1CheckSum& sum)
 	return true ;
 }
 
-bool ftFileCreator::checkForMp4Index()
+void ftFileCreator::checkForMp4Index()
 {
-    int strat = (int)chunkMap.getStrategy();
+    // Only the Streaming strategy looks for the index.
+    if (chunkMap.getStrategy() != FileChunksInfo::CHUNK_STRATEGY_STREAMING)
+        return;
 
-    // STRICT RULE: Only active in STREAMING_PRIO_END
-    if (strat != FileChunksInfo::CHUNK_STRATEGY_STREAMING)
-    {
-#ifdef STREAMING_DEBUG
-         RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index ignored. Strategy=" << strat;
-#endif
-         return false;
-    }
+    if (_mp4_index_found || _mp4_scan_abandoned || fd == NULL)	// fd: nothing was written yet
+        return;
 
-    // Phase 2: Atom Parsing (Observer Mode)
-    if (_mp4_index_found) return true;
-
-    // The atom chain starts at offset 0. Until the head of the file has actually been
-    // received, reading it only returns the holes of the sparse partial file, so there is
-    // nothing to parse and no reason to touch the disk at all.
-
-    if (!chunkMap.isChunkAvailable(0, MP4_ATOM_HEADER_SIZE))
-        return false;
-
-    // We are called once per received data block and each walk re-opens the file, so bound
-    // the number of walks that end without a verdict.
-
-    if (++_mp4_scan_attempts > MP4_MAX_SCAN_ATTEMPTS)
-    {
-#ifdef STREAMING_DEBUG
-        RsDbg() << "STREAMING: giving up on the MP4 index of " << file_name << " after " << MP4_MAX_SCAN_ATTEMPTS << " scans";
-#endif
-        _mp4_scan_abandoned = true;
-        return false;
-    }
-
-#ifdef STREAMING_DEBUG
-    // Phase 1: Just log that we passed the guard
-    RsDbg() << "STREAMING: ftFileCreator::checkForMp4Index RUNNING. Strategy=" << strat << ". Parsing loop start.";
-#endif
-
-    // Open file to read atoms
-    FILE* f = fopen(file_name.c_str(), "rb");
-    if (!f)
-    {
-#ifdef STREAMING_DEBUG
-        RsDbg() << "STREAMING: Failed to open file " << file_name;
-#endif
-        return false;
-    }
-
-    uint64_t currentPos = 0;
-    
-    // MP4 Atom Header
-    struct {
-        uint32_t size;
-        char type[4];
-    } header;
-
-    int safe_loop_count = 0;
+    // Walk the top-level boxes from where the previous call stopped. The partial file is read
+    // through the handle of the creator itself (ftcMutex is held by the caller): no second
+    // open, and the same 64 bits seek as the rest of this class.
 
     while (true)
     {
-        if (fseek(f, currentPos, SEEK_SET) != 0 || fread(&header, 1, MP4_ATOM_HEADER_SIZE, f) != MP4_ATOM_HEADER_SIZE)
-            break;
+        // The end of the file was reached with neither mdat nor moov: nothing to prioritise.
 
-        // A file that does not even begin with an ISO-BMFF box will never become one: stop
-        // here for good rather than coming back at every single block of the transfer.
+        if (_mp4_scan_pos + MP4_ATOM_HEADER_SIZE > mSize)
+        {
+            _mp4_scan_abandoned = true;
+            return;
+        }
 
-        if (currentPos == 0 && !mp4LooksLikeIsoBmff(header.type))
+        // Never read a hole of the partial file: wait until the chunk that holds this header
+        // is done. This test only looks at the chunk map.
+
+        if (!chunkMap.isChunkAvailable(_mp4_scan_pos, MP4_ATOM_HEADER_SIZE))
+            return;
+
+        unsigned char header[MP4_ATOM_LARGE_HEADER_SIZE];
+
+        if (fseeko64(fd, _mp4_scan_pos, SEEK_SET) != 0 || fread(header, 1, MP4_ATOM_HEADER_SIZE, fd) != MP4_ATOM_HEADER_SIZE)
+        {
+            _mp4_scan_abandoned = true;
+            return;
+        }
+
+        const char *type = (const char *)header + 4;
+
+        // A file that does not begin with an ISO-BMFF box will never become one.
+
+        if (_mp4_scan_pos == 0 && !mp4LooksLikeIsoBmff(type))
         {
 #ifdef STREAMING_DEBUG
             RsDbg() << "STREAMING: " << file_name << " is not an ISO base media file. No preview.";
 #endif
             _mp4_scan_abandoned = true;
-            break;
+            return;
         }
 
-        uint32_t atomSize = rs_endian_fix(header.size);
-        uint64_t realAtomSize = atomSize;
+        uint32_t size32;
+        memcpy(&size32, header, 4);
 
-        if (atomSize == 1) {
-             uint64_t bigSize;
-             if (fread(&bigSize, 1, 8, f) == 8) realAtomSize = rs_endian_fix(bigSize);
+        uint64_t atomSize = rs_endian_fix(size32);
+        uint64_t headerSize = MP4_ATOM_HEADER_SIZE;
+
+        if (atomSize == 1)			// the real size is in the 64 bits field that follows
+        {
+            if (_mp4_scan_pos + MP4_ATOM_LARGE_HEADER_SIZE > mSize)
+            {
+                _mp4_scan_abandoned = true;
+                return;
+            }
+            if (!chunkMap.isChunkAvailable(_mp4_scan_pos, MP4_ATOM_LARGE_HEADER_SIZE))
+                return;			// the 64 bits field is in the next chunk: come back later
+
+            if (fread(header + MP4_ATOM_HEADER_SIZE, 1, 8, fd) != 8)
+            {
+                _mp4_scan_abandoned = true;
+                return;
+            }
+            uint64_t size64;
+            memcpy(&size64, header + 8, 8);
+
+            atomSize = rs_endian_fix(size64);
+            headerSize = MP4_ATOM_LARGE_HEADER_SIZE;
         }
+        else if (atomSize == 0)		// the box runs to the end of the file
+            atomSize = mSize - _mp4_scan_pos;
 
 #ifdef STREAMING_DEBUG
-        // Create a null-terminated string for logging safely
-        char typeStr[5] = {0};
-        memcpy(typeStr, header.type, 4);
-
-        RsDbg() << "STREAMING: Found atom '" << typeStr << "' at " << currentPos << " size " << realAtomSize;
+        RsDbg() << "STREAMING: found atom '" << std::string(type, 4) << "' at " << _mp4_scan_pos << " size " << atomSize;
 #endif
 
-        if (strncmp(header.type, "moov", 4) == 0) {
-#ifdef STREAMING_DEBUG
-            RsDbg() << "STREAMING: MOOV atom found at " << currentPos << " (Beginning of file?). Stop.";
-#endif
+        if (memcmp(type, "moov", 4) == 0)	// index before the data: plain in-order download is enough
+        {
             _mp4_index_found = true;
-            break;
+            return;
         }
 
-        if (strncmp(header.type, "mdat", 4) == 0) {
-            uint64_t predictedMoov = currentPos + realAtomSize;
-#ifdef STREAMING_DEBUG
-            RsDbg() << "STREAMING: MDAT found. Size: " << realAtomSize << ". Predicted MOOV at: " << predictedMoov;
-#endif
+        // A box smaller than its own header, or larger than what is left of the file, means
+        // that this is not a file we can walk.
 
-            // Phase 3: Actuation
-            // Calculate chunks covering the MOOV index (from predictedMoov to end of file)
-            uint32_t chunkSize = ChunkMap::CHUNKMAP_FIXED_CHUNK_SIZE; 
-            uint32_t startChunk = predictedMoov / chunkSize;
-            uint32_t endChunk   = mSize / chunkSize;
-            
-#ifdef STREAMING_DEBUG
-            RsDbg() << "STREAMING: Setting High Priority Range: " << startChunk << " -> " << endChunk;
-#endif
-            chunkMap.setHighPriorityRange(startChunk, endChunk);
-
-            _mp4_index_found = true; 
-            break;
+        if (atomSize < headerSize || atomSize > mSize - _mp4_scan_pos)
+        {
+            _mp4_scan_abandoned = true;
+            return;
         }
 
-        currentPos += realAtomSize;
-        if (realAtomSize == 0 || currentPos >= mSize) break; 
-        
-        if (++safe_loop_count > 50) {
+        if (memcmp(type, "mdat", 4) == 0)
+        {
+            // The index sits after the media data: fetch everything from there to the end of
+            // the file first.
+
+            uint64_t afterMdat = _mp4_scan_pos + atomSize;
+
+            if (afterMdat < mSize)
+            {
+                uint32_t startChunk = (uint32_t)(afterMdat   / (uint64_t)ChunkMap::CHUNKMAP_FIXED_CHUNK_SIZE);
+                uint32_t endChunk   = (uint32_t)((mSize - 1) / (uint64_t)ChunkMap::CHUNKMAP_FIXED_CHUNK_SIZE);
+
 #ifdef STREAMING_DEBUG
-             RsDbg() << "STREAMING: Safety break (too many atoms)";
+                RsDbg() << "STREAMING: setting high priority range " << startChunk << " -> " << endChunk;
 #endif
-             break;
+                chunkMap.setHighPriorityRange(startChunk, endChunk);
+            }
+            _mp4_index_found = true;
+            return;
+        }
+
+        _mp4_scan_pos += atomSize;
+
+        if (++_mp4_atoms_walked >= MP4_MAX_ATOMS)
+        {
+            _mp4_scan_abandoned = true;
+            return;
         }
     }
-
-    fclose(f);
-    return false;
 }
 
 

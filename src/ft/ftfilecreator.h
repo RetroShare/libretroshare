@@ -149,11 +149,11 @@ class ftFileCreator: public ftFileProvider
 		rstime_t _creation_time ;		/// time at which the file creator was created. Used to spot long-inactive transfers.
 
         // MP4 Smart Preview
-        bool _mp4_index_found;
-        uint64_t _mp4_index_offset;
-        bool _mp4_scan_abandoned;	/// the file is not a parseable MP4, or too many fruitless scans: stop looking
-        uint32_t _mp4_scan_attempts;	/// number of atom walks that ended without a conclusion
-        bool checkForMp4Index();
+        bool _mp4_index_found;		/// the walk reached mdat or moov: nothing more to look for
+        bool _mp4_scan_abandoned;	/// the file is not a walkable MP4: stop looking
+        uint64_t _mp4_scan_pos;		/// offset of the next top-level box header to read
+        uint32_t _mp4_atoms_walked;	/// number of top-level boxes walked so far
+        void checkForMp4Index();
 };
 
 #endif // FT_FILE_CREATOR_HEADER

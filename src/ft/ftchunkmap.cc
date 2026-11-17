@@ -604,8 +604,9 @@ uint32_t ChunkMap::getAvailableChunk(const RsPeerId& peer_id,bool& map_is_too_ol
 	{
 		uint32_t chosen_chunk_number ;
 
-        // Check high priority chunks first (regardless of strategy)
-        if (!_high_priority_chunks.empty())
+        // Streaming only: the chunks that hold the MP4 index come first. The mask is kept when
+        // the user switches to another strategy, and used again if they switch back.
+        if (_strategy == FileChunksInfo::CHUNK_STRATEGY_STREAMING && !_high_priority_chunks.empty())
         {
             for(uint32_t i=0; i<_map.size(); ++i)
             {
@@ -632,9 +633,8 @@ uint32_t ChunkMap::getAvailableChunk(const RsPeerId& peer_id,bool& map_is_too_ol
 																		    break ;
 			case FileChunksInfo::CHUNK_STRATEGY_STREAMING:
 																			 {
-                                                                                 // Legacy heuristic removed.
-                                                                                 // Now relies on _high_priority_chunks (checked above)
-                                                                                 // or falls back to standard streaming (0).
+                                                                                 // High priority chunks are served above;
+                                                                                 // the rest of the file comes in order.
 																				 chosen_chunk_number = 0 ;
 																			 }
 																			 break ;

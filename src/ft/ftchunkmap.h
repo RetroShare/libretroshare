@@ -178,7 +178,7 @@ class ChunkMap
       virtual void getAvailabilityMap(CompressedChunkMap& cmap) const ;
 		void setAvailabilityMap(const CompressedChunkMap& cmap) ;
 
-		/// Sets a range of chunks to be downloaded with high priority (checked before strategy)
+		/// Sets a range of chunks to be downloaded first by the Streaming strategy
 		void setHighPriorityRange(uint32_t startChunk, uint32_t endChunk);
 
 		/// Removes the source availability map. The map
