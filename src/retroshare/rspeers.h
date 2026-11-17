@@ -709,6 +709,9 @@ public:
 	/**
 	 * @brief Ignore a profile: connection attempts signed by this PGP key no
 	 *	longer raise security notifications. The list is kept across restarts.
+	 *	The own profile is refused. A profile leaves the list when it is made
+	 *	a friend.
+	 * @jsonapi{development}
 	 * @param[in] pgpId PGP id of the profile
 	 * @param[in] name name shown in the ignore list
 	 */
@@ -716,12 +719,14 @@ public:
 
 	/**
 	 * @brief Take a profile out of the ignore list
+	 * @jsonapi{development}
 	 * @param[in] pgpId PGP id of the profile
 	 */
 	virtual void removeFromIgnoreList(const RsPgpId& pgpId) = 0;
 
 	/**
 	 * @brief Tell whether a profile is in the ignore list
+	 * @jsonapi{development}
 	 * @param[in] pgpId PGP id of the profile
 	 * @return true if it is
 	 */
@@ -729,6 +734,7 @@ public:
 
 	/**
 	 * @brief Get the ignore list
+	 * @jsonapi{development}
 	 * @param[out] ids PGP ids of the ignored profiles, with their names
 	 */
 	virtual void getIgnoreList(std::map<RsPgpId, std::string>& ids) = 0;
