@@ -41,7 +41,7 @@
 #include "p3gxstunnel.h"
 
 #define DEBUG_GXS_TUNNEL_MANAGEMENT
-//#define DEBUG_GXS_TUNNEL_TRAFFIC
+#define DEBUG_GXS_TUNNEL_TRAFFIC
 #define DEBUG_GXS_TUNNEL_VPID
 
 static const uint32_t GXS_TUNNEL_KEEP_ALIVE_TIMEOUT = 6 ; // send keep alive packet so as to avoid tunnel breaks.
@@ -213,7 +213,7 @@ void p3GxsTunnelService::locked_updateTunnels()
 #endif
             tunnel.preferred_virtual_peer_id.clear() ;
 
-            new_tunnel_states[tunnel_it->first] = GxsTunnelStatus::REMOTELY_CLOSED;
+            new_tunnel_states[tunnel_it->first] = GxsTunnelStatus::TUNNEL_DN;
 
             // Also reset turtle router monitoring so as to make the tunnel handling more responsive. If we don't do that,
             // the TR will wait 60 secs for the tunnel to die, which causes a significant waiting time in the chat window.
@@ -248,7 +248,7 @@ void p3GxsTunnelService::locked_updateTunnels()
         }
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
         else
-            std::cerr << " ready. Status is " << static_cast<int>(dhinfo.status) << std::endl;
+            std::cerr << " ready. Status is " << static_cast<int>(dhinfo.status) << " tunnel id = " << dhinfo.tunnel_id << std::endl;
 #endif
 
         auto tunnel_it = _gxs_tunnel_contacts.find(dhinfo.tunnel_id);
@@ -271,7 +271,7 @@ void p3GxsTunnelService::locked_updateTunnels()
                 pinfo.direction = dhinfo.direction;
                 pinfo.hash = dhinfo.hash;
 
-                new_tunnel_states[tunnel_it->first] = GxsTunnelStatus::CAN_TALK;	// at least one vpid with DH done.
+                new_tunnel_states[dhinfo.tunnel_id] = GxsTunnelStatus::CAN_TALK;	// at least one vpid with DH done.
             }
             else
                 continue;	// we ignore this vpid because it's emitted locally, so if there's no tunnel, it means the tunnel was removed and the vpid can be let to die.
@@ -298,13 +298,37 @@ void p3GxsTunnelService::locked_updateTunnels()
 
     // 3 - go through tunnels again and compare the new state with the previous state. Make a notification appropriately
 
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
+    std::cerr << "Going through tunnel changes:" << std::endl;
+    for(auto cit:new_tunnel_states)
+        std::cerr << "  tunnel " << cit.first << ": new status " << static_cast<int>(cit.second) << std::endl;
+#endif
     for(auto tunnel_it =_gxs_tunnel_contacts.begin();tunnel_it!= _gxs_tunnel_contacts.end();++tunnel_it)
     {
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
+        std::cerr << "   " << tunnel_it->first << " : " ;
+#endif
         auto nit = new_tunnel_states.find(tunnel_it->first);
 
-        if(nit == new_tunnel_states.end() || nit->second == tunnel_it->second.status)	// nothing to do. That means the tunnel hasn't any change
+        if(nit == new_tunnel_states.end())
+        {
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
+            std::cerr << " No change recorded.  " << std::endl;
+#endif
             continue;
+        }
+        if(nit->second == tunnel_it->second.status)	// nothing to do. That means the tunnel hasn't any change
+        {
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
+            std::cerr << " state unchanged: " << static_cast<int>(nit->second) << std::endl;
+#endif
+            continue;
+        }
 
+#ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
+        std::cerr << " new state: " << static_cast<int>(nit->second)
+                  << " old state: " << static_cast<int>(tunnel_it->second.status) << std::endl;
+#endif
         tunnel_it->second.status = nit->second;
 
         for(auto cid:tunnel_it->second.client_services)
@@ -1545,11 +1569,11 @@ bool p3GxsTunnelService::locked_sendEncryptedTunnelData(RsGxsTunnelItem *item)
     uint8_t aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
     uint64_t IV = 0;
 
-#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
-    std::cerr << "Sending encrypted data to tunnel with vpid " << item->PeerId() << std::endl;
-#endif
-       
     RsGxsTunnelId tunnel_id ( item->PeerId() );
+
+#ifdef DEBUG_GXS_TUNNEL_TRAFFIC
+    std::cerr << "Sending encrypted data to tunnel " << tunnel_id << std::endl;
+#endif
     
     std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::iterator it = _gxs_tunnel_contacts.find(tunnel_id) ;
 
