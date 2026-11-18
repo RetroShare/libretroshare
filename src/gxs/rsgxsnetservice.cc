@@ -434,49 +434,11 @@ RsGxsNetService::~RsGxsNetService()
 
 int RsGxsNetService::tick()
 {
-	// Incoming items are handled by this service's own thread (threadTick): the sync request
-	// handlers read group and message metas from the database, which on a cold start means
-	// seconds of disk reads per request, and this tick runs on the thread shared by every service.
+	// Nothing is done here: this tick runs on the thread shared by every service and every peer
+	// link, and all the work of this service reads group metas from the database while holding
+	// mNxsMutex. When the database is busy (cold start, a large read on another thread) that
+	// wait lasted seconds, during which no peer and no service was served. See threadTick().
 
-    bool should_notify = false;
-
-    {
-	    RS_STACK_MUTEX(mNxsMutex) ;
-
-	    should_notify = should_notify || !mNewGroupsToNotify.empty() ;
-	    should_notify = should_notify || !mNewMessagesToNotify.empty() ;
-	    should_notify = should_notify || !mNewPublishKeysToNotify.empty() ;
-	    should_notify = should_notify || !mNewStatsToNotify.empty() ;
-        should_notify = should_notify || !mNewGrpSyncParamsToNotify.empty() ;
-    }
-
-    if(should_notify)
-        processObserverNotifications() ;
-
-    rstime_t now = time(NULL);
-    rstime_t elapsed = mSYNC_PERIOD + mSyncTs;
-
-    if((elapsed) < now)
-    {
-		checkUpdatesFromPeers();
-        syncGrpStatistics();
-		checkDistantSyncState();
-
-    	mSyncTs = now;
-    }
-
-    if(now > 10 + mLastKeyPublishTs)
-    {
-        sharePublishKeysPending() ;
-
-        mLastKeyPublishTs = now ;
-    }
-
-    if(now > 3600 + mLastCleanRejectedMessages)
-    {
-        mLastCleanRejectedMessages = now ;
-        cleanRejectedMessages() ;
-    }
     return 1;
 }
 
@@ -2045,6 +2007,49 @@ void RsGxsNetService::threadTick()
         runVetting();
 
         processExplicitGroupRequests();
+
+        // notifications to the observer and periodic sync requests: moved here from tick(), which
+        // must not wait for the database nor for mNxsMutex.
+
+        bool should_notify = false;
+
+        {
+            RS_STACK_MUTEX(mNxsMutex) ;
+
+            should_notify = should_notify || !mNewGroupsToNotify.empty() ;
+            should_notify = should_notify || !mNewMessagesToNotify.empty() ;
+            should_notify = should_notify || !mNewPublishKeysToNotify.empty() ;
+            should_notify = should_notify || !mNewStatsToNotify.empty() ;
+            should_notify = should_notify || !mNewGrpSyncParamsToNotify.empty() ;
+        }
+
+        if(should_notify)
+            processObserverNotifications() ;
+
+        rstime_t now = time(NULL);
+        rstime_t elapsed = mSYNC_PERIOD + mSyncTs;
+
+        if((elapsed) < now)
+        {
+            checkUpdatesFromPeers();
+            syncGrpStatistics();
+            checkDistantSyncState();
+
+            mSyncTs = now;
+        }
+
+        if(now > 10 + mLastKeyPublishTs)
+        {
+            sharePublishKeysPending() ;
+
+            mLastKeyPublishTs = now ;
+        }
+
+        if(now > 3600 + mLastCleanRejectedMessages)
+        {
+            mLastCleanRejectedMessages = now ;
+            cleanRejectedMessages() ;
+        }
 }
 
 void RsGxsNetService::debugDump()
