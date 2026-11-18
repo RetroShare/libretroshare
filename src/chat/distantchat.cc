@@ -64,6 +64,8 @@ uint32_t msecs_of_day()
 //static const uint32_t RS_DISTANT_CHAT_DH_STATUS_HALF_KEY_DONE = 0x0001 ;
 //static const uint32_t RS_DISTANT_CHAT_DH_STATUS_KEY_AVAILABLE = 0x0002 ;
 
+// This shouldn't be changed because peers on the network know that this is distant chat traffic when they see this ID.
+
 static const uint32_t DISTANT_CHAT_GXS_TUNNEL_SERVICE_ID = 0xa0001 ;
 
 DistantChatService::DistantChatService() :
