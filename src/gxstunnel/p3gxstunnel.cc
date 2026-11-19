@@ -605,22 +605,22 @@ void p3GxsTunnelService::handleRecvStatusItem(const RsGxsTunnelId& tunnel_id, Rs
 	    }
 
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
-	    std::cerr << "  Marking distant chat as remotely closed for tunnel id " << tunnel_id << std::endl;
+        std::cerr << "  Marking tunnel as remotely closed for tunnel id " << tunnel_id << std::endl;
 #endif
 	    if(it->second.direction == RsTurtleGenericDataItem::DIRECTION_CLIENT)
-            {
+        {
             it->second.status = GxsTunnelStatus::REMOTELY_CLOSED ;
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
-            	std::cerr << "  This is server side. The tunnel cannot be re-openned, so we give it up." << std::endl;
+                std::cerr << "  This is server side. The tunnel cannot be re-openned, so we give it up. It will die out of exhaustion" << std::endl;
 #endif
-            }
+        }
 	    else
-            {
+        {
             it->second.status = GxsTunnelStatus::TUNNEL_DN ;
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
             	std::cerr << "  This is client side. The tunnel will be re-openned automatically." << std::endl;
 #endif
-            }
+        }
 
         notifications.push_back(GxsTunnelStatus::REMOTELY_CLOSED) ;
     } // nothing more to do, because the decryption routing will update the last_contact time when decrypting.
