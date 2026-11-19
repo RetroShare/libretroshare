@@ -434,7 +434,7 @@ void p3GxsTunnelService::flush()
 
             it->second.last_keep_alive_sent = now ;
         #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
-            std::cerr << "(II) GxsTunnelService:: Sending keep alive packet to gxs id " << it->first << std::endl;
+            std::cerr << "(II) GxsTunnelService:: Sending keep alive packet to tunnel id " << it->first << std::endl;
         #endif
        }
 
@@ -782,8 +782,10 @@ void p3GxsTunnelService::addVirtualPeer(const TurtleFileHash& hash,const TurtleV
 
 	}
 
+    mVpidsChanged = true;
+
 #ifdef DEBUG_GXS_TUNNEL_VPID
-	std::cerr << "  Adding virtual peer " << virtual_peer_id << " for chat hash " << hash << std::endl;
+    std::cerr << "  Adding virtual peer " << virtual_peer_id << " for hash " << hash << std::endl;
 #endif
 
 	// Start a new DH session for this tunnel
@@ -795,7 +797,7 @@ void p3GxsTunnelService::addVirtualPeer(const TurtleFileHash& hash,const TurtleV
 void p3GxsTunnelService::locked_restartDHSession(const RsPeerId& virtual_peer_id,const RsGxsId& own_gxs_id)
 {
 #ifdef DEBUG_GXS_TUNNEL_VPID
-    std::cerr << "Starting new DH session." << std::endl;
+    std::cerr << "Starting new DH session for vpid " << virtual_peer_id << "." << std::endl;
 #endif
     GxsTunnelDHInfo& dhinfo = _gxs_tunnel_virtual_peer_ids[virtual_peer_id] ;	// creates it, if necessary
 
@@ -983,6 +985,7 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
 {
 #ifdef DEBUG_GXS_TUNNEL_TRAFFIC
     std::cerr << "p3GxsTunnelService::handleEncryptedDataItem()" << std::endl;
+    std::cerr << "   vpid = " << virtual_peer_id << std::endl;
     std::cerr << "   size = " << data_size << std::endl;
     std::cerr << "  &data = " << (void*)data_bytes << std::endl;
     std::cerr << "     IV = " << RsUtil::BinToHex((unsigned char*)data_bytes,8,8) << std::endl;
@@ -1018,6 +1021,11 @@ bool p3GxsTunnelService::handleEncryptedData(const uint8_t *data_bytes,uint32_t 
         {
             std::cerr << "(EE) item is not coming out of a registered tunnel. Weird. hash=" << hash << ", peer id = " << virtual_peer_id << std::endl;
             return false ;
+        }
+        if(vpid_it->second.status != GxsTunnelVirtualPeerIdStatus::DH_DONE)
+        {
+            std::cerr << "(EE) the vpid is not fully initialized: state=" << (int)vpid_it->second.status << ". This shouldn't happen" << std::endl;
+            return false;
         }
 
         tunnel_id = vpid_it->second.tunnel_id ;
@@ -1139,7 +1147,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     }
 
 #ifdef DEBUG_GXS_TUNNEL_VPID
-    std::cerr << "GxsTunnelService:  Received DH public key." << std::endl;
+    std::cerr << "GxsTunnelService:  Received DH public key for VPID " << vpid << "." << std::endl;
     item->print(std::cerr, 0) ;
 #endif
 
@@ -1250,6 +1258,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
     
     vpid_info.tunnel_id = tunnel_id ;
     vpid_info.to_gxs_id = senders_id ;
+    vpid_it->second.last_data_TS = time(nullptr);	// stamp the virtual peer id.
 
     mVpidsChanged = true;
 
@@ -1335,7 +1344,7 @@ void p3GxsTunnelService::handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item,
 #endif
 
 #ifdef DEBUG_GXS_TUNNEL_VPID
-    std::cerr << "  DH key computed. Tunnel is now secured!" << std::endl;
+    std::cerr << "  DH key computed. Connection to VPID " << vpid << " is now secured!" << std::endl;
     std::cerr << "  Key computed: " << RsUtil::BinToHex((char*)vpid_info.aes_key,16) << std::endl;
     std::cerr << "  Sending a ACK packet." << std::endl;
 #endif
@@ -1831,7 +1840,7 @@ void p3GxsTunnelService::startClientGxsTunnelConnection(const RsGxsId& to_gxs_id
 
     pinfo.last_contact = now ;
     pinfo.last_keep_alive_sent = now ;
-    pinfo.status = GxsTunnelStatus::UNKNOWN ;
+    pinfo.status = GxsTunnelStatus::TUNNEL_DN ;
     pinfo.own_gxs_id = from_gxs_id ;
     pinfo.to_gxs_id = to_gxs_id ;
     pinfo.hash = hash ;
