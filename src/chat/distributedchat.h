@@ -179,11 +179,14 @@ class DistributedChatService
 
 		// Lobby history retrieval: only DATA items answering a request we sent
 		// to that peer for that lobby are accepted, within a deadline and up to
-		// the number of messages we asked for.
+		// the number of messages we asked for and a total size.
 		struct PendingLobbyHistoryRequest
 		{
 			rstime_t deadline ;
+			uint32_t request_id ;	// data items of an earlier request to the same friend are refused
 			uint32_t remaining_msgs ;
+			uint32_t remaining_bytes ;
+			uint32_t oldest_ts ;	// lines older than what we asked for are refused
 		};
 		std::map<std::pair<ChatLobbyId,RsPeerId>,PendingLobbyHistoryRequest> mPendingLobbyHistoryRequests ;
 

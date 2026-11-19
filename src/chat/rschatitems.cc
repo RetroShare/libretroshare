@@ -244,6 +244,7 @@ void RsChatLobbyHistoryProbeResponseItem::serial_process(RsGenericSerializer::Se
 void RsChatLobbyHistoryRequestItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
 	RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_id,         "lobby_id") ;
+	RsTypeSerializer::serial_process<uint32_t>(j,ctx,request_id,       "request_id") ;
 	RsTypeSerializer::serial_process<uint32_t>(j,ctx,max_count,        "max_count") ;
 	RsTypeSerializer::serial_process<uint32_t>(j,ctx,oldest_timestamp, "oldest_timestamp") ;
 }
@@ -251,5 +252,7 @@ void RsChatLobbyHistoryRequestItem::serial_process(RsGenericSerializer::Serializ
 void RsChatLobbyHistoryDataItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
 	RsTypeSerializer::serial_process<uint64_t>(j,ctx,lobby_id,"lobby_id") ;
+	RsTypeSerializer::serial_process<uint32_t>(j,ctx,request_id,"request_id") ;
 	RsTypeSerializer::serial_process          (j,ctx,msgs,    "msgs") ;
+	RsTypeSerializer::serial_process<bool>    (j,ctx,last_chunk,"last_chunk") ;
 }

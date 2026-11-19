@@ -94,14 +94,19 @@ struct DistantChatPeerInfo : RsSerializable
     }
 };
 
-/// A single message entry transmitted as part of lobby history
+/// A single message entry transmitted as part of lobby history.
+/// The lines are not signed: author_id is only what the relaying friend
+/// claims. It is used to drop lines of banned identities and is never stored.
+/// Whether the relaying friend wrote or received a line is deliberately not
+/// transmitted: it would tell which lobby identity belongs to that friend.
 struct LobbyHistoryMsgEntry : RsSerializable
 {
-	RsGxsId  author_id;     // GXS identity of the message author
+	LobbyHistoryMsgEntry() : send_time(0) {}
+
+	RsGxsId  author_id;     // GXS identity of the message author, as claimed by the relaying friend
 	std::string nick;       // nickname of the author at time of sending
 	uint32_t send_time;     // original send timestamp
 	std::string message;    // message text content
-	bool     incoming;      // true if the message was received (not sent by us)
 
 	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx) override
 	{
@@ -109,7 +114,6 @@ struct LobbyHistoryMsgEntry : RsSerializable
 		RS_SERIAL_PROCESS(nick);
 		RS_SERIAL_PROCESS(send_time);
 		RS_SERIAL_PROCESS(message);
-		RS_SERIAL_PROCESS(incoming);
 	}
 };
 
@@ -274,7 +278,7 @@ enum class RsDistantChatEventCode: uint8_t
 
 struct RsChatLobbyEvent : RsEvent // This event handles events internal to the distributed chat system
 {
-    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsChatLobbyEventCode::UNKNOWN),mLobbyId(0),mTimeShift(0),mGenericCount(0) {}
+    RsChatLobbyEvent() : RsEvent(RsEventType::CHAT_SERVICE),mEventCode(RsChatLobbyEventCode::UNKNOWN),mLobbyId(0),mTimeShift(0),mGenericCount(0),mHistoryComplete(false) {}
     virtual ~RsChatLobbyEvent() override = default;
 
     RsChatLobbyEventCode mEventCode;
@@ -288,6 +292,7 @@ struct RsChatLobbyEvent : RsEvent // This event handles events internal to the d
     uint32_t mGenericCount; // Used for returning probe counts/timestamps
 
     std::vector<LobbyHistoryMsgEntry> mHistoryMsgs; // Passing history messages
+    bool mHistoryComplete; // CHAT_LOBBY_EVENT_HISTORY_DATA: nothing more will come from mPeerId for this request
 
     void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext &ctx) override {
 
@@ -302,6 +307,7 @@ struct RsChatLobbyEvent : RsEvent // This event handles events internal to the d
         RS_SERIAL_PROCESS(mTimeShift);
         RS_SERIAL_PROCESS(mGenericCount);
         RS_SERIAL_PROCESS(mHistoryMsgs);
+        RS_SERIAL_PROCESS(mHistoryComplete);
     }
 };
 
@@ -614,6 +620,12 @@ public:
      */
     virtual void setLobbyAutoSubscribe(const ChatLobbyId &lobby_id, const bool autoSubscribe) = 0 ;
 
+    /**
+     * @brief getLobbyAutoSubscribe get current value of auto subscribe
+     * @jsonapi{development}
+     * @param[in] lobby_id lobby to get value from
+     * @return wether lobby has auto subscribe enabled or disabled
+     */
     virtual bool getLobbyAutoSubscribe(const ChatLobbyId &lobby_id) = 0 ;
 
     /**
@@ -638,6 +650,7 @@ public:
 
     /**
      * @brief allowHistorySharing enable or disable sharing of chat history with friends
+     * @jsonapi{development}
      * @param[in] allow set to true to allow sharing, false to disallow
      * @return true on success
      */
@@ -645,6 +658,7 @@ public:
 
     /**
      * @brief isHistorySharingAllowed check if history sharing is allowed
+     * @jsonapi{development}
      * @return true if sharing is allowed, false otherwise
      */
     virtual bool isHistorySharingAllowed() const = 0 ;

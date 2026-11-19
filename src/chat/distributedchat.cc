@@ -28,6 +28,7 @@
 #include "util/rsprint.h"
 #include "util/rsmemory.h"
 #include "distributedchat.h"
+#include "chat/rschatitems.h"
 
 #include "pqi/p3historymgr.h"
 #include "retroshare/rspeers.h"
@@ -49,6 +50,10 @@ static const rstime_t		MAX_KEEP_MSG_RECORD                 = 1200 ; // keep msg 
 static const rstime_t	 	MAX_KEEP_INACTIVE_NICKNAME          =  180 ; // keep inactive nicknames for 3 mn max.
 static const rstime_t		LOBBY_HISTORY_REQUEST_TIMEOUT       =  120 ; // accept history DATA for 2 mn after the request
 static const uint32_t		LOBBY_HISTORY_MAX_MSGS              = 5000 ; // max messages served / accepted per request
+static const uint32_t		LOBBY_HISTORY_MAX_BYTES             = 16*1024*1024 ; // max payload served / accepted per request
+static const uint32_t		LOBBY_HISTORY_MAX_NICK_SIZE         =  200 ; // max size of the nickname of a relayed line
+static const rstime_t		LOBBY_HISTORY_MAX_FUTURE_TIME       =  600 ; // same tolerance as for live lobby messages
+static const std::string	LOBBY_HISTORY_RELAYED_TAG           = " (relayed)" ; // marks lines obtained from a friend's history
 static const rstime_t		LOBBY_HISTORY_MIN_SERVE_INTERVAL    =   30 ; // answer a friend's probe / request once per 30 secs and lobby
 static const rstime_t  		MAX_DELAY_BETWEEN_LOBBY_KEEP_ALIVE  =  120 ; // send keep alive packet every 2 minutes.
 static const rstime_t 		MAX_KEEP_PUBLIC_LOBBY_RECORD        =   60 ; // keep inactive lobbies records for 60 secs max.
@@ -2351,8 +2356,14 @@ bool DistributedChatService::processLoadListItem(const RsItem *item)
 
 /***************** Lobby History Retrieval Protocol *****************/
 
-#include "chat/rschatitems.h"
-#include "pqi/p3historymgr.h"
+// A line we got from a friend's history carries the mark at the end of its
+// nickname. The size limit applies to the nickname without the mark, so that
+// such a line can be served again.
+static bool lobbyHistoryNickIsMarked(const std::string& nick)
+{
+	return nick.size() >= LOBBY_HISTORY_RELAYED_TAG.size()
+	    && nick.compare(nick.size() - LOBBY_HISTORY_RELAYED_TAG.size(), LOBBY_HISTORY_RELAYED_TAG.size(), LOBBY_HISTORY_RELAYED_TAG) == 0 ;
+}
 
 bool DistributedChatService::requestLobbyHistory(const ChatLobbyId& lobby_id, const std::set<RsPeerId>& peer_ids)
 {
@@ -2406,7 +2417,9 @@ void DistributedChatService::handleRecvLobbyHistoryProbe(RsChatLobbyHistoryProbe
 
 		if(!isLobbyParticipatingFriend_locked(item->lobby_id, item->PeerId()))
 		{
-			RsWarn() << "handleRecvLobbyHistoryProbe(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." ;
+#ifdef DEBUG_CHAT_LOBBIES
+			std::cerr << "handleRecvLobbyHistoryProbe(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." << std::endl;
+#endif
 			return ;
 		}
 
@@ -2421,8 +2434,9 @@ void DistributedChatService::handleRecvLobbyHistoryProbe(RsChatLobbyHistoryProbe
 	uint32_t available_count = (uint32_t)msgs.size() ;
 	uint32_t oldest_ts = 0 ;
 
-	if(!msgs.empty())
-		oldest_ts = msgs.front().sendTime ;
+	for(std::list<HistoryMsg>::const_iterator it(msgs.begin()); it != msgs.end(); ++it)
+		if(oldest_ts == 0 || it->sendTime < oldest_ts)
+			oldest_ts = it->sendTime ;
 
 	// Send response back to the requesting peer
 	RsChatLobbyHistoryProbeResponseItem *response = new RsChatLobbyHistoryProbeResponseItem ;
@@ -2448,6 +2462,13 @@ void DistributedChatService::handleRecvLobbyHistoryProbeResponse(RsChatLobbyHist
 	          << ", oldest TS=" << item->oldest_timestamp << std::endl;
 #endif
 
+	{
+		RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
+
+		if(!isLobbyParticipatingFriend_locked(item->lobby_id, item->PeerId()))
+			return ;
+	}
+
 	auto ev = std::make_shared<RsChatLobbyEvent>();
 	ev->mEventCode = RsChatLobbyEventCode::CHAT_LOBBY_EVENT_HISTORY_PROBE_RESPONSE;
 	ev->mPeerId       = item->PeerId() ;
@@ -2469,21 +2490,33 @@ bool DistributedChatService::requestLobbyHistoryFromPeer(const ChatLobbyId& lobb
 		return false ;
 	}
 
-	if(!mServControl->isPeerConnected(mServType, peer_id))
+	if(it->second.participating_friends.find(peer_id) == it->second.participating_friends.end() || !mServControl->isPeerConnected(mServType, peer_id))
 	{
-		RsErr() << "requestLobbyHistoryFromPeer(): peer " << peer_id << " is not connected." ;
+		RsErr() << "requestLobbyHistoryFromPeer(): peer " << peer_id << " is not a connected friend participating in lobby " << std::hex << lobby_id << std::dec << "." ;
 		return false ;
 	}
 
 	if(max_count == 0 || max_count > LOBBY_HISTORY_MAX_MSGS)
 		max_count = LOBBY_HISTORY_MAX_MSGS ;
 
+	rstime_t now = time(NULL) ;
+
+	for(auto pit = mPendingLobbyHistoryRequests.begin(); pit != mPendingLobbyHistoryRequests.end();)
+		if(pit->second.deadline < now)
+			pit = mPendingLobbyHistoryRequests.erase(pit) ;
+		else
+			++pit ;
+
 	PendingLobbyHistoryRequest& pending(mPendingLobbyHistoryRequests[std::make_pair(lobby_id, peer_id)]) ;
-	pending.deadline       = time(NULL) + LOBBY_HISTORY_REQUEST_TIMEOUT ;
-	pending.remaining_msgs = max_count ;
+	pending.deadline        = now + LOBBY_HISTORY_REQUEST_TIMEOUT ;
+	pending.request_id      = RSRandom::random_u32() ;
+	pending.remaining_msgs  = max_count ;
+	pending.remaining_bytes = LOBBY_HISTORY_MAX_BYTES ;
+	pending.oldest_ts       = oldest_ts ;
 
 	RsChatLobbyHistoryRequestItem *request = new RsChatLobbyHistoryRequestItem ;
 	request->lobby_id = lobby_id ;
+	request->request_id = pending.request_id ;
 	request->max_count = max_count ;
 	request->oldest_timestamp = oldest_ts ;
 	request->PeerId(peer_id) ;
@@ -2511,7 +2544,9 @@ void DistributedChatService::handleRecvLobbyHistoryRequest(RsChatLobbyHistoryReq
 
 		if(!isLobbyParticipatingFriend_locked(item->lobby_id, item->PeerId()))
 		{
-			RsWarn() << "handleRecvLobbyHistoryRequest(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." ;
+#ifdef DEBUG_CHAT_LOBBIES
+			std::cerr << "handleRecvLobbyHistoryRequest(): peer " << item->PeerId() << " is not a participant of lobby " << std::hex << item->lobby_id << std::dec << ". Ignoring." << std::endl;
+#endif
 			return ;
 		}
 
@@ -2519,66 +2554,78 @@ void DistributedChatService::handleRecvLobbyHistoryRequest(RsChatLobbyHistoryReq
 			return ;
 	}
 
-	// Retrieve local history
-	std::list<HistoryMsg> msgs ;
 	uint32_t max_count = item->max_count ;
 	if(max_count == 0 || max_count > LOBBY_HISTORY_MAX_MSGS)
 		max_count = LOBBY_HISTORY_MAX_MSGS ;
 
-	mHistMgr->getMessages(ChatId(item->lobby_id), msgs, max_count) ;
+	// Retrieve the local history, oldest first, and keep the most recent
+	// max_count lines that are not older than what is asked for.
+	std::list<HistoryMsg> msgs ;
+	mHistMgr->getMessages(ChatId(item->lobby_id), msgs, 0) ;
+
+	for(std::list<HistoryMsg>::iterator it(msgs.begin()); it != msgs.end();)
+		if(it->sendTime < item->oldest_timestamp)
+			it = msgs.erase(it) ;
+		else
+			++it ;
+
+	while(msgs.size() > max_count)
+		msgs.pop_front() ;
+
+	// Items must stay well under the maximum packet size (RsSerialiser::MAX_SERIAL_SIZE).
+	const size_t MAX_CHUNK_SIZE = 120 * 1024;
 
 	RsChatLobbyHistoryDataItem *data_item = new RsChatLobbyHistoryDataItem ;
 	data_item->lobby_id = item->lobby_id ;
+	data_item->request_id = item->request_id ;
 	data_item->PeerId(item->PeerId()) ;
 	size_t count = 0;
+	size_t total_size = 0;
 	size_t current_chunk_size = 0;
-	const size_t MAX_CHUNK_SIZE = 120 * 1024; // ~120 KB to stay safely under 128KB limit
 
 	for(std::list<HistoryMsg>::const_iterator it(msgs.begin()); it != msgs.end(); ++it)
 	{
-		if(it->sendTime >= item->oldest_timestamp)
-		{
-			LobbyHistoryMsgEntry entry ;
-			// HistoryMsg only stores the author's nick (peerName) and peerId, not the GXS ID.
-			entry.author_id = RsGxsId() ;
-			entry.nick      = it->peerName ;
-			entry.send_time = it->sendTime ;
-			entry.message   = it->message ;
-			entry.incoming  = it->incoming ;
+		// Approximate serialised size of this entry: author id, nick, timestamp, message, plus overhead.
+		size_t entry_size = 32 + it->peerName.size() + 4 + it->message.size() + 50;
 
-			// Calculate approximate size of this entry
-			// author_id (std::string approx 32 bytes) + nick + timestamp (4 bytes) + message + incoming (1 byte)
-			size_t entry_size = 32 + entry.nick.size() + 4 + entry.message.size() + 1 + 50; // +50 for serialization overhead
+		if(entry_size > MAX_CHUNK_SIZE)		// cannot be sent, and would be refused by the receiver anyway
+			continue ;
 
-			// If adding this message exceeds the chunk size (and the chunk isn't empty), send the current chunk first
-			if (current_chunk_size + entry_size > MAX_CHUNK_SIZE && !data_item->msgs.empty()) {
+		if(total_size + entry_size > LOBBY_HISTORY_MAX_BYTES)
+			break ;
+
+		// If adding this message exceeds the chunk size (and the chunk isn't empty), send the current chunk first
+		if (current_chunk_size + entry_size > MAX_CHUNK_SIZE && !data_item->msgs.empty()) {
 #ifdef DEBUG_CHAT_LOBBIES
-				std::cerr << "handleRecvLobbyHistoryRequest(): sending chunk of " << data_item->msgs.size() << " msgs (" << current_chunk_size << " bytes) to " << item->PeerId() << std::endl;
+			std::cerr << "handleRecvLobbyHistoryRequest(): sending chunk of " << data_item->msgs.size() << " msgs (" << current_chunk_size << " bytes) to " << item->PeerId() << std::endl;
 #endif
-				sendChatItem(data_item) ;
-				
-				// Create a new data item for the next chunk
-				data_item = new RsChatLobbyHistoryDataItem ;
-				data_item->lobby_id = item->lobby_id ;
-				data_item->PeerId(item->PeerId()) ;
-				current_chunk_size = 0;
-			}
+			sendChatItem(data_item) ;
 
-			data_item->msgs.push_back(entry) ;
-			current_chunk_size += entry_size;
-			count++;
+			// Create a new data item for the next chunk
+			data_item = new RsChatLobbyHistoryDataItem ;
+			data_item->lobby_id = item->lobby_id ;
+			data_item->request_id = item->request_id ;
+			data_item->PeerId(item->PeerId()) ;
+			current_chunk_size = 0;
 		}
+
+		LobbyHistoryMsgEntry entry ;
+		// For a lobby, the history stores the GXS id of the author in peerId.
+		// It is null for the lines we got from a friend's history ourselves.
+		entry.author_id = RsGxsId(it->peerId) ;
+		entry.nick      = it->peerName ;
+		entry.send_time = it->sendTime ;
+		entry.message   = it->message ;
+
+		data_item->msgs.push_back(entry) ;
+		current_chunk_size += entry_size;
+		total_size += entry_size;
+		count++;
 	}
 
-	if (!data_item->msgs.empty()) {
-#ifdef DEBUG_CHAT_LOBBIES
-		std::cerr << "handleRecvLobbyHistoryRequest(): sending final chunk of " << data_item->msgs.size() << " msgs to " << item->PeerId() << std::endl;
-#endif
-		sendChatItem(data_item) ;
-	} else {
-		// Clean up the unused item if we sent everything cleanly in batches, or if there were 0 messages.
-		delete data_item;
-	}
+	// The last item is always sent, even empty, so that the requester knows the transfer is over.
+	data_item->last_chunk = true ;
+	sendChatItem(data_item) ;
 
 #ifdef DEBUG_CHAT_LOBBIES
 	std::cerr << "handleRecvLobbyHistoryRequest(): finished. Sent a total of " << count << " messages." << std::endl;
@@ -2594,13 +2641,18 @@ void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataIt
 	          << " for lobby " << std::hex << item->lobby_id << std::dec << std::endl;
 #endif
 
+	rstime_t now = time(NULL) ;
+	uint32_t max_msg_size = rsChats->getMaxMessageSecuritySize(RS_CHAT_TYPE_LOBBY) ;
+
 	// Only accept DATA answering a pending request we sent to this very peer
-	// for this lobby, and never more messages than we asked for.
+	// for this lobby, and never more than we asked for. The lines are not
+	// signed, so each one goes through the checks a live lobby message gets,
+	// as far as they apply.
 	std::vector<LobbyHistoryMsgEntry> accepted_msgs ;
+	bool complete = false ;
+	uint32_t dropped = 0 ;
 	{
 		RsStackMutex stack(mDistributedChatMtx); /********** STACK LOCKED MTX ******/
-
-		rstime_t now = time(NULL) ;
 
 		for(auto pit = mPendingLobbyHistoryRequests.begin(); pit != mPendingLobbyHistoryRequests.end();)
 			if(pit->second.deadline < now)
@@ -2610,65 +2662,117 @@ void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataIt
 
 		auto pit = mPendingLobbyHistoryRequests.find(std::make_pair(item->lobby_id, item->PeerId())) ;
 
-		if(pit == mPendingLobbyHistoryRequests.end() || _chat_lobbys.find(item->lobby_id) == _chat_lobbys.end())
+		if(pit == mPendingLobbyHistoryRequests.end() || pit->second.request_id != item->request_id || _chat_lobbys.find(item->lobby_id) == _chat_lobbys.end())
 		{
-			RsWarn() << "handleRecvLobbyHistoryData(): unsolicited history from peer " << item->PeerId() << " for lobby " << std::hex << item->lobby_id << std::dec << ". Dropping." ;
+#ifdef DEBUG_CHAT_LOBBIES
+			std::cerr << "handleRecvLobbyHistoryData(): unsolicited history from peer " << item->PeerId() << " for lobby " << std::hex << item->lobby_id << std::dec << ". Dropping." << std::endl;
+#endif
 			return ;
 		}
 
-		uint32_t n = std::min<uint32_t>(pit->second.remaining_msgs, item->msgs.size()) ;
+		PendingLobbyHistoryRequest& pending(pit->second) ;
 
-		if(n < item->msgs.size())
-			RsWarn() << "handleRecvLobbyHistoryData(): peer " << item->PeerId() << " sent more messages than requested. Dropping " << item->msgs.size() - n << " of them." ;
+		for(const LobbyHistoryMsgEntry& m : item->msgs)
+		{
+			if(pending.remaining_msgs == 0)
+			{
+				++dropped ;
+				continue ;
+			}
+			--pending.remaining_msgs ;	// refused lines count too
 
-		accepted_msgs.assign(item->msgs.begin(), item->msgs.begin() + n) ;
-		pit->second.remaining_msgs -= n ;
+			size_t size = m.nick.size() + m.message.size() ;
 
-		if(pit->second.remaining_msgs == 0)
+			if(size > pending.remaining_bytes)
+			{
+				pending.remaining_msgs = 0 ;
+				++dropped ;
+				continue ;
+			}
+			pending.remaining_bytes -= size ;
+
+			if(    m.message.empty()
+			    || (max_msg_size > 0 && m.message.size() > max_msg_size)
+			    || m.message.find("<!") != std::string::npos				// same filter as p3ChatService::checkForMessageSecurity()
+			    || m.nick.size() > LOBBY_HISTORY_MAX_NICK_SIZE + (lobbyHistoryNickIsMarked(m.nick) ? LOBBY_HISTORY_RELAYED_TAG.size() : 0)
+			    || m.send_time == 0
+			    || m.send_time < pending.oldest_ts
+			    || (rstime_t)m.send_time > now + LOBBY_HISTORY_MAX_FUTURE_TIME )
+			{
+				++dropped ;
+				continue ;
+			}
+
+			accepted_msgs.push_back(m) ;
+		}
+
+		complete = item->last_chunk || pending.remaining_msgs == 0 ;
+
+		if(complete)
 			mPendingLobbyHistoryRequests.erase(pit) ;
 	}
 
-	// The sender's own messages are flagged outgoing from its point of view:
-	// a relayed line must never be displayed as written by us.
-	// Record which friend relayed each line, so that the origin of the
-	// information stays visible in our history, also after a restart.
-	std::string relay_name = rsPeers->getPeerName(item->PeerId()) ;
-	if(relay_name.empty())
-		relay_name = item->PeerId().toStdString() ;
+#ifdef DEBUG_CHAT_LOBBIES
+	if(dropped > 0)
+		std::cerr << "handleRecvLobbyHistoryData(): dropped " << dropped << " invalid or unrequested history lines sent by peer " << item->PeerId() << std::endl;
+#else
+	(void) dropped ;
+#endif
 
-	for(auto& m : accepted_msgs)
+	// The claimed author is only used to drop the lines of banned identities.
+	// It is then cleared: an unsigned line must never be stored nor shown
+	// under a real identity. The nickname gets a fixed mark instead, that does
+	// not name the friend who relayed the line, since our own history may in
+	// turn be served to other friends.
+	for(auto it = accepted_msgs.begin(); it != accepted_msgs.end();)
 	{
-		m.incoming = true ;
-		m.nick += " (via " + relay_name + ")" ;
+		if(!it->author_id.isNull() && rsReputations->overallReputationLevel(it->author_id) == RsReputationLevel::LOCALLY_NEGATIVE)
+		{
+			it = accepted_msgs.erase(it) ;
+			continue ;
+		}
+		it->author_id.clear() ;
+
+		if(!lobbyHistoryNickIsMarked(it->nick))
+			it->nick += LOBBY_HISTORY_RELAYED_TAG ;
+
+		++it ;
 	}
 
-	// Deduplicate and save to local history database
+	// Deduplicate and save to local history database. Lines older than our
+	// own storage period are still handed to the GUI, but not stored: they
+	// would be removed at the next cleaning anyway.
 	std::list<HistoryMsg> existingMsgs;
 	mHistMgr->getMessages(ChatId(item->lobby_id), existingMsgs, 0);
-	
+
 	std::set<std::pair<uint32_t, std::string> > existingSet;
 	for (std::list<HistoryMsg>::const_iterator it = existingMsgs.begin(); it != existingMsgs.end(); ++it) {
 		existingSet.insert(std::make_pair(it->sendTime, it->message));
 	}
 
+	uint32_t max_storage_duration = mHistMgr->getMaxStorageDuration() ;
+
 	int addedCount = 0;
 	for (std::vector<LobbyHistoryMsgEntry>::const_iterator it = accepted_msgs.begin(); it != accepted_msgs.end(); ++it) {
+		if (max_storage_duration > 0 && (rstime_t)it->send_time + max_storage_duration < now)
+			continue ;
+
 		if (existingSet.find(std::make_pair(it->send_time, it->message)) == existingSet.end()) {
 			// Not a duplicate
 			ChatMessage cm;
 			cm.chat_id = ChatId(item->lobby_id);
-			cm.lobby_peer_gxs_id = it->author_id;
+			cm.lobby_peer_gxs_id.clear();
 			cm.peer_alternate_nickname = it->nick;
-			cm.chatflags = 0; 
+			cm.chatflags = 0;
 			cm.sendTime = it->send_time;
-			cm.recvTime = it->send_time; // Keep the original send_time for chronological sorting
+			cm.recvTime = it->send_time; // The history of a lobby is ordered on recvTime: puts the line at its original place
 			cm.msg = it->message;
-			cm.incoming = it->incoming;
+			cm.incoming = true;	// a relayed line must never be displayed as written by us
 			cm.online = true;
 
 			mHistMgr->addMessage(cm);
 			addedCount++;
-			
+
 			// Add to our set just in case the received chunk contains duplicates within itself
 			existingSet.insert(std::make_pair(it->send_time, it->message));
 		}
@@ -2683,6 +2787,7 @@ void DistributedChatService::handleRecvLobbyHistoryData(RsChatLobbyHistoryDataIt
 	ev->mPeerId    = item->PeerId() ;
 	ev->mLobbyId   = item->lobby_id ;
 	ev->mHistoryMsgs = accepted_msgs ; // Copy the accepted messages to the event
+	ev->mHistoryComplete = complete ;
 	rsEvents->postEvent(ev);
 }
 

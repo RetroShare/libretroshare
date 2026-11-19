@@ -31,6 +31,9 @@
 #include "rsserver/p3face.h"
 #include "util/rsstring.h"
 
+#include <algorithm>
+#include <vector>
+
 /****
  * #define HISTMGR_DEBUG 1
  ***/
@@ -150,8 +153,21 @@ void p3HistoryMgr::addMessage(const ChatMessage& cm)
 
 			if (limit) {
 				while (mit->second.size() > limit) {
-					delete(mit->second.begin()->second);
-					mit->second.erase(mit->second.begin());
+					std::map<uint32_t, RsHistoryMsgItem*>::iterator oldest = mit->second.begin();
+
+					// A lobby can hold lines retrieved from a friend's history:
+					// they are stored last but dated at their original time, so
+					// the oldest message is not always the first one.
+					if (cm.chat_id.isLobbyId())
+						for (std::map<uint32_t, RsHistoryMsgItem*>::iterator lit = mit->second.begin(); lit != mit->second.end(); ++lit)
+							if (lit->second->recvTime < oldest->second->recvTime)
+								oldest = lit;
+
+					if (oldest->first == addMsgId)
+						addMsgId = 0;	// the new message is older than all the others: not kept, nothing to notify
+
+					delete(oldest->second);
+					mit->second.erase(oldest);
 				}
 			}
 		} else {
@@ -490,23 +506,30 @@ bool p3HistoryMgr::getMessages(const ChatId &chatId, std::list<HistoryMsg> &msgs
     std::cerr << "Getting history for virtual peer " << chatPeerId << std::endl;
 #endif
 
-	uint32_t foundCount = 0;
-
 	std::map<RsPeerId, std::map<uint32_t, RsHistoryMsgItem*> >::iterator mit = mMessages.find(chatPeerId);
 
 	if (mit != mMessages.end()) 
 	{
-		std::map<uint32_t, RsHistoryMsgItem*>::reverse_iterator lit;
+		std::vector<const RsHistoryMsgItem*> items;
+		items.reserve(mit->second.size());
 
-		for (lit = mit->second.rbegin(); lit != mit->second.rend(); ++lit)
+		for (std::map<uint32_t, RsHistoryMsgItem*>::const_iterator lit = mit->second.begin(); lit != mit->second.end(); ++lit)
+			items.push_back(lit->second);
+
+		// A lobby can hold lines retrieved from a friend's history: they are
+		// stored last but dated at their original time. Ordering on recvTime
+		// puts them back in place and leaves the other lines, received in
+		// that order, where they are.
+		if (chatId.isLobbyId())
+			std::stable_sort(items.begin(), items.end(), [](const RsHistoryMsgItem* a, const RsHistoryMsgItem* b) { return a->recvTime < b->recvTime; });
+
+		size_t first = (loadCount && items.size() > loadCount) ? (items.size() - loadCount) : 0;
+
+		for (size_t i = first; i < items.size(); ++i)
 		{
 			HistoryMsg msg;
-			convertMsg(lit->second, msg);
-			msgs.insert(msgs.begin(), msg);
-			foundCount++;
-			if (loadCount && foundCount >= loadCount) {
-				break;
-			}
+			convertMsg(items[i], msg);
+			msgs.push_back(msg);
 		}
 	}
 #ifdef HISTMGR_DEBUG

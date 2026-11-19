@@ -92,6 +92,7 @@ const uint8_t QOS_PRIORITY_RS_HEARTBEAT_PULSE           = 8 ;
 // Chat/Msgs
 //
 const uint8_t QOS_PRIORITY_RS_CHAT_ITEM                 = 7 ;
+const uint8_t QOS_PRIORITY_RS_CHAT_HISTORY_DATA         = 3 ;
 const uint8_t QOS_PRIORITY_RS_CHAT_AVATAR_ITEM          = 2 ;
 const uint8_t QOS_PRIORITY_RS_MSG_ITEM                  = 2 ;  // deprecated
 const uint8_t QOS_PRIORITY_RS_MAIL_ITEM                 = 2 ;  // new mail service
