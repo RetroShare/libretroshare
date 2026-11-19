@@ -174,6 +174,11 @@ class ftDataMultiplex: public ftDataRecv, public RsQueueThread
 
 		RsMutex dataMtx;
 
+		/* Held while a provider found in mServers / mClients is read from disk
+		 * without dataMtx, and by every function that deletes a provider or
+		 * lets its owner delete it. Always taken before dataMtx. */
+		RsMutex mProviderUseMtx;
+
 		std::map<RsFileHash, ftClient> mClients;
 		std::map<RsFileHash, ftFileProvider *> mServers;
 

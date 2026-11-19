@@ -50,6 +50,9 @@ class ftFileCreator: public ftFileProvider
 
 		/* overloaded from FileProvider */
         virtual bool 	getFileData(const RsPeerId& peer_id,uint64_t offset, uint32_t &chunk_size, void *data, bool allow_unverified = false);
+
+		/* The file is written through fd while it is read: reads stay under ftcMutex. */
+		bool fileIsWrittenTo() const override { return true; }
 		bool	finished() ;
 		uint64_t getRecvd();
 

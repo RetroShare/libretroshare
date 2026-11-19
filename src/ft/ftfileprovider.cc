@@ -47,7 +47,7 @@
 static const rstime_t UPLOAD_CHUNK_MAPS_TIME = 20 ;	// time to ask for a new chunkmap from uploaders in seconds.
 
 ftFileProvider::ftFileProvider(const std::string& path, uint64_t size, const RsFileHash& hash)
-	: mSize(size), hash(hash), file_name(path), fd(NULL), ftcMutex("ftFileProvider")
+	: mSize(size), hash(hash), file_name(path), fd(NULL), ftcMutex("ftFileProvider"), mReadMtx("ftFileProvider read")
 {
 	RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
 
@@ -58,6 +58,7 @@ ftFileProvider::ftFileProvider(const std::string& path, uint64_t size, const RsF
 
 ftFileProvider::~ftFileProvider()
 {
+	RS_STACK_MUTEX(mReadMtx); // no read in progress on fd
 	RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
 #ifdef DEBUG_FT_FILE_PROVIDER
 	std::cout << "ftFileProvider::~ftFileProvider(): Destroying file provider for " << hash << std::endl ;
@@ -172,89 +173,104 @@ bool ftFileProvider::getFileData(const RsPeerId& peer_id,uint64_t offset, uint32
 		if (!initializeFileAttrs())
 			return false;
 
-	RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
+	/* The disk read of a plain provider is done without ftcMutex: on a slow or
+	 * busy disk it lasts seconds, and FileDetails(), purgeOldPeers() and the
+	 * chunk map calls, which the GUI and the main loop reach through
+	 * ftDataMultiplex, must not wait for it. A file that is also written
+	 * through fd (ftFileCreator) keeps its reads under ftcMutex. */
 
-	/* 
-	 * FIXME: Warning of comparison between unsigned and signed int?
-	 */
+	const bool read_under_ftc_mutex = fileIsWrittenTo();
+	uint32_t data_size = 0;
+	FILE *read_fd = NULL;
 
-	if(offset >= mSize)
 	{
-		std::cerr << "ftFileProvider::getFileData(): request (" << offset << ") exceeds file size (" << mSize << "! " << std::endl;
-		return false ;
-	}
+		RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
 
-	uint32_t data_size    = chunk_size;
-	uint64_t base_loc     = offset;
-	
-	if (base_loc + data_size > mSize)
-	{
-		data_size = mSize - base_loc;
-		chunk_size = mSize - base_loc;
-		std::cerr <<"Chunk Size greater than total file size, adjusting chunk size " << data_size << std::endl;
-	}
-
-	if(data_size > 0 && data != NULL)
-	{	
-		/*
-		 * seek for base_loc 
-		 */
-        if(fseeko64(fd, base_loc, SEEK_SET) == -1)
-        {
-            #ifdef DEBUG_FT_FILE_PROVIDER
-            std::cerr << "ftFileProvider::getFileData() Failed to seek. Data_size=" << data_size << ", base_loc=" << base_loc << " !" << std::endl;
-            #endif
-            //free(data); No!! It's already freed upwards in ftDataMultiplex::locked_handleServerRequest()
-            return 0;
-        }
-
-		// Data space allocated by caller.
-		//void *data = malloc(chunk_size);
-		
-		/* 
-		 * read the data 
-                 */
-		
-		if (1 != fread(data, data_size, 1, fd))
+		if(offset >= mSize)
 		{
-                        #ifdef DEBUG_FT_FILE_PROVIDER
-                        std::cerr << "ftFileProvider::getFileData() Failed to get data. Data_size=" << data_size << ", base_loc=" << base_loc << " !" << std::endl;
-                        #endif
-			//free(data); No!! It's already freed upwards in ftDataMultiplex::locked_handleServerRequest()
-			return 0;
+			std::cerr << "ftFileProvider::getFileData(): request (" << offset << ") exceeds file size (" << mSize << "! " << std::endl;
+			return false ;
 		}
 
-		/* 
-		 * Update status of ftFileStatus to reflect last usage (for GUI display)
-		 * We need to store.
-		 * (a) Id, 
-		 * (b) Offset, 
-		 * (c) Size, 
-		 * (d) timestamp
-		 */
+		data_size = chunk_size;
 
-		// This creates the peer info, and updates it.
-		//
-		rstime_t now = time(NULL) ;
-		uploading_peers[peer_id].updateStatus(offset,data_size,now) ;
+		if (offset + data_size > mSize)
+		{
+			data_size = mSize - offset;
+			chunk_size = mSize - offset;
+			std::cerr <<"Chunk Size greater than total file size, adjusting chunk size " << data_size << std::endl;
+		}
+
+		if(data_size == 0 || data == NULL)
+		{
+			std::cerr << "No data to read, or NULL buffer used" << std::endl;
+			return false;
+		}
+
+		if(read_under_ftc_mutex)
+		{
+			if(!locked_readFile(fd, offset, data_size, data))
+				return false;
+
+			// This creates the peer info, and updates it (for GUI display).
+			uploading_peers[peer_id].updateStatus(offset,data_size,time(NULL)) ;
+			return true;
+		}
+
+		read_fd = fd; // set once by initializeFileAttrs(), closed by the destructor only
+	}
+
+	{
+		RS_STACK_MUTEX(mReadMtx);
+
+		if(!locked_readFile(read_fd, offset, data_size, data))
+			return false;
+	}
+
+	{
+		RsStackMutex stack(ftcMutex); /********** STACK LOCKED MTX ******/
+
+		// This creates the peer info, and updates it (for GUI display).
+		uploading_peers[peer_id].updateStatus(offset,data_size,time(NULL)) ;
+	}
 
 #ifdef DEBUG_TRANSFERS
-		std::cerr << "ftFileProvider::getFileData() ";
-		std::cerr << " at " << RsUtil::AccurateTimeString();
-		std::cerr << " hash: " << hash;
-		std::cerr << " for peerId: " << peer_id;
-		std::cerr << " offset: " << offset;
-		std::cerr << " chunkSize: " << chunk_size;
-		std::cerr << std::endl;
+	std::cerr << "ftFileProvider::getFileData() ";
+	std::cerr << " at " << RsUtil::AccurateTimeString();
+	std::cerr << " hash: " << hash;
+	std::cerr << " for peerId: " << peer_id;
+	std::cerr << " offset: " << offset;
+	std::cerr << " chunkSize: " << chunk_size;
+	std::cerr << std::endl;
 #endif
 
-	}
-	else 
+	return true;
+}
+
+/* Reads data_size bytes at offset into data, which the caller allocated and
+ * frees. Called with the mutex that protects the position of the file held:
+ * mReadMtx for a plain provider, ftcMutex for a file creator. */
+bool ftFileProvider::locked_readFile(FILE *file, uint64_t offset, uint32_t data_size, void *data)
+{
+	if(file == NULL)
+		return false;
+
+	if(fseeko64(file, offset, SEEK_SET) == -1)
 	{
-		std::cerr << "No data to read, or NULL buffer used" << std::endl;
-		return 0;
+#ifdef DEBUG_FT_FILE_PROVIDER
+		std::cerr << "ftFileProvider::getFileData() Failed to seek. Data_size=" << data_size << ", base_loc=" << offset << " !" << std::endl;
+#endif
+		return false;
 	}
-	return 1;
+
+	if (1 != fread(data, data_size, 1, file))
+	{
+#ifdef DEBUG_FT_FILE_PROVIDER
+		std::cerr << "ftFileProvider::getFileData() Failed to get data. Data_size=" << data_size << ", base_loc=" << offset << " !" << std::endl;
+#endif
+		return false;
+	}
+	return true;
 }
 
 void ftFileProvider::PeerUploadInfo::updateStatus(uint64_t offset,uint32_t data_size,rstime_t now)
