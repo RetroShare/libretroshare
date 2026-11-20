@@ -56,8 +56,8 @@ static const uint32_t GXS_TUNNEL_ENCRYPTION_IV_SIZE      = 8 ;
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
 static const uint32_t INTERVAL_BETWEEN_DEBUG_DUMP        = 4 ;
 #endif
-static const uint32_t INTERVAL_BETWEEN_VPIDS_SANITY_CHECK  = 60 ; // check vpids anyway every 60 secs, to discard unused ones.
-static const uint32_t INTERVAL_BEFORE_VPID_IS_ASSUMED_DEAD = 30 ; // a vpid is supposed to be kept alive. If nothing happens for 3 secs, we just don't used it.
+static const uint32_t INTERVAL_BETWEEN_VPIDS_SANITY_CHECK  =  5 ; // check vpids anyway every 60 secs, to discard unused ones.
+static const uint32_t INTERVAL_BEFORE_VPID_IS_ASSUMED_DEAD = 25 ; // a vpid is supposed to be kept alive. If nothing happens for 25 secs, we just don't used it.
 
 static std::string GXS_TUNNEL_APP_NAME = "GxsTunnels" ;
 
@@ -164,12 +164,23 @@ void p3GxsTunnelService::locked_updateTunnels()
 
     // 1 - check tunnels health
 
-    for(auto tunnel_it =_gxs_tunnel_contacts.begin();tunnel_it!= _gxs_tunnel_contacts.end();++tunnel_it)
+    for(auto tunnel_it =_gxs_tunnel_contacts.begin();tunnel_it!= _gxs_tunnel_contacts.end();)
     {
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
         std::cerr << "  Tunnel ID " << tunnel_it->first << ": " ;
 #endif
         auto& tunnel(tunnel_it->second);
+
+        // 1 - Remove any tunnel that was remotely closed, since we cannot use it anymore.
+
+        if(tunnel.status == GxsTunnelStatus::REMOTELY_CLOSED && tunnel.last_contact + 20 < now)
+        {
+            new_tunnel_states[tunnel_it->first] = GxsTunnelStatus::REMOTELY_CLOSED;
+            locked_dropPendingData(tunnel_it->first) ;
+
+            tunnel_it = _gxs_tunnel_contacts.erase(tunnel_it) ;
+            continue ;
+        }
 
         if(!tunnel.preferred_virtual_peer_id.isNull())
         {
@@ -190,20 +201,6 @@ void p3GxsTunnelService::locked_updateTunnels()
                 std::cerr << " vpid " << tunnel.preferred_virtual_peer_id << " is active." << std::endl;
 #endif
         }
-        // 1 - Remove any tunnel that was remotely closed, since we cannot use it anymore.
-
-        if(tunnel.status == GxsTunnelStatus::REMOTELY_CLOSED && tunnel.last_contact + 20 < now)
-        {
-            new_tunnel_states[tunnel_it->first] = GxsTunnelStatus::REMOTELY_CLOSED;
-            locked_dropPendingData(tunnel_it->first) ;
-
-            std::map<RsGxsTunnelId,GxsTunnelPeerInfo>::iterator tmp = tunnel_it ;
-            ++tmp ;
-            _gxs_tunnel_contacts.erase(tunnel_it) ;
-            tunnel_it=tmp ;
-            continue ;
-        }
-
         // 2 - re-digg tunnels that have died out of inaction
 
         if(tunnel.last_contact+20+GXS_TUNNEL_KEEP_ALIVE_TIMEOUT < now)
@@ -224,9 +221,10 @@ void p3GxsTunnelService::locked_updateTunnels()
                 std::cerr << "(II) GxsTunnelService:: forcing new tunnel campain." << std::endl;
 #endif
 
-                mTurtle->forceReDiggTunnels( randomHashFromDestinationGxsId(tunnel.to_gxs_id) );
+                mTurtle->forceReDiggTunnels( tunnel.hash );
             }
         }
+        ++tunnel_it;
     }
 
     // 2 - go through all existing virtual peer ids and select the last active one to talk to.
