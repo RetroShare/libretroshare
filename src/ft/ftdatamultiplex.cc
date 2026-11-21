@@ -1082,7 +1082,13 @@ bool ftDataMultiplex::deleteServer(const RsFileHash& hash)
 
 void ftDataMultiplex::deleteUnusedServers()
 {
-	RS_STACK_MUTEX(mProviderUseMtx); // no read in progress on the providers we delete
+	/* No read in progress on the providers we delete. This is called by the main
+	 * loop at each tick: when a read is in progress (seconds, on a busy disk),
+	 * do not wait for it, the next tick will do the cleaning. */
+	if(!mProviderUseMtx.trylock())
+		return;
+
+	{
 	RsStackMutex stack(dataMtx); /******* LOCK MUTEX ******/
 
 	//scan the uploads list in ftdatamultiplex and delete the items which time out
@@ -1116,6 +1122,9 @@ void ftDataMultiplex::deleteUnusedServers()
 		}
 		else
 			++sit ;
+	} // dataMtx released
+
+	mProviderUseMtx.unlock();
 }
 
 bool	ftDataMultiplex::handleSearchRequest(const RsPeerId& peerId, const RsFileHash& hash)
