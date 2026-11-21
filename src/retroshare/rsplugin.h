@@ -45,9 +45,7 @@ class RsMail ;
 class RsChats ;
 class RsGxsForums;
 class RsGxsChannels;
-#ifdef RS_USE_CALENDAR
 class RsGxsCalendar;
-#endif
 class RsNotify;
 class RsServiceControl;
 class p3LinkMgr ;
@@ -77,9 +75,7 @@ class PgpAuxUtils;
 class p3Config;
 class RsPosted;
 
-#ifdef RS_USE_WIRE
 class RsWire;
-#endif
 
 namespace resource_api
 {
@@ -111,6 +107,9 @@ class RsPluginHandler;
  * convenience class to store gui interfaces
  *
  */
+// The layout of this class is part of the plugin ABI: a plugin is built on its own, with its own
+// defines, and reads these members from the host. So no member may depend on a build option.
+// A service that is not compiled in leaves its pointer null.
 class RsPlugInInterfaces {
 public:
     RsUtil::inited_ptr<RsPeers>  mPeers;
@@ -132,15 +131,11 @@ public:
     RsUtil::inited_ptr<PgpAuxUtils>     mPgpAuxUtils;
     RsUtil::inited_ptr<RsGxsForums>     mGxsForums;
     RsUtil::inited_ptr<RsGxsChannels>   mGxsChannels;
-#ifdef RS_USE_CALENDAR
     RsUtil::inited_ptr<RsGxsCalendar>   mGxsCalendar;
-#endif
     RsUtil::inited_ptr<RsGxsTunnelService>    mGxsTunnels;
     RsUtil::inited_ptr<RsReputations>   mReputations;
     RsUtil::inited_ptr<RsPosted>        mPosted;
-#ifdef RS_USE_WIRE
     RsUtil::inited_ptr<RsWire>          mWire;
-#endif
 };
 
 class RsPlugin
