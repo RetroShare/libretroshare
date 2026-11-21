@@ -72,6 +72,12 @@ class ftFileProvider
 		uint64_t fileSize() const { return mSize ; }
 	protected:
 		virtual	int initializeFileAttrs(); /* does for both */
+		bool locked_readFile(FILE *file, uint64_t offset, uint32_t data_size, void *data);
+
+		/* True when the file is also written through fd (ftFileCreator): its
+		 * reads then stay under ftcMutex, as the writes are. A plain provider
+		 * only reads, and does so under mReadMtx, without ftcMutex. */
+		virtual bool fileIsWrittenTo() const { return false; }
 
 		uint64_t    mSize;
 		RsFileHash hash;
@@ -112,6 +118,11 @@ class ftFileProvider
 		 * Mutex Required for stuff below 
 		 */
 		RsMutex ftcMutex;
+
+		/* Protects the position of fd during the disk read of a plain
+		 * provider. Never taken while holding ftcMutex by a reader, so that
+		 * FileDetails() and the like do not wait for the disk. */
+		RsMutex mReadMtx;
 };
 
 
