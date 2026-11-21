@@ -209,24 +209,30 @@ RsGxsIntegrityCheck::RsGxsIntegrityCheck(
 
 void RsGxsIntegrityCheck::run()
 {
-	std::vector<RsGxsGroupId> grps_to_delete;
-	GxsMsgReq msgs_to_delete;
+	// std::vector<RsGxsGroupId> grps_to_delete;
+	// GxsMsgReq msgs_to_delete;
 
-    check(mGenExchangeClient->serviceType(), mGixs, mDs);
+    check();
 
 	RS_STACK_MUTEX(mIntegrityMutex);
 	mDone = true;
 }
 
-bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralDataService *mds)
+bool RsGxsIntegrityCheck::check()
 {
 #ifdef DEBUG_GXSUTIL
-    GXSUTIL_DEBUG() << "Parsing all groups and messages MetaData in service " << std::hex << mds->serviceType() << std::endl;
+    GXSUTIL_DEBUG() << "Parsing all groups and messages MetaData in service " << std::hex << mDs->serviceType() << std::endl;
 #endif
+	/* The pass only reads the store and time-stamps identities, so giving up
+	 * half-way leaves nothing inconsistent behind: the next pass simply
+	 * redoes the work. shouldStop() is tested between every store access so
+	 * that a shutdown never has to wait for a whole pass. */
+	const uint16_t service_type = mGenExchangeClient->serviceType();
+
     // first take out all the groups
     std::map<RsGxsGroupId, std::shared_ptr<RsGxsGrpMetaData> > grp;
 
-    mds->retrieveGxsGrpMetaData(grp);
+    mDs->retrieveGxsGrpMetaData(grp);
 
     GxsMsgReq msgIds;
 
@@ -237,9 +243,11 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 
     for( auto git = grp.begin(); git != grp.end(); ++git )
     {
+            if(shouldStop()) return false;
+
             const auto& grpMeta = git->second;
 
-            if (mds->retrieveMsgIds(grpMeta->mGroupId, msgIds[grpMeta->mGroupId]) == 1)
+            if (mDs->retrieveMsgIds(grpMeta->mGroupId, msgIds[grpMeta->mGroupId]) == 1)
             {
                     if(grpMeta->mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_SUBSCRIBED)
                     {
@@ -259,13 +267,28 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
                     msgIds.erase(msgIds.find(grpMeta->mGroupId));	// could not get them, so group is removed from list.
     }
 
-    // now messages
+    if(shouldStop()) return false;
+
+    // now messages. One request per group: the store serves them group by
+    // group anyway, and this releases its mutex between groups and lets a stop
+    // request through after one group instead of after the whole pass.
+    // retrieveGxsMsgMetaData() adds to msgMetas without clearing it, so the
+    // results of all the requests accumulate there.
     GxsMsgMetaResult msgMetas;
 
-    mds->retrieveGxsMsgMetaData(msgIds, msgMetas);
+    for(auto mit=msgIds.begin(); mit != msgIds.end(); ++mit)
+    {
+        if(shouldStop()) return false;
+
+        GxsMsgReq req;
+        req[mit->first] = mit->second;
+        mDs->retrieveGxsMsgMetaData(req, msgMetas);
+    }
 
     for(auto mit=msgMetas.begin(); mit != msgMetas.end(); ++mit)
 	{
+        if(shouldStop()) return false;
+
         const auto& msgM = mit->second;
 
         for(auto vit=msgM.begin(); vit != msgM.end(); ++vit)
@@ -288,6 +311,8 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 				}
 	    }
     }
+
+    if(shouldStop()) return false;
 
 	{
 #ifdef DEBUG_GXSUTIL
@@ -322,9 +347,9 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 			GXSUTIL_DEBUG() << "    requesting ID " << gxs_ids[n].first ;
 #endif
 
-            if(!mgixs->haveKey(gxs_ids[n].first))	// checks if we have it already in the cache (conservative way to ensure that we atually have it)
+            if(!mGixs->haveKey(gxs_ids[n].first))	// checks if we have it already in the cache (conservative way to ensure that we atually have it)
 			{
-                mgixs->requestKey(gxs_ids[n].first,connected_friends,gxs_ids[n].second);
+                mGixs->requestKey(gxs_ids[n].first,connected_friends,gxs_ids[n].second);
 
 				++nb_requested_not_in_cache ;
 #ifdef DEBUG_GXSUTIL
@@ -337,7 +362,7 @@ bool RsGxsIntegrityCheck::check(uint16_t service_type, RsGixs *mgixs, RsGeneralD
 				GXSUTIL_DEBUG() << "  ... already in cache" << std::endl;
 #endif
 			}
-            mgixs->timeStampKey(gxs_ids[n].first,gxs_ids[n].second);
+            mGixs->timeStampKey(gxs_ids[n].first,gxs_ids[n].second);
 
 			gxs_ids[n] = gxs_ids[gxs_ids.size()-1] ;
 			gxs_ids.pop_back() ;

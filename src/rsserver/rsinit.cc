@@ -1302,6 +1302,7 @@ int RsServer::StartupRetroShare()
 	//ftserver->setSharedDirectories(fileList);
 
 	rsFiles = ftserver;
+	mFtServer = ftserver;
 
 	std::vector<std::string> plugins_directories ;
 

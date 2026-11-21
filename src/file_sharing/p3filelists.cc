@@ -306,6 +306,13 @@ void p3FileDatabase::startThreads()
     P3FILELISTS_DEBUG() << "Done." << std::endl;
 #endif
 }
+void p3FileDatabase::askThreadsToStop()
+{
+    RS_STACK_MUTEX(mFLSMtx) ;
+    mHashCache->askForStop();
+    mLocalDirWatcher->askForStop();
+}
+
 void p3FileDatabase::stopThreads()
 {
     RS_STACK_MUTEX(mFLSMtx) ;
