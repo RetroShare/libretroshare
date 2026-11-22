@@ -415,6 +415,12 @@ void p3GxsTrans::GxsTransIntegrityCleanupThread::run()
 	    {
 		    RsNxsMsg* msg = *vit;
 
+            if(shouldStop())	// shutdown: keep freeing, stop analysing
+            {
+                delete msg;
+                continue;
+            }
+
             RsGxsTransSerializer s ;
             uint32_t size = msg->msg.bin_len;
             RsItem *item = s.deserialise(msg->msg.bin_data,&size);
@@ -448,6 +454,15 @@ void p3GxsTrans::GxsTransIntegrityCleanupThread::run()
 
 			delete item;
 	    }
+    }
+
+    if(shouldStop())
+    {
+        /* Interrupted by a shutdown: the scan is partial, so report nothing
+         * rather than statistics computed over a truncated message set. */
+        RS_STACK_MUTEX(mMtx) ;
+        mDone = true;
+        return;
     }
 
 	// From the collected information, build a list of group messages to delete.
@@ -487,6 +502,18 @@ bool p3GxsTrans::GxsTransIntegrityCleanupThread::isDone()
     RS_STACK_MUTEX(mMtx) ;
     return mDone ;
 }
+void p3GxsTrans::onStopRequested()
+{
+	RsGenExchange::onStopRequested();
+
+	/* Same reasoning as RsGenExchange::onStopRequested(): the cleanup thread
+	 * reads the data store, wait for it before this service counts as
+	 * stopped. Once its messages are loaded it tests shouldStop() for each of
+	 * them, and it never takes mPerUserStatsMutex. */
+	RS_STACK_MUTEX(mPerUserStatsMutex);
+	if(mCleanupThread) mCleanupThread->fullstop();
+}
+
 void p3GxsTrans::service_tick()
 {
 	GxsTokenQueue::checkRequests();
@@ -502,7 +529,7 @@ void p3GxsTrans::service_tick()
 
         if(mCleanupThread->isRunning())
             std::cerr << "Cleanup thread is already running. Not running it again!" << std::endl;
-        else
+        else if(!shouldStop())	// onStopRequested() would miss a thread started now
         {
 #ifdef DEBUG_GXSTRANS
             std::cerr << "Starting GxsIntegrity cleanup thread." << std::endl;

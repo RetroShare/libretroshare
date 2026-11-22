@@ -98,6 +98,7 @@ RsServer::RsServer() :
 	mHistoryMgr = NULL;
 
 	pqih = NULL;
+	mFtServer = NULL;
 
 	mPluginsManager = NULL;
 
