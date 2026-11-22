@@ -45,14 +45,22 @@ void RsGxsPostedPostItem::serial_process(RsGenericSerializer::SerializeJob j,RsG
 void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
 	RsTypeSerializer::serial_process(j,ctx,TLV_TYPE_STR_DESCR ,mDescription,"mDescription") ;
-	
+
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
         return ;
 
-	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mGroupImage.empty())
+	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mGroupImage.empty() && mPinnedPosts.ids.empty())
 		return ;
 
 	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
+
+	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
+		return ;
+
+	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mPinnedPosts.ids.empty())
+		return ;
+
+	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mPinnedPosts,"mPinnedPosts") ;
 }
 
 RsItem *RsGxsPostedSerialiser::create_item(uint16_t service_id,uint8_t item_subtype) const
@@ -118,6 +126,7 @@ void RsGxsPostedPostItem::clear()
 void RsGxsPostedGroupItem::clear()
 {
 	mDescription.clear();
+	mPinnedPosts.TlvClear();
 	mGroupImage.TlvClear();
 }
 
@@ -126,6 +135,7 @@ bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
 	clear();
 	meta = group.mMeta;
 	mDescription = group.mDescription;
+	mPinnedPosts = group.mPinnedPosts;
 
 	if (moveImage)
 	{
@@ -144,6 +154,8 @@ bool RsGxsPostedGroupItem::toPostedGroup(RsPostedGroup &group, bool moveImage)
 {
 	group.mMeta = meta;
 	group.mDescription = mDescription;
+	group.mPinnedPosts = mPinnedPosts;
+
 	if (moveImage)
 	{
 		group.mGroupImage.take((uint8_t *) mGroupImage.binData.bin_data, mGroupImage.binData.bin_len);
