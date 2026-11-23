@@ -1022,13 +1022,8 @@ bool p3IdService::createIdentity( RsGxsId& id, const std::string& name, const Rs
 		goto LabelCreateIdentityCleanup;
 	}
 
+	// service_CreateGroup() has already added the id to the own id lists.
 	id = RsGxsId(meta.mGroupId);
-
-	{
-		RS_STACK_MUTEX(mIdMtx);
-		mOwnIds.push_back(id);
-		if(!pseudonimous) mOwnSignedIds.push_back(id);
-	}
 
 LabelCreateIdentityCleanup:
 	if(!pseudonimous && !pgpPassword.empty())
@@ -3677,6 +3672,15 @@ RsGenExchange::ServiceCreate_Return p3IdService::service_CreateGroup(
 			mOwnIds.push_back(gxsId);
 			mKeysTS[gxsId].TS = time(nullptr);
         }
+
+		// A PGP-linked id whose signature was made also goes to the list of
+		// own signed ids. This is where a newly created identity enters both
+		// lists, whether it was created with createIdentity(RsGxsId&, ...) or
+		// with a token.
+		if( createStatus == SERVICE_CREATE_SUCCESS &&
+		    (item->meta.mGroupFlags & RSGXSID_GROUPFLAG_REALID_kept_for_compatibility) &&
+		    std::find(mOwnSignedIds.begin(), mOwnSignedIds.end(), gxsId) == mOwnSignedIds.end() )
+			mOwnSignedIds.push_back(gxsId);
     }
 
 #ifdef DEBUG_IDS
