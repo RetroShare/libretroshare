@@ -861,9 +861,8 @@ bool p3IdService::getOwnPseudonimousIds(std::vector<RsGxsId>& ids)
 
 	{
 		RS_STACK_MUTEX(mIdMtx);
-		ids.resize(mOwnIds.size() - signedV.size());
-		std::copy_if( mOwnIds.begin(), mOwnIds.end(), ids.begin(),
-		              [&](const RsGxsId& id) {return !signedS.count(id);} );
+		for(const RsGxsId& id: mOwnIds)
+			if(!signedS.count(id)) ids.push_back(id);
 	}
 
 	return true;
@@ -2143,6 +2142,7 @@ bool p3IdService::deleteGroup(uint32_t& token, RsGxsGroupId& groupId)
 #endif
         }
 
+        mOwnSignedIds.remove(id);
         std::list<RsGxsId>::iterator lit = std::find( mOwnIds.begin(), mOwnIds.end(), id);
         if (lit != mOwnIds.end())
         {
@@ -3211,6 +3211,7 @@ bool p3IdService::cache_load_ownids(uint32_t token)
 			RsStackMutex stack(mIdMtx); /********** STACK LOCKED MTX ******/
 
 			mOwnIds.clear();
+			mOwnSignedIds.clear();
 			for(vit = grpData.begin(); vit != grpData.end(); ++vit)
 			{
 				RsGxsIdGroupItem* item = dynamic_cast<RsGxsIdGroupItem*>(*vit);
