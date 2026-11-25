@@ -68,6 +68,15 @@ int	pqithreadstreamer::tick()
 	return 0;
 }
 
+int	pqithreadstreamer::reset()
+{
+	// handleincoming() fills the read buffers without holding mStreamerMtx, under
+	// mThreadMutex only: wait for a running tick_recv()/tick_send() to finish
+	// before pqistreamer::reset() frees them.
+	RsStackMutex stack(mThreadMutex);
+	return pqistreamer::reset();
+}
+
 void pqithreadstreamer::threadTick()
 {
         uint32_t readbytes = 0;

@@ -587,6 +587,14 @@ void p3I2pSam3::stopSession()
 		mValidConnections.clear();
 
 		RS_STACK_MUTEX(mLockSam3Access);
+		/* Detach the connections before closing the session. Their sockets
+		 * are owned by the pqissli2psam3 streamers, which may still be
+		 * reading them; sam3CloseSession() would close those fds and free
+		 * the Sam3Connection structs under them. Each one is closed by its
+		 * streamer and freed in closeConnection(). */
+		for (Sam3Connection *c = mSetting.session->connlist; c; c = c->next)
+			c->ses = nullptr; // the session is freed below
+		mSetting.session->connlist = nullptr;
 		sam3CloseSession(mSetting.session);
 		free(mSetting.session);
 
@@ -718,7 +726,7 @@ void p3I2pSam3::closeConnection(taskTicket *ticket)
 
 		auto it = std::find(mInvalidConnections.begin(), mInvalidConnections.end(), conn);
 		if (it != mInvalidConnections.end()) {
-			// this is the expected case
+			// this is the expected case: detached by stopSession(), still ours to free
 			mInvalidConnections.erase(it);
 		} else {
 			// this is unexpected but not a big deal, just warn
@@ -730,11 +738,9 @@ void p3I2pSam3::closeConnection(taskTicket *ticket)
 
 				// now it is getting even weirder, still not a big deal, just warn
 				RS_WARN("found connection in mValidConnections");
-			}
+			} else
+				conn = nullptr; // unknown pointer, do not touch it
 		}
-
-		// when libsam3 has already handled closing of the connection - which should be the case here - the memory has been freed already (-> pointer is invalid)
-		conn = nullptr;
 	} else {
 		RS_STACK_MUTEX(mLock);
 
@@ -748,13 +754,12 @@ void p3I2pSam3::closeConnection(taskTicket *ticket)
 			// search in old connections
 			it = std::find(mInvalidConnections.begin(), mInvalidConnections.end(), conn);
 			if (it != mInvalidConnections.end()) {
-				// old connection, just ignore. *should* be freed already
+				// old connection, detached by stopSession(): freed below
 				mInvalidConnections.erase(it);
 
 				RS_DBG2("found old (invalid) connection");
 
 				callClose = false;
-				conn = nullptr;
 			} else {
 				// weird
 				RS_WARN("could'n find connection!");
@@ -769,6 +774,9 @@ void p3I2pSam3::closeConnection(taskTicket *ticket)
 			RS_DBG2("closing connection");
 
 			RS_STACK_MUTEX(mLockSam3Access);
+			// The streamer closed the socket already; the fd number may have
+			// been reused since, so only unlink and free the struct.
+			conn->fd = -1;
 			sam3CloseConnection(conn);
 			conn = nullptr; // freed by above call
 		}

@@ -220,11 +220,12 @@ void RsPluginManager::stopPlugins(p3ServiceServer *pqih)
 			delete _plugins[i].plugin;
 			_plugins[i].plugin = NULL;
 		}
-		if (_plugins[i].handle)
-		{
-			dlclose(_plugins[i].handle);
-			_plugins[i].handle = NULL;
-		}
+		// Do not dlclose() the plugin: the process is exiting, and code or data of
+		// the plugin can still be referenced after this point. Qt events posted by
+		// the plugin and not delivered yet are destroyed by ~QApplication, and their
+		// argument types (e.g. RsPeerId registered from the plugin) point into the
+		// plugin image. Unloading it made the GUI crash on exit (seen on macOS).
+		_plugins[i].handle = NULL;
 	}
 }
 
