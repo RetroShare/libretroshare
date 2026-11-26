@@ -106,7 +106,10 @@ void RsGxsTunnelStatusItem::serial_process(RsGenericSerializer::SerializeJob j,R
     RsTypeSerializer::serial_process<uint32_t>(j,ctx,status,"status") ;
 
     if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)	// backward compatibility
+    {
+        service_id = 0;
         return ;
+    }
 
     RsTypeSerializer::serial_process<uint32_t>(j,ctx,service_id,"service_id") ;
 }

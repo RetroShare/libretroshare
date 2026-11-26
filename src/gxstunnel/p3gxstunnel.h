@@ -258,7 +258,7 @@ private:
     
     void handleRecvStatusItem(const TurtleVirtualPeerId& virtual_peer_id, RsGxsTunnelStatusItem *item) ;
     void handleRecvTunnelDataItem(const TurtleVirtualPeerId& virtual_peer_id,RsGxsTunnelDataItem *item) ;
-    void handleRecvTunnelDataAckItem(const TurtleVirtualPeerId&virtual_peer_id, RsGxsTunnelDataAckItem *item);
+    void handleRecvTunnelDataAckItem(RsGxsTunnelDataAckItem *item);
     
     // Comunication with Turtle service
 

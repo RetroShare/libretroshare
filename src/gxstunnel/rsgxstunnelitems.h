@@ -57,6 +57,8 @@ class RsGxsTunnelItem: public RsItem
 
 		virtual ~RsGxsTunnelItem() {}
 		virtual void clear() {}
+
+        virtual uint32_t serviceId() const { return 0 ; }
 };
 
 /*!
@@ -77,6 +79,7 @@ public:
     // it over to the client service.
     virtual ~RsGxsTunnelDataItem() { free(data); }
     virtual void clear() { free(data); data = NULL; data_size = 0; }
+    virtual uint32_t serviceId() const override { return service_id ; }
 
 	virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 
@@ -99,6 +102,7 @@ class RsGxsTunnelStatusItem: public RsGxsTunnelItem
         virtual ~RsGxsTunnelStatusItem() {}
 
         virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+        virtual uint32_t serviceId() const override { return service_id ; }
 
         uint32_t status ;
         uint32_t service_id ;
