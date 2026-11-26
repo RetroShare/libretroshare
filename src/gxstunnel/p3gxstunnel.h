@@ -250,7 +250,7 @@ private:
     bool locked_sendDHPublicKey(const DH *dh, const RsGxsId& own_gxs_id, const RsPeerId& virtual_peer_id) ;
     bool locked_initDHSessionKey(DH *&dh);
 	uint64_t locked_getPacketCounter();
-    void locked_updateTunnels();
+    void updateTunnels();
 
     TurtleVirtualPeerId virtualPeerIdFromHash(const TurtleFileHash& hash) ;	// ... and to a hash for p3turtle
 

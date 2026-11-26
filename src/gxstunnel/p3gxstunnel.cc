@@ -114,13 +114,11 @@ int p3GxsTunnelService::tick()
 #endif
     
     {
-        RS_STACK_MUTEX(mGxsTunnelMtx); /********** STACK LOCKED MTX ******/
-
         static rstime_t last_vpids_sanity_check = 0;
 
         if(mVpidsChanged || (now > last_vpids_sanity_check + INTERVAL_BETWEEN_VPIDS_SANITY_CHECK))
         {
-            locked_updateTunnels();
+            updateTunnels();
             mVpidsChanged = false;
             last_vpids_sanity_check = now;
         }
@@ -146,7 +144,7 @@ RsServiceInfo p3GxsTunnelService::getServiceInfo()
 // Tunnel management: this function sweeps the virtual peer ids and updates the available tunnels accordingly,
 // deletes inactive tunnels, etc.
 
-void p3GxsTunnelService::locked_updateTunnels()
+void p3GxsTunnelService::updateTunnels()
 {
 #ifdef DEBUG_GXS_TUNNEL_MANAGEMENT
     std::cerr << "Tunnels Management pass..." << std::endl;
