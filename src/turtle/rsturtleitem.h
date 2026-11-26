@@ -290,7 +290,7 @@ class RsTurtleGenericTunnelItem: public RsTurtleItem
 
 		typedef uint32_t Direction ;
 		static const Direction DIRECTION_CLIENT = 0x001 ;
-		static const Direction DIRECTION_SERVER = 0x002 ;
+        static const Direction DIRECTION_SERVER = 0x002 ;	// flags!
 
 		/// Does this packet stamps tunnels when it passes through ?
 		/// This is used for keeping trace weither tunnels are active or not.
@@ -342,7 +342,7 @@ class RsTurtleGenericDataItem: public RsTurtleGenericTunnelItem
 		void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 };
 
-// Same, but with a fact priority. Can rather be used for e.g. distant chat.
+// Same, but with a fast priority. Can rather be used for e.g. distant chat.
 //
 class RsTurtleGenericFastDataItem: public RsTurtleGenericTunnelItem
 {

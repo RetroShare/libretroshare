@@ -136,7 +136,7 @@ void DistantChatService::handleRecvChatStatusItem(RsChatStatusItem *cs)
         std::cerr << "DistantChatService::handleRecvChatStatusItem(): received keep alive packet for inactive chat! peerId=" << cs->PeerId() << std::endl;
 }
 
-bool DistantChatService::acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTunnelId& tunnel_id,bool am_I_client_side)
+bool DistantChatService::acceptDataFromPeer(const RsGxsId& gxs_id,bool am_I_client_side)
 {
     if(am_I_client_side)	// always accept distant chat when we're the client side.
         return true ;
@@ -149,12 +149,12 @@ bool DistantChatService::acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTun
     if(mDistantChatPermissions & RS_DISTANT_CHAT_CONTACT_PERMISSION_FLAG_FILTER_EVERYBODY)
         res = false ;
     
+#ifdef DEBUG_DISTANT_CHAT
     if(!res)
-    {
-#ifdef DEBUG_DISTANT_CHAT    
-	    DISTANT_CHAT_DEBUG() << "(II) refusing distant chat from peer " << gxs_id << ". Sending a notification back to tunnel " << tunnel_id << std::endl;
+        DISTANT_CHAT_DEBUG() << "(II) refusing distant chat from peer " << gxs_id << ". " << std::endl;
 #endif
-	    RsChatStatusItem *item = new RsChatStatusItem ;
+
+#ifdef TO_REMOVE
 	    item->flags = RS_CHAT_FLAG_CONNEXION_REFUSED ;
 	    item->status_string.clear() ; // is not used yet! But could be set in GUI to some message (??).
 	    item->PeerId(RsPeerId(tunnel_id)) ;
@@ -178,6 +178,7 @@ bool DistantChatService::acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTun
 
 	    mGxsTunnels->sendData( RsGxsTunnelId(item->PeerId()),DISTANT_CHAT_GXS_TUNNEL_SERVICE_ID,mem,size);
     }
+#endif
     
     return res ;
 }

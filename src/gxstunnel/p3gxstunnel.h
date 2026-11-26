@@ -154,18 +154,13 @@ public:
 
 private:
     void flush() ;
-    virtual void handleIncomingItem(const RsGxsTunnelId &tunnel_id, RsGxsTunnelItem *) ;
+    virtual void handleIncomingItem(const TurtleVirtualPeerId &virtual_peer_id, RsGxsTunnelItem *) ;
     
     class GxsTunnelPeerInfo
     {
     public:
         GxsTunnelPeerInfo()
-            : last_contact(0), last_keep_alive_sent(0), status(GxsTunnelStatus::UNKNOWN), direction(0)
-            , total_sent(0), total_received(0)
-  #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-            , accepts_fast_turtle_items(false)
-            , already_probed_for_fast_items(false)
-  #endif
+            : last_contact(0), last_keep_alive_sent(0), status(GxsTunnelStatus::UNKNOWN), total_sent(0), total_received(0)
         {
         }
 
@@ -176,22 +171,23 @@ private:
         RsPeerId preferred_virtual_peer_id;                   // chosen among the tunnels given by the turtle router. Identifies the tunnel.
         RsGxsId to_gxs_id;                                    // gxs id we're talking to
         RsGxsId own_gxs_id ;                                  // gxs id we're using to talk.
-        RsTurtleGenericTunnelItem::Direction direction ;      // specifiec wether we are client(managing the tunnel) or server.
         TurtleFileHash hash ;                                 // hash that is last used. This is necessary for handling tunnel establishment
-        std::set<uint32_t> client_services ;                  // services that used this tunnel
+        std::set<uint32_t> local_services;                    // services for which the tunnel was requested locally
+        std::set<uint32_t> remote_services;					  // services for which we're acting as server (meaning requested remotely)
         std::map<uint64_t,rstime_t> received_data_prints ;    // list of recently received messages, to avoid duplicates. Kept for 20 mins at most.
         uint32_t total_sent ;                                 // total data sent to this peer
         uint32_t total_received ;                             // total data received by this peer
-#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-        bool accepts_fast_turtle_items;                       // does the tunnel accept RsTurtleGenericFastDataItem type?
-        bool already_probed_for_fast_items;                   // has the tunnel been probed already? If not, a fast item will be sent
-#endif
     };
 
     class GxsTunnelDHInfo
     {
     public:
-        GxsTunnelDHInfo() : dh(0), direction(0), status(GxsTunnelVirtualPeerIdStatus::DH_TODO), last_dh_restart(0), last_data_TS(0), dropped_packets(0) {}
+        GxsTunnelDHInfo() : dh(0), direction(0), status(GxsTunnelVirtualPeerIdStatus::DH_TODO), last_dh_restart(0), last_data_TS(0), dropped_packets(0)
+  #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
+            , accepts_fast_turtle_items(false)
+            , already_probed_for_fast_items(false)
+  #endif
+        {}
 
         DH *dh ;
         RsGxsId to_gxs_id ;			// normally the tunnel_id should be enough, but when acting as server, the id is only known after the DH exchange.
@@ -205,6 +201,7 @@ private:
         uint32_t dropped_packets ;  // undecryptable packets dropped since the last DH restart
 
         unsigned char aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
+
     private:
         GxsTunnelDHInfo& operator=(const GxsTunnelDHInfo&) { return *this; }	// make the object non-copyiable
         GxsTunnelDHInfo(const GxsTunnelDHInfo&) {}								// make the object non-copyiable
@@ -259,9 +256,9 @@ private:
 
     // item handling
     
-    void handleRecvStatusItem(const RsGxsTunnelId& id,RsGxsTunnelStatusItem *item) ;
-    void handleRecvTunnelDataItem(const RsGxsTunnelId& id,RsGxsTunnelDataItem *item) ;
-    void handleRecvTunnelDataAckItem(const RsGxsTunnelId &id, RsGxsTunnelDataAckItem *item);
+    void handleRecvStatusItem(const TurtleVirtualPeerId& virtual_peer_id, RsGxsTunnelStatusItem *item) ;
+    void handleRecvTunnelDataItem(const TurtleVirtualPeerId& virtual_peer_id,RsGxsTunnelDataItem *item) ;
+    void handleRecvTunnelDataAckItem(const TurtleVirtualPeerId&virtual_peer_id, RsGxsTunnelDataAckItem *item);
     
     // Comunication with Turtle service
 
@@ -271,9 +268,9 @@ private:
     bool locked_sendClearTunnelData(RsGxsTunnelDHPublicKeyItem *item);	// this limits the usage to DH items. Others should be encrypted!
     
 #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const TurtleFileHash& hash, const RsPeerId& virtual_peer_id, bool accepts_fast_items) ;
+    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const RsPeerId& virtual_peer_id) ;
 #else
-    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const TurtleFileHash& hash, const RsPeerId& virtual_peer_id) ;
+    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const RsPeerId& virtual_peer_id) ;
 #endif
 
     // local data

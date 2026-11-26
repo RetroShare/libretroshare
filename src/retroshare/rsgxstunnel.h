@@ -61,7 +61,7 @@ public:
         
         // Gives feedback about type of data that is allowed in. For security reasons, this always needs to be re-derived (Clients can return true on default)
         
-        virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTunnelId& tunnel_id,bool am_I_client_side) = 0 ;
+        virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,bool am_I_client_side) = 0 ;
     };
     
     class GxsTunnelInfo
@@ -75,7 +75,8 @@ public:
         GxsTunnelStatus tunnel_status ;	  // active, requested, DH pending, etc.
         uint32_t total_size_sent ;	      // total bytes sent through that tunnel since openned (including management).
 	    uint32_t total_size_received ;	  // total bytes received through that tunnel since openned (including management). 
-            bool is_client_side ; 		  // specifiec wether we are client(managing the tunnel) or server.
+        std::set<uint32_t> client_side_services ;
+        std::set<uint32_t> server_side_services ;
 
 	    // Data packets
 

@@ -104,6 +104,11 @@ RS_TYPE_SERIALIZER_FROM_JSON_NOT_IMPLEMENTED_DEF(BIGNUM*)
 void RsGxsTunnelStatusItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)
 {
     RsTypeSerializer::serial_process<uint32_t>(j,ctx,status,"status") ;
+
+    if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)	// backward compatibility
+        return ;
+
+    RsTypeSerializer::serial_process<uint32_t>(j,ctx,service_id,"service_id") ;
 }
 
 void RsGxsTunnelDataItem::serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx)

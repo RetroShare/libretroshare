@@ -40,10 +40,10 @@ const uint32_t RS_GXS_TUNNEL_FLAG_CLOSING_DISTANT_CONNECTION = 0x0400;
 const uint32_t RS_GXS_TUNNEL_FLAG_ACK_DISTANT_CONNECTION     = 0x0800;
 const uint32_t RS_GXS_TUNNEL_FLAG_KEEP_ALIVE                 = 0x1000;
 
-const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_DATA           = 0x01 ;	
-const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_DH_PUBLIC_KEY  = 0x02 ;
-const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_STATUS         = 0x03 ;
-const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_DATA_ACK       = 0x04 ;
+const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_DATA              = 0x01 ;
+const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_DH_PUBLIC_KEY     = 0x02 ;
+const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_STATUS            = 0x03 ;
+const uint8_t RS_PKT_SUBTYPE_GXS_TUNNEL_DATA_ACK          = 0x04 ;
 
 typedef uint64_t		GxsTunnelDHSessionId ;
 
@@ -92,16 +92,18 @@ public:
 
 class RsGxsTunnelStatusItem: public RsGxsTunnelItem
 {
-	public:
-		RsGxsTunnelStatusItem() :RsGxsTunnelItem(RS_PKT_SUBTYPE_GXS_TUNNEL_STATUS) , status(0) {}
-		RsGxsTunnelStatusItem(void *data,uint32_t size) ; // deserialization
+    public:
+        RsGxsTunnelStatusItem() :RsGxsTunnelItem(RS_PKT_SUBTYPE_GXS_TUNNEL_STATUS) , status(0) {}
+        RsGxsTunnelStatusItem(void *data,uint32_t size) ; // deserialization
 
-		virtual ~RsGxsTunnelStatusItem() {}
+        virtual ~RsGxsTunnelStatusItem() {}
 
-		virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
+        virtual void serial_process(RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx);
 
-		uint32_t status ;
+        uint32_t status ;
+        uint32_t service_id ;
 };
+
 
 // Used to confirm reception of an encrypted item. 
 
