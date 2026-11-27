@@ -42,7 +42,9 @@ p3Posted::p3Posted(
         RsGeneralDataService *gds, RsNetworkExchangeService *nes,
         RsGixs* gixs ) :
     p3PostBase( gds, nes, gixs, new RsGxsPostedSerialiser(), RS_SERVICE_GXS_TYPE_POSTED ),
-    RsPosted(static_cast<RsGxsIface&>(*this)) {}
+    RsPosted(static_cast<RsGxsIface&>(*this)),
+    mLastDistantSearchNotificationTS(0),
+    mSearchResultsMtx("p3Posted distant search results") {}
 
 const std::string GXS_POSTED_APP_NAME = "gxsposted";
 const uint16_t GXS_POSTED_APP_MAJOR_VERSION  =       1;
@@ -958,5 +960,98 @@ bool p3Posted::editBoard(RsPostedGroup& board)
 	return true;
 }
 
+/********************************************************************************************/
+/*                               Distant search (turtle)                                    */
+/********************************************************************************************/
+
+void p3Posted::service_tick()
+{
+	p3PostBase::service_tick();
+
+	// Notify distant search results at most every 2 seconds, factoring all
+	// pending results in a single event.
+	rstime_t now = time(nullptr);
+	std::map<TurtleRequestId, std::set<RsGxsGroupId> > toNotify;
+	{
+		RS_STACK_MUTEX(mSearchResultsMtx);
+		if(mSearchResultsToNotify.empty() || now <= mLastDistantSearchNotificationTS + 2)
+			return;
+
+		toNotify.swap(mSearchResultsToNotify);
+		mLastDistantSearchNotificationTS = now;
+	}
+
+	if(rsEvents)
+	{
+		auto ev = std::make_shared<RsGxsPostedSearchResultEvent>();
+		ev->mSearchResultsMap = toNotify;
+		rsEvents->postEvent(ev);
+	}
+}
+
+void p3Posted::receiveDistantSearchResults(TurtleRequestId id, const RsGxsGroupId& grpId)
+{
+	if(!rsEvents) return;
+
+	// We temporise here, in order to avoid notifying clients with many events.
+	// Results are sent in a single event from service_tick().
+	RS_STACK_MUTEX(mSearchResultsMtx);
+	mSearchResultsToNotify[id].insert(grpId);
+}
+
+TurtleRequestId p3Posted::turtleSearchRequest(const std::string& matchString)
+{
+	return netService()->turtleSearchRequest(matchString);
+}
+
+TurtleRequestId p3Posted::turtleGroupRequest(const RsGxsGroupId& groupId)
+{
+	return netService()->turtleGroupRequest(groupId);
+}
+
+bool p3Posted::clearDistantSearchResults(TurtleRequestId reqId)
+{
+	return netService()->clearDistantSearchResults(reqId);
+}
+
+bool p3Posted::retrieveDistantSearchResults(
+        TurtleRequestId searchId,
+        std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results )
+{
+	return netService()->retrieveDistantSearchResults(searchId, results);
+}
+
+DistantSearchGroupStatus p3Posted::getDistantSearchStatus(const RsGxsGroupId& groupId)
+{
+	return netService()->getDistantSearchStatus(groupId);
+}
+
+bool p3Posted::getDistantSearchResultGroupData(
+        const RsGxsGroupId& groupId, RsPostedGroup& distantGroup )
+{
+	RsGxsGroupSearchResults gs;
+
+	if(!netService()->retrieveDistantGroupSummary(groupId, gs))
+		return false;
+
+	// This is placeholder information until we receive the full group meta
+	// data and check the signature.
+	distantGroup.mMeta.mGroupId         = gs.mGroupId;
+	distantGroup.mMeta.mGroupName       = gs.mGroupName;
+	distantGroup.mMeta.mGroupFlags      = GXS_SERV::FLAG_PRIVACY_PUBLIC;
+	distantGroup.mMeta.mSignFlags       = gs.mSignFlags;
+	distantGroup.mMeta.mPublishTs       = gs.mPublishTs;
+	distantGroup.mMeta.mAuthorId        = gs.mAuthorId;
+	distantGroup.mMeta.mCircleType      = GXS_CIRCLE_TYPE_PUBLIC; // guessed, otherwise the group would not be searchable
+	distantGroup.mMeta.mAuthenFlags     = 0;
+	distantGroup.mMeta.mSubscribeFlags  = GXS_SERV::GROUP_SUBSCRIBE_NOT_SUBSCRIBED;
+	distantGroup.mMeta.mPop             = gs.mPopularity;       // number of friend subscribers
+	distantGroup.mMeta.mVisibleMsgCount = gs.mNumberOfMessages; // max messages reported by friends
+	distantGroup.mMeta.mLastPost        = gs.mLastMessageTs;
+
+	return true;
+}
+
 RsPosted::~RsPosted() = default;
 RsGxsPostedEvent::~RsGxsPostedEvent() = default;
+RsGxsPostedSearchResultEvent::~RsGxsPostedSearchResultEvent() = default;

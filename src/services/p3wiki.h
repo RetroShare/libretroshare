@@ -89,6 +89,17 @@ public:
 	virtual bool getWikiStatistics(GxsServiceStatistic& stats) override;
 	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) override;
 
+	/* Distant search API (turtle) */
+	TurtleRequestId turtleSearchRequest(const std::string& matchString) override;
+	bool retrieveDistantSearchResults(TurtleRequestId searchId, std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results) override;
+	TurtleRequestId turtleGroupRequest(const RsGxsGroupId& groupId) override;
+	bool getDistantSearchResultGroupData(const RsGxsGroupId& groupId, RsWikiCollection& distantGroup) override;
+	DistantSearchGroupStatus getDistantSearchStatus(const RsGxsGroupId& groupId) override;
+	bool clearDistantSearchResults(TurtleRequestId reqId) override;
+
+	/// @see RsNxsObserver::receiveDistantSearchResults
+	void receiveDistantSearchResults(TurtleRequestId id, const RsGxsGroupId& grpId) override;
+
 protected:
 	bool acceptNewMessage(const RsGxsMsgMetaData *msgMeta, uint32_t size) override;
 
@@ -100,6 +111,13 @@ private:
 	// Track known wikis to distinguish NEW from UPDATED
 	std::map<RsGxsGroupId, rstime_t> mKnownWikis;
 	RsMutex mKnownWikisMutex;
+
+	void flushDistantSearchResults();
+
+	/// Distant search results waiting to be notified, see service_tick()
+	std::map<TurtleRequestId, std::set<RsGxsGroupId> > mSearchResultsToNotify;
+	rstime_t mLastDistantSearchNotificationTS;
+	RsMutex mSearchResultsMtx;
 };
 
 #endif 

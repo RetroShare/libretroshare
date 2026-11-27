@@ -131,6 +131,7 @@ enum class RsPostedEventCode: uint8_t
 	NEW_COMMENT              = 0x0a,
 	NEW_VOTE                 = 0x0b,
 	BOARD_DELETED            = 0x0c,
+	RECEIVED_DISTANT_SEARCH_RESULT = 0x0d, // result for the given group id available for the given turtle request id
 };
 
 
@@ -165,6 +166,28 @@ struct RsGxsPostedEvent: RsEvent
 	}
 
 	~RsGxsPostedEvent() override;
+};
+
+/** This event is used to factor multiple distant search results notifications
+ * in a single event. @see RsPosted::turtleSearchRequest */
+struct RsGxsPostedSearchResultEvent: RsEvent
+{
+	RsGxsPostedSearchResultEvent():
+	    RsEvent(RsEventType::GXS_POSTED),
+	    mPostedEventCode(RsPostedEventCode::RECEIVED_DISTANT_SEARCH_RESULT) {}
+
+	RsPostedEventCode mPostedEventCode;
+	std::map<TurtleRequestId,std::set<RsGxsGroupId> > mSearchResultsMap;
+
+	///* @see RsEvent @see RsSerializable
+	void serial_process( RsGenericSerializer::SerializeJob j,RsGenericSerializer::SerializeContext& ctx) override
+	{
+		RsEvent::serial_process(j, ctx);
+		RS_SERIAL_PROCESS(mPostedEventCode);
+		RS_SERIAL_PROCESS(mSearchResultsMap);
+	}
+
+	~RsGxsPostedSearchResultEvent() override;
 };
 
 class RsPosted : public RsGxsIfaceHelper, public RsGxsCommentService
@@ -473,6 +496,67 @@ public:
 	virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) = 0;
 
 	virtual bool groupShareKeys(const RsGxsGroupId& group,const std::set<RsPeerId>& peers) = 0 ;
+
+	/* Distant (turtle) search */
+
+	/**
+	 * @brief Search the turtle reachable network for matching boards
+	 * @jsonapi{development}
+	 * An @see RsGxsPostedSearchResultEvent is emitted when matching boards
+	 * arrive from the network
+	 * @param[in] matchString string to search into the boards
+	 * @return search id
+	 */
+	virtual TurtleRequestId turtleSearchRequest(const std::string& matchString) = 0;
+
+	/**
+	 * @brief Retrieve available search results
+	 * @jsonapi{development}
+	 * @param[in] searchId search id
+	 * @param[out] results storage for search results
+	 * @return false on error, true otherwise
+	 */
+	virtual bool retrieveDistantSearchResults(
+	        TurtleRequestId searchId,
+	        std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results ) = 0;
+
+	/**
+	 * @brief Request distant board details
+	 * @jsonapi{development}
+	 * An @see RsGxsPostedSearchResultEvent is emitted once details are
+	 * retrieved from the network
+	 * @param[in] groupId id of the group to request to the network
+	 * @return search id
+	 */
+	virtual TurtleRequestId turtleGroupRequest(const RsGxsGroupId& groupId) = 0;
+
+	/**
+	 * @brief Retrieve previously requested distant group
+	 * @jsonapi{development}
+	 * @param[in] groupId id of the group
+	 * @param[out] distantGroup storage for group data
+	 * @return false on error, true otherwise
+	 */
+	virtual bool getDistantSearchResultGroupData(
+	        const RsGxsGroupId& groupId, RsPostedGroup& distantGroup ) = 0;
+
+	/**
+	 * @brief Get the status of a distant search for the given group: unknown,
+	 * known as a search result, data request ongoing, or data available
+	 * @jsonapi{development}
+	 * @param[in] groupId id of the group
+	 * @return status
+	 */
+	virtual DistantSearchGroupStatus getDistantSearchStatus(
+	        const RsGxsGroupId& groupId ) = 0;
+
+	/**
+	 * @brief Clear accumulated search results
+	 * @jsonapi{development}
+	 * @param[in] reqId search id
+	 * @return false on error, true otherwise
+	 */
+	virtual bool clearDistantSearchResults(TurtleRequestId reqId) = 0;
 
 	virtual ~RsPosted();
 };

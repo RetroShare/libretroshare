@@ -148,6 +148,20 @@ virtual void receiveHelperChanges(std::vector<RsGxsNotify*>& changes)
     virtual bool updateGroup(uint32_t &token, RsPostedGroup &group) override;
     virtual bool groupShareKeys(const RsGxsGroupId &group, const std::set<RsPeerId>& peers) override;
 
+    // DISTANT SEARCH API (turtle)
+
+    TurtleRequestId turtleSearchRequest(const std::string& matchString) override;
+    bool retrieveDistantSearchResults(TurtleRequestId searchId, std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results) override;
+    TurtleRequestId turtleGroupRequest(const RsGxsGroupId& groupId) override;
+    bool getDistantSearchResultGroupData(const RsGxsGroupId& groupId, RsPostedGroup& distantGroup) override;
+    DistantSearchGroupStatus getDistantSearchStatus(const RsGxsGroupId& groupId) override;
+    bool clearDistantSearchResults(TurtleRequestId reqId) override;
+
+    /// @see RsNxsObserver::receiveDistantSearchResults
+    void receiveDistantSearchResults(TurtleRequestId id, const RsGxsGroupId& grpId) override;
+
+    void service_tick() override;
+
     //////////////////////////////////////////////////////////////////////////////
 	// WRAPPERS due to the separate Interface.
 
@@ -204,6 +218,11 @@ protected:
 private:
     // private part of blocking API
     bool vote(const RsGxsVote& vote,RsGxsMessageId& voteId,std::string& errorMessage);
+
+    /// Distant search results waiting to be notified, see service_tick()
+    std::map<TurtleRequestId, std::set<RsGxsGroupId> > mSearchResultsToNotify;
+    rstime_t mLastDistantSearchNotificationTS;
+    RsMutex mSearchResultsMtx;
 };
 
 #endif 

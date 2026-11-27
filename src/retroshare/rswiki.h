@@ -75,7 +75,8 @@ enum class RsWikiEventCode : uint8_t
 	NEW_COLLECTION             = 0x04, // New wiki group creation
 	SUBSCRIBE_STATUS_CHANGED   = 0x05, // User subscribed/unsubscribed
 	NEW_COMMENT                = 0x06, // New comment added
-	READ_STATUS_CHANGED        = 0x07  // Read/unread status changed
+	READ_STATUS_CHANGED        = 0x07, // Read/unread status changed
+	RECEIVED_DISTANT_SEARCH_RESULT = 0x08 // Distant search results available, see RsGxsWikiSearchResultEvent
 };
 
 /** Specific Wiki Event for UI updates */
@@ -95,6 +96,26 @@ struct RsGxsWikiEvent : public RsEvent
 		RS_SERIAL_PROCESS(mWikiEventCode);
 		RS_SERIAL_PROCESS(mWikiGroupId);
 		RS_SERIAL_PROCESS(mWikiMsgId);
+	}
+};
+
+/** Factors multiple distant search results notifications in a single event.
+ * Uses the same dynamic "GXS_WIKI" event type as RsGxsWikiEvent.
+ * @see RsWiki::turtleSearchRequest */
+struct RsGxsWikiSearchResultEvent : public RsEvent
+{
+	RsGxsWikiSearchResultEvent(RsEventType type) : RsEvent(type),
+	    mWikiEventCode(RsWikiEventCode::RECEIVED_DISTANT_SEARCH_RESULT) {}
+	virtual ~RsGxsWikiSearchResultEvent() override = default;
+
+	RsWikiEventCode mWikiEventCode;
+	std::map<TurtleRequestId, std::set<RsGxsGroupId> > mSearchResultsMap;
+
+	void serial_process(RsGenericSerializer::SerializeJob j, RsGenericSerializer::SerializeContext& ctx) override
+	{
+		RsEvent::serial_process(j, ctx);
+		RS_SERIAL_PROCESS(mWikiEventCode);
+		RS_SERIAL_PROCESS(mSearchResultsMap);
 	}
 };
 
@@ -254,6 +275,57 @@ public:
 	 * @param read True to mark as read, false to mark as unread
 	 */
 	virtual void setMessageReadStatus(uint32_t& token, const RsGxsGrpMsgIdPair& msgId, bool read) = 0;
+
+	/* Distant (turtle) search */
+
+	/**
+	 * @brief Search the turtle reachable network for matching wikis.
+	 * A search result event is emitted when matching groups arrive from the
+	 * network.
+	 * @param[in] matchString string to search for
+	 * @return search id
+	 */
+	virtual TurtleRequestId turtleSearchRequest(const std::string& matchString) = 0;
+
+	/**
+	 * @brief Retrieve available search results
+	 * @param[in] searchId search id
+	 * @param[out] results storage for search results
+	 * @return false on error, true otherwise
+	 */
+	virtual bool retrieveDistantSearchResults(
+	        TurtleRequestId searchId,
+	        std::map<RsGxsGroupId, RsGxsGroupSearchResults>& results ) = 0;
+
+	/**
+	 * @brief Request distant wiki details from the network
+	 * @param[in] groupId id of the group to request
+	 * @return search id
+	 */
+	virtual TurtleRequestId turtleGroupRequest(const RsGxsGroupId& groupId) = 0;
+
+	/**
+	 * @brief Retrieve previously requested distant group
+	 * @param[in] groupId id of the group
+	 * @param[out] distantGroup storage for group data
+	 * @return false on error, true otherwise
+	 */
+	virtual bool getDistantSearchResultGroupData(
+	        const RsGxsGroupId& groupId, RsWikiCollection& distantGroup ) = 0;
+
+	/**
+	 * @brief Get the status of a distant search for the given group: unknown,
+	 * known as a search result, data request ongoing, or data available
+	 */
+	virtual DistantSearchGroupStatus getDistantSearchStatus(
+	        const RsGxsGroupId& groupId ) = 0;
+
+	/**
+	 * @brief Clear accumulated search results
+	 * @param[in] reqId search id
+	 * @return false on error, true otherwise
+	 */
+	virtual bool clearDistantSearchResults(TurtleRequestId reqId) = 0;
 };
 
 #endif
