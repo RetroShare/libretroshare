@@ -187,7 +187,8 @@ class TurtleTunnel
 		TurtlePeerId local_src ;		// where packets come from. Direction to the source.
 		TurtlePeerId local_dst ;		// where packets should go. Direction to the destination.
 		uint32_t	time_stamp ;			// last time the tunnel was actually used. Used for cleaning old tunnels.
-		uint32_t transfered_bytes ;	// total bytes transferred in this tunnel.
+		uint32_t transfered_bytes ;	// this one used for estimation
+		uint64_t total_bytes ;    // total bytes transferred in this tunnel.
 		float speed_Bps ;             // speed of the traffic through the tunnel
 
 		/* For ending/starting tunnels only. */
