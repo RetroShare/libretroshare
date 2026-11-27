@@ -84,6 +84,8 @@ struct RsGxsIdLocalInfoItem : public RsGxsIdItem
 
     std::map<RsGxsId,rstime_t> mTimeStamps ;
     std::set<RsGxsId> mContacts ;
+	std::map<RsGxsId,RsContactStatus> mOwnContactsStatus;
+	std::map<RsGxsId,RsContactStatus> mContactsStatus;
 };
 
 class RsGxsIdSerialiser : public RsServiceSerializer
