@@ -637,6 +637,11 @@ public:
     void deleteMsgs(uint32_t& token, const GxsMsgReq& msgs);
 
 protected:
+    /** Additional message authorization, enforced on both publishing and
+     * receiving. Services opt in for operations reserved to group admins. */
+    virtual bool service_requiresAdminSignature(const RsGxsMsgMetaData&) const
+    { return false; }
+
     /*!
      * This represents the group before its signature is calculated
      * Reimplement this function if you need to access keys to further extend

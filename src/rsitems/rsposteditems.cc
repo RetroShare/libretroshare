@@ -49,10 +49,20 @@ void RsGxsPostedGroupItem::serial_process(RsGenericSerializer::SerializeJob j,Rs
 	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
         return ;
 
-	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE) && mGroupImage.empty())
+	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE)
+	        && mGroupImage.empty() && mPinnedPosts.ids.empty())
 		return ;
 
 	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mGroupImage,"mGroupImage") ;
+
+	// Older groups end after the description or image. With pins, even an
+	// empty image must be written so the trailing fields remain unambiguous.
+	if(j == RsGenericSerializer::DESERIALIZE && ctx.mOffset == ctx.mSize)
+		return;
+	if((j == RsGenericSerializer::SIZE_ESTIMATE || j == RsGenericSerializer::SERIALIZE)
+	        && mPinnedPosts.ids.empty())
+		return;
+	RsTypeSerializer::serial_process<RsTlvItem>(j,ctx,mPinnedPosts,"mPinnedPosts");
 }
 
 RsItem *RsGxsPostedSerialiser::create_item(uint16_t service_id,uint8_t item_subtype) const
@@ -119,6 +129,7 @@ void RsGxsPostedGroupItem::clear()
 {
 	mDescription.clear();
 	mGroupImage.TlvClear();
+	mPinnedPosts.TlvClear();
 }
 
 bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
@@ -126,6 +137,7 @@ bool RsGxsPostedGroupItem::fromPostedGroup(RsPostedGroup &group, bool moveImage)
 	clear();
 	meta = group.mMeta;
 	mDescription = group.mDescription;
+	mPinnedPosts = group.mPinnedPosts;
 
 	if (moveImage)
 	{
@@ -144,6 +156,7 @@ bool RsGxsPostedGroupItem::toPostedGroup(RsPostedGroup &group, bool moveImage)
 {
 	group.mMeta = meta;
 	group.mDescription = mDescription;
+	group.mPinnedPosts = mPinnedPosts;
 	if (moveImage)
 	{
 		group.mGroupImage.take((uint8_t *) mGroupImage.binData.bin_data, mGroupImage.binData.bin_len);
