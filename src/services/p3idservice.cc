@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <algorithm>
+#include <iterator>
 #include <sstream>
 #include <cstdio>
 
@@ -825,7 +826,7 @@ bool p3IdService::isOwnId(const RsGxsId& id)
 {
     RsStackMutex stack(mIdMtx); /********** STACK LOCKED MTX ******/
 
-    return std::find(mOwnIds.begin(),mOwnIds.end(),id) != mOwnIds.end() ;
+    return mOwnIds.count(id) > 0;
 }
 
 
@@ -841,8 +842,7 @@ bool p3IdService::getOwnSignedIds(std::vector<RsGxsId>& ids)
 	if(ownIdsAreLoaded())
 	{
 		RS_STACK_MUTEX(mIdMtx);
-		ids.resize(mOwnSignedIds.size());
-		std::copy(mOwnSignedIds.begin(), mOwnSignedIds.end(), ids.begin());
+		ids.assign(mOwnSignedIds.begin(), mOwnSignedIds.end());
 		return true;
 	}
 
@@ -857,13 +857,10 @@ bool p3IdService::getOwnPseudonimousIds(std::vector<RsGxsId>& ids)
 	// this implicitely ensure ids are already loaded ;)
 	if(!getOwnSignedIds(signedV)) return false;
 
-	std::set<RsGxsId> signedS(signedV.begin(), signedV.end());
-
-	{
-		RS_STACK_MUTEX(mIdMtx);
-		for(const RsGxsId& id: mOwnIds)
-			if(!signedS.count(id)) ids.push_back(id);
-	}
+	RS_STACK_MUTEX(mIdMtx);
+	std::set_difference( mOwnIds.begin(), mOwnIds.end(),
+	                     mOwnSignedIds.begin(), mOwnSignedIds.end(),
+	                     std::back_inserter(ids) );
 
 	return true;
 }
@@ -878,7 +875,8 @@ bool p3IdService::getOwnIds(std::list<RsGxsId> &ownIds,bool signed_only)
         return false ;
     }
 
-	ownIds = signed_only ? mOwnSignedIds : mOwnIds;
+	const std::set<RsGxsId>& ids(signed_only ? mOwnSignedIds : mOwnIds);
+	ownIds.assign(ids.begin(), ids.end());
 
     return true ;
 }
@@ -886,8 +884,7 @@ bool p3IdService::getOwnIds(std::list<RsGxsId> &ownIds,bool signed_only)
 bool p3IdService::isKnownId(const RsGxsId& id)
 {
 	RS_STACK_MUTEX(mIdMtx);
-	return mKeyCache.is_cached(id) ||
-	        std::find(mOwnIds.begin(), mOwnIds.end(),id) != mOwnIds.end();
+	return mKeyCache.is_cached(id) || mOwnIds.count(id) > 0;
 }
 
 bool p3IdService::serialiseIdentityToMemory( const RsGxsId& id,
@@ -2137,11 +2134,9 @@ bool p3IdService::deleteGroup(uint32_t& token, RsGxsGroupId& groupId)
 #endif
         }
 
-        mOwnSignedIds.remove(id);
-        std::list<RsGxsId>::iterator lit = std::find( mOwnIds.begin(), mOwnIds.end(), id);
-        if (lit != mOwnIds.end())
+        mOwnSignedIds.erase(id);
+        if (mOwnIds.erase(id))
         {
-            mOwnIds.remove((RsGxsId)*lit);
 #ifdef DEBUG_IDS
             std::cerr << "p3IdService::deleteGroup() Removed from OwnIds";
             std::cerr << std::endl;
@@ -3219,7 +3214,7 @@ bool p3IdService::cache_load_ownids(uint32_t token)
 
 				if (item->meta.mSubscribeFlags & GXS_SERV::GROUP_SUBSCRIBE_ADMIN)
 				{
-                    mOwnIds.push_back(RsGxsId(item->meta.mGroupId));
+                    mOwnIds.insert(RsGxsId(item->meta.mGroupId));
 
 					SSGxsIdGroup ssdata;
 
@@ -3228,7 +3223,7 @@ bool p3IdService::cache_load_ownids(uint32_t token)
 					if (ssdata.load(item->meta.mServiceString) && ssdata.pgp.validatedSignature) // (cyril) note: we cannot use if(item->meta.mGroupFlags & RSGXSID_GROUPFLAG_REALID)
                     {																			 // or we need to cmbine it with the deprecated value that overlaps with GXS_SERV::FLAG_PRIVACY_PRIVATE
                     	std::cerr << " signed = YES" << std::endl;								 // see comments line 799 in ::createIdentity();
-						mOwnSignedIds.push_back(RsGxsId(item->meta.mGroupId));
+						mOwnSignedIds.insert(RsGxsId(item->meta.mGroupId));
                     }
                     else
                     	std::cerr << " signed = NO" << std::endl;
@@ -3667,20 +3662,16 @@ RsGenExchange::ServiceCreate_Return p3IdService::service_CreateGroup(
 	{
 		RS_STACK_MUTEX(mIdMtx);
         RsGxsId gxsId(item->meta.mGroupId);
-        if (std::find(mOwnIds.begin(), mOwnIds.end(), gxsId) == mOwnIds.end())
-        {
-			mOwnIds.push_back(gxsId);
+		if(mOwnIds.insert(gxsId).second)
 			mKeysTS[gxsId].TS = time(nullptr);
-        }
 
 		// A PGP-linked id whose signature was made also goes to the list of
 		// own signed ids. This is where a newly created identity enters both
 		// lists, whether it was created with createIdentity(RsGxsId&, ...) or
 		// with a token.
 		if( createStatus == SERVICE_CREATE_SUCCESS &&
-		    (item->meta.mGroupFlags & RSGXSID_GROUPFLAG_REALID_kept_for_compatibility) &&
-		    std::find(mOwnSignedIds.begin(), mOwnSignedIds.end(), gxsId) == mOwnSignedIds.end() )
-			mOwnSignedIds.push_back(gxsId);
+		    (item->meta.mGroupFlags & RSGXSID_GROUPFLAG_REALID_kept_for_compatibility) )
+			mOwnSignedIds.insert(gxsId);
     }
 
 #ifdef DEBUG_IDS

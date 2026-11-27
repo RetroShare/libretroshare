@@ -24,6 +24,7 @@
 
 
 #include <map>
+#include <set>
 #include <string>
 
 #include "retroshare/rsidentity.h"	// External Interfaces.
@@ -456,8 +457,8 @@ private:
 	bool cache_request_ownids();
 	bool cache_load_ownids(uint32_t token);
 
-	std::list<RsGxsId> mOwnIds;
-	std::list<RsGxsId> mOwnSignedIds;
+	std::set<RsGxsId> mOwnIds;
+	std::set<RsGxsId> mOwnSignedIds;
 
 	/************************************************************************
  * Test fns for Caching.
