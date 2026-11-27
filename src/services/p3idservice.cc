@@ -4042,7 +4042,9 @@ bool p3IdService::checkId(const RsGxsIdGroup &grp, RsPgpId &pgpId,bool& error)
         {
             calcPGPHash(RsGxsId(grp.mMeta.mGroupId), mit->second, hash);
 
+#ifdef DEBUG_IDS
             std::cerr << "   profile key " << mit->first << " (" << mit->second << ") : ";
+#endif
 
             if (grp.mPgpIdHash == hash)
             {
