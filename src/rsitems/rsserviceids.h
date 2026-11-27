@@ -51,6 +51,7 @@ enum class RsServiceType : uint16_t
 
 	/// For GXS identity authenticated tunnels, do not confuse with @GXS_DISTANT
 	GXS_TUNNEL                 = 0x0028,
+    GXS_DISPATCH               = 0x0029,
 
 	BANLIST                    = 0x0101,
 	STATUS                     = 0x0102,

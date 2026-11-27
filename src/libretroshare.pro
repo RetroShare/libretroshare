@@ -797,11 +797,20 @@ SOURCES += 	tor/AddOnionCommand.cpp \
 
 # gxs tunnels
 HEADERS += gxstunnel/p3gxstunnel.h \
-			  gxstunnel/rsgxstunnelitems.h \
-			  retroshare/rsgxstunnel.h
+	   gxstunnel/rsgxstunnelitems.h \
+	   retroshare/rsgxstunnel.h
 
 SOURCES += gxstunnel/p3gxstunnel.cc \
-				gxstunnel/rsgxstunnelitems.cc 
+	   gxstunnel/rsgxstunnelitems.cc 
+
+# gxs dispatch
+
+HEADERS += gxsdispatch/p3gxsdispatch.h \
+	   gxsdispatch/rsgxsdispatchitems.h \
+	   retroshare/rsgxsdispatch.h
+
+SOURCES += gxsdispatch/p3gxsdispatch.cc \
+	   gxsdispatch/rsgxsdispatchitems.cc 
 
 # new serialization code
 HEADERS += serialiser/rsserializable.h \
