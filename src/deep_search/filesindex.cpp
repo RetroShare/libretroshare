@@ -44,8 +44,7 @@ std::error_condition DeepFilesIndex::indexFile(
 		if( pIt != db->postlist_end(idTerm) )
 		{
 			oldDoc = db->get_document(*pIt);
-			if( oldDoc.get_value(INDEXER_VERSION_VALUENO) ==
-			        RS_HUMAN_READABLE_VERSION &&
+			if( oldDoc.get_value(INDEXER_VERSION_VALUENO) == RS_VERSION_FULL &&
 			    std::stoull(oldDoc.get_value(INDEXERS_COUNT_VALUENO)) ==
 			        indexersRegister.size() )
 			{
@@ -75,7 +74,7 @@ std::error_condition DeepFilesIndex::indexFile(
 	termgenerator.index_text(name, 1, "N");
 	termgenerator.index_text(name);
 	doc.add_value(FILE_HASH_VALUENO, hashString);
-	doc.add_value(INDEXER_VERSION_VALUENO, RS_HUMAN_READABLE_VERSION);
+  doc.add_value(INDEXER_VERSION_VALUENO, RS_VERSION_FULL);
 	doc.add_value(
 	            INDEXERS_COUNT_VALUENO,
 	            std::to_string(indexersRegister.size()) );

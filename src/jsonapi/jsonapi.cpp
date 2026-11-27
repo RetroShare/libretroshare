@@ -44,7 +44,7 @@
 #include "retroshare/rsversion.h"
 
 // Generated at compile time
-#include "jsonapi-includes.inl"
+#include "jsonapi/jsonapi-includes.inl"
 
 /*extern*/ RsJsonApi* rsJsonApi = nullptr;
 
@@ -54,12 +54,12 @@ const std::string RsJsonApi::DEFAULT_BINDING_ADDRESS = "127.0.0.1";
 /*static*/ const std::multimap<std::string, std::string>
 JsonApiServer::corsHeaders =
 {
-    { "Access-Control-Allow-Origin", "*" },
-    { "Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
-    { "Access-Control-Allow-Headers", "Authorization,DNT,User-Agent,"
-                                      "X-Requested-With,If-Modified-Since,"
-                                      "Cache-Control,Content-Type,Range" },
-    { "Access-Control-Expose-Headers", "Content-Length,Content-Range" }
+	{ "Access-Control-Allow-Origin", "*" },
+	{ "Access-Control-Allow-Methods", "GET, POST, OPTIONS"},
+	{ "Access-Control-Allow-Headers", "Authorization,DNT,User-Agent,"
+	                                  "X-Requested-With,If-Modified-Since,"
+	                                  "Cache-Control,Content-Type,Range" },
+	{ "Access-Control-Expose-Headers", "Content-Length,Content-Range" }
 };
 
 /*static*/ const std::multimap<std::string, std::string>
@@ -167,7 +167,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 	RsThread::setStopTimeout(10);
 #endif
 
-#if !RS_VERSION_AT_LEAST(0,6,6)
+#if !RS_VERSION_ATLEAST(0,6,6,0)
 	registerHandler("/rsLoginHelper/createLocation",
 	                [this](const std::shared_ptr<rb::Session> session)
 	{
@@ -218,7 +218,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 			DEFAULT_API_CALL_JSON_RETURN(rb::OK);
 		} );
 	}, false);
-#endif // !RS_VERSION_AT_LEAST(0,6,6)
+#endif // !RS_VERSION_ATLEAST(0,6,6,0)
 
 	registerHandler("/rsLoginHelper/createLocationV2",
 	                [this](const std::shared_ptr<rb::Session> session)
@@ -538,7 +538,7 @@ JsonApiServer::JsonApiServer(): configMutex("JsonApiServer config"),
 	}, true);
 
 // Generated at compile time
-#include "jsonapi-wrappers.inl"
+#include "jsonapi/jsonapi-wrappers.inl"
 }
 
 void JsonApiServer::registerHandler(
@@ -982,14 +982,25 @@ void JsonApiServer::run()
 }
 
 /*static*/ void RsJsonApi::version(
-        uint32_t& major, uint32_t& minor, uint32_t& mini, std::string& extra,
-        std::string& human )
-{
-	major = RS_MAJOR_VERSION;
-	minor = RS_MINOR_VERSION;
-	mini = RS_MINI_VERSION;
-	extra = RS_EXTRA_VERSION;
-	human = RS_HUMAN_READABLE_VERSION;
+	uint32_t& major, uint32_t& minor, uint32_t& patch, std::string& extra,
+	std::string& full
+) {
+	major = RS_VERSION_MAJOR;
+	minor = RS_VERSION_MINOR;
+	patch = RS_VERSION_PATCH;
+	full = RS_VERSION_FULL;
+
+	// extra is deprecated
+	// major.minor.patch.tweak is the declared RS version (from CMakeLists.txt)
+	// full is the detected RS version (from git)
+	// extra is computed from full here.
+	// so major.minor.patch-extra might be a frankenstein
+	extra = full;
+	extra.erase(0, extra.find("-"));
+	extra.insert(0, "-x"); // mark the deprecation
+#ifdef RS_VERSION_TWEAK
+	extra.insert(0, "." + std::to_string(RS_VERSION_TWEAK));
+#endif
 }
 
 std::error_condition RsJsonApiErrorCategory::default_error_condition(int ev) const noexcept
