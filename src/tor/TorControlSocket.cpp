@@ -126,6 +126,10 @@ ByteArray TorControlSocket::readline(int s)
 
 void TorControlSocket::process()
 {
+
+    int empty_line_cnt = 0;
+    const int MAX_EMPTY_RETRIES = 20;
+
     for (;;) {
         if (!moretoread(0))
             return;
@@ -134,9 +138,14 @@ void TorControlSocket::process()
 
         if(line.empty())	// This happens when the incoming buffer isn't empty yet doesn't have a full line already.
         {
+            if (++empty_line_cnt > MAX_EMPTY_RETRIES || shouldStop()) {
+                return;  // Give up after timeout or stop request
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             continue;
         }
+
+        empty_line_cnt = 0; // reset
 
         if (!line.endsWith(ByteArray("\r\n"))) {
             setError("Invalid control message syntax");
@@ -225,12 +234,12 @@ void TorControlSocket::process()
 int TorControlSocket::tick()
 {
     bool rw = RsTcpSocket::tick();
-
     if(moretoread(0))
         process();
-
+    
     if(!rw)
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));	// temporisation when nothing happens
-
-    return 0;	// not sure about what we should return here.
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Much shorter sleep
+    
+    return 0;
 }
+
