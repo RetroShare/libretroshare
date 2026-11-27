@@ -25,6 +25,7 @@
 #include "retroshare/rsids.h"
 #include "retroshare/rsgxsifacetypes.h"
 #include "serialiser/rsserializable.h"
+#include <vector>
 
 class RsReputations;
 
@@ -95,6 +96,14 @@ struct RsReputationInfo : RsSerializable
 	}
 
 	virtual ~RsReputationInfo();
+};
+
+struct RsBannedIdentityInfo
+{
+	RsGxsId mId;
+	rstime_t mOwnOpinionTs = 0;
+	rstime_t mLastUsedTS = 0;
+	bool mIsLocallyBanned = false;
 };
 
 
@@ -213,6 +222,15 @@ public:
 	 * @return true if identity is banned, false otherwise
 	 */
 	virtual bool isIdentityBanned(const RsGxsId& id) = 0;
+
+	/**
+	 * @brief Get identities with locally or remotely negative reputation.
+	 * @jsonapi{development}
+	 * @param[out] identities storage for negative identities
+	 * @return true on success, false otherwise
+	 */
+	virtual bool getLocallyBannedIdentities(
+	        std::vector<RsBannedIdentityInfo>& identities ) = 0;
 
 	/**
 	 * @brief Check if automatic banning of all identities signed by the given
