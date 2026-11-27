@@ -183,10 +183,6 @@ private:
     {
     public:
         GxsTunnelDHInfo() : dh(0), direction(0), status(GxsTunnelVirtualPeerIdStatus::DH_TODO), last_dh_restart(0), last_data_TS(0), dropped_packets(0)
-  #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-            , accepts_fast_turtle_items(false)
-            , already_probed_for_fast_items(false)
-  #endif
         {}
 
         DH *dh ;
