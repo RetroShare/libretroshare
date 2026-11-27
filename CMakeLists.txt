@@ -246,8 +246,8 @@ set(
 
 ################################################################################
 
-# Git is optional: it is only used to stamp versions (git describe, with a
-# Source_Version file fallback for source tarballs) and by the FetchContent
+# Git is optional: it is only used to stamp versions (git describe; a source
+# tarball carries a Source_Version file instead) and by the FetchContent
 # network fallbacks, which are guarded by RS_FETCH_MISSING_DEPS.
 find_package(Git)
 
@@ -930,56 +930,48 @@ if( NOT RS_MAJOR_VERSION STREQUAL "" AND
 	message(STATUS "libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} defined in command line")
 	set(V_VERSION_SET ON)
 else()
-	set(V_GIT_DESCRIBE_OUTPUT "")
 	set(V_GIT_DESCRIBE_REGEXP "^v([0-9]+).([0-9]+).([0-9]+)(.*)\n$")
 
-	execute_process(
-		COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-		OUTPUT_VARIABLE V_GIT_DESCRIBE_OUTPUT
-		RESULT_VARIABLE V_GIT_RESULT ) # Avoid CMake failure if git fails
+	# A source tarball made from the RetroShare super-project stores the output
+	# of `git describe --tags --long --match v*.*.*` in a Source_Version file
+	# next to this CMakeLists.txt. When the file exists it is the truth: read it
+	# before asking git, because the tarball may be unpacked inside another git
+	# repository (git-buildpackage, or any other checkout) whose tags do not
+	# describe libretroshare. The trailing newline is re-appended so the same
+	# regexp as the git output applies.
+	set(V_VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version")
+	set(V_DESCRIBE_OUTPUT "")
+	if(EXISTS "${V_VERSION_FILE}")
+		file(READ "${V_VERSION_FILE}" V_DESCRIBE_OUTPUT)
+		string(STRIP "${V_DESCRIBE_OUTPUT}" V_DESCRIBE_OUTPUT)
+		set(V_DESCRIBE_OUTPUT "${V_DESCRIBE_OUTPUT}\n")
+		set(V_DESCRIBE_SOURCE "Source_Version file")
+	else()
+		execute_process(
+			COMMAND ${GIT_EXECUTABLE} describe --tags --long --match v*.*.*
+			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+			OUTPUT_VARIABLE V_DESCRIBE_OUTPUT
+			RESULT_VARIABLE V_GIT_RESULT ) # Avoid CMake failure if git fails
+		if(NOT V_GIT_RESULT EQUAL 0)
+			set(V_DESCRIBE_OUTPUT "")
+		endif()
+		set(V_DESCRIBE_SOURCE "git")
+	endif()
 
-	if( V_GIT_RESULT EQUAL 0 AND
-	    V_GIT_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}" )
+	if(V_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
 		string(
 			REGEX REPLACE
 			"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
-			V_GIT_DESCRIBE_LIST ${V_GIT_DESCRIBE_OUTPUT} )
+			V_GIT_DESCRIBE_LIST ${V_DESCRIBE_OUTPUT} )
 		list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
 		list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
 		list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
 		list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
 
-		message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via git")
+		message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via ${V_DESCRIBE_SOURCE}")
 		set(V_VERSION_SET ON)
 	else()
-		# Source tarball fallback: an unpacked source tarball carries no git
-		# metadata, so the tarball preparation script stores the output of
-		# `git describe --tags --long --match v*.*.*` in a Source_Version file
-		# next to this CMakeLists.txt. The trailing newline is re-appended so
-		# the same regexp as the git path applies.
-		set(V_VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version")
-		set(V_FILE_DESCRIBE_OUTPUT "")
-		if(EXISTS "${V_VERSION_FILE}")
-			file(READ "${V_VERSION_FILE}" V_FILE_DESCRIBE_OUTPUT)
-			string(STRIP "${V_FILE_DESCRIBE_OUTPUT}" V_FILE_DESCRIBE_OUTPUT)
-			set(V_FILE_DESCRIBE_OUTPUT "${V_FILE_DESCRIBE_OUTPUT}\n")
-		endif()
-		if(V_FILE_DESCRIBE_OUTPUT MATCHES "${V_GIT_DESCRIBE_REGEXP}")
-			string(
-				REGEX REPLACE
-				"${V_GIT_DESCRIBE_REGEXP}" "\\1;\\2;\\3;\\4"
-				V_GIT_DESCRIBE_LIST ${V_FILE_DESCRIBE_OUTPUT} )
-			list(GET V_GIT_DESCRIBE_LIST 0 RS_MAJOR_VERSION)
-			list(GET V_GIT_DESCRIBE_LIST 1 RS_MINOR_VERSION)
-			list(GET V_GIT_DESCRIBE_LIST 2 RS_MINI_VERSION)
-			list(GET V_GIT_DESCRIBE_LIST 3 RS_EXTRA_VERSION)
-
-			message("libRetroShare version ${RS_MAJOR_VERSION}.${RS_MINOR_VERSION}.${RS_MINI_VERSION}${RS_EXTRA_VERSION} determined via Source_Version file")
-			set(V_VERSION_SET ON)
-		else()
-			message(WARNING "Determining libRetroShare version via git or Source_Version failed please specify it through CMake command line arguments!")
-		endif()
+		message(WARNING "Determining libRetroShare version via ${V_DESCRIBE_SOURCE} failed please specify it through CMake command line arguments!")
 	endif()
 endif()
 
@@ -998,21 +990,19 @@ endif(V_VERSION_SET)
 # Ported from the qmake build (libretroshare.pro RS_LIB_VERSION_HASH block):
 # describe the libretroshare submodule itself and drop the leading 'v' to
 # match the GUI version style. Used only inside libretroshare, hence PRIVATE.
-execute_process(
-	COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
-	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-	OUTPUT_VARIABLE RS_LIB_VERSION_HASH
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-	RESULT_VARIABLE V_GIT_HASH_RESULT ) # Avoid CMake failure if git fails
-
-# Source tarball fallback: reuse the Source_Version file (see the version
-# detection above) when git metadata is absent.
-if(NOT V_GIT_HASH_RESULT EQUAL 0 OR RS_LIB_VERSION_HASH STREQUAL "")
-	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version")
-		file(READ "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version" RS_LIB_VERSION_HASH)
-		string(STRIP "${RS_LIB_VERSION_HASH}" RS_LIB_VERSION_HASH)
-		set(V_GIT_HASH_RESULT 0)
-	endif()
+# A source tarball carries a Source_Version file (see the version detection
+# above): read it first, for the same reason as there.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version")
+	file(READ "${CMAKE_CURRENT_SOURCE_DIR}/Source_Version" RS_LIB_VERSION_HASH)
+	string(STRIP "${RS_LIB_VERSION_HASH}" RS_LIB_VERSION_HASH)
+	set(V_GIT_HASH_RESULT 0)
+else()
+	execute_process(
+		COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		OUTPUT_VARIABLE RS_LIB_VERSION_HASH
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		RESULT_VARIABLE V_GIT_HASH_RESULT ) # Avoid CMake failure if git fails
 endif()
 
 if(V_GIT_HASH_RESULT EQUAL 0 AND NOT RS_LIB_VERSION_HASH STREQUAL "")
@@ -1022,7 +1012,7 @@ if(V_GIT_HASH_RESULT EQUAL 0 AND NOT RS_LIB_VERSION_HASH STREQUAL "")
 		${PROJECT_NAME}
 		PRIVATE RS_LIB_VERSION_HASH="${RS_LIB_VERSION_HASH}" )
 else()
-	message(WARNING "Determining libRetroShare engine hash via git failed")
+	message(WARNING "Determining libRetroShare engine hash via git or Source_Version failed")
 endif()
 
 ################################################################################
