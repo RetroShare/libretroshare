@@ -97,7 +97,7 @@ option(
 	OFF )
 
 option(
-	RS_BRODCAST_DISCOVERY
+	RS_BROADCAST_DISCOVERY
 	"Local area network peer discovery via udp-discovery-cpp"
 	ON )
 
@@ -613,14 +613,28 @@ if(RS_JSON_API)
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
 
 	file(READ "src/jsonapi/jsonapi-generator-doxygen.conf" DOXYFILE_CONTENT)
-	string(APPEND DOXYFILE_CONTENT
-		"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
-		"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
-		"EXCLUDE="
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
-	)
+	if(RS_BROADCAST_DISCOVERY)
+		string(APPEND DOXYFILE_CONTENT
+			"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
+			"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
+			"EXCLUDE="
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
+		)
+	else()
+		string(APPEND DOXYFILE_CONTENT
+			"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
+			"INPUT=${CMAKE_CURRENT_SOURCE_DIR}/src/\n"
+			"EXCLUDE="
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/retroshare/rsbroadcastdiscovery.h"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/services/broadcastdiscoveryservice.cc"
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/services/broadcastdiscoveryservice.h\n"
+		)
+	endif(RS_BROADCAST_DISCOVERY)
 	file(WRITE "${JSON_API_GENERATOR_DOXYFILE}" "${DOXYFILE_CONTENT}")
 
 	# Doxygen never purges its output directory, and the generator emits one
@@ -822,7 +836,7 @@ if(RS_GXSTHEWIRE)
 		${PROJECT_NAME} PUBLIC RS_USE_WIRE )
 endif(RS_GXSTHEWIRE)
 
-if(RS_BRODCAST_DISCOVERY)
+if(RS_BROADCAST_DISCOVERY)
 	## TODO: upstream option to disable tests building
 	set(BUILD_EXAMPLE OFF CACHE BOOL "Do not build udp-discovery-cpp examples")
 	set(BUILD_TOOL OFF CACHE BOOL "Do not build udp-discovery-tool application")
@@ -860,7 +874,7 @@ if(RS_BRODCAST_DISCOVERY)
 	target_link_libraries(${PROJECT_NAME} PRIVATE udp-discovery)
 
 	target_compile_definitions(${PROJECT_NAME} PUBLIC RS_BROADCAST_DISCOVERY)
-endif(RS_BRODCAST_DISCOVERY)
+endif(RS_BROADCAST_DISCOVERY)
 
 if(NOT RS_WARN_DEPRECATED)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE RS_NO_WARN_DEPRECATED)
