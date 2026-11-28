@@ -36,7 +36,7 @@
 // GUI
 //	* the GUI should show for each tunnel:
 //		- starting and ending GXS ids
-//		- tunnel status (DH ok, closed from distant peer, locally closed, etc)
+//		- tunnel status (can talk, closed from distant peer, locally closed, etc)
 //		- amount of data that is transferred in the tunnel
 //		- number of pending items (and total size)
 //		- number ACKed items both ways.
@@ -86,6 +86,10 @@
 //                 IDs that come from the same peer, which is quite likely to be sufficient. The real source of the tunnel will make itself known when sending the 
 //                 DH key.
 //
+//      - it is likely that multiple tunnels will coexist at some point because of cross-demands between the source and destination. So in practice
+//          the turtle layer keeps multiple tunnels, with their own key each, and their own DH exchange data. This is why the key is
+//          stored at the turtle layer and not at the GXS layer. A single tunnel will be used however among active ones, by prioritizing the largest tunnel ID.
+//
 //	* at the GXS layer
 //		- we should be able to have as many tunnels as they are different couples of GXS ids to interact. That means the tunnel should be determined
 //		 by a mix between our own GXS id and the GXS id we're talking to. That is what the TunnelVirtualPeer is.
@@ -95,18 +99,20 @@
 //                            |                                                                                                  |
 //                            +---------------------------> p3Turtle::monitorTunnels(  hash(destination_id)   )                  |
 //                                                                            |                                                  |
-//                                                                   [Turtle async work] -------------------+                    |   Turtle layer: one virtual peer id
+//                                                                   [Turtle async work] -------------------+                    | Turtle layer: multiple virtual peer id
 //                                                                            |                             |                    |
 //      handleTunnelRequest() <-----------------------------------------------+                             |                    |
 //                |                                                                                         |                    |
-//                +---------------- keep record in _gxs_tunnel_virtual_peer_id, initiate DH exchange        |                    -
+//                +---------------- keep record in _gxs_tunnel_virtual_peer_id, initiate DH exchange        |                    |
 //                                                                                                          |                    |
 //      handleDHPublicKey()   <-----------------------------------------------------------------------------+                    |
 //                |                                                                                                              |
-//                +---------------- update _gxs_tunnel_contacts[ tunnel_hash = hash(own_id, destination_id) ]                    |   GxsTunnelId level
-//                |                                                                                                              |
-//                +---------------- notify client service that Peer(destination_id, tunnel_hash) is ready to talk to             |
+//                +---------------- compute the encryption key for that virtual peer                                             |
 //                                                                                                                               -
+//              tick()                                                                                                           |
+//                |                                                                                                              |
+//                +---------------- notify client service that Peer(destination_id, tunnel_hash) is ready to talk to             | GxsTunnelId level: one active virtual peer id
+//                                                                                                                               |
 
 #include <turtle/turtleclientservice.h>
 #include <retroshare/rsgxstunnel.h>
@@ -139,60 +145,62 @@ public:
     
     virtual int tick() override;
     virtual RsServiceInfo getServiceInfo() override;
-    
+
+    enum class GxsTunnelVirtualPeerIdStatus: uint8_t {
+        DH_TODO  = 0x00,
+        DH_HALF  = 0x01,
+        DH_DONE  = 0x02,
+    };
+
 private:
     void flush() ;
-    virtual void handleIncomingItem(const RsGxsTunnelId &tunnel_id, RsGxsTunnelItem *) ;
+    virtual void handleIncomingItem(const TurtleVirtualPeerId &virtual_peer_id, RsGxsTunnelItem *) ;
     
     class GxsTunnelPeerInfo
     {
     public:
         GxsTunnelPeerInfo()
-            : last_contact(0), last_keep_alive_sent(0), status(0), direction(0)
-            , total_sent(0), total_received(0)
-  #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-            , accepts_fast_turtle_items(false)
-            , already_probed_for_fast_items(false)
-  #endif
+            : last_contact(0), last_keep_alive_sent(0), status(GxsTunnelStatus::UNKNOWN), total_sent(0), total_received(0)
         {
-            memset(aes_key, 0, GXS_TUNNEL_AES_KEY_SIZE);
         }
 
         rstime_t last_contact ; 		// used to keep track of working connexion
         rstime_t last_keep_alive_sent ;	// last time we sent a keep alive packet.
 
-        unsigned char aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
-
-        uint32_t status ;                                     // info: do we have a tunnel ?
-        RsPeerId virtual_peer_id;                             // given by the turtle router. Identifies the tunnel.
+        GxsTunnelStatus status ;                              // info: do we have a tunnel ?
+        RsPeerId preferred_virtual_peer_id;                   // chosen among the tunnels given by the turtle router. Identifies the tunnel.
         RsGxsId to_gxs_id;                                    // gxs id we're talking to
         RsGxsId own_gxs_id ;                                  // gxs id we're using to talk.
-        RsTurtleGenericTunnelItem::Direction direction ;      // specifiec wether we are client(managing the tunnel) or server.
         TurtleFileHash hash ;                                 // hash that is last used. This is necessary for handling tunnel establishment
-        std::set<uint32_t> client_services ;                  // services that used this tunnel
+        std::set<uint32_t> local_services;                    // services for which the tunnel was requested locally
+        std::set<uint32_t> remote_services;					  // services for which we're acting as server (meaning requested remotely)
         std::map<uint64_t,rstime_t> received_data_prints ;    // list of recently received messages, to avoid duplicates. Kept for 20 mins at most.
         uint32_t total_sent ;                                 // total data sent to this peer
         uint32_t total_received ;                             // total data received by this peer
-#ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-        bool accepts_fast_turtle_items;                       // does the tunnel accept RsTurtleGenericFastDataItem type?
-        bool already_probed_for_fast_items;                   // has the tunnel been probed already? If not, a fast item will be sent
-#endif
     };
 
     class GxsTunnelDHInfo
     {
     public:
-        GxsTunnelDHInfo() : dh(0), direction(0), status(0), last_dh_restart(0), dropped_packets(0) {}
+        GxsTunnelDHInfo() : dh(0), direction(0), status(GxsTunnelVirtualPeerIdStatus::DH_TODO), last_dh_restart(0), last_data_TS(0), dropped_packets(0)
+        {}
 
         DH *dh ;
-        RsGxsId gxs_id ;
+        RsGxsId to_gxs_id ;			// normally the tunnel_id should be enough, but when acting as server, the id is only known after the DH exchange.
         RsGxsId own_gxs_id ;
-        RsGxsTunnelId tunnel_id ; // this is a proxy, since we cna always recompute that from the two previous values.
+        RsGxsTunnelId tunnel_id ;	// this is a proxy, since we cna always recompute that from the two previous values.
         RsTurtleGenericTunnelItem::Direction direction ;
-	uint32_t status ;
-	TurtleFileHash hash ;
-        rstime_t last_dh_restart ;      // throttles DH restarts triggered by undecryptable packets
-        uint32_t dropped_packets ;      // undecryptable packets dropped since the last DH restart
+        GxsTunnelVirtualPeerIdStatus status ;
+        TurtleFileHash hash ;
+        rstime_t last_dh_restart ;  // throttles DH restarts triggered by undecryptable packets
+        rstime_t last_data_TS ;     // last data packet seen
+        uint32_t dropped_packets ;  // undecryptable packets dropped since the last DH restart
+
+        unsigned char aes_key[GXS_TUNNEL_AES_KEY_SIZE] ;
+
+    private:
+        GxsTunnelDHInfo& operator=(const GxsTunnelDHInfo&) { return *this; }	// make the object non-copyiable
+        GxsTunnelDHInfo(const GxsTunnelDHInfo&) {}								// make the object non-copyiable
     };
 
     struct GxsTunnelData
@@ -204,14 +212,16 @@ private:
     // This maps contains the current peers to talk to with distant chat.
     //
     std::map<RsGxsTunnelId,GxsTunnelPeerInfo> 		_gxs_tunnel_contacts ;		// current peers we can talk to
-    std::map<TurtleVirtualPeerId,GxsTunnelDHInfo>    	_gxs_tunnel_virtual_peer_ids ;	// current virtual peers. Used to figure out tunnels, etc.
+    std::map<TurtleVirtualPeerId,GxsTunnelDHInfo>   _gxs_tunnel_virtual_peer_ids ;	// current virtual peers. Used to figure out tunnels, etc.
 
     // List of items to be sent asap. Used to store items that we cannot pass directly to
     // sendTurtleData(), because of Mutex protection.
 
     std::map<uint64_t,GxsTunnelData> 		pendingGxsTunnelDataItems ;	// items that need provable transport and encryption
-    std::list<RsGxsTunnelItem*> 		pendingGxsTunnelItems ;		// items that do not need provable transport, yet need encryption
+    std::list<RsGxsTunnelItem*> 		    pendingGxsTunnelItems ;		// items that do not need provable transport, yet need encryption
     std::list<RsGxsTunnelDHPublicKeyItem*> 	pendingDHItems ;		
+
+    bool mVpidsChanged;
 
     // Overloaded from RsTurtleClientService
 
@@ -232,36 +242,37 @@ private:
 
     // Cryptography management
     
-    void handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item) ;
+    void handleRecvDHPublicKey(RsGxsTunnelDHPublicKeyItem *item, const TurtleVirtualPeerId &vpid) ;
     bool locked_sendDHPublicKey(const DH *dh, const RsGxsId& own_gxs_id, const RsPeerId& virtual_peer_id) ;
     bool locked_initDHSessionKey(DH *&dh);
 	uint64_t locked_getPacketCounter();
+    void updateTunnels();
 
     TurtleVirtualPeerId virtualPeerIdFromHash(const TurtleFileHash& hash) ;	// ... and to a hash for p3turtle
 
     // item handling
     
-    void handleRecvStatusItem(const RsGxsTunnelId& id,RsGxsTunnelStatusItem *item) ;
-    void handleRecvTunnelDataItem(const RsGxsTunnelId& id,RsGxsTunnelDataItem *item) ;
-    void handleRecvTunnelDataAckItem(const RsGxsTunnelId &id, RsGxsTunnelDataAckItem *item);
+    void handleRecvStatusItem(const TurtleVirtualPeerId& virtual_peer_id, RsGxsTunnelStatusItem *item) ;
+    void handleRecvTunnelDataItem(const TurtleVirtualPeerId& virtual_peer_id,RsGxsTunnelDataItem *item) ;
+    void handleRecvTunnelDataAckItem(RsGxsTunnelDataAckItem *item);
     
     // Comunication with Turtle service
 
-    bool locked_sendEncryptedTunnelData(RsGxsTunnelItem *item) ;
+    bool locked_sendEncryptedTunnelData(RsGxsTunnelItem *item) ; // warning: memory ownership is not captured
     // Frees the data items of a tunnel that is being forgotten (no ACK can arrive any more).
     void locked_dropPendingData(const RsGxsTunnelId& tunnel_id) ;
     bool locked_sendClearTunnelData(RsGxsTunnelDHPublicKeyItem *item);	// this limits the usage to DH items. Others should be encrypted!
     
 #ifndef V07_NON_BACKWARD_COMPATIBLE_CHANGE_004
-    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const TurtleFileHash& hash, const RsPeerId& virtual_peer_id, bool accepts_fast_items) ;
+    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const RsPeerId& virtual_peer_id) ;
 #else
-    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const TurtleFileHash& hash, const RsPeerId& virtual_peer_id) ;
+    bool handleEncryptedData(const uint8_t *data_bytes, uint32_t data_size, const RsPeerId& virtual_peer_id) ;
 #endif
 
     // local data
     
     p3turtle 	*mTurtle ;
-    RsGixs 	*mGixs ;
+    RsGixs 		*mGixs ;
     RsMutex  	 mGxsTunnelMtx ;
     
 	uint64_t mCurrentPacketCounter ;

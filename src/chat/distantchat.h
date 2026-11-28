@@ -92,13 +92,11 @@ public:
     virtual void connectToGxsTunnelService(RsGxsTunnelService *tunnel_service) ;
     
 private:
-	virtual bool acceptDataFromPeer(
-	        const RsGxsId& gxs_id, const RsGxsTunnelId& tunnel_id,
-	        bool am_I_client_side);
-	virtual void notifyTunnelStatus(
-	        const RsGxsTunnelId& tunnel_id, uint32_t tunnel_status);
+    virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,
+                                    bool am_I_client_side);
+    virtual void notifyTunnelStatus(const RsGxsTunnelId& tunnel_id, RsGxsTunnelService::GxsTunnelStatus tunnel_status) override;
 	virtual void receiveData(
-	        const RsGxsTunnelId& id, unsigned char* data, uint32_t data_size );
+            const RsGxsTunnelId& id, unsigned char* data, uint32_t data_size ) override;
 
     // Utility functions.
     

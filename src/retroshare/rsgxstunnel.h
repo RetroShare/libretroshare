@@ -34,11 +34,12 @@ public:
 	RS_GXS_TUNNEL_ERROR_UNKNOWN_GXS_ID    = 0x0001  
     };
 
-    enum {
-	RS_GXS_TUNNEL_STATUS_UNKNOWN          = 0x00,
-	RS_GXS_TUNNEL_STATUS_TUNNEL_DN        = 0x01,
-	RS_GXS_TUNNEL_STATUS_CAN_TALK         = 0x02,
-	RS_GXS_TUNNEL_STATUS_REMOTELY_CLOSED  = 0x03  
+
+    enum class GxsTunnelStatus: uint8_t {
+        UNKNOWN          = 0x00,
+        TUNNEL_DN        = 0x01,
+        CAN_TALK         = 0x02,
+        REMOTELY_CLOSED  = 0x03
     };
     
     class RsGxsTunnelClientService
@@ -47,7 +48,7 @@ public:
         // The client should derive this in order to handle notifications from the tunnel service.
         // This cannot be ignored because the client needs to know when the tunnel is active.
         
-        virtual void notifyTunnelStatus(const RsGxsTunnelId& tunnel_id,uint32_t tunnel_status) =0;
+        virtual void notifyTunnelStatus(const RsGxsTunnelId& tunnel_id,GxsTunnelStatus tunnel_status) =0;
         
         // Data obtained from the corresponding GXS id. The memory ownership is transferred to the client, which
         // is responsible to free it using free() once used.
@@ -60,7 +61,7 @@ public:
         
         // Gives feedback about type of data that is allowed in. For security reasons, this always needs to be re-derived (Clients can return true on default)
         
-        virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,const RsGxsTunnelId& tunnel_id,bool am_I_client_side) = 0 ;
+        virtual bool acceptDataFromPeer(const RsGxsId& gxs_id,bool am_I_client_side) = 0 ;
     };
     
     class GxsTunnelInfo
@@ -69,12 +70,13 @@ public:
 	    // Tunnel information
 
 	    RsGxsTunnelId tunnel_id ;
-	    RsGxsId  destination_gxs_id ;        // GXS Id we're talking to
-	    RsGxsId  source_gxs_id ;	          // GXS Id we're using to talk
-	    uint32_t tunnel_status ;	          // active, requested, DH pending, etc.
-	    uint32_t total_size_sent ;	          // total bytes sent through that tunnel since openned (including management). 
+        RsGxsId  destination_gxs_id ;     // GXS Id we're talking to
+        RsGxsId  source_gxs_id ;	      // GXS Id we're using to talk
+        GxsTunnelStatus tunnel_status ;	  // active, requested, DH pending, etc.
+        uint32_t total_size_sent ;	      // total bytes sent through that tunnel since openned (including management).
 	    uint32_t total_size_received ;	  // total bytes received through that tunnel since openned (including management). 
-            bool is_client_side ; 		  // specifiec wether we are client(managing the tunnel) or server.
+        std::set<uint32_t> client_side_services ;
+        std::set<uint32_t> server_side_services ;
 
 	    // Data packets
 
