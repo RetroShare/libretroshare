@@ -612,6 +612,15 @@ if(RS_JSON_API)
 		JSONAPI_GENERATOR_EXECUTABLE
 		"${JSONAPI_GENERATOR_SOURCE_DIR}/jsonapi-generator.py" )
 
+	# Headers of services that are not built must not get JSON API wrappers:
+	# the wrappers would reference rsWire and RsWire methods that only
+	# p3wire.cc, compiled with RS_GXSTHEWIRE, defines.
+	set(JSON_API_EXTRA_EXCLUDE "")
+	if(NOT RS_GXSTHEWIRE)
+		string(APPEND JSON_API_EXTRA_EXCLUDE
+			"	${CMAKE_CURRENT_SOURCE_DIR}/src/retroshare/rswire.h" )
+	endif()
+
 	file(READ "src/jsonapi/jsonapi-generator-doxygen.conf" DOXYFILE_CONTENT)
 	string(APPEND DOXYFILE_CONTENT
 		"\nOUTPUT_DIRECTORY=${JSONAPI_GENERATOR_OUTPUT_DIR}\n"
@@ -619,7 +628,8 @@ if(RS_JSON_API)
 		"EXCLUDE="
 		"	${CMAKE_CURRENT_SOURCE_DIR}/src/tests"
 		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unused"
-		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished\n"
+		"	${CMAKE_CURRENT_SOURCE_DIR}/src/unfinished"
+		"${JSON_API_EXTRA_EXCLUDE}\n"
 	)
 	file(WRITE "${JSON_API_GENERATOR_DOXYFILE}" "${DOXYFILE_CONTENT}")
 
